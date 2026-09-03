@@ -320,47 +320,47 @@ class ResultManagementController extends Controller
 
         // If subclassID is provided (from classManagement), verify teacher access and set defaults
         $isTeacherView = false;
-        if (
-            !empty($subclassIDParam) &&
-            !empty($teacherID) &&
-            !$isCoordinatorResultsView
-        ) {
-            // Verify teacher has access to this subclass
+        if (!empty($subclassIDParam) && !$isCoordinatorResultsView) {
             $subclass = Subclass::with("class")->find($subclassIDParam);
-
-            // Allow if teacher is assigned OR has broad permissions
-            if (
+            $isAssignedClassTeacher =
                 $subclass &&
-                ($subclass->teacherID == $teacherID ||
-                    $hasBroadResultPermission)
-            ) {
-                // Set default filters for teacher view
-                $subclassFilter = $subclassIDParam;
+                !empty($teacherID) &&
+                (int) $subclass->teacherID === (int) $teacherID;
+
+            // Class teacher arriving from Class Management: always lock to THAT stream,
+            // even if they also have school-wide result permissions.
+            if ($isAssignedClassTeacher) {
+                $subclassFilter = (string) $subclass->subclassID;
                 $classFilter = $subclass->classID;
-                if ($subclass->teacherID == $teacherID) {
-                    $isTeacherView = true;
-                }
-            } else {
-                // Teacher doesn't have access to this subclass
-                if ($userType === "Teacher" && !$hasBroadResultPermission) {
-                    return redirect()
-                        ->route("AdmitedClasses")
-                        ->with("error", "Unauthorized access to this class")
-                        ->with("error_type", "unauthorized_access");
-                }
+                $isTeacherView = true;
+            } elseif (
+                $subclass &&
+                ($hasBroadResultPermission || $userType === "Admin")
+            ) {
+                $subclassFilter = (string) $subclass->subclassID;
+                $classFilter = $subclass->classID;
+            } elseif ($userType === "Teacher") {
+                return redirect()
+                    ->route("AdmitedClasses")
+                    ->with("error", "Unauthorized access to this class")
+                    ->with("error_type", "unauthorized_access");
             }
         }
 
-        // SECURITY: For regular teachers without broad permissions, always verify they have access to the selected subclass
+        // SECURITY: Class-teacher view (or teachers without school-wide access)
+        // must stay on their assigned subclass.
         if (
             $userType === "Teacher" &&
             !empty($teacherID) &&
-            !$hasBroadResultPermission
+            ($isTeacherView || !$hasBroadResultPermission)
         ) {
             // If subclassID param is provided, use it
             if (!empty($subclassIDParam)) {
                 $subclass = Subclass::with("class")->find($subclassIDParam);
-                if ($subclass && $subclass->teacherID == $teacherID) {
+                if (
+                    $subclass &&
+                    (int) $subclass->teacherID === (int) $teacherID
+                ) {
                     $subclassFilter = $subclassIDParam;
                     $classFilter = $subclass->classID;
                     $isTeacherView = true;
@@ -378,7 +378,7 @@ class ResultManagementController extends Controller
                 }
 
                 // Verify teacher is the class teacher of this subclass
-                if ($subclass->teacherID != $teacherID) {
+                if ((int) $subclass->teacherID !== (int) $teacherID) {
                     return redirect()
                         ->route("AdmitedClasses")
                         ->with(
@@ -433,10 +433,14 @@ class ResultManagementController extends Controller
                 ->toArray();
 
         // Get classes for filter
-        $classes = ClassModel::where("schoolID", $schoolID)
-            ->where("status", "Active")
-            ->orderBy("class_name")
-            ->get();
+        $classesQuery = ClassModel::where("schoolID", $schoolID)->where(
+            "status",
+            "Active",
+        );
+        if ($isTeacherView && $classFilter) {
+            $classesQuery->where("classID", $classFilter);
+        }
+        $classes = $classesQuery->orderBy("class_name")->get();
 
         // Get subclasses for filter (only for selected main class) with display names
         $subclasses = collect();
@@ -453,10 +457,10 @@ class ResultManagementController extends Controller
             // Group by classID for consistency with other views
             $allSubclasses = $classSubclasses->groupBy("classID");
         } elseif (
-            $userType === "Teacher" &&
             !empty($teacherID) &&
             !$isCoordinatorResultsView &&
-            !$hasBroadResultPermission
+            ($isTeacherView ||
+                ($userType === "Teacher" && !$hasBroadResultPermission))
         ) {
             // SECURITY: For regular teachers (class teacher view), only show their assigned subclasses
             if ($classFilter) {
@@ -579,163 +583,230 @@ class ResultManagementController extends Controller
 
         // NEW: Fetch Incomplete Results logic (STABLE ULTRA-FAST BATCH SCAN)
         if ($getIncompleteResults && $examFilter) {
-            $exam = Examination::find($examFilter);
-            if (!$exam) {
-                return response()->json(["error" => "Exam not found"], 404);
-            }
+            try {
+                $exam = Examination::find($examFilter);
+                if (!$exam) {
+                    return response()->json(["error" => "Exam not found"], 404);
+                }
 
-            // 1. Get all active students grouped by subclass (minimal columns)
-            $studentsBySubclass = DB::table("students")
-                ->where("schoolID", $schoolID)
-                ->where("status", "Active")
-                ->select(
-                    "studentID",
-                    "subclassID",
-                    "first_name",
-                    "last_name",
-                    "admission_number",
-                )
-                ->get()
-                ->groupBy("subclassID");
-
-            // 2. Get ONLY IDs of existing marks for this exam
-            $completedMarksBySubject = DB::table("results")
-                ->where("examID", $examFilter)
-                ->whereNotNull("marks")
-                ->select("studentID", "class_subjectID")
-                ->get()
-                ->groupBy("class_subjectID")
-                ->map(function ($rows) {
-                    return $rows->pluck("studentID")->toArray();
-                });
-
-            // 3. Get active class subjects (Scoped correctly without non-existent schoolID column)
-            $classIDFilter = $request->input("classID", "");
-            $subclassIDFilter = $request->input("subclassID", "");
-
-            $classSubjects = ClassSubject::where("status", "Active")
-                ->whereHas("subclass.class", function ($q) use ($schoolID) {
-                    $q->where("schoolID", $schoolID);
-                })
-                ->when($classIDFilter, function ($query) use ($classIDFilter) {
-                    return $query->whereHas("subclass", function ($q) use (
-                        $classIDFilter,
-                    ) {
-                        $q->where("classID", $classIDFilter);
-                    });
-                })
-                ->when($subclassIDFilter, function ($query) use (
+                $classIDFilter =
+                    $request->input("classID", "") ?: $classFilter;
+                $subclassIDFilter =
+                    $request->input("subclassID", "") ?: $subclassFilter;
+                $classIDFilter = $this->normalizeResultsSubclassFilter(
+                    $classIDFilter,
+                );
+                $subclassIDFilter = $this->normalizeResultsSubclassFilter(
                     $subclassIDFilter,
-                ) {
-                    return $query->where("subclassID", $subclassIDFilter);
-                })
-                ->with(["subject", "teacher", "subclass.class"])
-                ->get();
+                );
 
-            $incompleteData = [];
+                $studentsQuery = DB::table("students")
+                    ->where("schoolID", $schoolID)
+                    ->where("status", "Active")
+                    ->select(
+                        "studentID",
+                        "subclassID",
+                        "first_name",
+                        "last_name",
+                        "admission_number",
+                    );
 
-            // Get all elected student mappings for Optional Subjects
-            $optionalCidIds = $classSubjects
-                ->filter(function ($cs) {
-                    return strtolower($cs->student_status ?? "") === "optional";
-                })
-                ->pluck("class_subjectID")
-                ->toArray();
+                $enrollmentSvc = app(StudentEnrollmentService::class);
+                if ($subclassIDFilter) {
+                    $enrolledIds = $enrollmentSvc->studentIDsInSubclass(
+                        (int) $subclassIDFilter,
+                        (int) $schoolID,
+                        "Active",
+                    );
+                    if (!empty($enrolledIds)) {
+                        $studentsQuery->whereIn("studentID", $enrolledIds);
+                    } else {
+                        $studentsQuery->where(function ($q) use (
+                            $subclassIDFilter,
+                        ) {
+                            $q->where("subclassID", $subclassIDFilter)->orWhere(
+                                "old_subclassID",
+                                $subclassIDFilter,
+                            );
+                        });
+                    }
+                } elseif ($classIDFilter) {
+                    $enrolledIds = $enrollmentSvc->studentIDsInClass(
+                        (int) $classIDFilter,
+                        (int) $schoolID,
+                        "Active",
+                    );
+                    if (!empty($enrolledIds)) {
+                        $studentsQuery->whereIn("studentID", $enrolledIds);
+                    }
+                }
 
-            $electorsBySubject = collect();
-            if (!empty($optionalCidIds)) {
-                $electorsBySubject = DB::table("subject_electors")
-                    ->whereIn("classSubjectID", $optionalCidIds)
+                $studentsBySubclass = $studentsQuery
                     ->get()
-                    ->groupBy("classSubjectID")
+                    ->groupBy("subclassID");
+
+                $completedMarksBySubject = DB::table("results")
+                    ->where("examID", $examFilter)
+                    ->whereNotNull("marks")
+                    ->select("studentID", "class_subjectID")
+                    ->get()
+                    ->groupBy("class_subjectID")
                     ->map(function ($rows) {
                         return $rows->pluck("studentID")->toArray();
                     });
-            }
 
-            foreach ($classSubjects as $cs) {
-                if (!$cs->subclassID) {
-                    continue;
+                $classSubjects = ClassSubject::where("status", "Active")
+                    ->whereHas("subclass.class", function ($q) use ($schoolID) {
+                        $q->where("schoolID", $schoolID);
+                    })
+                    ->when($classIDFilter, function ($query) use (
+                        $classIDFilter,
+                    ) {
+                        return $query->whereHas("subclass", function ($q) use (
+                            $classIDFilter,
+                        ) {
+                            $q->where("classID", $classIDFilter);
+                        });
+                    })
+                    ->when($subclassIDFilter, function ($query) use (
+                        $subclassIDFilter,
+                    ) {
+                        return $query->where("subclassID", $subclassIDFilter);
+                    })
+                    ->with(["subject", "teacher", "subclass.class"])
+                    ->get();
+
+                $incompleteData = [];
+
+                $optionalCidIds = $classSubjects
+                    ->filter(function ($cs) {
+                        return strtolower($cs->student_status ?? "") ===
+                            "optional";
+                    })
+                    ->pluck("class_subjectID")
+                    ->toArray();
+
+                $electorsBySubject = collect();
+                if (!empty($optionalCidIds)) {
+                    $electorsBySubject = DB::table("subject_electors")
+                        ->whereIn("classSubjectID", $optionalCidIds)
+                        ->get()
+                        ->groupBy("classSubjectID")
+                        ->map(function ($rows) {
+                            return $rows->pluck("studentID")->toArray();
+                        });
                 }
 
-                $expectedStudents = clone $studentsBySubclass->get(
-                    $cs->subclassID,
-                ) ?:
-                collect();
-                if ($expectedStudents->isEmpty()) {
-                    continue;
-                }
-
-                // If subject is optional, only process elected students
-                if (strtolower($cs->student_status ?? "") === "optional") {
-                    $electedIds = $electorsBySubject->get(
-                        $cs->class_subjectID,
-                        [],
-                    );
-                    $expectedStudents = $expectedStudents->filter(function (
-                        $st,
-                    ) use ($electedIds) {
-                        return in_array($st->studentID, $electedIds);
-                    });
-                }
-
-                if ($expectedStudents->isEmpty()) {
-                    continue;
-                }
-
-                $completedIds =
-                    $completedMarksBySubject->get($cs->class_subjectID) ?: [];
-
-                // Identify missing students (not in results OR have no marks)
-                $missing = $expectedStudents->filter(function ($st) use (
-                    $completedIds,
-                ) {
-                    return !in_array($st->studentID, $completedIds);
-                });
-
-                if ($missing->isNotEmpty()) {
-                    $teacherId = $cs->teacherID ?: 0;
-                    if (!isset($incompleteData[$teacherId])) {
-                        $incompleteData[$teacherId] = [
-                            "teacher_name" => $cs->teacher
-                                ? $cs->teacher->first_name .
-                                    " " .
-                                    $cs->teacher->last_name
-                                : "Unassigned",
-                            "teacher_photo" => $cs->teacher
-                                ? $cs->teacher->image
-                                : null,
-                            "teacher_phone" => $cs->teacher
-                                ? $cs->teacher->phone_number
-                                : null,
-                            "teacher_gender" => $cs->teacher
-                                ? $cs->teacher->gender
-                                : "Male",
-                            "subjects" => [],
-                        ];
+                foreach ($classSubjects as $cs) {
+                    if (!$cs->subclassID) {
+                        continue;
                     }
 
-                    $incompleteData[$teacherId]["subjects"][] = [
-                        "subject_name" => $cs->subject
-                            ? $cs->subject->subject_name
-                            : "Unknown",
-                        "class_name" =>
-                            $cs->subclass && $cs->subclass->class
-                                ? $cs->subclass->class->class_name .
-                                    " " .
-                                    $cs->subclass->subclass_name
-                                : "Unknown",
-                        "missing_count" => $missing->count(),
-                        "students" => $missing->values()->take(150)->toArray(),
-                    ];
-                }
-            }
+                    $expectedStudents = collect(
+                        $studentsBySubclass->get($cs->subclassID) ?:
+                        $studentsBySubclass->get((string) $cs->subclassID) ?:
+                        [],
+                    );
+                    if ($expectedStudents->isEmpty() && $subclassIDFilter) {
+                        $expectedStudents = $studentsBySubclass
+                            ->flatten(1)
+                            ->values();
+                    }
+                    if ($expectedStudents->isEmpty()) {
+                        continue;
+                    }
 
-            return response()->json([
-                "exam_name" => $exam->exam_name,
-                "incomplete_count" => count($incompleteData),
-                "data" => array_values($incompleteData),
-            ]);
+                    if (strtolower($cs->student_status ?? "") === "optional") {
+                        $electedIds = $electorsBySubject->get(
+                            $cs->class_subjectID,
+                            [],
+                        );
+                        $expectedStudents = $expectedStudents->filter(
+                            function ($st) use ($electedIds) {
+                                return in_array(
+                                    $st->studentID,
+                                    $electedIds,
+                                    false,
+                                );
+                            },
+                        );
+                    }
+
+                    if ($expectedStudents->isEmpty()) {
+                        continue;
+                    }
+
+                    $completedIds =
+                        $completedMarksBySubject->get($cs->class_subjectID) ?:
+                        [];
+
+                    $missing = $expectedStudents->filter(function ($st) use (
+                        $completedIds,
+                    ) {
+                        return !in_array($st->studentID, $completedIds, false);
+                    });
+
+                    if ($missing->isNotEmpty()) {
+                        $teacherId = $cs->teacherID ?: 0;
+                        if (!isset($incompleteData[$teacherId])) {
+                            $incompleteData[$teacherId] = [
+                                "teacher_name" => $cs->teacher
+                                    ? $cs->teacher->first_name .
+                                        " " .
+                                        $cs->teacher->last_name
+                                    : "Unassigned",
+                                "teacher_photo" => $cs->teacher
+                                    ? $cs->teacher->image
+                                    : null,
+                                "teacher_phone" => $cs->teacher
+                                    ? $cs->teacher->phone_number
+                                    : null,
+                                "teacher_gender" => $cs->teacher
+                                    ? $cs->teacher->gender
+                                    : "Male",
+                                "subjects" => [],
+                            ];
+                        }
+
+                        $incompleteData[$teacherId]["subjects"][] = [
+                            "subject_name" => $cs->subject
+                                ? $cs->subject->subject_name
+                                : "Unknown",
+                            "class_name" =>
+                                $cs->subclass && $cs->subclass->class
+                                    ? $cs->subclass->class->class_name .
+                                        " " .
+                                        $cs->subclass->subclass_name
+                                    : "Unknown",
+                            "missing_count" => $missing->count(),
+                            "students" => $missing
+                                ->values()
+                                ->take(150)
+                                ->toArray(),
+                        ];
+                    }
+                }
+
+                return response()->json([
+                    "exam_name" => $exam->exam_name,
+                    "incomplete_count" => count($incompleteData),
+                    "data" => array_values($incompleteData),
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning(
+                    "Incomplete results analysis failed: " . $e->getMessage(),
+                );
+
+                return response()->json(
+                    [
+                        "error" => "Analysis failed",
+                        "exam_name" => "Current Exam",
+                        "incomplete_count" => 0,
+                        "data" => [],
+                    ],
+                    500,
+                );
+            }
         }
 
         // Support both exam and term report subject details
@@ -2232,9 +2303,9 @@ class ResultManagementController extends Controller
 
         // SECURITY: For regular teachers without broad permissions, ensure they can only access their assigned subclass
         if (
-            $userType === "Teacher" &&
             !empty($teacherID) &&
-            !$hasBroadResultPermission
+            ($isTeacherView ||
+                ($userType === "Teacher" && !$hasBroadResultPermission))
         ) {
             if ($isTeacherView) {
                 if (empty($subclassFilter)) {
@@ -2245,7 +2316,10 @@ class ResultManagementController extends Controller
                 }
 
                 $subclass = Subclass::find($subclassFilter);
-                if (!$subclass || $subclass->teacherID != $teacherID) {
+                if (
+                    !$subclass ||
+                    (int) $subclass->teacherID !== (int) $teacherID
+                ) {
                     return redirect()
                         ->route("AdmitedClasses")
                         ->with(
@@ -2256,7 +2330,10 @@ class ResultManagementController extends Controller
                 }
             } elseif ($subclassFilter) {
                 $subclass = Subclass::find($subclassFilter);
-                if (!$subclass || $subclass->teacherID != $teacherID) {
+                if (
+                    !$subclass ||
+                    (int) $subclass->teacherID !== (int) $teacherID
+                ) {
                     return redirect()
                         ->route("AdmitedClasses")
                         ->with(

@@ -5255,10 +5255,13 @@ $(document).ready(function() {
         $.ajax({
             url: '{{ route("manageResults") }}',
             method: 'GET',
+            dataType: 'json',
             data: {
                 examID: examID,
-                classID: $('#class').val(),
-                subclassID: $('#subclass').val(),
+                class: getResultsClassFilter(),
+                subclass: getResultsSubclassFilter(),
+                classID: getResultsClassFilter(),
+                subclassID: getResultsSubclassFilter(),
                 getIncompleteResults: true
             },
             success: function(response) {
