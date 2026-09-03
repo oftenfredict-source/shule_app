@@ -1,22 +1,50 @@
 {{-- Excel-like class board (landscape). Styles extend results.blade.php --}}
 @php
+    if (!function_exists('pdfBoardHeaderTextWidth')) {
+        /** Helvetica-Bold cap widths (em) — size headers from actual label length. */
+        function pdfBoardHeaderTextWidth(string $text, float $font): float {
+            static $em = [
+                ' ' => 0.28, 'A' => 0.72, 'B' => 0.67, 'C' => 0.72, 'D' => 0.72,
+                'E' => 0.67, 'F' => 0.61, 'G' => 0.78, 'H' => 0.78, 'I' => 0.28,
+                'J' => 0.56, 'K' => 0.78, 'L' => 0.56, 'M' => 0.83, 'N' => 0.72,
+                'O' => 0.78, 'P' => 0.67, 'Q' => 0.78, 'R' => 0.72, 'S' => 0.67,
+                'T' => 0.61, 'U' => 0.72, 'V' => 0.67, 'W' => 0.94, 'X' => 0.67,
+                'Y' => 0.67, 'Z' => 0.61, '-' => 0.33, '.' => 0.28, '/' => 0.28,
+                '0' => 0.56, '1' => 0.56, '2' => 0.56, '3' => 0.56, '4' => 0.56,
+                '5' => 0.56, '6' => 0.56, '7' => 0.56, '8' => 0.56, '9' => 0.56,
+            ];
+            $w = 0.0;
+            $len = mb_strlen($text, 'UTF-8');
+            for ($i = 0; $i < $len; $i++) {
+                $ch = mb_strtoupper(mb_substr($text, $i, 1, 'UTF-8'), 'UTF-8');
+                $w += ($em[$ch] ?? 0.72) * $font;
+            }
+            return $w;
+        }
+    }
     if (!function_exists('pdfBoardVerticalLabel')) {
-        /** Excel-style vertical header with explicit size (DomPDF-safe) */
+        /**
+         * Sideways header. Spacer image forces DomPDF cell height from text length.
+         * $rowH = tallest label on this board; $textW = this label's measured width.
+         */
         function pdfBoardVerticalLabel(?string $text, array $m = []): string {
             $text = strtoupper(trim((string) $text));
             if ($text === '') {
                 return '';
             }
             $safe = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
-            $h = max(80, (int) ($m['h'] ?? 140));
-            $w = max(10, (int) ($m['w'] ?? 12));
             $font = isset($m['font']) ? (float) $m['font'] : 10;
-            $line = isset($m['line']) ? (float) $m['line'] : 12;
-            return '<table class="v-inner" style="width:100%;height:'.$h.'px;border-collapse:collapse;"><tr><td style="border:none;padding:0;margin:0;vertical-align:bottom;text-align:center;overflow:visible;">'
-                . '<div class="v-box" style="width:'.$w.'px;height:'.$h.'px;margin:0 auto;position:relative;overflow:visible;">'
-                . '<div class="v-rot" style="position:absolute;left:0;bottom:0;width:'.$h.'px;height:'.$line.'px;line-height:'.$line.'px;font-size:'.$font.'px;font-weight:bold;color:#940000;white-space:nowrap;text-align:left;letter-spacing:0;transform:rotate(-90deg);transform-origin:left bottom;">'
+            $line = isset($m['line']) ? (int) round($m['line']) : (int) round($font * 1.2);
+            $colW = max($line, (int) ($m['w'] ?? $line));
+            $textW = isset($m['textW']) ? (float) $m['textW'] : pdfBoardHeaderTextWidth($text, $font);
+            $rotW = (int) max(16, ceil($textW + 12));
+            $rowH = (int) max($rotW, (int) ($m['h'] ?? $rotW));
+            $gif = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            return '<div class="v-cell" style="position:relative;width:'.$colW.'px;height:'.$rowH.'px;margin:0 auto;overflow:visible;">'
+                . '<img src="'.$gif.'" width="'.$colW.'" height="'.$rowH.'" style="display:block;width:'.$colW.'px;height:'.$rowH.'px;border:0;" alt="" />'
+                . '<div class="v-rot" style="position:absolute;left:0;bottom:0;width:'.$rotW.'px;height:'.$line.'px;line-height:'.$line.'px;font-size:'.$font.'px !important;font-weight:bold;color:#940000;white-space:nowrap;text-align:left;letter-spacing:0;transform:rotate(-90deg);transform-origin:left bottom;">'
                 . $safe
-                . '</div></div></td></tr></table>';
+                . '</div></div>';
         }
     }
 @endphp
@@ -194,66 +222,37 @@
         font-weight: bold;
         font-size: 14px;
     }
-    /* Vertical titles â€” base size; per-board height expands with longest subject name */
+    /* Vertical titles: height comes from spacer sized to the longest label */
     table.board-results th.v,
-    table.board-results th.v-subj {
-        height: 180px;
+    table.board-results th.v-subj,
+    table.board-results th.v-stream,
+    table.board-results th.v-trail {
         padding: 1px 0;
         vertical-align: bottom;
         text-align: center;
         overflow: visible !important;
+        font-size: 10px !important;
+        height: auto;
     }
     table.board-results th.v { width: 2.5%; }
-    /* COMBIE/COMBINATION: vertical header like SEX/POINT; column wide enough for horizontal codes (PMC) */
-    table.board-results th.v-stream {
-        width: 4.2%;
-        font-size: 14px;
-        vertical-align: bottom;
-        padding: 1px 0 0 0;
-        height: 180px;
-        overflow: visible !important;
-    }
-    table.board-results th.v-trail { width: 4%; height: 180px; overflow: visible !important; }
+    table.board-results th.v-stream { width: 4.2%; padding: 1px 0 0 0; }
+    table.board-results th.v-trail { width: 4%; }
     table.board-results th.v-trail.v-total { width: 5.8%; }
     table.board-results th.v-trail.v-avg { width: 4.6%; }
     table.board-results th.v-subj { width: auto; }
 
-    table.board-results table.v-inner {
-        width: 100%;
-        height: 176px;
-        border-collapse: collapse;
+    table.board-results .v-cell {
         margin: 0 auto;
-    }
-    table.board-results table.v-inner td {
-        border: none !important;
-        padding: 0 !important;
-        margin: 0;
-        text-align: center;
-        vertical-align: bottom;
-        background: transparent;
         overflow: visible;
-    }
-    table.board-results .v-box {
-        width: 12px;
-        height: 176px;
-        margin: 0 auto;
-        position: relative;
-        overflow: visible;
-    }
-    table.board-results th.v-subj .v-box {
-        width: 13px;
     }
     table.board-results .v-rot {
         position: absolute;
         left: 0;
         bottom: 0;
-        width: 176px;
         white-space: nowrap;
         font-size: 10px !important;
         font-weight: bold;
         color: #940000;
-        line-height: 12px;
-        height: 12px;
         text-align: left;
         letter-spacing: 0;
         transform: rotate(-90deg);
@@ -515,16 +514,6 @@
             : ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0];
 
         // Header row height from longest vertical title (subjects + fixed labels)
-        $maxVertLen = 0;
-        foreach (['SEX', 'POINT', 'DIVISION', 'TOTAL', 'AVERAGE', 'POSITION', 'GRADE', 'COMBINATION', 'INDEX NO'] as $fixedLabel) {
-            $maxVertLen = max($maxVertLen, strlen($fixedLabel));
-        }
-        foreach ($subjects as $subj) {
-            $maxVertLen = max(
-                $maxVertLen,
-                mb_strlen(strtoupper(trim((string) ($subj['subject_name'] ?? ''))), 'UTF-8'),
-            );
-        }
         $boardPdfScale = isset($pdfScale) ? (float) $pdfScale : 1.0;
         if ($boardPdfScale < 1.0) {
             $boardPdfScale = 1.0;
@@ -533,19 +522,32 @@
             $boardPdfScale = 1.4;
         }
         $vFont = round(10 * $boardPdfScale, 2);
-        $vLine = round(12 * $boardPdfScale, 2);
-        // Helvetica Bold caps ~1em wide after rotation; pad so last letters are not clipped
-        $vHeaderH = (int) min(340, max(180, round($maxVertLen * $vFont * 1.05) + 36));
-        $vInnerH = $vHeaderH;
-        $vBoxH = $vHeaderH;
-        $vBoxW = (int) max(12, round($vLine));
+        $vLine = max(10, (int) round(12 * $boardPdfScale));
+        $vBoxW = $vLine;
+        $vertLabels = ['SEX', 'POINT', 'DIVISION', 'TOTAL', 'AVERAGE', 'POSITION', 'GRADE'];
+        if (!empty($board['showStream'])) {
+            $vertLabels[] = strtoupper(trim((string) ($board['streamHeader'] ?? 'COMBINATION')));
+        }
+        foreach ($board['trailingHeaders'] ?? [] as $th) {
+            $vertLabels[] = strtoupper(trim((string) $th));
+        }
+        foreach ($subjects as $subj) {
+            $vertLabels[] = strtoupper(trim((string) ($subj['subject_name'] ?? '')));
+        }
+        $vHeaderH = 24;
+        foreach ($vertLabels as $lab) {
+            if ($lab === '') {
+                continue;
+            }
+            $vHeaderH = max($vHeaderH, (int) ceil(pdfBoardHeaderTextWidth($lab, $vFont) + 12));
+        }
         $vMetrics = [
-            'h' => $vBoxH,
+            'h' => $vHeaderH,
             'w' => $vBoxW,
             'font' => $vFont,
             'line' => $vLine,
         ];
-        $vThStyle = 'height:'.$vHeaderH.'px;overflow:visible;vertical-align:bottom;';
+        $vThStyle = 'height:'.$vHeaderH.'px;overflow:visible;vertical-align:bottom;font-size:'.$vFont.'px;';
         $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
@@ -556,24 +558,10 @@
         .{{ $boardCssId }} table.board-results th.v-trail {
             height: {{ $vHeaderH }}px !important;
             overflow: visible !important;
-        }
-        .{{ $boardCssId }} table.board-results table.v-inner {
-            height: {{ $vInnerH }}px !important;
-        }
-        .{{ $boardCssId }} table.board-results .v-box {
-            height: {{ $vBoxH }}px !important;
-            width: {{ $vBoxW }}px !important;
-            overflow: visible !important;
-        }
-        .{{ $boardCssId }} table.board-results th.v-subj .v-box {
-            width: {{ $vBoxW }}px !important;
+            font-size: {{ $vFont }}px !important;
         }
         .{{ $boardCssId }} table.board-results .v-rot {
-            width: {{ $vBoxH }}px !important;
-            height: {{ $vLine }}px !important;
             font-size: {{ $vFont }}px !important;
-            line-height: {{ $vLine }}px !important;
-            left: 0 !important;
         }
     </style>
 
