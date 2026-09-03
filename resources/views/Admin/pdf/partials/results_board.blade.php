@@ -657,8 +657,9 @@
         $nameColIdx = null;
         if ($showNameCol) {
             $nameColIdx = count($colW);
-            $wName = pdfBoardDataColPct($lenName, 12, 14);
+            $wName = pdfBoardDataColPct($lenName, 12, 16);
             $colW[] = $wName;
+            $protect[] = $nameColIdx;
         }
         if ($showIndexCol) {
             $colW[] = pdfBoardDataColPct($lenIndex, 14, 12);
@@ -700,31 +701,20 @@
         $sumW = array_sum($colW);
         if ($sumW > 100 && $sumW > 0) {
             $overflow = $sumW - 100;
-            if ($nameColIdx !== null) {
-                $can = max(0, $colW[$nameColIdx] - 10.0);
-                $take = min($overflow, $can);
-                $colW[$nameColIdx] = round($colW[$nameColIdx] - $take, 2);
-                $overflow = round($overflow - $take, 2);
+            $flex = [];
+            foreach ($colW as $ci => $cw) {
+                if (in_array($ci, $protect, true)) {
+                    continue;
+                }
+                $flex[] = $ci;
             }
-            if ($overflow > 0.05) {
-                $flex = [];
-                foreach ($colW as $ci => $cw) {
-                    if ($nameColIdx !== null && $ci === $nameColIdx) {
-                        continue;
-                    }
-                    if (in_array($ci, $protect, true)) {
-                        continue;
-                    }
-                    $flex[] = $ci;
-                }
-                $flexSum = 0;
+            $flexSum = 0;
+            foreach ($flex as $ci) {
+                $flexSum += $colW[$ci];
+            }
+            if ($flexSum > 0 && $overflow > 0.05) {
                 foreach ($flex as $ci) {
-                    $flexSum += $colW[$ci];
-                }
-                if ($flexSum > 0) {
-                    foreach ($flex as $ci) {
-                        $colW[$ci] = round($colW[$ci] * (1 - ($overflow / $flexSum)), 2);
-                    }
+                    $colW[$ci] = round($colW[$ci] * (1 - ($overflow / $flexSum)), 2);
                 }
             }
         }
@@ -743,12 +733,16 @@
             font-size: {{ $bodyFs }}px !important;
             white-space: nowrap !important;
         }
+        .{{ $boardCssId }} table.board-results th.name-h {
+            white-space: normal !important;
+            width: {{ $wName }}% !important;
+            word-wrap: break-word !important;
+            overflow: hidden !important;
+        }
         .{{ $boardCssId }} table.board-results td.name-cell {
             font-size: {{ $nameFs }}px !important;
             text-align: left !important;
             white-space: nowrap !important;
-        }
-        .{{ $boardCssId }} table.board-results th.name-h {
             width: {{ $wName }}% !important;
         }
         @if($wStreamCol > 0)
@@ -925,7 +919,7 @@
                 <tr>
                     <th class="sn-h">S/N</th>
                     @if($showNameCol)
-                        <th class="name-h">STUDENT NAME</th>
+                        <th class="name-h">STUDENT<br>NAME</th>
                     @endif
                     @if($showIndexCol)
                         <th class="index-h">INDEX NO</th>
