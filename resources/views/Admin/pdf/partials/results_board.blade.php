@@ -290,12 +290,13 @@
         padding: 1px 1px;
     }
     table.board-results td.name-cell {
-        text-align: left;
-        padding-left: 3px;
+        text-align: center;
+        padding-left: 2px;
         padding-right: 2px;
         font-weight: bold;
         font-size: 12px;
         line-height: 1.1;
+        vertical-align: middle;
         white-space: nowrap !important;
         word-wrap: normal !important;
         word-break: keep-all !important;
@@ -551,8 +552,7 @@
         $vBoxH = max(106, $vHeaderH - 10);
         $vBoxW = (int) max(18, round(20 * $boardPdfScale));
         $vLine = round(14 * $boardPdfScale, 2);
-        $vRotMarginLeft = (int) round($vBoxH / 2);
-        $vRotMarginTop = (int) max(6, round($vFont / 2 + 1));
+        $hPadTop = (int) max(0, round(($vHeaderH - 18) / 2));
         $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
@@ -564,12 +564,22 @@
             height: {{ $vHeaderH }}px !important;
             overflow: visible !important;
         }
-        .{{ $boardCssId }} table.board-results table.h-inner {
+        .{{ $boardCssId }} table.board-results th.sn-h,
+        .{{ $boardCssId }} table.board-results th.name-h,
+        .{{ $boardCssId }} table.board-results th.index-h {
             height: {{ $vHeaderH }}px !important;
+            padding-top: {{ $hPadTop }}px !important;
+            padding-bottom: 0 !important;
+            vertical-align: top !important;
+            text-align: center !important;
+        }
+        .{{ $boardCssId }} table.board-results table.h-inner {
+            height: auto !important;
         }
         .{{ $boardCssId }} table.board-results table.h-inner td {
-            vertical-align: middle !important;
             text-align: center !important;
+            vertical-align: middle !important;
+            padding: 0 !important;
         }
         .{{ $boardCssId }} table.board-results table.v-inner {
             height: {{ $vInnerH }}px !important;
@@ -714,12 +724,12 @@
         <table class="board-results">
             <thead>
                 <tr>
-                    <th class="sn-h" style="width:3%;"><table class="h-inner"><tr><td>S/N</td></tr></table></th>
+                    <th class="sn-h" style="width:3%;height:{{ $vHeaderH }}px;padding-top:{{ $hPadTop }}px;text-align:center;vertical-align:top;">S/N</th>
                     @if($board['showName'] ?? true)
-                        <th class="name-h" style="width:{{ ($board['showIndex'] ?? true) ? '14%' : '20%' }};"><table class="h-inner"><tr><td>STUDENT NAME</td></tr></table></th>
+                        <th class="name-h" style="width:{{ ($board['showIndex'] ?? true) ? '14%' : '20%' }};height:{{ $vHeaderH }}px;padding-top:{{ $hPadTop }}px;text-align:center;vertical-align:top;">STUDENT NAME</th>
                     @endif
                     @if($board['showIndex'] ?? true)
-                        <th class="index-h" style="width:{{ ($board['showName'] ?? true) ? '9%' : '14%' }};"><table class="h-inner"><tr><td>INDEX NO</td></tr></table></th>
+                        <th class="index-h" style="width:{{ ($board['showName'] ?? true) ? '9%' : '14%' }};height:{{ $vHeaderH }}px;padding-top:{{ $hPadTop }}px;text-align:center;vertical-align:top;">INDEX NO</th>
                     @endif
                     <th class="v">{!! pdfBoardVerticalLabel('SEX') !!}</th>
                     @if(!empty($board['showStream']))
