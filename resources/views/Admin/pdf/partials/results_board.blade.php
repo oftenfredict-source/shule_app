@@ -1,14 +1,80 @@
 {{-- Excel-like class board (landscape). Styles extend results.blade.php --}}
 @php
+    if (!function_exists('pdfBoardShortLabel')) {
+        /** Compact vertical header: width/height follow this text, not the full subject name. */
+        function pdfBoardShortLabel(?string $text): string {
+            $text = strtoupper(trim(preg_replace('/\s+/', ' ', (string) $text)));
+            if ($text === '') {
+                return '';
+            }
+            $map = [
+                'ACADEMIC COMMUNICATION' => 'ACAD/COM',
+                'A/MATHS' => 'ADV/MATHS',
+                'A-MATHS' => 'ADV/MATHS',
+                'ADVANCED MATHEMATICS' => 'ADV/MATHS',
+                'BASIC APPLIED MATHEMATICS' => 'BAM',
+                'COMPUTER SCIENCE' => 'COMP/SCI',
+                'ENGLISH LANGUAGE' => 'ENG/LANG',
+                'GENERAL STUDIES' => 'GS',
+                'ISLAMIC KNOWLEDGE' => 'IS/KNOW',
+                'LITERATURE IN ENGLISH' => 'LIT/ENG',
+                'DEVELOPMENT STUDIES' => 'DEV/STU',
+            ];
+            if (isset($map[$text])) {
+                return $map[$text];
+            }
+            if (str_contains($text, 'COMMUNICATION')) {
+                return 'ACAD/COM';
+            }
+            if (str_contains($text, 'MATH') && (str_contains($text, 'ADV') || str_contains($text, 'A/') || str_contains($text, 'A-'))) {
+                return 'ADV/MATHS';
+            }
+            if (str_contains($text, 'COMPUTER')) {
+                return 'COMP/SCI';
+            }
+            if (str_contains($text, 'ENGLISH') && str_contains($text, 'LANG')) {
+                return 'ENG/LANG';
+            }
+            if (str_contains($text, 'GEOGRAPH')) {
+                return 'GEOG';
+            }
+            if (str_contains($text, 'BIOLOG')) {
+                return 'BIOLOGY';
+            }
+            if (str_contains($text, 'CHEMIST')) {
+                return 'CHEM';
+            }
+            if (str_contains($text, 'PHYSIC')) {
+                return 'PHY';
+            }
+            if (str_contains($text, 'KISWAH')) {
+                return 'KISW';
+            }
+            if (str_contains($text, 'HISTOR')) {
+                return 'HIST';
+            }
+            if (str_contains($text, 'ECONOM')) {
+                return 'ECON';
+            }
+            if (mb_strlen($text, 'UTF-8') <= 11) {
+                return $text;
+            }
+            $parts = explode(' ', $text);
+            if (count($parts) >= 2) {
+                return mb_substr($parts[0], 0, 4, 'UTF-8') . '/' . mb_substr($parts[count($parts) - 1], 0, 4, 'UTF-8');
+            }
+
+            return mb_substr($text, 0, 10, 'UTF-8');
+        }
+    }
     if (!function_exists('pdfBoardVerticalLabel')) {
         /** Excel-style vertical header, centred in cell (DomPDF-safe) */
         function pdfBoardVerticalLabel(?string $text): string {
-            $text = strtoupper(trim((string) $text));
+            $text = pdfBoardShortLabel($text);
             if ($text === '') {
                 return '';
             }
             $safe = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
-            // Nested table + rotate: DomPDF centres better than absolute left:0
             return '<table class="v-inner"><tr><td>'
                 . '<div class="v-box"><div class="v-rot">' . $safe . '</div></div>'
                 . '</td></tr></table>';
@@ -20,16 +86,15 @@
     .board-wrap:last-child,
     .board-wrap.board-wrap-last { page-break-after: auto; }
 
-    /* Header â€” same clean layout as Subject Performance Summary */
+    /* Header: compact centred block — logos sit beside titles, not page edges */
     .board-page-header {
-        margin: 0 0 10px 0;
+        margin: 0 0 6px 0;
         border-bottom: 2px solid #940000;
-        padding-bottom: 8px;
+        padding-bottom: 6px;
         text-align: center;
     }
     .board-header-inner {
-        width: 100%;
-        max-width: 100%;
+        width: auto;
         margin: 0 auto;
         border-collapse: collapse;
     }
@@ -39,46 +104,50 @@
         vertical-align: middle;
         background: transparent;
     }
-    .board-logo-side { width: 100px; }
+    .board-logo-side {
+        width: 70px;
+        vertical-align: middle !important;
+    }
     .board-logo-side img {
         display: block;
-        max-height: 88px;
-        max-width: 96px;
-        margin: 0;
+        height: 70px;
+        width: auto;
+        max-width: 74px;
+        max-height: 70px;
+        margin: 0 auto;
         border: none;
         outline: none;
     }
-    .board-logo-side.left { text-align: left; padding-right: 14px; }
-    .board-logo-side.right { text-align: right; padding-left: 14px; }
-    .board-logo-side.right img { margin-left: auto; }
-    .board-header-center { text-align: center; padding: 0 6px; }
+    .board-logo-side.left { text-align: right; padding-right: 10px; }
+    .board-logo-side.right { text-align: left; padding-left: 10px; }
+    .board-header-center { text-align: center; padding: 0 8px; white-space: nowrap; }
     .board-header-center .org-name {
-        font-size: 13px;
+        font-size: 11px;
         font-weight: bold;
         color: #333 !important;
         text-transform: uppercase;
-        margin-bottom: 2px;
-        line-height: 1.25;
+        margin-bottom: 1px;
+        line-height: 1.2;
     }
     .board-header-center .school-name {
-        font-size: 18px;
+        font-size: 16px;
         font-weight: bold;
         color: #940000 !important;
         text-transform: uppercase;
-        line-height: 1.25;
+        line-height: 1.2;
     }
     .board-header-center .school-sub {
-        font-size: 11px;
+        font-size: 9px;
         color: #444 !important;
         margin: 1px 0;
-        line-height: 1.25;
+        line-height: 1.2;
     }
     .board-report-title {
-        font-size: 12px;
+        font-size: 11px;
         font-weight: bold;
-        margin-top: 10px;
+        margin-top: 6px;
         background: #f8f9fa;
-        padding: 6px 8px;
+        padding: 4px 8px;
         color: #940000;
         text-transform: uppercase;
         text-align: center;
@@ -87,12 +156,12 @@
     .board-report-subtitle {
         font-size: 10px;
         font-weight: bold;
-        margin-top: 4px;
+        margin-top: 2px;
         color: #555;
         text-transform: uppercase;
         text-align: center;
     }
-    .board-info-section { margin: 8px 0 12px 0; }
+    .board-info-section { margin: 4px 0 6px 0; }
     .board-info-table {
         width: 100%;
         border-collapse: collapse;
@@ -116,7 +185,7 @@
     }
     table.board-perf {
         width: 100%;
-        margin: 0 0 12px 0;
+        margin: 0 0 8px 0;
         border-collapse: collapse;
         table-layout: fixed;
         font-size: 14px;
@@ -184,34 +253,20 @@
         font-weight: bold;
         font-size: 14px;
     }
-    /* Vertical titles — full label visible, -90deg like Excel board */
+    /* Vertical titles: height comes from longest short-label (per-board CSS) */
     table.board-results th.v,
     table.board-results th.v-subj,
     table.board-results th.v-stream,
     table.board-results th.v-trail {
-        height: 130px;
-        padding: 3px 1px;
+        padding: 2px 0;
         vertical-align: middle;
         text-align: center;
         overflow: visible;
     }
-    table.board-results th.v { width: 2.5%; }
-    table.board-results th.v-stream {
-        width: 4.2%;
-        font-size: 12px;
-        vertical-align: middle;
-        padding: 3px 1px;
-        height: 130px;
-        overflow: visible;
-    }
-    table.board-results th.v-trail { width: 4%; }
-    table.board-results th.v-trail.v-total { width: 5.8%; }
-    table.board-results th.v-trail.v-avg { width: 4.6%; }
     table.board-results th.v-subj { width: auto; }
 
     table.board-results table.v-inner {
         width: 100%;
-        height: 122px;
         border-collapse: collapse;
         margin: 0 auto;
     }
@@ -242,22 +297,15 @@
     }
     table.board-results .v-box {
         width: 18px;
-        height: 118px;
         margin: 0 auto;
         position: relative;
         overflow: visible;
-    }
-    table.board-results th.v-subj .v-box {
-        width: 20px;
     }
     table.board-results .v-rot {
         position: absolute;
         top: 50%;
         left: 50%;
         bottom: auto;
-        width: 118px;
-        margin-left: -59px;
-        margin-top: -7px;
         white-space: nowrap;
         font-size: 12px;
         font-weight: bold;
@@ -268,26 +316,23 @@
         transform: rotate(-90deg);
         transform-origin: center center;
     }
-    table.board-results th.sn-h {
-        width: 3%;
-        vertical-align: middle;
-        font-size: 14px;
-    }
-    table.board-results th.name-h {
-        width: 13%;
-        vertical-align: middle;
-        font-size: 14px;
-        white-space: nowrap !important;
-    }
+    table.board-results th.sn-h,
+    table.board-results th.name-h,
     table.board-results th.index-h {
-        width: 8%;
         vertical-align: middle;
+        text-align: center;
         font-size: 14px;
     }
     table.board-results td {
         vertical-align: middle;
         font-size: 14px;
         padding: 1px 1px;
+    }
+    table.board-results th.name-h {
+        white-space: normal;
+        word-wrap: break-word;
+        overflow: hidden;
+        line-height: 1.15;
     }
     table.board-results td.name-cell {
         text-align: left !important;
@@ -299,16 +344,12 @@
         vertical-align: middle;
         white-space: nowrap !important;
         word-wrap: normal !important;
-        word-break: keep-all !important;
-        overflow: hidden !important;
+        overflow: hidden;
     }
     table.board-results td.name-cell .name-keep {
-        white-space: nowrap !important;
         display: block;
         text-align: left !important;
         width: 100%;
-        margin: 0;
-        padding: 0;
     }
     table.board-results td.stream-cell {
         font-size: 11px;
@@ -317,40 +358,27 @@
         padding: 1px 2px;
         text-align: center;
         white-space: nowrap !important;
-        word-wrap: normal !important;
-        word-break: keep-all !important;
         overflow: hidden !important;
     }
     table.board-results td.stream-cell .stream-keep {
         white-space: nowrap !important;
         display: inline-block;
-        letter-spacing: 0.3px;
     }
-    /* TOTAL / AVERAGE, same font as marks; TOTAL wider so long values don't overlap */
     table.board-results td.board-num-cell {
         white-space: nowrap !important;
-        word-wrap: normal !important;
         overflow: hidden !important;
         font-size: 14px !important;
         line-height: 1.15 !important;
-        letter-spacing: 0;
         padding: 1px 2px !important;
         text-align: center !important;
     }
     table.board-results td.board-num-cell.board-total-cell {
         font-size: 12px !important;
-        padding: 1px 1px !important;
     }
     table.board-results td.board-num-cell .board-num-keep {
         white-space: nowrap !important;
         display: inline-block;
         max-width: 100%;
-    }
-    table.board-results td.board-total-cell .board-num-keep {
-        font-size: 12px !important;
-    }
-    table.board-results td.board-avg-cell .board-num-keep {
-        font-size: 14px !important;
     }
     table.board-results td.empty-subj { background: #f5f5f5; }
     table.board-results .sub-h {
@@ -361,8 +389,7 @@
         height: auto;
         padding: 2px 0;
     }
-    /* Nested Subject Performance Statistics â€” force same 14px as SEX/REG overview
-       (DomPDF often under-sizes nested tables inside board-results) */
+    /* Nested stats match board 14px type */
     table.board-results tr.board-cont-row td.board-cont-cell {
         font-size: 14px !important;
     }
@@ -526,88 +553,106 @@
                 : ['A'=>1,'B'=>2,'C'=>3,'D'=>4,'F'=>5])
             : ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0];
 
-        // Header row height from longest vertical title (subjects + SEX / COMBINATION / TOTAL…)
-        $maxVertLen = 0;
-        foreach (['SEX', 'POINT', 'DIVISION', 'TOTAL', 'AVERAGE', 'POSITION', 'GRADE', 'COMBINATION'] as $fixedLabel) {
-            $maxVertLen = max($maxVertLen, strlen($fixedLabel));
-        }
-        $streamLabel = strtoupper(trim((string) ($board['streamHeader'] ?? 'COMBINATION')));
+        $showNameCol = $board['showName'] ?? true;
+        $showIndexCol = $board['showIndex'] ?? true;
+        $showStreamCol = !empty($board['showStream']);
+        $nSubj = count($subjects);
+        $nTrail = count($board['trailingHeaders'] ?? []);
+
+        $bodyFs = 14;
+        $nameFs = 12;
+        $vFont = 12;
+
+        $vertLabels = ['SEX', 'POINT', 'DIVISION', 'TOTAL', 'AVERAGE', 'POSITION', 'GRADE'];
+        $streamLabel = pdfBoardShortLabel($board['streamHeader'] ?? 'COMBINATION');
         if ($streamLabel !== '') {
-            $maxVertLen = max($maxVertLen, mb_strlen($streamLabel, 'UTF-8'));
+            $vertLabels[] = $streamLabel;
         }
         foreach ($subjects as $subj) {
-            $maxVertLen = max(
-                $maxVertLen,
-                mb_strlen(strtoupper(trim((string) ($subj['subject_name'] ?? ''))), 'UTF-8'),
-            );
+            $vertLabels[] = pdfBoardShortLabel($subj['subject_name'] ?? '');
         }
-        $boardPdfScale = isset($pdfScale) ? (float) $pdfScale : 1.0;
-        if ($boardPdfScale < 1.0) {
-            $boardPdfScale = 1.0;
+        $maxVertLen = 1;
+        foreach ($vertLabels as $vl) {
+            $maxVertLen = max($maxVertLen, mb_strlen($vl, 'UTF-8'));
         }
-        if ($boardPdfScale > 1.4) {
-            $boardPdfScale = 1.4;
-        }
-        // Bold uppercase ~8.8px/char at 12px so COMP/SCIEN, COMBINATION, ADV/MATHS are fully visible
-        $vFont = round(12 * $boardPdfScale, 2);
-        $vHeaderH = (int) min(280, max(120, round(($maxVertLen * 8.8 * $boardPdfScale) + 22)));
-        $vInnerH = max(110, $vHeaderH - 6);
-        $vBoxH = max(106, $vHeaderH - 10);
-        $vBoxW = (int) max(18, round(20 * $boardPdfScale));
-        $vLine = round(14 * $boardPdfScale, 2);
-        $hPadTop = (int) max(0, round(($vHeaderH - 18) / 2));
+        // Header height from longest short label at 12px — not from full subject names
+        $vHeaderH = (int) round($maxVertLen * 7.2 + 16);
+        $vInnerH = max(1, $vHeaderH - 4);
+        $vBoxH = max(1, $vHeaderH - 8);
+        $vBoxW = 16;
+        $vLine = 14;
         $vRotMarginLeft = (int) round($vBoxH / 2);
-        $vRotMarginTop = (int) max(6, round($vFont / 2 + 1));
+        $vRotMarginTop = 7;
+
+        $wSn = 2.6;
+        $wIndex = $showIndexCol ? ($showNameCol ? 7.0 : 11.0) : 0;
+        $wSex = 2.3;
+        $wStream = $showStreamCol ? 3.5 : 0;
+        $wPoint = $isSecondary ? 2.5 : 0;
+        $wDiv = $isSecondary ? 2.7 : 0;
+        $wTrailEach = 3.4;
+        $markCols = max(1, $nSubj * 2);
+
+        $maxNameLen = 1;
+        if ($showNameCol) {
+            foreach ($board['rows'] ?? [] as $nr) {
+                $maxNameLen = max(
+                    $maxNameLen,
+                    mb_strlen(trim((string) ($nr['name'] ?? '')), 'UTF-8'),
+                );
+            }
+        }
+        // Width from longest student name at 12px (not from "STUDENT NAME" header)
+        $wName = $showNameCol ? round(($maxNameLen * 0.70) + 1.1, 2) : 0;
+
+        $wFixedNoName = $wSn + $wIndex + $wSex + $wStream + $wPoint + $wDiv + ($nTrail * $wTrailEach);
+        $minMark = 1.7;
+        $maxNameKeepScale = 100 - $wFixedNoName - ($markCols * $minMark);
+        if ($showNameCol) {
+            $wName = min($wName, max(8.0, $maxNameKeepScale));
+        }
+
+        $wUsed = $wFixedNoName + $wName;
+        $wMark = $nSubj > 0 ? round(max($minMark, (100 - $wUsed) / $markCols), 2) : 2.5;
         $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
     <style>
+        .{{ $boardCssId }} table.board-results {
+            font-size: {{ $bodyFs }}px !important;
+        }
+        .{{ $boardCssId }} table.board-results th,
+        .{{ $boardCssId }} table.board-results td {
+            font-size: {{ $bodyFs }}px !important;
+        }
+        .{{ $boardCssId }} table.board-results td.name-cell {
+            font-size: {{ $nameFs }}px !important;
+            text-align: left !important;
+            white-space: nowrap !important;
+        }
+        .{{ $boardCssId }} table.board-results th.name-h {
+            width: {{ $wName }}% !important;
+        }
         .{{ $boardCssId }} table.board-results th.v,
         .{{ $boardCssId }} table.board-results th.v-subj,
         .{{ $boardCssId }} table.board-results th.v-stream,
-        .{{ $boardCssId }} table.board-results th.v-trail {
-            height: {{ $vHeaderH }}px !important;
-            overflow: visible !important;
-        }
+        .{{ $boardCssId }} table.board-results th.v-trail,
         .{{ $boardCssId }} table.board-results th.sn-h,
         .{{ $boardCssId }} table.board-results th.name-h,
         .{{ $boardCssId }} table.board-results th.index-h {
             height: {{ $vHeaderH }}px !important;
-            padding-top: {{ $hPadTop }}px !important;
-            padding-bottom: 0 !important;
-            vertical-align: top !important;
-            text-align: center !important;
-        }
-        .{{ $boardCssId }} table.board-results table.h-inner {
-            height: auto !important;
-        }
-        .{{ $boardCssId }} table.board-results table.h-inner td {
-            text-align: center !important;
             vertical-align: middle !important;
-            padding: 0 !important;
-        }
-        .{{ $boardCssId }} table.board-results td.name-cell {
-            text-align: left !important;
-            padding-left: 4px !important;
-        }
-        .{{ $boardCssId }} table.board-results td.name-cell .name-keep {
-            display: block !important;
-            text-align: left !important;
-            width: 100% !important;
+            text-align: center !important;
+            padding-top: 0 !important;
+            overflow: visible !important;
         }
         .{{ $boardCssId }} table.board-results table.v-inner {
             height: {{ $vInnerH }}px !important;
-        }
-        .{{ $boardCssId }} table.board-results table.v-inner td {
-            overflow: visible !important;
         }
         .{{ $boardCssId }} table.board-results .v-box {
             height: {{ $vBoxH }}px !important;
             width: {{ $vBoxW }}px !important;
             overflow: visible !important;
-        }
-        .{{ $boardCssId }} table.board-results th.v-subj .v-box {
-            width: {{ $vBoxW + 2 }}px !important;
         }
         .{{ $boardCssId }} table.board-results .v-rot {
             width: {{ $vBoxH }}px !important;
@@ -615,13 +660,11 @@
             line-height: {{ $vLine }}px !important;
             top: 50% !important;
             left: 50% !important;
-            bottom: auto !important;
             margin-left: -{{ $vRotMarginLeft }}px !important;
             margin-top: -{{ $vRotMarginTop }}px !important;
             transform: rotate(-90deg) !important;
             transform-origin: center center !important;
             color: #940000 !important;
-            overflow: visible !important;
             text-align: center !important;
         }
     </style>
@@ -712,7 +755,6 @@
                             break;
                         }
                     }
-                    $perfCount = count($board['perfRows']);
                 @endphp
                 @foreach($board['perfRows'] as $pr)
                     <tr>
@@ -726,27 +768,49 @@
                         <td>{{ $pr['IV'] }}</td>
                         <td>{{ $pr['0'] }}</td>
                         <td>{{ $pr['i_iii'] }}</td>
-                        @if($loop->first)
-                            <td class="gpa-cell" rowspan="{{ $perfCount }}">{{ $gpaVal }}</td>
-                        @endif
+                        <td class="gpa-cell">{{ ($pr['sex'] ?? '') === 'T' ? $gpaVal : '' }}</td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
 
-        {{-- Student results board --}}
+        {{-- Student results board: marks | grade as separate columns --}}
         <table class="board-results">
+            <colgroup>
+                <col style="width: {{ $wSn }}%;">
+                @if($showNameCol)
+                    <col style="width: {{ $wName }}%;">
+                @endif
+                @if($showIndexCol)
+                    <col style="width: {{ $wIndex }}%;">
+                @endif
+                <col style="width: {{ $wSex }}%;">
+                @if($showStreamCol)
+                    <col style="width: {{ $wStream }}%;">
+                @endif
+                @if($isSecondary)
+                    <col style="width: {{ $wPoint }}%;">
+                    <col style="width: {{ $wDiv }}%;">
+                @endif
+                @foreach($subjects as $subj)
+                    <col style="width: {{ $wMark }}%;">
+                    <col style="width: {{ $wMark }}%;">
+                @endforeach
+                @foreach($board['trailingHeaders'] ?? [] as $th)
+                    <col style="width: {{ $wTrailEach }}%;">
+                @endforeach
+            </colgroup>
             <thead>
                 <tr>
-                    <th class="sn-h" style="width:3%;height:{{ $vHeaderH }}px;padding-top:{{ $hPadTop }}px;text-align:center;vertical-align:top;">S/N</th>
-                    @if($board['showName'] ?? true)
-                        <th class="name-h" style="width:{{ ($board['showIndex'] ?? true) ? '14%' : '20%' }};height:{{ $vHeaderH }}px;padding-top:{{ $hPadTop }}px;text-align:center;vertical-align:top;">STUDENT NAME</th>
+                    <th class="sn-h">S/N</th>
+                    @if($showNameCol)
+                        <th class="name-h">STUDENT NAME</th>
                     @endif
-                    @if($board['showIndex'] ?? true)
-                        <th class="index-h" style="width:{{ ($board['showName'] ?? true) ? '9%' : '14%' }};height:{{ $vHeaderH }}px;padding-top:{{ $hPadTop }}px;text-align:center;vertical-align:top;">INDEX NO</th>
+                    @if($showIndexCol)
+                        <th class="index-h">INDEX NO</th>
                     @endif
                     <th class="v">{!! pdfBoardVerticalLabel('SEX') !!}</th>
-                    @if(!empty($board['showStream']))
+                    @if($showStreamCol)
                         <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION') !!}</th>
                     @endif
                     @if($isSecondary)
@@ -769,14 +833,14 @@
                 @foreach($board['rows'] as $r)
                     <tr>
                         <td>{{ $r['sn'] }}</td>
-                        @if($board['showName'] ?? true)
-                            <td class="name-cell" style="text-align:left;">{{ $r['name'] }}</td>
+                        @if($showNameCol)
+                            <td class="name-cell">{{ $r['name'] }}</td>
                         @endif
-                        @if($board['showIndex'] ?? true)
+                        @if($showIndexCol)
                             <td>{{ $r['index'] }}</td>
                         @endif
                         <td>{{ $r['sex'] }}</td>
-                        @if(!empty($board['showStream']))
+                        @if($showStreamCol)
                             <td class="stream-cell"><span class="stream-keep">{{ preg_replace('/\s+/', '', (string) ($r['stream'] ?? '')) }}</span></td>
                         @endif
                         @if($isSecondary)
