@@ -85,10 +85,17 @@
             return max($current, mb_strlen(trim((string) $value), 'UTF-8'));
         }
     }
-    if (!function_exists('pdfBoardPctFromLen')) {
-        /** Column % from longest cell text (data), not from header labels. */
-        function pdfBoardPctFromLen(int $len, float $pctPerChar, float $pad = 0.5): float {
-            return round(max(1.5, (max(1, $len) * $pctPerChar) + $pad), 2);
+    if (!function_exists('pdfBoardDataColPct')) {
+        /**
+         * Column % from longest DATA string at a given font (Helvetica-ish).
+         * 78.907 at 14px must get a cell wide enough for every glyph + padding.
+         */
+        function pdfBoardDataColPct(int $len, float $fontPx = 14.0, float $padPx = 16.0): float {
+            $len = max(1, $len);
+            $px = ($len * $fontPx * 0.62) + $padPx;
+            $tablePx = 810.0;
+
+            return round(max(2.4, ($px / $tablePx) * 100), 2);
         }
     }
 @endphp
@@ -367,10 +374,10 @@
         font-size: 11px;
         font-weight: bold;
         line-height: 1.1;
-        padding: 1px 3px;
+        padding: 1px 4px;
         text-align: center;
         white-space: nowrap !important;
-        overflow: visible !important;
+        overflow: hidden !important;
     }
     table.board-results td.stream-cell .stream-keep {
         white-space: nowrap !important;
@@ -380,21 +387,26 @@
     }
     table.board-results td.board-num-cell {
         white-space: nowrap !important;
-        overflow: visible !important;
+        overflow: hidden !important;
         font-size: 14px !important;
         line-height: 1.15 !important;
-        padding: 1px 3px !important;
+        padding: 1px 4px !important;
         text-align: center !important;
     }
     table.board-results td.board-num-cell.board-total-cell {
         font-size: 12px !important;
-        padding: 1px 3px !important;
+        padding: 1px 4px !important;
     }
     table.board-results td.board-num-cell .board-num-keep {
         white-space: nowrap !important;
         display: inline-block;
     }
-    table.board-results td.empty-subj { background: #f5f5f5; }
+    table.board-results td.board-pos-cell {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        padding: 1px 4px !important;
+        text-align: center !important;
+    }
     table.board-results .sub-h {
         font-size: 5.5px;
         background: #fafafa;
@@ -597,10 +609,7 @@
         $vRotMarginLeft = (int) round($vBoxH / 2);
         $vRotMarginTop = 7;
 
-        $k14 = 0.95;
-        $k12 = 0.70;
         $rowsScan = $board['rows'] ?? [];
-        $lenSn = 1;
         $lenName = 1;
         $lenIndex = 1;
         $lenSex = 1;
@@ -637,43 +646,53 @@
 
         $colW = [];
         $protect = [];
-        $colW[] = pdfBoardPctFromLen($lenSn, $k14, 0.4);
+        $wStreamCol = 0;
+        $wTotalCol = 0;
+        $wAvgCol = 0;
+        $wPosCol = 0;
+
+        $colW[] = pdfBoardDataColPct($lenSn, 14, 12);
         $wName = 0;
         $nameColIdx = null;
         if ($showNameCol) {
             $nameColIdx = count($colW);
-            $wName = pdfBoardPctFromLen($lenName, $k12, 1.0);
+            $wName = pdfBoardDataColPct($lenName, 12, 14);
             $colW[] = $wName;
         }
         if ($showIndexCol) {
-            $colW[] = pdfBoardPctFromLen($lenIndex, $k14, 0.45);
+            $colW[] = pdfBoardDataColPct($lenIndex, 14, 12);
         }
-        $colW[] = pdfBoardPctFromLen($lenSex, $k14, 0.35);
+        $colW[] = pdfBoardDataColPct($lenSex, 14, 12);
         if ($showStreamCol) {
             $protect[] = count($colW);
-            $colW[] = max(4.4, pdfBoardPctFromLen(max($lenStream, 3), 1.15, 0.9));
+            $wStreamCol = pdfBoardDataColPct(max($lenStream, 3), 11, 18);
+            $colW[] = $wStreamCol;
         }
         if ($isSecondary) {
-            $colW[] = pdfBoardPctFromLen($lenPoint, $k14, 0.45);
-            $colW[] = pdfBoardPctFromLen($lenDiv, $k14, 0.45);
+            $colW[] = pdfBoardDataColPct(max($lenPoint, 2), 14, 12);
+            $colW[] = pdfBoardDataColPct(max($lenDiv, 1), 14, 12);
         }
         for ($si = 0; $si < $nSubj; $si++) {
-            $colW[] = pdfBoardPctFromLen((int) ($lenMarks[$si] ?? 1), $k14, 0.4);
-            $colW[] = pdfBoardPctFromLen((int) ($lenGrades[$si] ?? 1), $k14, 0.4);
+            $colW[] = pdfBoardDataColPct((int) ($lenMarks[$si] ?? 1), 14, 12);
+            $colW[] = pdfBoardDataColPct((int) ($lenGrades[$si] ?? 1), 14, 12);
         }
         foreach ($board['trailingHeaders'] ?? [] as $th) {
             $thUp = strtoupper(trim((string) $th));
             $idx = count($colW);
             if ($thUp === 'TOTAL') {
                 $protect[] = $idx;
-                $colW[] = max(5.0, pdfBoardPctFromLen(max($lenTotal, 3), 1.15, 0.9));
+                $wTotalCol = pdfBoardDataColPct(max($lenTotal, 3), 12, 18);
+                $colW[] = $wTotalCol;
             } elseif ($thUp === 'AVERAGE') {
                 $protect[] = $idx;
-                $colW[] = max(6.0, pdfBoardPctFromLen(max($lenAvg, 5), 1.25, 1.0));
+                $wAvgCol = pdfBoardDataColPct(max($lenAvg, 5), 14, 22);
+                $colW[] = $wAvgCol;
             } elseif ($thUp === 'GRADE') {
-                $colW[] = pdfBoardPctFromLen($lenPGrade, $k14, 0.4);
+                $colW[] = pdfBoardDataColPct($lenPGrade, 14, 12);
             } else {
-                $colW[] = max(3.2, pdfBoardPctFromLen($lenPos, $k14, 0.45));
+                $protect[] = $idx;
+                $wPosCol = pdfBoardDataColPct(max($lenPos, 2), 14, 16);
+                $colW[] = $wPosCol;
             }
         }
 
@@ -731,6 +750,21 @@
         .{{ $boardCssId }} table.board-results th.name-h {
             width: {{ $wName }}% !important;
         }
+        @if($wStreamCol > 0)
+        .{{ $boardCssId }} table.board-results td.stream-cell,
+        .{{ $boardCssId }} table.board-results th.v-stream { width: {{ $wStreamCol }}% !important; }
+        @endif
+        @if($wTotalCol > 0)
+        .{{ $boardCssId }} table.board-results td.board-total-cell,
+        .{{ $boardCssId }} table.board-results th.v-total { width: {{ $wTotalCol }}% !important; }
+        @endif
+        @if($wAvgCol > 0)
+        .{{ $boardCssId }} table.board-results td.board-avg-cell,
+        .{{ $boardCssId }} table.board-results th.v-avg { width: {{ $wAvgCol }}% !important; }
+        @endif
+        @if($wPosCol > 0)
+        .{{ $boardCssId }} table.board-results td.board-pos-cell { width: {{ $wPosCol }}% !important; }
+        @endif
         .{{ $boardCssId }} table.board-results th.v,
         .{{ $boardCssId }} table.board-results th.v-subj,
         .{{ $boardCssId }} table.board-results th.v-stream,
@@ -904,7 +938,8 @@
                         <th class="v">{!! pdfBoardVerticalLabel('DIVISION') !!}</th>
                     @endif
                     @foreach($subjects as $subj)
-                        <th class="v-subj" colspan="2">{!! pdfBoardVerticalLabel($subj['subject_name'] ?? '') !!}</th>
+                        <th class="v-subj">{!! pdfBoardVerticalLabel($subj['subject_name'] ?? '') !!}</th>
+                        <th class="v-subj"></th>
                     @endforeach
                     @foreach($board['trailingHeaders'] ?? [] as $th)
                         @php
@@ -942,7 +977,7 @@
                         @if(!$isSecondary)
                             <td>{{ $r['grade'] }}</td>
                         @endif
-                        <td>{{ $r['position'] }}</td>
+                        <td class="board-pos-cell">{{ $r['position'] }}</td>
                     </tr>
                 @endforeach
             </tbody>
