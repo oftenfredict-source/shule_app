@@ -430,7 +430,7 @@
             $pdfScale = 1.4;
         }
         $pdfScale = round($pdfScale, 2);
-        $pdfScaleActive = $isIndividualPdf && $pdfScale > 1.001;
+        $pdfScaleActive = $pdfScale > 1.001;
         $sx = function ($base) use ($pdfScale) {
             return round(((float) $base) * $pdfScale, 2);
         };
@@ -881,6 +881,39 @@
             max-width: {{ $sx(84) }}px !important;
         }
         body.individual-pdf .footer { font-size: {{ $sx(7) }}px !important; }
+        @endif
+
+        @if(!empty($pdfScaleActive))
+        /* Class board PDF: scale type only. Column % / table-layout stay at 100% default. */
+        body.board-pdf .board-logo-side img {
+            max-height: {{ $sx(88) }}px !important;
+            max-width: {{ $sx(96) }}px !important;
+        }
+        body.board-pdf .board-header-center .org-name { font-size: {{ $sx(12) }}px !important; }
+        body.board-pdf .board-header-center .school-name { font-size: {{ $sx(16) }}px !important; }
+        body.board-pdf .board-header-center .school-sub { font-size: {{ $sx(10) }}px !important; }
+        body.board-pdf .board-report-title { font-size: {{ $sx(12) }}px !important; padding: {{ $sx(6) }}px {{ $sx(8) }}px !important; }
+        body.board-pdf .board-report-subtitle { font-size: {{ $sx(10) }}px !important; }
+        body.board-pdf .board-info-table td { font-size: {{ $sx(10) }}px !important; padding: {{ $sx(5) }}px {{ $sx(8) }}px !important; }
+        body.board-pdf table.board-perf { font-size: {{ $sx(14) }}px !important; }
+        body.board-pdf table.board-perf th,
+        body.board-pdf table.board-perf td { font-size: {{ $sx(14) }}px !important; padding: {{ $sx(4) }}px {{ $sx(6) }}px !important; }
+        body.board-pdf table.board-perf td.gpa-cell { font-size: {{ $sx(14) }}px !important; }
+        body.board-pdf table.board-results { font-size: {{ $sx(14) }}px !important; }
+        body.board-pdf table.board-results th,
+        body.board-pdf table.board-results td { font-size: {{ $sx(14) }}px !important; }
+        body.board-pdf table.board-results thead th { font-size: {{ $sx(14) }}px !important; }
+        body.board-pdf table.board-results th.sn-h,
+        body.board-pdf table.board-results th.name-h,
+        body.board-pdf table.board-results th.index-h { font-size: {{ $sx(14) }}px !important; }
+        body.board-pdf table.board-results td.name-cell { font-size: {{ $sx(12) }}px !important; }
+        body.board-pdf table.board-results td.stream-cell { font-size: {{ $sx(11) }}px !important; }
+        body.board-pdf table.board-results td.board-num-cell { font-size: {{ $sx(14) }}px !important; }
+        body.board-pdf table.board-results td.board-num-cell.board-total-cell,
+        body.board-pdf table.board-results td.board-total-cell .board-num-keep { font-size: {{ $sx(12) }}px !important; }
+        body.board-pdf table.board-results td.board-avg-cell .board-num-keep { font-size: {{ $sx(14) }}px !important; }
+        body.board-pdf table.board-results .v-rot { font-size: {{ $sx(11) }}px !important; }
+        body.board-pdf .footer { font-size: {{ $sx(7) }}px !important; }
         @endif
 
         table, td, th, p, div, span, li {

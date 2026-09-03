@@ -3982,6 +3982,19 @@
     function getResultsSubclassFilter() {
         return $('#subclass').val() || $('#lockedSubclassID').val() || '';
     }
+    function getResultsDownloadScope() {
+        const classID = getResultsClassFilter();
+        const subclassID = getResultsSubclassFilter();
+        let option = 'all';
+        if (subclassID) option = 'subclass';
+        else if (classID) option = 'class';
+        return {
+            classID: classID,
+            subclassID: subclassID,
+            option: option,
+            teacher_view: {{ !empty($isTeacherView) ? "'1'" : "'0'" }}
+        };
+    }
 
 $(document).ready(function() {
     console.log('Result Management page loaded');
@@ -5972,22 +5985,43 @@ $(document).ready(function() {
     $(document).on('click', '.download-all-students-btn', function(e) {
         e.preventDefault();
 
-        let type = $(this).data('type') || $('#type').val(); // exam or report
+        let type = $(this).data('type') || $('#type').val();
         let term = $('#term').val();
         let year = $('#year').val();
         let examID = $('#examID').val() || '';
-        let classID = $('#class').val() || '';
-        let subclassID = $('#subclass').val() || '';
+        const scope = getResultsDownloadScope();
+        let classID = scope.classID;
+        let subclassID = scope.subclassID;
         let status = $('#status').val() || 'Active';
-        
-        @if(isset($isTeacherView) && $isTeacherView)
-            classID = $('#lockedClassID').val() || '';
-            subclassID = $('#lockedSubclassID').val() || '';
-        @elseif(isset($isCoordinatorResultsView) && $isCoordinatorResultsView)
-            classID = $('#lockedClassID').val() || '';
-        @endif
 
-        askPdfDownloadOptions({ showScale: true, showNameMode: false, showRankBy: false }).then(function(wmResult) {
+        const firstStudentID = $('.student-row[data-student-id]').first().attr('data-student-id')
+            || $('.view-student-details').first().data('student-id')
+            || $('.view-report-student-details').first().data('student-id')
+            || '';
+
+        const previewParams = {
+            option: firstStudentID ? 'single' : (subclassID ? 'subclass' : (classID ? 'class' : 'all')),
+            studentID: firstStudentID,
+            type: type,
+            term: term,
+            year: year,
+            examID: examID,
+            classID: classID,
+            subclassID: subclassID,
+            class: classID,
+            subclass: subclassID,
+            teacher_view: scope.teacher_view,
+            status: status,
+            rank_by: $('#rank_by').val() || 'average'
+        };
+
+        askPdfDownloadOptions({
+            showScale: true,
+            showNameMode: false,
+            showRankBy: false,
+            title: 'Download All Individual Reports',
+            previewParams: previewParams
+        }).then(function(wmResult) {
             if (!wmResult.isConfirmed) {
                 return;
             }
@@ -6003,6 +6037,9 @@ $(document).ready(function() {
                   '&examID=' + examID + 
                   '&classID=' + classID + 
                   '&subclassID=' + subclassID + 
+                  '&subclass=' + subclassID + 
+                  '&class=' + classID + 
+                  '&teacher_view=' + scope.teacher_view + 
                   '&status=' + status +
                   '&watermark=' + encodeURIComponent(watermarkVal) +
                   '&pdf_scale=' + encodeURIComponent(pdfScaleVal);
@@ -6195,6 +6232,11 @@ $(document).ready(function() {
         var showRankBy = !!opts.showRankBy;
         var showScale = !!opts.showScale;
         var previewParams = opts.previewParams || null;
+        var dialogTitle = opts.title || (showScale
+            ? ((previewParams && previewParams.option && previewParams.option !== 'single' && previewParams.option !== 'bulk_single')
+                ? 'Download Results PDF'
+                : 'Download Individual Report')
+            : 'Download PDF');
         var isSecondarySchool = (opts.schoolType || '{{ $schoolType ?? "Secondary" }}') === 'Secondary';
         if (typeof Swal === 'undefined') {
             return Promise.resolve({
@@ -6285,6 +6327,14 @@ $(document).ready(function() {
             var scaleEl = document.getElementById('sxPdfScale');
             var pct = scaleEl ? parseInt(scaleEl.value, 10) : 100;
             clean.pdf_scale = String((pct / 100).toFixed(2));
+            var nameEl = document.querySelector('input[name="sxPdfNameMode"]:checked');
+            if (nameEl) {
+                clean.name_mode = nameEl.value;
+            }
+            var rankEl = document.querySelector('input[name="sxPdfRankBy"]:checked');
+            if (rankEl) {
+                clean.rank_by = rankEl.value;
+            }
             clean.preview = '1';
             return new URLSearchParams(clean).toString();
         }
@@ -6323,7 +6373,7 @@ $(document).ready(function() {
         }
 
         return Swal.fire({
-            title: showScale ? 'Download Individual Report' : 'Download PDF',
+            title: dialogTitle,
             html:
                 '<div class="text-left px-1">' +
                     '<div class="form-check">' +
@@ -6364,6 +6414,12 @@ $(document).ready(function() {
                         previewTimer = setTimeout(sxRefreshPdfPreview, 400);
                     });
                 }
+                document.querySelectorAll('input[name="sxPdfNameMode"], input[name="sxPdfRankBy"]').forEach(function(el) {
+                    el.addEventListener('change', function() {
+                        if (previewTimer) clearTimeout(previewTimer);
+                        previewTimer = setTimeout(sxRefreshPdfPreview, 400);
+                    });
+                });
                 sxRefreshPdfPreview();
             },
             willClose: function() {
@@ -6423,14 +6479,19 @@ $(document).ready(function() {
         }
 
         downloadOpts = downloadOpts || {};
-        // Individual reports (single / bulk_single): offer scale + live PDF preview
+        // All server PDFs (class board + individual): scale slider, default 100%
         if (downloadOpts.showScale == null) {
-            var opt = String(params.option || '');
-            downloadOpts.showScale = (opt === 'single' || opt === 'bulk_single');
+            downloadOpts.showScale = true;
         }
         if (downloadOpts.showScale && !downloadOpts.previewParams) {
             downloadOpts.previewParams = Object.assign({}, params);
             delete downloadOpts.previewParams._btn;
+        }
+        if (!downloadOpts.title) {
+            var optKind = String(params.option || '');
+            downloadOpts.title = (optKind === 'single' || optKind === 'bulk_single')
+                ? 'Download Individual Report'
+                : 'Download Results PDF';
         }
 
         askPdfDownloadOptions(downloadOpts).then(function(result) {
@@ -7388,13 +7449,10 @@ $(document).ready(function() {
 
         // No detailed view, use server-side DomPDF natively
         console.log('Using server-side DomPDF export for class');
-        const classVal    = $('#class').val() || '';
-        const subclassVal = $('#subclass').val() || '';
-
-        // Determine right option based on filters selected
-        let option = 'all';
-        if (subclassVal) option = 'subclass';
-        else if (classVal) option = 'class';
+        const scope = getResultsDownloadScope();
+        const classVal = scope.classID;
+        const subclassVal = scope.subclassID;
+        const option = scope.option;
 
         const params = {
             option: option,
@@ -7405,6 +7463,9 @@ $(document).ready(function() {
             examID: $('#examID').val() || '',
             classID:    classVal,
             subclassID: subclassVal,
+            class: classVal,
+            subclass: subclassVal,
+            teacher_view: scope.teacher_view,
             grade:  $('#grade').val() || '',
             gender: $('#gender').val() || '',
             rank_by: $('#rank_by').val() || 'average',
@@ -7416,7 +7477,7 @@ $(document).ready(function() {
         const typeName = params.type === 'report' ? 'Term_Report' : 'Exam_Results';
         const filename = 'Students_' + typeName + '_' + (term ? term + '_' : '') + year + '.pdf';
 
-        serverDownloadPDF(params, filename, { showNameMode: true, showRankBy: false, schoolType: @json($schoolType ?? 'Secondary') });
+        serverDownloadPDF(params, filename, { showScale: true, showNameMode: true, showRankBy: false, schoolType: @json($schoolType ?? 'Secondary'), title: 'Download Results PDF' });
     });
 
     // Function to export detailed view PDF
@@ -8029,12 +8090,10 @@ $(document).ready(function() {
         if (window._sxExcelDownloading) return;
 
         const $btn = $(this);
-        const classVal    = $('#class').val() || '';
-        const subclassVal = $('#subclass').val() || '';
-
-        let option = 'all';
-        if (subclassVal) option = 'subclass';
-        else if (classVal) option = 'class';
+        const scope = getResultsDownloadScope();
+        const classVal = scope.classID;
+        const subclassVal = scope.subclassID;
+        const option = scope.option;
 
         const params = {
             option: option,
@@ -8045,6 +8104,9 @@ $(document).ready(function() {
             examID: $('#examID').val() || '',
             classID:    classVal,
             subclassID: subclassVal,
+            class: classVal,
+            subclass: subclassVal,
+            teacher_view: scope.teacher_view,
             grade:  $('#grade').val() || '',
             gender: $('#gender').val() || '',
             rank_by: $('#rank_by').val() || 'average',

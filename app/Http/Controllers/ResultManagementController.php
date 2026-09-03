@@ -7129,10 +7129,78 @@ class ResultManagementController extends Controller
     }
 
     /**
+     * Class teacher PDF/Excel must stay on their stream, even if the client
+     * sends option=all or omits locked class/subclass fields.
+     */
+    private function constrainResultDownloadToClassTeacher(Request $request): void
+    {
+        $teacherID = Session::get("teacherID");
+        $userType = Session::get("user_type");
+        if (empty($teacherID) || $userType === "Admin") {
+            return;
+        }
+
+        $subclassID = $this->normalizeResultsSubclassFilter(
+            $request->get("subclassID") ?: $request->get("subclass"),
+        );
+        $classID = $this->normalizeResultsSubclassFilter(
+            $request->get("classID") ?: $request->get("class"),
+        );
+        $teacherView =
+            $request->get("teacher_view") === "1" ||
+            $request->get("teacher_view") === 1;
+
+        $assigned = Subclass::where("teacherID", $teacherID)
+            ->where("status", "Active")
+            ->get();
+        if ($assigned->isEmpty()) {
+            return;
+        }
+
+        $owned = null;
+        if ($subclassID) {
+            $owned = $assigned->first(function ($row) use ($subclassID) {
+                return (int) $row->subclassID === (int) $subclassID;
+            });
+        }
+        if (!$owned && $classID) {
+            $inClass = $assigned->filter(function ($row) use ($classID) {
+                return (int) $row->classID === (int) $classID;
+            });
+            if ($inClass->count() === 1) {
+                $owned = $inClass->first();
+            }
+        }
+        if (!$owned && $teacherView) {
+            if ($assigned->count() === 1) {
+                $owned = $assigned->first();
+            } elseif ($assigned->isNotEmpty()) {
+                $owned = $assigned->first();
+            }
+        }
+
+        if (!$owned) {
+            return;
+        }
+
+        $merge = [
+            "subclassID" => (string) $owned->subclassID,
+            "classID" => (string) $owned->classID,
+        ];
+        $option = $request->get("option", "all");
+        if (!in_array($option, ["single", "bulk_single"], true)) {
+            $merge["option"] = "subclass";
+        }
+        $request->merge($merge);
+    }
+
+    /**
      * Students for PDF/Excel export: Active enrollments for the header academic year.
      */
     private function studentsForResultDownload(Request $request, $schoolID)
     {
+        $this->constrainResultDownloadToClassTeacher($request);
+
         $enrollment = app(StudentEnrollmentService::class);
         $option = $request->get("option", "all");
         $studentID = $request->get("studentID", null);
@@ -7635,6 +7703,11 @@ class ResultManagementController extends Controller
                     $boardClasses[] = $payload;
                 }
             }
+        }
+
+        // Live preview: one class board is enough to judge scale
+        if ($request->boolean("preview") && count($boardClasses) > 1) {
+            $boardClasses = array_slice($boardClasses, 0, 1);
         }
 
         // Fee summary for ADA block on individual PDF (same year as header / view_payments)
