@@ -7705,11 +7705,6 @@ class ResultManagementController extends Controller
             }
         }
 
-        // Live preview: one class board is enough to judge scale
-        if ($request->boolean("preview") && count($boardClasses) > 1) {
-            $boardClasses = array_slice($boardClasses, 0, 1);
-        }
-
         // Fee summary for ADA block on individual PDF (same year as header / view_payments)
         $studentFeeSummaries = $this->buildStudentFeeSummariesForReport(
             $students->pluck("studentID")->map(fn($id) => (int) $id)->all(),
