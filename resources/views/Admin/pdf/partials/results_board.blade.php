@@ -80,6 +80,17 @@
                 . '</td></tr></table>';
         }
     }
+    if (!function_exists('pdfBoardMaxLen')) {
+        function pdfBoardMaxLen(int $current, $value): int {
+            return max($current, mb_strlen(trim((string) $value), 'UTF-8'));
+        }
+    }
+    if (!function_exists('pdfBoardPctFromLen')) {
+        /** Column % from longest cell text (data), not from header labels. */
+        function pdfBoardPctFromLen(int $len, float $pctPerChar, float $pad = 0.5): float {
+            return round(max(1.5, (max(1, $len) * $pctPerChar) + $pad), 2);
+        }
+    }
 @endphp
 <style>
     .board-wrap { page-break-after: always; }
@@ -220,7 +231,8 @@
         padding: 1px 1px;
         text-align: center;
         vertical-align: middle;
-        word-wrap: break-word;
+        white-space: nowrap;
+        word-wrap: normal;
         overflow: hidden;
         font-size: 14px;
         line-height: 1.15;
@@ -584,36 +596,91 @@
         $vRotMarginLeft = (int) round($vBoxH / 2);
         $vRotMarginTop = 7;
 
-        $wSn = 2.6;
-        $wIndex = $showIndexCol ? ($showNameCol ? 7.0 : 11.0) : 0;
-        $wSex = 2.3;
-        $wStream = $showStreamCol ? 3.5 : 0;
-        $wPoint = $isSecondary ? 2.5 : 0;
-        $wDiv = $isSecondary ? 2.7 : 0;
-        $wTrailEach = 3.4;
-        $markCols = max(1, $nSubj * 2);
-
-        $maxNameLen = 1;
-        if ($showNameCol) {
-            foreach ($board['rows'] ?? [] as $nr) {
-                $maxNameLen = max(
-                    $maxNameLen,
-                    mb_strlen(trim((string) ($nr['name'] ?? '')), 'UTF-8'),
-                );
+        $k14 = 0.82;
+        $k12 = 0.70;
+        $rowsScan = $board['rows'] ?? [];
+        $lenSn = 1;
+        $lenName = 1;
+        $lenIndex = 1;
+        $lenSex = 1;
+        $lenStream = 1;
+        $lenPoint = 1;
+        $lenDiv = 1;
+        $lenTotal = 1;
+        $lenAvg = 1;
+        $lenPGrade = 1;
+        $lenPos = 1;
+        $lenMarks = array_fill(0, max(0, $nSubj), 1);
+        $lenGrades = array_fill(0, max(0, $nSubj), 1);
+        foreach ($rowsScan as $nr) {
+            $lenSn = pdfBoardMaxLen($lenSn, $nr['sn'] ?? '');
+            $lenName = pdfBoardMaxLen($lenName, $nr['name'] ?? '');
+            $lenIndex = pdfBoardMaxLen($lenIndex, $nr['index'] ?? '');
+            $lenSex = pdfBoardMaxLen($lenSex, $nr['sex'] ?? '');
+            $lenStream = pdfBoardMaxLen($lenStream, preg_replace('/\s+/', '', (string) ($nr['stream'] ?? '')));
+            $lenPoint = pdfBoardMaxLen($lenPoint, $nr['point'] ?? '');
+            $lenDiv = pdfBoardMaxLen($lenDiv, $nr['division'] ?? '');
+            $lenTotal = pdfBoardMaxLen($lenTotal, $nr['total'] ?? '');
+            $lenAvg = pdfBoardMaxLen($lenAvg, $nr['average'] ?? '');
+            $lenPGrade = pdfBoardMaxLen($lenPGrade, $nr['grade'] ?? '');
+            $lenPos = pdfBoardMaxLen($lenPos, $nr['position'] ?? '');
+            foreach ($nr['subjects'] ?? [] as $si => $cell) {
+                if (!isset($lenMarks[$si])) {
+                    $lenMarks[$si] = 1;
+                    $lenGrades[$si] = 1;
+                }
+                $lenMarks[$si] = pdfBoardMaxLen($lenMarks[$si], $cell['marks'] ?? '');
+                $lenGrades[$si] = pdfBoardMaxLen($lenGrades[$si], $cell['grade'] ?? '');
             }
         }
-        // Width from longest student name at 12px (not from "STUDENT NAME" header)
-        $wName = $showNameCol ? round(($maxNameLen * 0.70) + 1.1, 2) : 0;
 
-        $wFixedNoName = $wSn + $wIndex + $wSex + $wStream + $wPoint + $wDiv + ($nTrail * $wTrailEach);
-        $minMark = 1.7;
-        $maxNameKeepScale = 100 - $wFixedNoName - ($markCols * $minMark);
+        $colW = [];
+        $colW[] = pdfBoardPctFromLen($lenSn, $k14, 0.4);
+        $wName = 0;
+        $nameColIdx = null;
         if ($showNameCol) {
-            $wName = min($wName, max(8.0, $maxNameKeepScale));
+            $nameColIdx = count($colW);
+            $wName = pdfBoardPctFromLen($lenName, $k12, 1.0);
+            $colW[] = $wName;
+        }
+        if ($showIndexCol) {
+            $colW[] = pdfBoardPctFromLen($lenIndex, $k14, 0.45);
+        }
+        $colW[] = pdfBoardPctFromLen($lenSex, $k14, 0.35);
+        if ($showStreamCol) {
+            $colW[] = pdfBoardPctFromLen($lenStream, $k14, 0.45);
+        }
+        if ($isSecondary) {
+            $colW[] = pdfBoardPctFromLen($lenPoint, $k14, 0.4);
+            $colW[] = pdfBoardPctFromLen($lenDiv, $k14, 0.4);
+        }
+        for ($si = 0; $si < $nSubj; $si++) {
+            $colW[] = pdfBoardPctFromLen((int) ($lenMarks[$si] ?? 1), $k14, 0.35);
+            $colW[] = pdfBoardPctFromLen((int) ($lenGrades[$si] ?? 1), $k14, 0.35);
+        }
+        foreach ($board['trailingHeaders'] ?? [] as $th) {
+            $thUp = strtoupper(trim((string) $th));
+            if ($thUp === 'TOTAL') {
+                $colW[] = pdfBoardPctFromLen($lenTotal, $k14, 0.55);
+            } elseif ($thUp === 'AVERAGE') {
+                $colW[] = pdfBoardPctFromLen($lenAvg, $k14, 0.55);
+            } elseif ($thUp === 'GRADE') {
+                $colW[] = pdfBoardPctFromLen($lenPGrade, $k14, 0.4);
+            } else {
+                $colW[] = pdfBoardPctFromLen($lenPos, $k14, 0.4);
+            }
         }
 
-        $wUsed = $wFixedNoName + $wName;
-        $wMark = $nSubj > 0 ? round(max($minMark, (100 - $wUsed) / $markCols), 2) : 2.5;
+        $sumW = array_sum($colW);
+        if ($sumW > 100 && $sumW > 0) {
+            $scaleW = 100 / $sumW;
+            foreach ($colW as $ci => $cw) {
+                $colW[$ci] = round($cw * $scaleW, 2);
+            }
+        }
+        if ($nameColIdx !== null) {
+            $wName = $colW[$nameColIdx];
+        }
         $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
@@ -624,6 +691,7 @@
         .{{ $boardCssId }} table.board-results th,
         .{{ $boardCssId }} table.board-results td {
             font-size: {{ $bodyFs }}px !important;
+            white-space: nowrap !important;
         }
         .{{ $boardCssId }} table.board-results td.name-cell {
             font-size: {{ $nameFs }}px !important;
@@ -777,27 +845,8 @@
         {{-- Student results board: marks | grade as separate columns --}}
         <table class="board-results">
             <colgroup>
-                <col style="width: {{ $wSn }}%;">
-                @if($showNameCol)
-                    <col style="width: {{ $wName }}%;">
-                @endif
-                @if($showIndexCol)
-                    <col style="width: {{ $wIndex }}%;">
-                @endif
-                <col style="width: {{ $wSex }}%;">
-                @if($showStreamCol)
-                    <col style="width: {{ $wStream }}%;">
-                @endif
-                @if($isSecondary)
-                    <col style="width: {{ $wPoint }}%;">
-                    <col style="width: {{ $wDiv }}%;">
-                @endif
-                @foreach($subjects as $subj)
-                    <col style="width: {{ $wMark }}%;">
-                    <col style="width: {{ $wMark }}%;">
-                @endforeach
-                @foreach($board['trailingHeaders'] ?? [] as $th)
-                    <col style="width: {{ $wTrailEach }}%;">
+                @foreach($colW as $cw)
+                    <col style="width: {{ $cw }}%;">
                 @endforeach
             </colgroup>
             <thead>
