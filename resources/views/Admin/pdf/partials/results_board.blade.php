@@ -182,11 +182,11 @@
     /* Vertical titles â€” base size; per-board height expands with longest subject name */
     table.board-results th.v,
     table.board-results th.v-subj {
-        height: 78px;
-        padding: 2px 2px;
-        vertical-align: middle;
+        height: 110px;
+        padding: 1px 0;
+        vertical-align: bottom;
         text-align: center;
-        overflow: hidden;
+        overflow: visible;
     }
     table.board-results th.v { width: 2.5%; }
     /* COMBIE/COMBINATION: vertical header like SEX/POINT; column wide enough for horizontal codes (PMC) */
@@ -194,9 +194,9 @@
         width: 4.2%;
         font-size: 14px;
         vertical-align: bottom;
-        padding: 2px 1px 0 1px;
-        height: 78px;
-        overflow: hidden;
+        padding: 1px 0 0 0;
+        height: 110px;
+        overflow: visible;
     }
     table.board-results th.v-trail { width: 4%; }
     table.board-results th.v-trail.v-total { width: 5.8%; }
@@ -205,7 +205,7 @@
 
     table.board-results table.v-inner {
         width: 100%;
-        height: 72px;
+        height: 104px;
         border-collapse: collapse;
         margin: 0 auto;
     }
@@ -214,32 +214,33 @@
         padding: 0 !important;
         margin: 0;
         text-align: center;
-        vertical-align: middle;
+        vertical-align: bottom;
         background: transparent;
-        overflow: hidden;
+        overflow: visible;
     }
     table.board-results .v-box {
         width: 12px;
-        height: 70px;
+        height: 102px;
         margin: 0 auto;
         position: relative;
-        overflow: hidden;
+        overflow: visible;
     }
     table.board-results th.v-subj .v-box {
-        width: 14px;
+        width: 13px;
     }
     table.board-results .v-rot {
         position: absolute;
-        left: 6px;
+        left: 0;
         bottom: 0;
-        width: 70px;
+        width: 102px;
         white-space: nowrap;
-        font-size: 11px;
+        font-size: 10px;
         font-weight: bold;
         color: #940000;
         line-height: 12px;
+        height: 12px;
         text-align: center;
-        letter-spacing: 0.1px;
+        letter-spacing: 0;
         transform: rotate(-90deg);
         transform-origin: left bottom;
     }
@@ -515,14 +516,13 @@
         if ($boardPdfScale > 1.4) {
             $boardPdfScale = 1.4;
         }
-        // ~7.2px per character at 11px bold vertical titles + padding; grow with download scale
-        $vHeaderH = (int) min(240, max(90, round(($maxVertLen * 7.2) + 12) * $boardPdfScale));
-        $vInnerH = max(78, $vHeaderH - 6);
-        $vBoxH = max(76, $vHeaderH - 8);
-        $vBoxW = (int) max(12, round(14 * $boardPdfScale));
-        $vFont = round(11 * $boardPdfScale, 2);
+        $vFont = round(10 * $boardPdfScale, 2);
         $vLine = round(12 * $boardPdfScale, 2);
-        $vLeft = (int) max(5, round(6 * $boardPdfScale));
+        // Enough height for the full rotated label (px per character at this font)
+        $vHeaderH = (int) min(280, max(110, round(($maxVertLen * ($vFont * 0.82)) + 18)));
+        $vInnerH = max(100, $vHeaderH - 4);
+        $vBoxH = max(98, $vHeaderH - 6);
+        $vBoxW = (int) max(12, round($vLine));
         $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
@@ -532,7 +532,7 @@
         .{{ $boardCssId }} table.board-results th.v-stream,
         .{{ $boardCssId }} table.board-results th.v-trail {
             height: {{ $vHeaderH }}px !important;
-            overflow: hidden !important;
+            overflow: visible !important;
         }
         .{{ $boardCssId }} table.board-results table.v-inner {
             height: {{ $vInnerH }}px !important;
@@ -540,16 +540,17 @@
         .{{ $boardCssId }} table.board-results .v-box {
             height: {{ $vBoxH }}px !important;
             width: {{ $vBoxW }}px !important;
-            overflow: hidden !important;
+            overflow: visible !important;
         }
         .{{ $boardCssId }} table.board-results th.v-subj .v-box {
-            width: {{ $vBoxW + 2 }}px !important;
+            width: {{ $vBoxW }}px !important;
         }
         .{{ $boardCssId }} table.board-results .v-rot {
             width: {{ $vBoxH }}px !important;
+            height: {{ $vLine }}px !important;
             font-size: {{ $vFont }}px !important;
             line-height: {{ $vLine }}px !important;
-            left: {{ $vLeft }}px !important;
+            left: 0 !important;
         }
     </style>
 
