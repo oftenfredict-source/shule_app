@@ -610,6 +610,7 @@
         $vRotMarginTop = 7;
 
         $rowsScan = $board['rows'] ?? [];
+        $lenSn = 1;
         $lenName = 1;
         $lenIndex = 1;
         $lenSex = 1;
