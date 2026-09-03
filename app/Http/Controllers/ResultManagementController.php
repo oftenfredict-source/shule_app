@@ -8732,20 +8732,24 @@ class ResultManagementController extends Controller
             }
         }
         $uniqueSubclassIds = array_values(array_unique($subclassIds));
+        $isALevelClass = $this->isALevelClassName($className);
         $expandToMainClassSubjects =
             $schoolType === "Secondary" &&
             $classID &&
             (int) $classID > 0 &&
-            ($forceExpandMainClassSubjects || count($uniqueSubclassIds) > 1);
+            ($forceExpandMainClassSubjects ||
+                count($uniqueSubclassIds) > 1 ||
+                $isALevelClass);
 
         $boardSubjects = $this->resolveBoardSubjectColumns(
             $classID ? (int) $classID : null,
             $prepared,
             $expandToMainClassSubjects,
         );
-        $offeredBySubclass = $expandToMainClassSubjects
-            ? $this->buildOfferedSubjectMapBySubclass($uniqueSubclassIds)
-            : [];
+        $offeredBySubclass =
+            $expandToMainClassSubjects || $isALevelClass
+                ? $this->buildOfferedSubjectMapBySubclass($uniqueSubclassIds)
+                : [];
 
         $this->sortBoardPreparedRows($prepared, $schoolType, $rankBy);
         foreach ($prepared as $i => &$item) {
@@ -8753,7 +8757,6 @@ class ResultManagementController extends Controller
         }
         unset($item);
 
-        $isALevelClass = $this->isALevelClassName($className);
         // O-Level (Form 1–4) / Primary: no STREAM column. A-Level only: COMBINATION.
         $streamHeader = $isALevelClass ? "COMBINATION" : null;
         $showName = $nameMode !== "index";
@@ -8912,14 +8915,24 @@ class ResultManagementController extends Controller
                 $subj =
                     ($sid > 0 ? $subjectMapById[$sid] ?? null : null) ??
                     ($subjectMapByName[$name] ?? null);
-                if (
-                    $expandToMainClassSubjects &&
-                    $subj === null &&
+                $notTaken =
+                    $isALevelClass &&
+                    $sid > 0 &&
+                    $offeredBySubclass !== [] &&
                     !$this->studentTakesBoardSubject(
                         $student,
                         $sid,
                         $offeredBySubclass,
-                    )
+                    );
+                if (
+                    $notTaken ||
+                    ($expandToMainClassSubjects &&
+                        $subj === null &&
+                        !$this->studentTakesBoardSubject(
+                            $student,
+                            $sid,
+                            $offeredBySubclass,
+                        ))
                 ) {
                     $subjectCells[] = [
                         "marks" => "",
@@ -9077,11 +9090,14 @@ class ResultManagementController extends Controller
             }
         }
         $uniqueSubclassIds = array_values(array_unique($subclassIds));
+        $isALevelClass = $this->isALevelClassName($className);
         $expandToMainClassSubjects =
             $schoolType === "Secondary" &&
             $classID &&
             (int) $classID > 0 &&
-            ($forceExpandMainClassSubjects || count($uniqueSubclassIds) > 1);
+            ($forceExpandMainClassSubjects ||
+                count($uniqueSubclassIds) > 1 ||
+                $isALevelClass);
 
         $boardSubjects = $this->resolveBoardSubjectColumns(
             $classID ? (int) $classID : null,
@@ -9093,9 +9109,10 @@ class ResultManagementController extends Controller
             $boardSubjects,
         );
 
-        $offeredBySubclass = $expandToMainClassSubjects
-            ? $this->buildOfferedSubjectMapBySubclass($uniqueSubclassIds)
-            : [];
+        $offeredBySubclass =
+            $expandToMainClassSubjects || $isALevelClass
+                ? $this->buildOfferedSubjectMapBySubclass($uniqueSubclassIds)
+                : [];
 
         $this->sortBoardPreparedRows($prepared, $schoolType, $rankBy);
 
@@ -9105,7 +9122,6 @@ class ResultManagementController extends Controller
         unset($item);
 
         $subjectColSpan = 2; // Marks + Grade under each subject
-        $isALevelClass = $this->isALevelClassName($className);
         // O-Level (Form 1–4) / Primary: no STREAM. A-Level only: COMBIE.
         $streamHeader = $isALevelClass ? "COMBIE" : null;
 
@@ -9819,15 +9835,24 @@ class ResultManagementController extends Controller
                     ($sid > 0 ? $subjectMapById[$sid] ?? null : null) ??
                     ($subjectMapByName[$name] ?? null);
 
-                // Not offered on this student's stream → whitesmoke empty cells
-                if (
-                    $expandToMainClassSubjects &&
-                    $subj === null &&
+                $notTaken =
+                    $isALevelClass &&
+                    $sid > 0 &&
+                    $offeredBySubclass !== [] &&
                     !$this->studentTakesBoardSubject(
                         $student,
                         $sid,
                         $offeredBySubclass,
-                    )
+                    );
+                if (
+                    $notTaken ||
+                    ($expandToMainClassSubjects &&
+                        $subj === null &&
+                        !$this->studentTakesBoardSubject(
+                            $student,
+                            $sid,
+                            $offeredBySubclass,
+                        ))
                 ) {
                     $line[] = "";
                     $line[] = "";
@@ -9909,7 +9934,7 @@ class ResultManagementController extends Controller
                 ->getFill()
                 ->setFillType(Fill::FILL_SOLID)
                 ->getStartColor()
-                ->setARGB("FFF5F5F5");
+                ->setARGB("FFC5C5C5");
         }
 
         $lastDataRow = $dataRow - 1;
@@ -10031,7 +10056,7 @@ class ResultManagementController extends Controller
                 $subjectID = $boardSubj["subjectID"] ?? null;
 
                 if (
-                    $expandToMainClassSubjects &&
+                    ($expandToMainClassSubjects || $isALevel) &&
                     !$this->studentTakesBoardSubject(
                         $student,
                         (int) ($subjectID ?? 0),
