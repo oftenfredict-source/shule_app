@@ -308,10 +308,10 @@
         font-size: 14px;
     }
     table.board-results .v-box {
-        width: 18px;
+        width: 100%;
         margin: 0 auto;
         position: relative;
-        overflow: visible;
+        overflow: hidden;
     }
     table.board-results .v-rot {
         position: absolute;
@@ -367,30 +367,32 @@
         font-size: 11px;
         font-weight: bold;
         line-height: 1.1;
-        padding: 1px 2px;
+        padding: 1px 3px;
         text-align: center;
         white-space: nowrap !important;
-        overflow: hidden !important;
+        overflow: visible !important;
     }
     table.board-results td.stream-cell .stream-keep {
         white-space: nowrap !important;
         display: inline-block;
+        letter-spacing: 0;
+        padding: 0 1px;
     }
     table.board-results td.board-num-cell {
         white-space: nowrap !important;
-        overflow: hidden !important;
+        overflow: visible !important;
         font-size: 14px !important;
         line-height: 1.15 !important;
-        padding: 1px 2px !important;
+        padding: 1px 3px !important;
         text-align: center !important;
     }
     table.board-results td.board-num-cell.board-total-cell {
         font-size: 12px !important;
+        padding: 1px 3px !important;
     }
     table.board-results td.board-num-cell .board-num-keep {
         white-space: nowrap !important;
         display: inline-block;
-        max-width: 100%;
     }
     table.board-results td.empty-subj { background: #f5f5f5; }
     table.board-results .sub-h {
@@ -591,12 +593,11 @@
         $vHeaderH = (int) round($maxVertLen * 7.2 + 16);
         $vInnerH = max(1, $vHeaderH - 4);
         $vBoxH = max(1, $vHeaderH - 8);
-        $vBoxW = 16;
         $vLine = 14;
         $vRotMarginLeft = (int) round($vBoxH / 2);
         $vRotMarginTop = 7;
 
-        $k14 = 0.82;
+        $k14 = 0.95;
         $k12 = 0.70;
         $rowsScan = $board['rows'] ?? [];
         $lenSn = 1;
@@ -635,6 +636,7 @@
         }
 
         $colW = [];
+        $protect = [];
         $colW[] = pdfBoardPctFromLen($lenSn, $k14, 0.4);
         $wName = 0;
         $nameColIdx = null;
@@ -648,34 +650,62 @@
         }
         $colW[] = pdfBoardPctFromLen($lenSex, $k14, 0.35);
         if ($showStreamCol) {
-            $colW[] = pdfBoardPctFromLen($lenStream, $k14, 0.45);
+            $protect[] = count($colW);
+            $colW[] = max(4.4, pdfBoardPctFromLen(max($lenStream, 3), 1.15, 0.9));
         }
         if ($isSecondary) {
-            $colW[] = pdfBoardPctFromLen($lenPoint, $k14, 0.4);
-            $colW[] = pdfBoardPctFromLen($lenDiv, $k14, 0.4);
+            $colW[] = pdfBoardPctFromLen($lenPoint, $k14, 0.45);
+            $colW[] = pdfBoardPctFromLen($lenDiv, $k14, 0.45);
         }
         for ($si = 0; $si < $nSubj; $si++) {
-            $colW[] = pdfBoardPctFromLen((int) ($lenMarks[$si] ?? 1), $k14, 0.35);
-            $colW[] = pdfBoardPctFromLen((int) ($lenGrades[$si] ?? 1), $k14, 0.35);
+            $colW[] = pdfBoardPctFromLen((int) ($lenMarks[$si] ?? 1), $k14, 0.4);
+            $colW[] = pdfBoardPctFromLen((int) ($lenGrades[$si] ?? 1), $k14, 0.4);
         }
         foreach ($board['trailingHeaders'] ?? [] as $th) {
             $thUp = strtoupper(trim((string) $th));
+            $idx = count($colW);
             if ($thUp === 'TOTAL') {
-                $colW[] = pdfBoardPctFromLen($lenTotal, $k14, 0.55);
+                $protect[] = $idx;
+                $colW[] = max(5.0, pdfBoardPctFromLen(max($lenTotal, 3), 1.15, 0.9));
             } elseif ($thUp === 'AVERAGE') {
-                $colW[] = pdfBoardPctFromLen($lenAvg, $k14, 0.55);
+                $protect[] = $idx;
+                $colW[] = max(6.0, pdfBoardPctFromLen(max($lenAvg, 5), 1.25, 1.0));
             } elseif ($thUp === 'GRADE') {
                 $colW[] = pdfBoardPctFromLen($lenPGrade, $k14, 0.4);
             } else {
-                $colW[] = pdfBoardPctFromLen($lenPos, $k14, 0.4);
+                $colW[] = max(3.2, pdfBoardPctFromLen($lenPos, $k14, 0.45));
             }
         }
 
         $sumW = array_sum($colW);
         if ($sumW > 100 && $sumW > 0) {
-            $scaleW = 100 / $sumW;
-            foreach ($colW as $ci => $cw) {
-                $colW[$ci] = round($cw * $scaleW, 2);
+            $overflow = $sumW - 100;
+            if ($nameColIdx !== null) {
+                $can = max(0, $colW[$nameColIdx] - 10.0);
+                $take = min($overflow, $can);
+                $colW[$nameColIdx] = round($colW[$nameColIdx] - $take, 2);
+                $overflow = round($overflow - $take, 2);
+            }
+            if ($overflow > 0.05) {
+                $flex = [];
+                foreach ($colW as $ci => $cw) {
+                    if ($nameColIdx !== null && $ci === $nameColIdx) {
+                        continue;
+                    }
+                    if (in_array($ci, $protect, true)) {
+                        continue;
+                    }
+                    $flex[] = $ci;
+                }
+                $flexSum = 0;
+                foreach ($flex as $ci) {
+                    $flexSum += $colW[$ci];
+                }
+                if ($flexSum > 0) {
+                    foreach ($flex as $ci) {
+                        $colW[$ci] = round($colW[$ci] * (1 - ($overflow / $flexSum)), 2);
+                    }
+                }
             }
         }
         if ($nameColIdx !== null) {
@@ -704,7 +734,13 @@
         .{{ $boardCssId }} table.board-results th.v,
         .{{ $boardCssId }} table.board-results th.v-subj,
         .{{ $boardCssId }} table.board-results th.v-stream,
-        .{{ $boardCssId }} table.board-results th.v-trail,
+        .{{ $boardCssId }} table.board-results th.v-trail {
+            height: {{ $vHeaderH }}px !important;
+            vertical-align: middle !important;
+            text-align: center !important;
+            padding-top: 0 !important;
+            overflow: hidden !important;
+        }
         .{{ $boardCssId }} table.board-results th.sn-h,
         .{{ $boardCssId }} table.board-results th.name-h,
         .{{ $boardCssId }} table.board-results th.index-h {
@@ -712,15 +748,16 @@
             vertical-align: middle !important;
             text-align: center !important;
             padding-top: 0 !important;
-            overflow: visible !important;
+            overflow: hidden !important;
         }
         .{{ $boardCssId }} table.board-results table.v-inner {
+            width: 100% !important;
             height: {{ $vInnerH }}px !important;
         }
         .{{ $boardCssId }} table.board-results .v-box {
             height: {{ $vBoxH }}px !important;
-            width: {{ $vBoxW }}px !important;
-            overflow: visible !important;
+            width: 100% !important;
+            overflow: hidden !important;
         }
         .{{ $boardCssId }} table.board-results .v-rot {
             width: {{ $vBoxH }}px !important;
