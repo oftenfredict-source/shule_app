@@ -1,33 +1,17 @@
 {{-- Excel-like class board (landscape). Styles extend results.blade.php --}}
 @php
     if (!function_exists('pdfBoardVerticalLabel')) {
-        /** Vertical th: rotate -90°, strip width = cell height so text-align:center is true middle */
-        function pdfBoardVerticalLabel(?string $text, int $boxH = 118, int $leftPx = 4): string {
+        /** Excel-style vertical header, centred in cell (DomPDF-safe) */
+        function pdfBoardVerticalLabel(?string $text): string {
             $text = strtoupper(trim((string) $text));
             if ($text === '') {
                 return '';
             }
             $safe = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
-            $h = max(40, $boxH);
-            $left = max(1, $leftPx);
-
+            // Nested table + rotate: DomPDF centres better than absolute left:0
             return '<table class="v-inner"><tr><td>'
-                . '<div class="v-box"><div class="v-rot" style="left:' . $left . 'px;bottom:0;width:' . $h . 'px;">'
-                . $safe
-                . '</div></div></td></tr></table>';
-        }
-    }
-    if (!function_exists('pdfBoardHorizontalLabel')) {
-        /** Horizontal th: three-row table so DomPDF vertical-centers in a tall header row */
-        function pdfBoardHorizontalLabel(string $text, int $cellH = 130): string {
-            $safe = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
-            $h = max(40, $cellH);
-
-            return '<table class="h-inner" style="width:100%;height:' . $h . 'px;"><tbody>'
-                . '<tr><td class="h-pad" style="height:42%;"></td></tr>'
-                . '<tr><td class="h-txt">' . $safe . '</td></tr>'
-                . '<tr><td class="h-pad" style="height:42%;"></td></tr>'
-                . '</tbody></table>';
+                . '<div class="v-box"><div class="v-rot">' . $safe . '</div></div>'
+                . '</td></tr></table>';
         }
     }
 @endphp
@@ -249,21 +233,12 @@
     table.board-results table.h-inner td {
         border: none !important;
         padding: 0 2px !important;
-        background: transparent;
-    }
-    table.board-results table.h-inner td.h-pad {
-        height: 42%;
-        font-size: 1px;
-        line-height: 1px;
-        padding: 0 !important;
-    }
-    table.board-results table.h-inner td.h-txt {
         text-align: center;
         vertical-align: middle;
+        background: transparent;
         color: #940000 !important;
         font-weight: bold;
         font-size: 14px;
-        white-space: nowrap;
     }
     table.board-results .v-box {
         width: 18px;
@@ -277,9 +252,12 @@
     }
     table.board-results .v-rot {
         position: absolute;
-        left: 4px;
-        bottom: 0;
+        top: 50%;
+        left: 50%;
+        bottom: auto;
         width: 118px;
+        margin-left: -59px;
+        margin-top: -7px;
         white-space: nowrap;
         font-size: 12px;
         font-weight: bold;
@@ -288,7 +266,7 @@
         text-align: center;
         letter-spacing: 0.2px;
         transform: rotate(-90deg);
-        transform-origin: left bottom;
+        transform-origin: center center;
     }
     table.board-results th.sn-h {
         width: 3%;
@@ -573,27 +551,23 @@
         $vBoxH = max(106, $vHeaderH - 10);
         $vBoxW = (int) max(18, round(20 * $boardPdfScale));
         $vLine = round(14 * $boardPdfScale, 2);
-        $vLeft = (int) max(2, round(($vBoxW - $vFont) / 2));
+        $vRotMarginLeft = (int) round($vBoxH / 2);
+        $vRotMarginTop = (int) max(6, round($vFont / 2 + 1));
         $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
     <style>
-        .{{ $boardCssId }} table.board-results th.sn-h,
-        .{{ $boardCssId }} table.board-results th.name-h,
-        .{{ $boardCssId }} table.board-results th.index-h,
         .{{ $boardCssId }} table.board-results th.v,
         .{{ $boardCssId }} table.board-results th.v-subj,
         .{{ $boardCssId }} table.board-results th.v-stream,
         .{{ $boardCssId }} table.board-results th.v-trail {
             height: {{ $vHeaderH }}px !important;
             overflow: visible !important;
-            vertical-align: middle !important;
-            text-align: center !important;
         }
         .{{ $boardCssId }} table.board-results table.h-inner {
             height: {{ $vHeaderH }}px !important;
         }
-        .{{ $boardCssId }} table.board-results table.h-inner td.h-txt {
+        .{{ $boardCssId }} table.board-results table.h-inner td {
             vertical-align: middle !important;
             text-align: center !important;
         }
@@ -602,8 +576,6 @@
         }
         .{{ $boardCssId }} table.board-results table.v-inner td {
             overflow: visible !important;
-            text-align: center !important;
-            vertical-align: middle !important;
         }
         .{{ $boardCssId }} table.board-results .v-box {
             height: {{ $vBoxH }}px !important;
@@ -617,15 +589,16 @@
             width: {{ $vBoxH }}px !important;
             font-size: {{ $vFont }}px !important;
             line-height: {{ $vLine }}px !important;
-            left: {{ $vLeft }}px !important;
-            bottom: 0 !important;
-            top: auto !important;
-            margin: 0 !important;
+            top: 50% !important;
+            left: 50% !important;
+            bottom: auto !important;
+            margin-left: -{{ $vRotMarginLeft }}px !important;
+            margin-top: -{{ $vRotMarginTop }}px !important;
             transform: rotate(-90deg) !important;
-            transform-origin: left bottom !important;
-            text-align: center !important;
+            transform-origin: center center !important;
             color: #940000 !important;
             overflow: visible !important;
+            text-align: center !important;
         }
     </style>
 
@@ -741,30 +714,30 @@
         <table class="board-results">
             <thead>
                 <tr>
-                    <th class="sn-h" style="width:3%;">{!! pdfBoardHorizontalLabel('S/N', $vHeaderH) !!}</th>
+                    <th class="sn-h" style="width:3%;"><table class="h-inner"><tr><td>S/N</td></tr></table></th>
                     @if($board['showName'] ?? true)
-                        <th class="name-h" style="width:{{ ($board['showIndex'] ?? true) ? '14%' : '20%' }};">{!! pdfBoardHorizontalLabel('STUDENT NAME', $vHeaderH) !!}</th>
+                        <th class="name-h" style="width:{{ ($board['showIndex'] ?? true) ? '14%' : '20%' }};"><table class="h-inner"><tr><td>STUDENT NAME</td></tr></table></th>
                     @endif
                     @if($board['showIndex'] ?? true)
-                        <th class="index-h" style="width:{{ ($board['showName'] ?? true) ? '9%' : '14%' }};">{!! pdfBoardHorizontalLabel('INDEX NO', $vHeaderH) !!}</th>
+                        <th class="index-h" style="width:{{ ($board['showName'] ?? true) ? '9%' : '14%' }};"><table class="h-inner"><tr><td>INDEX NO</td></tr></table></th>
                     @endif
-                    <th class="v">{!! pdfBoardVerticalLabel('SEX', $vBoxH, $vLeft) !!}</th>
+                    <th class="v">{!! pdfBoardVerticalLabel('SEX') !!}</th>
                     @if(!empty($board['showStream']))
-                        <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION', $vBoxH, $vLeft) !!}</th>
+                        <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION') !!}</th>
                     @endif
                     @if($isSecondary)
-                        <th class="v">{!! pdfBoardVerticalLabel('POINT', $vBoxH, $vLeft) !!}</th>
-                        <th class="v">{!! pdfBoardVerticalLabel('DIVISION', $vBoxH, $vLeft) !!}</th>
+                        <th class="v">{!! pdfBoardVerticalLabel('POINT') !!}</th>
+                        <th class="v">{!! pdfBoardVerticalLabel('DIVISION') !!}</th>
                     @endif
                     @foreach($subjects as $subj)
-                        <th class="v-subj" colspan="2">{!! pdfBoardVerticalLabel($subj['subject_name'] ?? '', $vBoxH, $vLeft) !!}</th>
+                        <th class="v-subj" colspan="2">{!! pdfBoardVerticalLabel($subj['subject_name'] ?? '') !!}</th>
                     @endforeach
                     @foreach($board['trailingHeaders'] ?? [] as $th)
                         @php
                             $thUp = strtoupper(trim((string) $th));
                             $trailExtra = $thUp === 'TOTAL' ? 'v-total' : ($thUp === 'AVERAGE' ? 'v-avg' : '');
                         @endphp
-                        <th class="v v-trail {{ $trailExtra }}">{!! pdfBoardVerticalLabel($th, $vBoxH, $vLeft) !!}</th>
+                        <th class="v v-trail {{ $trailExtra }}">{!! pdfBoardVerticalLabel($th) !!}</th>
                     @endforeach
                 </tr>
             </thead>
