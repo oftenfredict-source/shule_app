@@ -1765,7 +1765,8 @@
                                 @endphp
                                 
                                 <script>
-                                    window.detailedViewData = {!! json_encode($detailedViewData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?: 'null' !!};
+                                    window.detailedViewData = @json($detailedViewData);
+                                    console.log('Detailed View Data Loaded:', window.detailedViewData);
                                 </script>
 
                                 @if($totalStudents > 0)
@@ -3251,7 +3252,8 @@
                                 @endphp
                                 
                                 <script>
-                                    window.detailedViewData = {!! json_encode($detailedReportData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?: 'null' !!};
+                                    window.detailedViewData = @json($detailedReportData);
+                                    console.log('Detailed Report Data Loaded:', window.detailedViewData);
                                 </script>
                                 
                                 <!-- Title -->
@@ -3979,19 +3981,6 @@
     }
     function getResultsSubclassFilter() {
         return $('#subclass').val() || $('#lockedSubclassID').val() || '';
-    }
-    function getResultsDownloadScope() {
-        const classID = getResultsClassFilter();
-        const subclassID = getResultsSubclassFilter();
-        let option = 'all';
-        if (subclassID) option = 'subclass';
-        else if (classID) option = 'class';
-        return {
-            classID: classID,
-            subclassID: subclassID,
-            option: option,
-            teacher_view: @json(!empty($isTeacherView) ? '1' : '0')
-        };
     }
 
 $(document).ready(function() {
@@ -5983,39 +5972,40 @@ $(document).ready(function() {
     $(document).on('click', '.download-all-students-btn', function(e) {
         e.preventDefault();
 
-        let type = $(this).data('type') || $('#type').val();
+        let type = $(this).data('type') || $('#type').val(); // exam or report
         let term = $('#term').val();
         let year = $('#year').val();
         let examID = $('#examID').val() || '';
-        const scope = getResultsDownloadScope();
-        let classID = scope.classID;
-        let subclassID = scope.subclassID;
+        let classID = $('#class').val() || '';
+        let subclassID = $('#subclass').val() || '';
         let status = $('#status').val() || 'Active';
+        
+        @if(isset($isTeacherView) && $isTeacherView)
+            classID = $('#lockedClassID').val() || '';
+            subclassID = $('#lockedSubclassID').val() || '';
+        @elseif(isset($isCoordinatorResultsView) && $isCoordinatorResultsView)
+            classID = $('#lockedClassID').val() || '';
+        @endif
 
         askPdfDownloadOptions({ showScale: true, showNameMode: false, showRankBy: false }).then(function(wmResult) {
             if (!wmResult.isConfirmed) {
                 return;
             }
-        var optVal = wmResult.value || {};
-        var watermarkVal = optVal.watermark != null ? optVal.watermark : '1';
-        var pdfScaleVal = optVal.pdf_scale != null ? optVal.pdf_scale : '1';
+            var optVal = wmResult.value || {};
+            var watermarkVal = optVal.watermark != null ? optVal.watermark : '1';
+            var pdfScaleVal = optVal.pdf_scale != null ? optVal.pdf_scale : '1';
 
-        const qs = new URLSearchParams({
-            option: 'bulk_single',
-            type: type || '',
-            term: term || '',
-            year: year || '',
-            examID: examID || '',
-            classID: classID || '',
-            subclassID: subclassID || '',
-            subclass: subclassID || '',
-            class: classID || '',
-            teacher_view: String(scope.teacher_view || '0'),
-            status: status || 'Active',
-            watermark: String(watermarkVal),
-            pdf_scale: String(pdfScaleVal)
-        });
-        let url = '{{ route("admin.download_results_pdf") }}?' + qs.toString();
+        let url = '{{ route("admin.download_results_pdf") }}' + 
+                  '?option=bulk_single' + 
+                  '&type=' + type + 
+                  '&term=' + term + 
+                  '&year=' + year + 
+                  '&examID=' + examID + 
+                  '&classID=' + classID + 
+                  '&subclassID=' + subclassID + 
+                  '&status=' + status +
+                  '&watermark=' + encodeURIComponent(watermarkVal) +
+                  '&pdf_scale=' + encodeURIComponent(pdfScaleVal);
                   
         const alertHtml = `
             <div class="mb-3 mt-2 text-left">
@@ -7396,15 +7386,15 @@ $(document).ready(function() {
 
         const $btn = $(this);
 
-        if (window.detailedViewData && ($('.detailed-exam-results').length || $('.detailed-report-results').length)) {
-            exportDetailedViewPDF();
-            return;
-        }
+        // No detailed view, use server-side DomPDF natively
+        console.log('Using server-side DomPDF export for class');
+        const classVal    = $('#class').val() || '';
+        const subclassVal = $('#subclass').val() || '';
 
-        const scope = getResultsDownloadScope();
-        const classVal = scope.classID;
-        const subclassVal = scope.subclassID;
-        const option = scope.option;
+        // Determine right option based on filters selected
+        let option = 'all';
+        if (subclassVal) option = 'subclass';
+        else if (classVal) option = 'class';
 
         const params = {
             option: option,
@@ -7415,9 +7405,6 @@ $(document).ready(function() {
             examID: $('#examID').val() || '',
             classID:    classVal,
             subclassID: subclassVal,
-            class: classVal,
-            subclass: subclassVal,
-            teacher_view: scope.teacher_view,
             grade:  $('#grade').val() || '',
             gender: $('#gender').val() || '',
             rank_by: $('#rank_by').val() || 'average',
@@ -8042,10 +8029,12 @@ $(document).ready(function() {
         if (window._sxExcelDownloading) return;
 
         const $btn = $(this);
-        const scope = getResultsDownloadScope();
-        const classVal = scope.classID;
-        const subclassVal = scope.subclassID;
-        const option = scope.option;
+        const classVal    = $('#class').val() || '';
+        const subclassVal = $('#subclass').val() || '';
+
+        let option = 'all';
+        if (subclassVal) option = 'subclass';
+        else if (classVal) option = 'class';
 
         const params = {
             option: option,
@@ -8056,9 +8045,6 @@ $(document).ready(function() {
             examID: $('#examID').val() || '',
             classID:    classVal,
             subclassID: subclassVal,
-            class: classVal,
-            subclass: subclassVal,
-            teacher_view: scope.teacher_view,
             grade:  $('#grade').val() || '',
             gender: $('#gender').val() || '',
             rank_by: $('#rank_by').val() || 'average',
