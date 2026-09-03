@@ -912,7 +912,6 @@
         body.board-pdf table.board-results td.board-num-cell.board-total-cell,
         body.board-pdf table.board-results td.board-total-cell .board-num-keep { font-size: {{ $sx(12) }}px !important; }
         body.board-pdf table.board-results td.board-avg-cell .board-num-keep { font-size: {{ $sx(14) }}px !important; }
-        body.board-pdf table.board-results .v-rot { font-size: {{ $sx(11) }}px !important; }
         body.board-pdf .footer { font-size: {{ $sx(7) }}px !important; }
         @endif
 

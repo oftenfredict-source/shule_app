@@ -186,7 +186,7 @@
         padding: 2px 2px;
         vertical-align: middle;
         text-align: center;
-        overflow: visible;
+        overflow: hidden;
     }
     table.board-results th.v { width: 2.5%; }
     /* COMBIE/COMBINATION: vertical header like SEX/POINT; column wide enough for horizontal codes (PMC) */
@@ -196,7 +196,7 @@
         vertical-align: bottom;
         padding: 2px 1px 0 1px;
         height: 78px;
-        overflow: visible;
+        overflow: hidden;
     }
     table.board-results th.v-trail { width: 4%; }
     table.board-results th.v-trail.v-total { width: 5.8%; }
@@ -216,14 +216,14 @@
         text-align: center;
         vertical-align: middle;
         background: transparent;
-        overflow: visible;
+        overflow: hidden;
     }
     table.board-results .v-box {
         width: 12px;
         height: 70px;
         margin: 0 auto;
         position: relative;
-        overflow: visible;
+        overflow: hidden;
     }
     table.board-results th.v-subj .v-box {
         width: 14px;
@@ -508,26 +508,48 @@
                 mb_strlen(strtoupper(trim((string) ($subj['subject_name'] ?? ''))), 'UTF-8'),
             );
         }
-        // ~7.2px per character at 11px bold vertical titles + padding; clamp for DomPDF page fit
-        $vHeaderH = (int) min(180, max(90, round($maxVertLen * 7.2) + 12));
+        $boardPdfScale = isset($pdfScale) ? (float) $pdfScale : 1.0;
+        if ($boardPdfScale < 1.0) {
+            $boardPdfScale = 1.0;
+        }
+        if ($boardPdfScale > 1.4) {
+            $boardPdfScale = 1.4;
+        }
+        // ~7.2px per character at 11px bold vertical titles + padding; grow with download scale
+        $vHeaderH = (int) min(240, max(90, round(($maxVertLen * 7.2) + 12) * $boardPdfScale));
         $vInnerH = max(78, $vHeaderH - 6);
         $vBoxH = max(76, $vHeaderH - 8);
+        $vBoxW = (int) max(12, round(14 * $boardPdfScale));
+        $vFont = round(11 * $boardPdfScale, 2);
+        $vLine = round(12 * $boardPdfScale, 2);
+        $vLeft = (int) max(5, round(6 * $boardPdfScale));
         $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
     <style>
         .{{ $boardCssId }} table.board-results th.v,
-        .{{ $boardCssId }} table.board-results th.v-subj {
+        .{{ $boardCssId }} table.board-results th.v-subj,
+        .{{ $boardCssId }} table.board-results th.v-stream,
+        .{{ $boardCssId }} table.board-results th.v-trail {
             height: {{ $vHeaderH }}px !important;
+            overflow: hidden !important;
         }
         .{{ $boardCssId }} table.board-results table.v-inner {
             height: {{ $vInnerH }}px !important;
         }
         .{{ $boardCssId }} table.board-results .v-box {
             height: {{ $vBoxH }}px !important;
+            width: {{ $vBoxW }}px !important;
+            overflow: hidden !important;
+        }
+        .{{ $boardCssId }} table.board-results th.v-subj .v-box {
+            width: {{ $vBoxW + 2 }}px !important;
         }
         .{{ $boardCssId }} table.board-results .v-rot {
             width: {{ $vBoxH }}px !important;
+            font-size: {{ $vFont }}px !important;
+            line-height: {{ $vLine }}px !important;
+            left: {{ $vLeft }}px !important;
         }
     </style>
 
