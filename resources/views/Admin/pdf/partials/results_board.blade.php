@@ -290,9 +290,9 @@
         padding: 1px 1px;
     }
     table.board-results td.name-cell {
-        text-align: center;
-        padding-left: 2px;
-        padding-right: 2px;
+        text-align: left !important;
+        padding-left: 4px !important;
+        padding-right: 2px !important;
         font-weight: bold;
         font-size: 12px;
         line-height: 1.1;
@@ -304,8 +304,11 @@
     }
     table.board-results td.name-cell .name-keep {
         white-space: nowrap !important;
-        display: inline-block;
-        max-width: 100%;
+        display: block;
+        text-align: left !important;
+        width: 100%;
+        margin: 0;
+        padding: 0;
     }
     table.board-results td.stream-cell {
         font-size: 11px;
@@ -583,6 +586,15 @@
             vertical-align: middle !important;
             padding: 0 !important;
         }
+        .{{ $boardCssId }} table.board-results td.name-cell {
+            text-align: left !important;
+            padding-left: 4px !important;
+        }
+        .{{ $boardCssId }} table.board-results td.name-cell .name-keep {
+            display: block !important;
+            text-align: left !important;
+            width: 100% !important;
+        }
         .{{ $boardCssId }} table.board-results table.v-inner {
             height: {{ $vInnerH }}px !important;
         }
@@ -758,7 +770,7 @@
                     <tr>
                         <td>{{ $r['sn'] }}</td>
                         @if($board['showName'] ?? true)
-                            <td class="name-cell"><span class="name-keep">{{ $r['name'] }}</span></td>
+                            <td class="name-cell" style="text-align:left;">{{ $r['name'] }}</td>
                         @endif
                         @if($board['showIndex'] ?? true)
                             <td>{{ $r['index'] }}</td>
