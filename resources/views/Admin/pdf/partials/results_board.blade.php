@@ -224,6 +224,22 @@
         background: transparent;
         overflow: visible;
     }
+    table.board-results table.h-inner {
+        width: 100%;
+        height: 100%;
+        border-collapse: collapse;
+        margin: 0;
+    }
+    table.board-results table.h-inner td {
+        border: none !important;
+        padding: 0 2px !important;
+        text-align: center;
+        vertical-align: middle;
+        background: transparent;
+        color: #940000 !important;
+        font-weight: bold;
+        font-size: 14px;
+    }
     table.board-results .v-box {
         width: 18px;
         height: 118px;
@@ -236,9 +252,12 @@
     }
     table.board-results .v-rot {
         position: absolute;
-        left: 4px;
-        bottom: 4px;
+        top: 50%;
+        left: 50%;
+        bottom: auto;
         width: 118px;
+        margin-left: -59px;
+        margin-top: -7px;
         white-space: nowrap;
         font-size: 12px;
         font-weight: bold;
@@ -247,7 +266,7 @@
         text-align: center;
         letter-spacing: 0.2px;
         transform: rotate(-90deg);
-        transform-origin: left bottom;
+        transform-origin: center center;
     }
     table.board-results th.sn-h {
         width: 3%;
@@ -532,7 +551,8 @@
         $vBoxH = max(106, $vHeaderH - 10);
         $vBoxW = (int) max(18, round(20 * $boardPdfScale));
         $vLine = round(14 * $boardPdfScale, 2);
-        $vLeft = (int) max(4, round($vBoxW * 0.28));
+        $vRotMarginLeft = (int) round($vBoxH / 2);
+        $vRotMarginTop = (int) max(6, round($vFont / 2 + 1));
         $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
@@ -543,6 +563,13 @@
         .{{ $boardCssId }} table.board-results th.v-trail {
             height: {{ $vHeaderH }}px !important;
             overflow: visible !important;
+        }
+        .{{ $boardCssId }} table.board-results table.h-inner {
+            height: {{ $vHeaderH }}px !important;
+        }
+        .{{ $boardCssId }} table.board-results table.h-inner td {
+            vertical-align: middle !important;
+            text-align: center !important;
         }
         .{{ $boardCssId }} table.board-results table.v-inner {
             height: {{ $vInnerH }}px !important;
@@ -562,10 +589,16 @@
             width: {{ $vBoxH }}px !important;
             font-size: {{ $vFont }}px !important;
             line-height: {{ $vLine }}px !important;
-            left: {{ $vLeft }}px !important;
-            bottom: 6px !important;
+            top: 50% !important;
+            left: 50% !important;
+            bottom: auto !important;
+            margin-left: -{{ $vRotMarginLeft }}px !important;
+            margin-top: -{{ $vRotMarginTop }}px !important;
+            transform: rotate(-90deg) !important;
+            transform-origin: center center !important;
             color: #940000 !important;
             overflow: visible !important;
+            text-align: center !important;
         }
     </style>
 
@@ -681,12 +714,12 @@
         <table class="board-results">
             <thead>
                 <tr>
-                    <th class="sn-h" style="width:3%;">S/N</th>
+                    <th class="sn-h" style="width:3%;"><table class="h-inner"><tr><td>S/N</td></tr></table></th>
                     @if($board['showName'] ?? true)
-                        <th class="name-h" style="width:{{ ($board['showIndex'] ?? true) ? '14%' : '20%' }};">STUDENT NAME</th>
+                        <th class="name-h" style="width:{{ ($board['showIndex'] ?? true) ? '14%' : '20%' }};"><table class="h-inner"><tr><td>STUDENT NAME</td></tr></table></th>
                     @endif
                     @if($board['showIndex'] ?? true)
-                        <th class="index-h" style="width:{{ ($board['showName'] ?? true) ? '9%' : '14%' }};">INDEX NO</th>
+                        <th class="index-h" style="width:{{ ($board['showName'] ?? true) ? '9%' : '14%' }};"><table class="h-inner"><tr><td>INDEX NO</td></tr></table></th>
                     @endif
                     <th class="v">{!! pdfBoardVerticalLabel('SEX') !!}</th>
                     @if(!empty($board['showStream']))
