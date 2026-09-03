@@ -558,7 +558,7 @@ a#menuToggle.menutoggle:hover {
 </style>
 
 @include('includes.mobile_app_bar_styles')
-<link rel="stylesheet" href="{{ asset('css/shulexpert-theme.css') }}?v={{ filemtime(public_path('css/shulexpert-theme.css')) }}">
+<link rel="stylesheet" href="{{ asset('css/shulexpert-theme.css') }}@if(is_file(public_path('css/shulexpert-theme.css')))?v={{ filemtime(public_path('css/shulexpert-theme.css')) }}@endif">
 </head>
 <body>
     {{-- Fixed mobile top bar (visible when sidebar is off-canvas) --}}

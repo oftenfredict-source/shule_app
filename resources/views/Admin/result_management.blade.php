@@ -1765,8 +1765,7 @@
                                 @endphp
                                 
                                 <script>
-                                    window.detailedViewData = @json($detailedViewData);
-                                    console.log('Detailed View Data Loaded:', window.detailedViewData);
+                                    window.detailedViewData = {!! json_encode($detailedViewData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?: 'null' !!};
                                 </script>
 
                                 @if($totalStudents > 0)
@@ -3252,8 +3251,7 @@
                                 @endphp
                                 
                                 <script>
-                                    window.detailedViewData = @json($detailedReportData);
-                                    console.log('Detailed Report Data Loaded:', window.detailedViewData);
+                                    window.detailedViewData = {!! json_encode($detailedReportData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?: 'null' !!};
                                 </script>
                                 
                                 <!-- Title -->
@@ -3992,7 +3990,7 @@
             classID: classID,
             subclassID: subclassID,
             option: option,
-            teacher_view: {{ !empty($isTeacherView) ? "'1'" : "'0'" }}
+            teacher_view: @json(!empty($isTeacherView) ? '1' : '0')
         };
     }
 
@@ -5998,24 +5996,26 @@ $(document).ready(function() {
             if (!wmResult.isConfirmed) {
                 return;
             }
-            var optVal = wmResult.value || {};
-            var watermarkVal = optVal.watermark != null ? optVal.watermark : '1';
-            var pdfScaleVal = optVal.pdf_scale != null ? optVal.pdf_scale : '1';
+        var optVal = wmResult.value || {};
+        var watermarkVal = optVal.watermark != null ? optVal.watermark : '1';
+        var pdfScaleVal = optVal.pdf_scale != null ? optVal.pdf_scale : '1';
 
-        let url = '{{ route("admin.download_results_pdf") }}' + 
-                  '?option=bulk_single' + 
-                  '&type=' + type + 
-                  '&term=' + term + 
-                  '&year=' + year + 
-                  '&examID=' + examID + 
-                  '&classID=' + classID + 
-                  '&subclassID=' + subclassID + 
-                  '&subclass=' + subclassID + 
-                  '&class=' + classID + 
-                  '&teacher_view=' + scope.teacher_view + 
-                  '&status=' + status +
-                  '&watermark=' + encodeURIComponent(watermarkVal) +
-                  '&pdf_scale=' + encodeURIComponent(pdfScaleVal);
+        const qs = new URLSearchParams({
+            option: 'bulk_single',
+            type: type || '',
+            term: term || '',
+            year: year || '',
+            examID: examID || '',
+            classID: classID || '',
+            subclassID: subclassID || '',
+            subclass: subclassID || '',
+            class: classID || '',
+            teacher_view: String(scope.teacher_view || '0'),
+            status: status || 'Active',
+            watermark: String(watermarkVal),
+            pdf_scale: String(pdfScaleVal)
+        });
+        let url = '{{ route("admin.download_results_pdf") }}?' + qs.toString();
                   
         const alertHtml = `
             <div class="mb-3 mt-2 text-left">
@@ -7396,8 +7396,11 @@ $(document).ready(function() {
 
         const $btn = $(this);
 
-        // No detailed view, use server-side DomPDF natively
-        console.log('Using server-side DomPDF export for class');
+        if (window.detailedViewData && ($('.detailed-exam-results').length || $('.detailed-report-results').length)) {
+            exportDetailedViewPDF();
+            return;
+        }
+
         const scope = getResultsDownloadScope();
         const classVal = scope.classID;
         const subclassVal = scope.subclassID;
