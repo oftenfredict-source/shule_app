@@ -411,12 +411,6 @@
         white-space: nowrap !important;
         display: inline-block;
     }
-    table.board-results td.empty-subj {
-        background-color: #c5c5c5 !important;
-        color: transparent !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
     table.board-results td.board-pos-cell {
         white-space: nowrap !important;
         overflow: hidden !important;
