@@ -553,6 +553,8 @@
         $vBoxW = (int) max(18, round(20 * $boardPdfScale));
         $vLine = round(14 * $boardPdfScale, 2);
         $hPadTop = (int) max(0, round(($vHeaderH - 18) / 2));
+        $vRotMarginLeft = (int) round($vBoxH / 2);
+        $vRotMarginTop = (int) max(6, round($vFont / 2 + 1));
         $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
