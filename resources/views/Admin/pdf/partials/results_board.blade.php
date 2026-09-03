@@ -28,8 +28,8 @@
         text-align: center;
     }
     .board-header-inner {
-        width: auto;
-        max-width: 78%;
+        width: 100%;
+        max-width: 100%;
         margin: 0 auto;
         border-collapse: collapse;
     }
@@ -53,23 +53,25 @@
     .board-logo-side.right img { margin-left: auto; }
     .board-header-center { text-align: center; padding: 0 6px; }
     .board-header-center .org-name {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: bold;
-        color: #555;
+        color: #333 !important;
         text-transform: uppercase;
         margin-bottom: 2px;
+        line-height: 1.25;
     }
     .board-header-center .school-name {
-        font-size: 16px;
+        font-size: 18px;
         font-weight: bold;
-        color: #940000;
+        color: #940000 !important;
         text-transform: uppercase;
-        line-height: 1.2;
+        line-height: 1.25;
     }
     .board-header-center .school-sub {
-        font-size: 10px;
-        color: #555;
+        font-size: 11px;
+        color: #444 !important;
         margin: 1px 0;
+        line-height: 1.25;
     }
     .board-report-title {
         font-size: 12px;

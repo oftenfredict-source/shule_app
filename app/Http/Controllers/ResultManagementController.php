@@ -7136,11 +7136,58 @@ class ResultManagementController extends Controller
         $enrollment = app(StudentEnrollmentService::class);
         $option = $request->get("option", "all");
         $studentID = $request->get("studentID", null);
-        $classID = $request->get("classID", null);
-        $subclassID = $request->get("subclassID", null);
+        $classID = $request->get("classID") ?: $request->get("class");
+        $subclassID = $request->get("subclassID") ?: $request->get("subclass");
         $statusFilter = $this->normalizeResultsEnrollmentStatusFilter(
             $request->get("status", "Active"),
         );
+
+        $teacherID = Session::get("teacherID");
+        $userType = Session::get("user_type");
+        if (
+            $option !== "single" &&
+            empty($subclassID) &&
+            empty($classID) &&
+            !empty($teacherID) &&
+            $userType !== "Admin"
+        ) {
+            $assigned = Subclass::where("teacherID", $teacherID)
+                ->where("status", "Active")
+                ->get();
+            if ($assigned->isNotEmpty()) {
+                $ids = [];
+                foreach ($assigned as $sub) {
+                    $ids = array_merge(
+                        $ids,
+                        $enrollment->studentIDsInSubclass(
+                            (int) $sub->subclassID,
+                            (int) $schoolID,
+                            "Active",
+                        ),
+                    );
+                }
+                $ids = array_values(array_unique(array_map("intval", $ids)));
+                if (empty($ids)) {
+                    return collect();
+                }
+
+                $withAssigned = [
+                    "subclass.class",
+                    "subclass.combie.subjects",
+                    "subclass.teacher",
+                    "parent",
+                    "oldSubclass.class",
+                    "oldSubclass.combie.subjects",
+                    "oldSubclass.teacher",
+                ];
+
+                return Student::where("schoolID", $schoolID)
+                    ->whereIn("studentID", $ids)
+                    ->with($withAssigned)
+                    ->orderBy("first_name")
+                    ->get();
+            }
+        }
 
         $with = [
             "subclass.class",
@@ -7193,8 +7240,8 @@ class ResultManagementController extends Controller
                 ->get();
         }
 
-        $classFilterID = $request->get("classID", "");
-        $subclassFilterID = $request->get("subclassID", "");
+        $classFilterID = $classID;
+        $subclassFilterID = $subclassID;
         $genderFilter = $request->get("gender", "");
 
         $studentQuery = Student::where("schoolID", $schoolID);

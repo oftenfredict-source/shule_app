@@ -3982,6 +3982,14 @@
     function getResultsSubclassFilter() {
         return $('#subclass').val() || $('#lockedSubclassID').val() || '';
     }
+    function getResultsDownloadScope() {
+        const classVal = getResultsClassFilter();
+        const subclassVal = getResultsSubclassFilter();
+        let option = 'all';
+        if (subclassVal) option = 'subclass';
+        else if (classVal) option = 'class';
+        return { classVal: classVal, subclassVal: subclassVal, option: option };
+    }
 
 $(document).ready(function() {
     console.log('Result Management page loaded');
@@ -5976,15 +5984,13 @@ $(document).ready(function() {
         let term = $('#term').val();
         let year = $('#year').val();
         let examID = $('#examID').val() || '';
-        let classID = $('#class').val() || '';
-        let subclassID = $('#subclass').val() || '';
+        const scope = getResultsDownloadScope();
+        let classID = scope.classVal;
+        let subclassID = scope.subclassVal;
         let status = $('#status').val() || 'Active';
         
-        @if(isset($isTeacherView) && $isTeacherView)
-            classID = $('#lockedClassID').val() || '';
-            subclassID = $('#lockedSubclassID').val() || '';
-        @elseif(isset($isCoordinatorResultsView) && $isCoordinatorResultsView)
-            classID = $('#lockedClassID').val() || '';
+        @if(isset($isCoordinatorResultsView) && $isCoordinatorResultsView)
+            classID = $('#lockedClassID').val() || classID;
         @endif
 
         askPdfDownloadOptions({ showScale: true, showNameMode: false, showRankBy: false }).then(function(wmResult) {
@@ -6819,8 +6825,8 @@ $(document).ready(function() {
             year: $('#year').val(),
             type: $('#type').val(),
             status: $('#status').val(),
-            class: $('#class').val(),
-            subclass: $('#subclass').val(),
+            class: getResultsClassFilter(),
+            subclass: getResultsSubclassFilter(),
             examID: $('#examID').val() || '',
             grade: $('#grade').val() || '',
             gender: $('#gender').val() || ''
@@ -7388,13 +7394,10 @@ $(document).ready(function() {
 
         // No detailed view, use server-side DomPDF natively
         console.log('Using server-side DomPDF export for class');
-        const classVal    = $('#class').val() || '';
-        const subclassVal = $('#subclass').val() || '';
-
-        // Determine right option based on filters selected
-        let option = 'all';
-        if (subclassVal) option = 'subclass';
-        else if (classVal) option = 'class';
+        const scope = getResultsDownloadScope();
+        const classVal = scope.classVal;
+        const subclassVal = scope.subclassVal;
+        const option = scope.option;
 
         const params = {
             option: option,
@@ -8029,12 +8032,10 @@ $(document).ready(function() {
         if (window._sxExcelDownloading) return;
 
         const $btn = $(this);
-        const classVal    = $('#class').val() || '';
-        const subclassVal = $('#subclass').val() || '';
-
-        let option = 'all';
-        if (subclassVal) option = 'subclass';
-        else if (classVal) option = 'class';
+        const scope = getResultsDownloadScope();
+        const classVal = scope.classVal;
+        const subclassVal = scope.subclassVal;
+        const option = scope.option;
 
         const params = {
             option: option,

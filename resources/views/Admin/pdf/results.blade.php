@@ -472,7 +472,8 @@
             padding-bottom: 2px !important;
         }
         body.individual-pdf .header-table {
-            max-width: 90% !important;
+            width: 100% !important;
+            max-width: 100% !important;
         }
         body.individual-pdf .logo-cell {
             width: 78px !important;
@@ -505,17 +506,20 @@
             height: 68px !important;
         }
         body.individual-pdf .org-name {
-            font-size: 11px !important;
-            margin-bottom: 0 !important;
-            line-height: 1.05 !important;
+            font-size: 12px !important;
+            margin-bottom: 1px !important;
+            line-height: 1.25 !important;
+            color: #333 !important;
         }
         body.individual-pdf .school-name {
-            font-size: 15px !important;
-            line-height: 1.05 !important;
+            font-size: 16px !important;
+            line-height: 1.25 !important;
+            color: #940000 !important;
         }
         body.individual-pdf .school-sub {
-            font-size: 9px !important;
-            line-height: 1.1 !important;
+            font-size: 10px !important;
+            line-height: 1.25 !important;
+            color: #444 !important;
         }
         body.individual-pdf .report-title {
             font-size: 11px !important;
@@ -941,8 +945,8 @@
         }
         .logo-stack { display: none; }
         .header-table {
-            width: auto;
-            max-width: 82%;
+            width: 100%;
+            max-width: 100%;
             margin: 0 auto;
             border-collapse: collapse;
         }
@@ -954,10 +958,10 @@
         .student-photo-cell { width: 60px; text-align: right; padding-left: 6px; }
         .student-photo-cell img { display: block; width: 56px; height: 56px; margin-left: auto; border: 1px solid #ccc; outline: none; object-fit: cover; }
         .header.under-org .student-photo-cell { display: none; }
-        .school-name-cell { text-align: center; padding: 0 6px; }
-        .org-name { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase; margin-bottom: 1px; letter-spacing: 0.2px; }
-        .school-name { font-size: 15px; font-weight: bold; color: #940000; text-transform: uppercase; line-height: 1.1; }
-        .school-sub  { font-size: 9.5px; color: #555; margin: 0; }
+        .school-name-cell { text-align: center; padding: 0 8px; width: auto; }
+        .org-name { font-size: 11px; font-weight: bold; color: #333 !important; text-transform: uppercase; margin-bottom: 2px; letter-spacing: 0.2px; line-height: 1.25; }
+        .school-name { font-size: 16px; font-weight: bold; color: #940000 !important; text-transform: uppercase; line-height: 1.25; }
+        .school-sub  { font-size: 10px; color: #444 !important; margin: 1px 0; line-height: 1.25; }
 
         .report-title {
             font-size: 11px;
