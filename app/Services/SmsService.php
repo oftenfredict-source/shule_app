@@ -175,7 +175,7 @@ class SmsService
      * @param string $phoneNumber Parent's phone number
      * @param string $schoolName School name
      * @param string $username Username (phone number)
-     * @param string $password Password (last name)
+     * @param string $password Password (first name)
      * @return array
      */
     public function sendParentCredentials($phoneNumber, $schoolName, $username, $password)

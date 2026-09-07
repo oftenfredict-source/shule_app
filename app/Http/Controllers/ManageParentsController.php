@@ -195,11 +195,11 @@ class ManageParentsController extends Controller
             ]);
 
             // Create user account for parent
-            // Username = phone number, Password = last_name
+            // Username = phone number, Password = first_name
             User::create([
                 'name' => $request->phone,
                 'email' => $request->email ?: null,
-                'password' => Hash::make($request->last_name),
+                'password' => Hash::make($request->first_name),
                 'user_type' => 'parent'
             ]);
 
@@ -210,7 +210,7 @@ class ManageParentsController extends Controller
                 $request->phone,
                 $school->school_name,
                 $request->phone,
-                $request->last_name
+                $request->first_name
             );
             $smsSent = $smsResult['success'];
 
@@ -673,12 +673,34 @@ class ManageParentsController extends Controller
             return response()->json(['success' => false, 'message' => 'School information not found'], 404);
         }
 
+        $plainPassword = trim((string) ($parent->first_name ?? ''));
+        if ($plainPassword === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Parent first name is required for password',
+            ], 400);
+        }
+
+        // Keep login password in sync with what SMS sends (first_name)
+        $user = User::where('name', $parent->phone)->first();
+        if ($user) {
+            $user->password = Hash::make($plainPassword);
+            $user->save();
+        } else {
+            User::create([
+                'name' => $parent->phone,
+                'email' => $parent->email ?: null,
+                'password' => Hash::make($plainPassword),
+                'user_type' => 'parent',
+            ]);
+        }
+
         $smsService = new SmsService();
         $smsResult = $smsService->sendParentCredentials(
             $parent->phone,
             $school->school_name,
             $parent->phone,
-            $parent->first_name
+            $plainPassword
         );
 
         if ($smsResult['success']) {

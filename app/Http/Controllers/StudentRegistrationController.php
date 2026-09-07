@@ -779,13 +779,13 @@ class StudentRegistrationController extends Controller
                         
                         // If parent is newly created, also send parent credentials
                         if ($isNewParent) {
-                            $parentLastName = $request->parent_last_name ?? $parent->last_name ?? '';
-                            if ($parentLastName) {
+                            $parentFirstName = trim((string) ($request->parent_first_name ?? $parent->first_name ?? ''));
+                            if ($parentFirstName !== '') {
                                 $parentSmsResult = $smsService->sendParentCredentials(
                                     $parent->phone,
                                     $school->school_name ?? 'School',
                                     $parent->phone, // Username = phone number
-                                    $request->parent_first_name ?? $parent->first_name ?? '' // Password = first name
+                                    $parentFirstName // Password = first name
                                 );
                                 $parentSmsSent = $parentSmsResult['success'];
                             }

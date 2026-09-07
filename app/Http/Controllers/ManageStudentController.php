@@ -5897,7 +5897,7 @@ class ManageStudentController extends Controller
                     }
                     $parentID = $parent->parentID;
 
-                    // Ensure parent has user account (Username = phone number, Password = last_name)
+                    // Ensure parent has user account (Username = phone number, Password = first_name)
                     if ($parent) {
                         $this->ensureParentLoginUser($parent);
                     }
