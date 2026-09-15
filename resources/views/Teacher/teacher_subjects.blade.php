@@ -1450,6 +1450,7 @@ function loadExamQuestionData(classSubjectID, examID) {
             }
             // Apply configured/default max to all marks inputs + realtime validation
             syncMarksInputsMaxAttr();
+            syncResultsExcelAvailability();
             if (response.test_week) {
                 // Set the week value and hide the selection as it should be default from the paper
                 jQuery('#test_week_group').hide();
@@ -2570,32 +2571,219 @@ function loadExistingResults(classSubjectID, examID, testWeek = null) {
     });
 }
 
-// Auto-calculate grade and remark when marks are entered
-// Fill random results for primary/non-secondary schools for testing/balancing
-function fillRandomPrimaryResults() {
-    jQuery('.marks-input:not([readonly])').each(function() {
-        const studentID = jQuery(this).data('student');
-        
-        // Distribution targets:
-        // A: 15%, B: 25%, C: 30%, D: 20%, F: 10%
-        const rand = Math.random();
-        let marks = 0;
-        
-        if (rand < 0.15) { // A: 75-100
-            marks = 75 + Math.random() * 25;
-        } else if (rand < 0.40) { // B: 65-74
-            marks = 65 + Math.random() * 10;
-        } else if (rand < 0.70) { // C: 45-64
-            marks = 45 + Math.random() * 20;
-        } else if (rand < 0.90) { // D: 30-44
-            marks = 30 + Math.random() * 15;
-        } else { // F: 5-29
-            marks = 5 + Math.random() * 25;
+// Fill random marks (direct entry + question-format secondary)
+function randomMarksForMax(maxMarks) {
+    maxMarks = Number(maxMarks);
+    if (!(maxMarks > 0)) maxMarks = 100;
+    const rand = Math.random();
+    let pct;
+    if (rand < 0.15) {
+        pct = 0.75 + Math.random() * 0.25;
+    } else if (rand < 0.40) {
+        pct = 0.65 + Math.random() * 0.10;
+    } else if (rand < 0.70) {
+        pct = 0.45 + Math.random() * 0.20;
+    } else if (rand < 0.90) {
+        pct = 0.30 + Math.random() * 0.15;
+    } else {
+        pct = 0.05 + Math.random() * 0.25;
+    }
+    return Math.min(maxMarks, Math.max(0, +(maxMarks * pct).toFixed(2)));
+}
+
+function shuffleArrayCopy(arr) {
+    const a = (arr || []).slice();
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = a[i];
+        a[i] = a[j];
+        a[j] = t;
+    }
+    return a;
+}
+
+function isQuestionFormatEntryMode() {
+    if (typeof isSecondarySchool === 'undefined' || !isSecondarySchool) return false;
+    if (isDirectMarksEntryMode()) return false;
+    return !!(examQuestionData && examQuestionData.questions && examQuestionData.questions.length > 0);
+}
+
+function fillRandomQuestionFormatResults() {
+    const questions = examQuestionData.questions || [];
+    const ranges = examQuestionData.optionalRanges || [];
+    if (!questions.length) return 0;
+
+    let filled = 0;
+    jQuery('#resultsForm .marks-input').each(function() {
+        const $main = jQuery(this);
+        if ($main.data('can-enter') === 0 || $main.prop('disabled')) return;
+        const studentID = $main.data('student');
+        if (!studentID) return;
+
+        examQuestionData.marksByStudent[studentID] = {};
+
+        const mandatory = [];
+        const optionalByRange = {};
+        questions.forEach(function(q) {
+            if (q.is_optional) {
+                const r = parseInt(q.optional_range_number || 0, 10) || 0;
+                if (!optionalByRange[r]) optionalByRange[r] = [];
+                optionalByRange[r].push(q);
+            } else {
+                mandatory.push(q);
+            }
+        });
+
+        mandatory.forEach(function(q) {
+            const max = parseFloat(q.marks) || 0;
+            examQuestionData.marksByStudent[studentID][q.exam_paper_questionID] = randomMarksForMax(max);
+        });
+
+        Object.keys(optionalByRange).forEach(function(rangeNum) {
+            const qs = optionalByRange[rangeNum];
+            const meta = ranges.find(function(r) { return String(r.range_number) === String(rangeNum); });
+            let pickCount = meta ? parseInt(meta.required_questions || 0, 10) : 0;
+            if (!(pickCount > 0)) pickCount = Math.min(1, qs.length);
+            pickCount = Math.min(pickCount, qs.length);
+
+            const selected = shuffleArrayCopy(qs).slice(0, pickCount);
+            selected.forEach(function(q) {
+                const max = parseFloat(q.marks) || 0;
+                examQuestionData.marksByStudent[studentID][q.exam_paper_questionID] = randomMarksForMax(max);
+            });
+
+            const rangeLimit = meta ? parseFloat(meta.total_marks) : 0;
+            if (rangeLimit > 0 && selected.length) {
+                let sum = 0;
+                selected.forEach(function(q) {
+                    sum += parseFloat(examQuestionData.marksByStudent[studentID][q.exam_paper_questionID]) || 0;
+                });
+                if (sum > rangeLimit && sum > 0) {
+                    const factor = rangeLimit / sum;
+                    selected.forEach(function(q) {
+                        const v = (parseFloat(examQuestionData.marksByStudent[studentID][q.exam_paper_questionID]) || 0) * factor;
+                        examQuestionData.marksByStudent[studentID][q.exam_paper_questionID] = +v.toFixed(2);
+                    });
+                }
+            }
+        });
+
+        const $detail = jQuery(`.question-details-row[data-student="${studentID}"]`);
+        if ($detail.hasClass('loaded')) {
+            $detail.find('.question-detail-container').html(buildQuestionDetails(studentID));
+            $detail.find('.optional-select').each(function() {
+                const questionId = jQuery(this).data('question-id');
+                const hasMark = examQuestionData.marksByStudent[studentID] &&
+                    examQuestionData.marksByStudent[studentID][questionId] !== undefined &&
+                    examQuestionData.marksByStudent[studentID][questionId] !== null &&
+                    examQuestionData.marksByStudent[studentID][questionId] !== '';
+                if (hasMark) {
+                    jQuery(this).prop('checked', true);
+                    $detail.find(`.question-mark-input[data-question-id="${questionId}"]`).prop('disabled', false);
+                } else {
+                    jQuery(this).prop('checked', false);
+                    $detail.find(`.question-mark-input[data-question-id="${questionId}"]`).prop('disabled', true).val('');
+                }
+            });
+            updateStudentTotal(studentID);
         }
-        
-        jQuery(this).val(marks.toFixed(2));
-        autoCalculateGrade(studentID);
+
+        filled++;
     });
+
+    updateTotalsFromCache();
+    return filled;
+}
+
+function fillRandomDirectMarksResults() {
+    const maxMarks = getResultMarksMax();
+    let filled = 0;
+    jQuery('#resultsForm .marks-input:not([readonly]):not([disabled])').each(function() {
+        const $input = jQuery(this);
+        if ($input.data('can-enter') === 0) return;
+        const studentID = $input.data('student');
+        const marks = randomMarksForMax(maxMarks);
+        $input.val(marks.toFixed(2));
+        if (typeof saveMarkToCache === 'function') {
+            saveMarkToCache(studentID, 'main', marks.toFixed(2));
+        }
+        autoCalculateGrade(studentID);
+        filled++;
+    });
+    if (filled === 0) {
+        jQuery('#resultsForm .marks-input:not([disabled])').each(function() {
+            const $input = jQuery(this);
+            if ($input.data('can-enter') === 0) return;
+            if ($input.prop('readonly') && !isDirectMarksEntryMode() && !isDuoResultMode()) return;
+            const studentID = $input.data('student');
+            const marks = randomMarksForMax(maxMarks);
+            $input.val(marks.toFixed(2));
+            if (typeof saveMarkToCache === 'function') {
+                saveMarkToCache(studentID, 'main', marks.toFixed(2));
+            }
+            autoCalculateGrade(studentID);
+            filled++;
+        });
+    }
+    return filled;
+}
+
+function fillRandomPrimaryResults() {
+    return fillRandomResults();
+}
+
+function fillRandomResults() {
+    if (!jQuery('#exam_id').val()) {
+        Swal.fire({
+            title: 'Select Examination',
+            text: 'Please select an examination before filling random marks.',
+            icon: 'warning',
+            confirmButtonColor: '#940000'
+        });
+        return;
+    }
+
+    if (!jQuery('#resultsForm .marks-input').length) {
+        Swal.fire({
+            title: 'No students',
+            text: 'Load students first, then try Fill Random.',
+            icon: 'info',
+            confirmButtonColor: '#940000'
+        });
+        return;
+    }
+
+    let filled = 0;
+    if (isQuestionFormatEntryMode()) {
+        filled = fillRandomQuestionFormatResults();
+    } else if (isSecondarySchool && !isDirectMarksEntryMode() && !(examQuestionData.questions || []).length) {
+        Swal.fire({
+            title: 'Question format missing',
+            text: 'No question formats loaded for this examination yet.',
+            icon: 'warning',
+            confirmButtonColor: '#940000'
+        });
+        return;
+    } else {
+        filled = fillRandomDirectMarksResults();
+    }
+
+    if (filled > 0) {
+        Swal.fire({
+            title: 'Filled',
+            text: `Random marks applied for ${filled} student(s). Review then Save.`,
+            icon: 'success',
+            timer: 1800,
+            showConfirmButton: false
+        });
+    } else {
+        Swal.fire({
+            title: 'Nothing filled',
+            text: 'No editable student rows found.',
+            icon: 'info',
+            confirmButtonColor: '#940000'
+        });
+    }
 }
 
 function autoCalculateGrade(studentID, $row = null) {
@@ -2849,8 +3037,17 @@ function loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, 
                             <div id="results-alert-container">
                                 ${isSecondarySchool ? `
                                     <div class="alert alert-warning mt-3 secondary-only-alert">
-                                        <i class="bi bi-exclamation-triangle"></i>
-                                        Question-based results are enabled. Excel import/export is disabled unless this exam allows no-format entry.
+                                        <div class="d-flex flex-wrap justify-content-between align-items-center">
+                                            <div class="mb-1">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                                Question-based results are enabled. Excel import/export is disabled unless this exam allows no-format entry.
+                                            </div>
+                                            <div>
+                                                <button type="button" class="btn btn-sm btn-outline-info" onclick="fillRandomResults()" id="fillRandomBtnQf" aria-disabled="true">
+                                                    <i class="bi bi-dice-5"></i> Fill Random
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 ` : ''}
                                 <div class="alert alert-info mt-3 results-excel-alert" style="${isSecondarySchool ? 'display:none;' : ''}">
@@ -2860,7 +3057,7 @@ function loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, 
                                             <strong>Excel Import/Export:</strong> Choose Name / Index columns, fill Marks only. Upload auto-calculates grade/remark, then Save.
                                         </div>
                                         <div class="results-excel-actions">
-                                            <button type="button" class="btn btn-sm btn-outline-info" onclick="fillRandomPrimaryResults()" id="fillRandomBtn" aria-disabled="true">
+                                            <button type="button" class="btn btn-sm btn-outline-info" onclick="fillRandomResults()" id="fillRandomBtn" aria-disabled="true">
                                                 <i class="bi bi-dice-5"></i> Fill Random
                                             </button>
                                             <button type="button" class="btn btn-sm btn-success js-export-results-excel" data-class-subject-id="${classSubjectID}" id="downloadExcelBtn" aria-disabled="true">
@@ -3412,6 +3609,7 @@ function showExcelImportFeedback(result) {
 // Handle exam selection - enable/disable Excel buttons
 function handleExamSelection(classSubjectID, examID) {
     setResultsExcelButtonsEnabled(false);
+    setFillRandomButtonsEnabled(false);
     jQuery('#test_week_group, #test_week_display_group').hide();
     jQuery('#test_week').prop('required', false).val('');
     if (!examID) {
@@ -3428,6 +3626,7 @@ function handleExamSelection(classSubjectID, examID) {
         if (!enterResult) {
             disableResultsForm();
             setResultsExcelButtonsEnabled(false);
+            setFillRandomButtonsEnabled(false);
             showResultsStatusError('You are not allowed to enter results for this examination. Result entry has been disabled.');
             resetQuestionData();
             return;
@@ -3435,7 +3634,6 @@ function handleExamSelection(classSubjectID, examID) {
 
         // If enter_result is true, enable form - no other checks
         enableResultsForm(exam);
-        setResultsExcelButtonsEnabled(true);
         jQuery('.results-status-error').remove();
 
 
@@ -3467,13 +3665,13 @@ function handleExamSelection(classSubjectID, examID) {
         if (!enterResult) {
             disableResultsForm();
             setResultsExcelButtonsEnabled(false);
+            setFillRandomButtonsEnabled(false);
             showResultsStatusError('You are not allowed to enter results for this examination. Result entry has been disabled.');
             resetQuestionData();
             return;
         }
 
         enableResultsForm();
-        setResultsExcelButtonsEnabled(true);
         jQuery('.results-status-error').remove();
         syncResultsExcelAvailability();
         loadExistingResults(classSubjectID, examID);
@@ -3709,13 +3907,29 @@ function syncResultsExcelAvailability() {
         }
     }
     setResultsExcelButtonsEnabled(canExcel);
+    setFillRandomButtonsEnabled(!!jQuery('#exam_id').val() && jQuery('#resultsForm .marks-input').length > 0);
 }
 
 /** Keep Excel buttons clickable so Safari/Mac get feedback instead of a dead click. */
 function setResultsExcelButtonsEnabled(enabled) {
-    jQuery('#downloadExcelBtn, #uploadExcelBtn, #fillRandomBtn').each(function() {
+    jQuery('#downloadExcelBtn, #uploadExcelBtn').each(function() {
         const $b = jQuery(this);
         // Never use native disabled / Bootstrap .disabled, both swallow clicks on Safari/macOS.
+        $b.prop('disabled', false);
+        $b.removeClass('disabled');
+        $b.attr('aria-disabled', enabled ? 'false' : 'true');
+        $b.toggleClass('btn-excel-locked', !enabled);
+        $b.css({
+            opacity: enabled ? '' : '0.65',
+            cursor: enabled ? '' : 'not-allowed',
+            pointerEvents: 'auto'
+        });
+    });
+}
+
+function setFillRandomButtonsEnabled(enabled) {
+    jQuery('#fillRandomBtn, #fillRandomBtnQf').each(function() {
+        const $b = jQuery(this);
         $b.prop('disabled', false);
         $b.removeClass('disabled');
         $b.attr('aria-disabled', enabled ? 'false' : 'true');

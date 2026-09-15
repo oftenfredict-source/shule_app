@@ -7728,6 +7728,7 @@ class ResultManagementController extends Controller
             "option" => $option,
             "title" => $title,
             "showWatermark" => $request->boolean("watermark", true),
+            "headerRepeat" => $useBoardPdf && $request->boolean("header_repeat", false),
             "pdfScale" => $this->normalizeIndividualPdfScale($request->input("pdf_scale", 1)),
             "characterAssessments" => $this->getLatestCharacterAssessments(
                 $students,

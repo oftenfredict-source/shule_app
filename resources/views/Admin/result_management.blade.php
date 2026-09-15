@@ -6205,7 +6205,7 @@ $(document).ready(function() {
         if (typeof Swal === 'undefined') {
             return Promise.resolve({
                 isConfirmed: true,
-                value: { watermark: '1', name_mode: 'both', rank_by: 'average', pdf_scale: '1' }
+                value: { watermark: '1', name_mode: 'both', rank_by: 'average', pdf_scale: '1', header_repeat: '0' }
             });
         }
         var nameModeHtml = '';
@@ -6225,6 +6225,11 @@ $(document).ready(function() {
                         '<input class="form-check-input" type="radio" name="sxPdfNameMode" id="sxPdfIndexOnly" value="index" style="cursor:pointer;">' +
                         '<label class="form-check-label" for="sxPdfIndexOnly" style="cursor:pointer;">With index number only</label>' +
                     '</div>' +
+                    '<div class="form-check mt-2 pt-2" style="border-top:1px solid #eee;">' +
+                        '<input class="form-check-input" type="checkbox" id="sxPdfHeaderRepeat" style="cursor:pointer;">' +
+                        '<label class="form-check-label" for="sxPdfHeaderRepeat" style="cursor:pointer; font-weight:600;">Repeat header on next pages</label>' +
+                    '</div>' +
+                    '<p class="text-muted small mt-1 mb-0">Off by default. When on, column titles repeat at the top of each page.</p>' +
                 '</div>';
         }
         var rankByHtml = '';
@@ -6400,11 +6405,13 @@ $(document).ready(function() {
                     if (pct > 140) pct = 140;
                     pdfScale = (pct / 100).toFixed(2);
                 }
+                var headerRepeatEl = document.getElementById('sxPdfHeaderRepeat');
                 return {
                     watermark: el && el.checked ? '1' : '0',
                     name_mode: mode,
                     rank_by: rankBy,
-                    pdf_scale: pdfScale
+                    pdf_scale: pdfScale,
+                    header_repeat: (showNameMode && headerRepeatEl && headerRepeatEl.checked) ? '1' : '0'
                 };
             }
         });
@@ -6460,6 +6467,7 @@ $(document).ready(function() {
             cleanParams.watermark = optVal.watermark != null ? optVal.watermark : '1';
             if (downloadOpts.showNameMode) {
                 cleanParams.name_mode = optVal.name_mode || 'both';
+                cleanParams.header_repeat = optVal.header_repeat === '1' ? '1' : '0';
             }
             if (downloadOpts.showRankBy) {
                 cleanParams.rank_by = optVal.rank_by || 'average';

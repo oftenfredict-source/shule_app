@@ -247,7 +247,7 @@
     table.board-results thead th {
         overflow: visible;
     }
-    /* Do NOT repeat column titles on following pages â€” first page only */
+    /* Hidden col-width sync row (must not show as a second header) */
     table.board-results tr.board-col-sync th {
         height: 0 !important;
         max-height: 0 !important;
@@ -258,8 +258,9 @@
         overflow: hidden !important;
         color: transparent !important;
     }
+    /* Default: column titles on first page only. header_repeat=1 → repeat on each page */
     table.board-results > thead {
-        display: table-row-group;
+        display: {{ !empty($headerRepeat) ? 'table-header-group' : 'table-row-group' }};
     }
     /* Keep legend/stats in-flow under students */
     table.board-results tr.board-cont-row td.board-cont-cell {
