@@ -95,7 +95,7 @@
             </tr>
             <tr>
                 <td class="label">Official Time:</td>
-                <td>{{ $work_start_time }} – {{ $work_end_time }}</td>
+                <td>{{ $work_start_time }} - {{ $work_end_time }}</td>
                 <td class="label">Status:</td>
                 <td>{{ $period_incomplete ? 'In progress' : 'Complete' }}</td>
             </tr>

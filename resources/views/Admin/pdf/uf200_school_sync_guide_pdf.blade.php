@@ -224,7 +224,7 @@ C:\laragon\bin\php\php-8.x.x\php.exe artisan zkteco:sync-teacher-staff --device_
 echo Sync completed at %date% %time% >> storage\logs\school-sync.log</div>
         <p><em>(Badilisha path za PHP na device_id kulingana na usanidi wako. Ikiwa command haipo bado, tumia Sync All kutoka interface kila siku.)</em></p>
         <ol start="2">
-            <li>Task Scheduler → Run kila <strong>5–15 dakika</strong> wakati wa siku za shule</li>
+            <li>Task Scheduler → Run kila <strong>5-15 dakika</strong> wakati wa siku za shule</li>
             <li>PC iwe <strong>wazi na kwenye network</strong> wakati wa sync</li>
         </ol>
     </div>

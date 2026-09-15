@@ -236,14 +236,14 @@
                 <td class="label">Session Hours:</td>
                 <td>
                     @if($definition)
-                        {{ $definition->session_start_time ?? '' }} – {{ $definition->session_end_time ?? '' }}
+                        {{ $definition->session_start_time ?? '' }} - {{ $definition->session_end_time ?? '' }}
                     @else,
                     @endif
                 </td>
                 <td class="label">Prepo:</td>
                 <td>
                     @if($definition && !empty($definition->has_prepo))
-                        {{ $definition->prepo_start_time ?? '' }} – {{ $definition->prepo_end_time ?? '' }}
+                        {{ $definition->prepo_start_time ?? '' }} - {{ $definition->prepo_end_time ?? '' }}
                     @else
                         Not set
                     @endif
@@ -258,7 +258,7 @@
                             $btStart = is_object($bt) ? ($bt->start_time ?? '') : ($bt['start_time'] ?? '');
                             $btEnd = is_object($bt) ? ($bt->end_time ?? '') : ($bt['end_time'] ?? '');
                         @endphp
-                        Break {{ $i + 1 }}: {{ $btStart }} – {{ $btEnd }}@if(!$loop->last), @endif
+                        Break {{ $i + 1 }}: {{ $btStart }} - {{ $btEnd }}@if(!$loop->last), @endif
                     @endforeach
                 </td>
             </tr>
@@ -282,7 +282,7 @@
                     @php
                         $clean = str_replace('-BREAK', '', $timeSlot);
                         $parts = explode('-', $clean);
-                        $label = ($parts[0] ?? '') . ' – ' . ($parts[1] ?? '');
+                        $label = ($parts[0] ?? '') . ' - ' . ($parts[1] ?? '');
                     @endphp
                     <tr>
                         <td class="time-col">{{ $label }}</td>
@@ -291,7 +291,7 @@
                 @else
                     @php
                         $parts = explode('-', $timeSlot);
-                        $label = ($parts[0] ?? '') . ' – ' . ($parts[1] ?? '');
+                        $label = ($parts[0] ?? '') . ' - ' . ($parts[1] ?? '');
                     @endphp
                     <tr>
                         <td class="time-col">{{ $label }}</td>
@@ -313,7 +313,7 @@
                 @foreach($sortedPrepoSlots as $timeSlot)
                     @php
                         $parts = explode('-', $timeSlot);
-                        $label = ($parts[0] ?? '') . ' – ' . ($parts[1] ?? '');
+                        $label = ($parts[0] ?? '') . ' - ' . ($parts[1] ?? '');
                     @endphp
                     <tr>
                         <td class="time-col">{{ $label }}</td>

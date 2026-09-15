@@ -3760,7 +3760,7 @@ class TimeTableController extends Controller
                 ]);
             }
 
-            $subjects = ClassSubjectModel::with(['subject', 'teacher', 'subclass'])
+            $rows = ClassSubjectModel::with(['subject', 'teacher', 'subclass'])
                 ->where('status', 'Active')
                 ->where(function ($q) use ($classID) {
                     $q->where('classID', $classID)
@@ -3768,29 +3768,39 @@ class TimeTableController extends Controller
                             $s->where('classID', $classID);
                         });
                 })
-                ->get()
-                ->map(function ($cs) {
-                    $stream = trim((string) ($cs->subclass->subclass_name ?? ''));
-                    $subjectName = $cs->subject->subject_name ?? 'N/A';
-                    $label = $stream !== ''
-                        ? $subjectName . ' (' . $stream . ')'
-                        : $subjectName;
+                ->get();
 
-                    return [
+            $grouped = [];
+            foreach ($rows as $cs) {
+                $stream = trim((string) ($cs->subclass->subclass_name ?? ''));
+                $subjectName = $cs->subject->subject_name ?? 'N/A';
+                $teacherID = $cs->teacherID ? (int) $cs->teacherID : 0;
+                $key = (int) $cs->subjectID . '|' . $teacherID;
+                if (!isset($grouped[$key])) {
+                    $grouped[$key] = [
                         'class_subjectID' => $cs->class_subjectID,
                         'subjectID' => $cs->subjectID,
                         'subclassID' => $cs->subclassID,
                         'stream_name' => $stream,
-                        'name' => $label,
-                        'subject_name' => $label,
+                        'name' => $subjectName,
+                        'subject_name' => $subjectName,
                         'teacherID' => $cs->teacherID,
                         'teacher_name' => $cs->teacher
                             ? trim($cs->teacher->first_name . ' ' . $cs->teacher->last_name)
                             : 'Not Assigned',
                         'student_status' => $cs->student_status ?? null,
+                        'stream_assignments' => [],
                     ];
-                })
-                ->sortBy('subject_name')
+                }
+                $grouped[$key]['stream_assignments'][] = [
+                    'class_subjectID' => $cs->class_subjectID,
+                    'subclassID' => $cs->subclassID,
+                    'teacherID' => $cs->teacherID,
+                ];
+            }
+
+            $subjects = collect(array_values($grouped))
+                ->sortBy('subject_name', SORT_NATURAL | SORT_FLAG_CASE)
                 ->values();
 
             return response()->json(['success' => true, 'subjects' => $subjects]);
@@ -3916,11 +3926,12 @@ class TimeTableController extends Controller
                 'cst.session_timetableID',
                 'cst.teacherID',
                 'cst.subclassID',
+                'cst.subjectID',
+                'sc.classID',
                 'cst.day',
                 'cst.start_time',
                 'cst.end_time',
                 'cst.is_prepo',
-                'cst.subjectID',
                 DB::raw("TRIM(CONCAT(COALESCE(t.first_name,''),' ',COALESCE(t.last_name,''))) as teacher_name"),
                 'c.class_name',
                 'sc.subclass_name',
@@ -3941,6 +3952,8 @@ class TimeTableController extends Controller
                 'teacherID' => (int) $row->teacherID,
                 'teacher_name' => trim((string) ($row->teacher_name ?? '')) ?: 'Teacher #' . $row->teacherID,
                 'subclassID' => (int) $row->subclassID,
+                'classID' => (int) ($row->classID ?? 0),
+                'subjectID' => (int) ($row->subjectID ?? 0),
                 'day' => (string) $row->day,
                 'start_time' => $this->normalizeSessionTime((string) $row->start_time),
                 'end_time' => $this->normalizeSessionTime((string) $row->end_time),
@@ -3982,15 +3995,22 @@ class TimeTableController extends Controller
                     $sub = DB::table('subclasses as sc')
                         ->leftJoin('classes as c', 'sc.classID', '=', 'c.classID')
                         ->where('sc.subclassID', $subclassID)
-                        ->select('c.class_name', 'sc.subclass_name')
+                        ->select('c.class_name', 'sc.subclass_name', 'sc.classID')
                         ->first();
                     $subclassCache[$subclassID] = [
                         'class_name' => $sub->class_name ?? '',
                         'subclass_name' => $sub->subclass_name ?? '',
+                        'classID' => (int) ($sub->classID ?? 0),
                     ];
                 }
 
                 $subjectID = $session['subjectID'] ?? null;
+                $classSubjectID = $session['class_subjectID'] ?? null;
+                if (!$subjectID && $classSubjectID) {
+                    $subjectID = DB::table('class_subjects')
+                        ->where('class_subjectID', $classSubjectID)
+                        ->value('subjectID');
+                }
                 $subjectName = 'Free / N/A';
                 if ($subjectID) {
                     if (!isset($subjectCache[$subjectID])) {
@@ -4013,6 +4033,8 @@ class TimeTableController extends Controller
                     'teacherID' => $tid,
                     'teacher_name' => $teacherCache[$tid] ?: 'Teacher #' . $tid,
                     'subclassID' => $subclassID,
+                    'classID' => (int) ($subclassCache[$subclassID]['classID'] ?? 0),
+                    'subjectID' => (int) ($subjectID ?? 0),
                     'day' => $day,
                     'start_time' => $start,
                     'end_time' => $end,
@@ -4091,8 +4113,14 @@ class TimeTableController extends Controller
                         $group[$j]['start_time'],
                         $group[$j]['end_time']
                     )) {
-                        // Allow exact same period only if same subclass AND same start/end (optional parallel teaching —
-                        // but same teacher twice is still conflict). Different subjects same teacher same time = conflict.
+                        $sameSubjectCombinedClass = (int) ($group[$i]['subjectID'] ?? 0) > 0
+                            && (int) ($group[$i]['subjectID'] ?? 0) === (int) ($group[$j]['subjectID'] ?? 0)
+                            && (int) ($group[$i]['classID'] ?? 0) > 0
+                            && (int) ($group[$i]['classID'] ?? 0) === (int) ($group[$j]['classID'] ?? 0)
+                            && (int) $group[$i]['subclassID'] !== (int) $group[$j]['subclassID'];
+                        if ($sameSubjectCombinedClass) {
+                            continue;
+                        }
                         $conflictedIndexes[$i] = true;
                         $conflictedIndexes[$j] = true;
                     }
@@ -4688,7 +4716,7 @@ class TimeTableController extends Controller
                 return response()->json($payload, 404);
             }
 
-            $reportTitle = strtoupper($school->school_name ?? 'School') . ' — SCHOOL SESSION TIMETABLE';
+            $reportTitle = strtoupper($school->school_name ?? 'School') . ' SCHOOL SESSION TIMETABLE';
             $filename = 'School_Session_Timetable_' . date('Ymd') . '.pdf';
             $data = array_merge($payload, [
                 'school' => $school,
@@ -5129,7 +5157,7 @@ class TimeTableController extends Controller
             }
 
             $classLabel = trim(($subclass->class_name ?? '') . ' ' . ($subclass->subclass_name ?? ''));
-            $reportTitle = 'SESSION TIMETABLE — ' . strtoupper($classLabel);
+            $reportTitle = 'SESSION TIMETABLE ' . strtoupper($classLabel);
             $safeName = preg_replace('/[^\w\-]+/', '_', preg_replace('/\s+/', '_', $classLabel)) ?: 'Class';
             $filename = 'Session_Timetable_' . $safeName . '_' . date('Ymd') . '.pdf';
 

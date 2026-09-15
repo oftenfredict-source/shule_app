@@ -277,7 +277,7 @@ function loadLessonPlans() {
             } else {
                 $('#lessonPlansContainer').html(`
                     <div class="alert alert-info" style="border-radius: 0;">
-                        <i class="fa fa-info-circle"></i> No lesson plans found for ${response.subject_name || 'selected subject'} — ${response.class_name || 'selected class'}.
+                        <i class="fa fa-info-circle"></i> No lesson plans found for ${response.subject_name || 'selected subject'} - ${response.class_name || 'selected class'}.
                     </div>
                 `);
             }
@@ -299,7 +299,7 @@ function renderLessonPlansList(lessonPlans, subjectName, className) {
         <div class="card" style="border-radius: 0;">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap" style="background-color: #940000; color: white; border-radius: 0;">
                 <h5 class="mb-0 mr-2">
-                    <i class="fa fa-list"></i> ${subjectName} — ${className} (${lessonPlans.length} lesson plan(s))
+                    <i class="fa fa-list"></i> ${subjectName} - ${className} (${lessonPlans.length} lesson plan(s))
                 </h5>
                 <div class="mt-2 mt-md-0">
                     <button type="button" class="btn btn-sm btn-light" onclick="approveAllLessonPlans()" style="border-radius: 0;" ${pendingCount === 0 ? 'disabled' : ''}>
@@ -347,7 +347,7 @@ function renderLessonPlansList(lessonPlans, subjectName, className) {
                 <td>${index + 1}</td>
                 <td>${formattedDate}</td>
                 <td>${plan.teacher_name || 'N/A'}</td>
-                <td>${plan.subclass_name || '—'}</td>
+                <td>${plan.subclass_name || '-'}</td>
                 <td>${formatTime(plan.lesson_time_start)} - ${formatTime(plan.lesson_time_end)}</td>
                 <td>
                     ${isApproved ?

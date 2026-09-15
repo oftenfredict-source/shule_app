@@ -1686,7 +1686,7 @@
             S.fire({
                 icon: 'question',
                 title: 'Import demo data?',
-                html: 'Hii itasajili <strong>wanafunzi 2,000 wa demo</strong> (majina ya Kitanzania, ' + enrollNote + ').<br><small class="text-muted">Inaweza kuchukua sekunde 30–90' + ((QE.teacherLocked || withEnrollment) ? ' au zaidi' : '') + '. Hakuna SMS kwa wazazi wa demo.</small>',
+                html: 'Hii itasajili <strong>wanafunzi 2,000 wa demo</strong> (majina ya Kitanzania, ' + enrollNote + ').<br><small class="text-muted">Inaweza kuchukua sekunde 30-90' + ((QE.teacherLocked || withEnrollment) ? ' au zaidi' : '') + '. Hakuna SMS kwa wazazi wa demo.</small>',
                 showCancelButton: true,
                 confirmButtonColor: '#940000',
                 cancelButtonColor: '#6c757d',

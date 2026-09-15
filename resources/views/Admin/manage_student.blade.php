@@ -2211,7 +2211,7 @@
                         <div class="d-flex flex-wrap" style="gap:10px;">
                             <button type="button" class="btn move-level-btn" data-level="o_level" style="border:1px solid #940000;border-radius:0;background:#fff;color:#940000;">
                                 O-Level
-                                <div class="small" style="font-weight:400;color:#666;">Form One – Form Four</div>
+                                <div class="small" style="font-weight:400;color:#666;">Form One - Form Four</div>
                             </button>
                             <button type="button" class="btn move-level-btn" data-level="a_level" style="border:1px solid #940000;border-radius:0;background:#fff;color:#940000;">
                                 A-Level

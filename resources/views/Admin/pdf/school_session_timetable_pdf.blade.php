@@ -88,9 +88,9 @@
                     @if(!empty($p['is_break']))
                         <th rowspan="2">{{ $p['break_label'] ?? 'Break' }}</th>
                     @elseif(!empty($p['is_prepo']))
-                        <th rowspan="2">{{ $p['break_label'] ?? 'PREPARATION' }}<br>{{ $fmt($p['start']) }}-{{ $fmt($p['end']) }}</th>
+                        <th rowspan="2">{{ $p['break_label'] ?? 'PREPARATION' }}<br>{{ $fmt($p['start']) }}<br>{{ $fmt($p['end']) }}</th>
                     @else
-                        <th>{{ $fmt($p['start']) }} - {{ $fmt($p['end']) }}</th>
+                        <th>{{ $fmt($p['start']) }}<br>{{ $fmt($p['end']) }}</th>
                     @endif
                 @endforeach
             </tr>

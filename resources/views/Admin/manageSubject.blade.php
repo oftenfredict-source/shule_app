@@ -613,7 +613,7 @@
                                     <button type="button" class="btn btn-sm btn-outline-primary add-duo-component-btn mt-1">
                                         <i class="bi bi-plus-circle"></i> Add Paper
                                     </button>
-                                    <small class="d-block text-muted mt-2">Each paper: name + max marks (1–100). Need at least 2 papers.</small>
+                                    <small class="d-block text-muted mt-2">Each paper: name + max marks (1-100). Need at least 2 papers.</small>
                                 </div>
                             </div>
                             @endif
@@ -691,7 +691,7 @@
                             <button type="button" class="btn btn-sm btn-outline-primary" id="edit_add_duo_component_btn">
                                 <i class="bi bi-plus-circle"></i> Add Paper
                             </button>
-                            <small class="d-block text-muted mt-2">Each paper: name + max marks (1–100). Need at least 2 papers.</small>
+                            <small class="d-block text-muted mt-2">Each paper: name + max marks (1-100). Need at least 2 papers.</small>
                         </div>
                     </div>
                     @endif
@@ -1968,7 +1968,7 @@
                         <button type="button" class="btn btn-sm btn-outline-primary add-duo-component-btn mt-1">
                             <i class="bi bi-plus-circle"></i> Add Paper
                         </button>
-                        <small class="d-block text-muted mt-2">Each paper: name + max marks (1–100). Need at least 2 papers.</small>
+                        <small class="d-block text-muted mt-2">Each paper: name + max marks (1-100). Need at least 2 papers.</small>
                     </div>
                 </div>
             `;

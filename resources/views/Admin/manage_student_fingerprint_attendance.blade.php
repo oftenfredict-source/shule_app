@@ -540,7 +540,7 @@
                 if (res.period_incomplete && res.complete_working_days !== undefined) {
                     metaHtml += '<div class="col-md-3"><strong>Complete W/days</strong><br><span class="fs-5 text-warning">' + res.complete_working_days + '</span></div>';
                 }
-                metaHtml += '<div class="col-md-3"><strong>Official Time</strong><br>' + formatAmPm(res.work_start_time) + ' – ' + formatAmPm(res.work_end_time) + '</div>';
+                metaHtml += '<div class="col-md-3"><strong>Official Time</strong><br>' + formatAmPm(res.work_start_time) + ' - ' + formatAmPm(res.work_end_time) + '</div>';
                 metaHtml += '<div class="col-md-3"><strong>Period</strong><br>' + (res.period_incomplete ? '<span class="text-warning">In progress</span>' : 'Complete') + '</div>';
                 metaHtml += '</div>';
 

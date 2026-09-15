@@ -1027,7 +1027,7 @@
                             <div class="form-group mb-3">
                                 <label for="session_create_scope"><strong>Create for</strong> <span class="text-danger">*</span></label>
                                 <select class="form-control" id="session_create_scope" name="session_create_scope">
-                                    <option value="subclass" selected>Subclass (stream) — current</option>
+                                    <option value="subclass" selected>Subclass (stream)</option>
                                     <option value="main_class">Main class</option>
                                 </select>
                                 <small class="text-muted">
@@ -1345,7 +1345,7 @@ $(function() {
             html += '<thead><tr><th>Class</th><th>Subject</th><th>Time</th></tr></thead><tbody>';
             (c.sessions || []).forEach(function(s) {
                 const cls = [s.class_name, s.subclass_name].filter(Boolean).join(' / ');
-                const time = String(s.start_time || '').substring(0, 5) + ' – ' + String(s.end_time || '').substring(0, 5);
+                const time = String(s.start_time || '').substring(0, 5) + ' - ' + String(s.end_time || '').substring(0, 5);
                 html += '<tr><td>' + (cls || 'N/A') + '</td><td>' + (s.subject_name || 'N/A') + '</td><td>' + time + '</td></tr>';
             });
             html += '</tbody></table></div></div>';
@@ -2887,9 +2887,9 @@ $(function() {
             if (p.is_break) {
                 html += '<th rowspan="2" class="school-tt-break">' + (p.break_label || 'Break') + '</th>';
             } else if (p.is_prepo) {
-                html += '<th rowspan="2">' + (p.break_label || 'PREPARATION') + '<br><small>' + String(p.start || '').substring(0, 5) + ' - ' + String(p.end || '').substring(0, 5) + '</small></th>';
+                html += '<th rowspan="2">' + (p.break_label || 'PREPARATION') + '<br><small>' + String(p.start || '').substring(0, 5) + '<br>' + String(p.end || '').substring(0, 5) + '</small></th>';
             } else {
-                html += '<th>' + String(p.start || '').substring(0, 5) + ' - ' + String(p.end || '').substring(0, 5) + '</th>';
+                html += '<th>' + String(p.start || '').substring(0, 5) + '<br>' + String(p.end || '').substring(0, 5) + '</th>';
             }
         });
         html += '</tr><tr>';
@@ -3781,8 +3781,15 @@ $(function() {
             // Get subjects map for quick lookup
             const subjectsMap = {};
             subjects.forEach(function(subj) {
-                const subjectID = subj.class_subjectID || subj.subjectID;
-                subjectsMap[subjectID] = subj;
+                const groupedId = subj.class_subjectID || subj.subjectID;
+                if (groupedId) {
+                    subjectsMap[groupedId] = subj;
+                }
+                (subj.stream_assignments || []).forEach(function(a) {
+                    if (a && a.class_subjectID) {
+                        subjectsMap[a.class_subjectID] = subj;
+                    }
+                });
             });
             
             // Get session types map
@@ -3828,9 +3835,41 @@ $(function() {
                 const sessionType = sessionTypesMap[sessionTypeID];
                 const sessionTypeName = sessionType ? (sessionType.name || sessionType.type || '').toLowerCase() : '';
                 const isFreeSession = sessionTypeName.includes('free');
+                const mainClassMode = isMainClassCreateScope()
+                    || $(`.class-timetable-form[data-class-index="${classIndex}"]`).data('create-scope') === 'main_class';
 
                 if (!sessionType) {
                     console.warn('Session type not found for session:', first);
+                    return;
+                }
+
+                if (mainClassMode && !isFreeSession) {
+                    const uniqueEntries = [];
+                    const seenGrouped = new Set();
+                    group.forEach(function(session) {
+                        const rawId = session.class_subjectID || session.subjectID;
+                        const subject = subjectsMap[rawId];
+                        const groupedId = subject ? (subject.class_subjectID || subject.subjectID) : rawId;
+                        if (!groupedId || seenGrouped.has(String(groupedId))) {
+                            return;
+                        }
+                        seenGrouped.add(String(groupedId));
+                        uniqueEntries.push({
+                            subjectID: groupedId,
+                            teacherID: session.teacherID,
+                            teacherName: session.teacher_name || session.teacherName || ''
+                        });
+                    });
+                    if (uniqueEntries.length === 0) {
+                        return;
+                    }
+                    const sessionCounter = Date.now() + Math.random() + Math.random();
+                    renderSessionFormWithData(classIndex, day, isPrepo, subjects, sessionTypes, definition, sessionCounter, {
+                        subjects: uniqueEntries,
+                        sessionTypeID: sessionTypeID,
+                        startTime: first.start_time,
+                        endTime: first.end_time
+                    });
                     return;
                 }
 
@@ -4780,9 +4819,17 @@ $(function() {
             const status = subj.student_status || '';
             const statusLabel = status === 'Optional' ? ' [Optional]' : (status === 'Required' ? ' [Required]' : '');
             const name = subj.subject_name || subj.name || 'N/A';
+            const assignments = Array.isArray(subj.stream_assignments) && subj.stream_assignments.length
+                ? subj.stream_assignments
+                : (subj.subclassID ? [{
+                    class_subjectID: subj.class_subjectID,
+                    subclassID: subj.subclassID,
+                    teacherID: subj.teacherID || null
+                }] : []);
             const subclassAttr = subj.subclassID ? ` data-subclass-id="${subj.subclassID}"` : '';
             const streamAttr = subj.stream_name ? ` data-stream-name="${subj.stream_name}"` : '';
-            options += `<option value="${subjectID}" ${selected} data-teacher-id="${subj.teacherID || ''}" data-teacher-name="${subj.teacher_name || 'Not Assigned'}" data-student-status="${status}"${subclassAttr}${streamAttr}>${name}${statusLabel}</option>`;
+            const assignsJson = JSON.stringify(assignments).replace(/'/g, '&#39;');
+            options += `<option value="${subjectID}" ${selected} data-teacher-id="${subj.teacherID || ''}" data-teacher-name="${subj.teacher_name || 'Not Assigned'}" data-student-status="${status}" data-subject-id="${subj.subjectID || ''}" data-stream-assignments='${assignsJson}'${subclassAttr}${streamAttr}>${name}${statusLabel}</option>`;
         });
         return options;
     }
@@ -5423,7 +5470,7 @@ $(function() {
                         const s = first.sessions[0];
                         const cls = [s.class_name, s.subclass_name].filter(Boolean).join(' / ');
                         detail = ' (' + (cls || 'another class') + ', '
-                            + String(s.start_time || '').substring(0, 5) + '–'
+                            + String(s.start_time || '').substring(0, 5) + '-'
                             + String(s.end_time || '').substring(0, 5) + ')';
                     }
                     return 'This teacher already has a session at this time' + detail;
@@ -6007,31 +6054,48 @@ $(function() {
 
         row.find('.session-subject-pair').each(function() {
             const subjectID = $(this).find('.session-subject').val();
+            const selectedOption = $(this).find('.session-subject option:selected');
             const teacherID = $(this).find('.session-teacher-id').val();
-            const status = $(this).find('.session-subject option:selected').data('student-status');
+            const status = selectedOption.data('student-status');
 
             if (!subjectID || !teacherID) {
                 hasIncomplete = true;
                 return false;
             }
 
-            const pairSubclass = $(this).find('.session-subject option:selected').data('subclass-id') || subclassID;
-            if (!pairSubclass || String(pairSubclass).indexOf('main-') === 0) {
+            let assignments = selectedOption.data('streamAssignments');
+            if (typeof assignments === 'string') {
+                try { assignments = JSON.parse(assignments); } catch (e) { assignments = null; }
+            }
+            if (!Array.isArray(assignments) || assignments.length === 0) {
+                const pairSubclass = selectedOption.data('subclass-id') || subclassID;
+                assignments = pairSubclass && String(pairSubclass).indexOf('main-') !== 0
+                    ? [{ class_subjectID: subjectID, subclassID: pairSubclass, teacherID: teacherID }]
+                    : [];
+            }
+
+            if (assignments.length === 0) {
                 hasIncomplete = true;
                 return false;
             }
 
             statuses.push(status || null);
-            results.push({
-                subclassID: pairSubclass,
-                class_subjectID: subjectID,
-                subjectID: null,
-                session_typeID: String(sessionTypeID),
-                day: day,
-                start_time: startTime,
-                end_time: endTime,
-                teacherID: teacherID,
-                is_prepo: isPrepo ? 1 : 0
+            assignments.forEach(function(a) {
+                if (!a || !a.subclassID || !a.class_subjectID) {
+                    hasIncomplete = true;
+                    return;
+                }
+                results.push({
+                    subclassID: a.subclassID,
+                    class_subjectID: a.class_subjectID,
+                    subjectID: selectedOption.data('subject-id') || null,
+                    session_typeID: String(sessionTypeID),
+                    day: day,
+                    start_time: startTime,
+                    end_time: endTime,
+                    teacherID: a.teacherID || teacherID,
+                    is_prepo: isPrepo ? 1 : 0
+                });
             });
         });
 

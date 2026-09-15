@@ -229,10 +229,10 @@
                         $mainClassNameLower = strtolower(trim($mainClassName));
                         if(preg_match('/^standard\s*(3|iii|iv|v|vi|4|5|6|7)/i', $mainClassNameLower)) {
                             // Standard 3-7 - use fixed format
-                            $objectivesIntro = "The objectives of Primary Education Standard III – VI are to:";
+                            $objectivesIntro = "The objectives of Primary Education Standard III - VI are to:";
                         } else {
                             // Other primary classes (Baby class, Standard 1, Standard 2) - use fixed format for lower classes
-                            $objectivesIntro = "The objectives of Primary Education Standard Baby class – standard2 are to:";
+                            $objectivesIntro = "The objectives of Primary Education Standard Baby class - standard2 are to:";
                         }
                     } else {
                         // Secondary school - just "Learning Objectives" (no intro text)
@@ -702,10 +702,10 @@
                         $mainClassNameLower = strtolower(trim($mainClassName));
                         if(preg_match('/^standard\s*(3|iii|iv|v|vi|4|5|6|7)/i', $mainClassNameLower)) {
                             // Standard 3-7 - use fixed format
-                            $objectivesTitleText = "Objectives of Primary Education The objectives of Primary Education Standard III – VI are to:";
+                            $objectivesTitleText = "Objectives of Primary Education The objectives of Primary Education Standard III - VI are to:";
                         } else {
                             // Other primary classes (Baby class, Standard 1, Standard 2) - use fixed format for lower classes
-                            $objectivesTitleText = "Objectives of Primary Education The objectives of Primary Education Standard Baby class – standard2 are to:";
+                            $objectivesTitleText = "Objectives of Primary Education The objectives of Primary Education Standard Baby class - standard2 are to:";
                         }
                     } else {
                         // Secondary school - just "Learning Objectives"

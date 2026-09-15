@@ -362,7 +362,7 @@
                             <div class="alert alert-light border small mb-3">
                                 <strong><i class="bi bi-info-circle"></i> Check-in window:</strong>
                                 Kuanzia masaa 3 kabla ya muda wa kuingia hadi masaa 2 baada ya muda wa kuingia
-                                (mfano 8:00 AM → 5:00 AM–10:00 AM), kidole chochote kinasomwa kama <strong>Sign In</strong> tu,
+                                (mfano 8:00 AM → 5:00 AM-10:00 AM), kidole chochote kinasomwa kama <strong>Sign In</strong> tu,
                                 hata mtu akiweka mara 2 au zaidi. Baada ya dirisha hilo, kidole kinasomwa kama <strong>Sign Out</strong>.
                             </div>
                             <div class="form-group">
@@ -1271,7 +1271,7 @@
                     if (res.period_incomplete && res.complete_working_days !== undefined) {
                         metaHtml += '<div class="col-md-3"><strong>Complete W/days</strong><br><span class="fs-5 text-warning">' + res.complete_working_days + '</span><br><small class="text-muted">Siku za kazi zilizopita</small></div>';
                     }
-                    metaHtml += '<div class="col-md-3"><strong>Official Time</strong><br>' + formatAmPm(res.work_start_time) + ' – ' + formatAmPm(res.work_end_time) + '</div>';
+                    metaHtml += '<div class="col-md-3"><strong>Official Time</strong><br>' + formatAmPm(res.work_start_time) + ' - ' + formatAmPm(res.work_end_time) + '</div>';
                     metaHtml += '<div class="col-md-3"><strong>Period</strong><br>' + (res.period_incomplete ? '<span class="text-warning">In progress</span>' : 'Complete') + '</div>';
                     metaHtml += '</div>';
                     if (res.period_incomplete) {

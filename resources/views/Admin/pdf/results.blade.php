@@ -1831,21 +1831,21 @@
                     @php
                         if ($isALevelPdf) {
                             $gradeKeyRows = [
-                                ['A', '80–100', '1', 'Bora sana', 'I', '3–9', 'A', 'Bora sana'],
-                                ['B', '70–79', '2', 'Nzuri sana', 'II', '10–12', 'B', 'Nzuri sana'],
-                                ['C', '60–69', '3', 'Nzuri', 'III', '13–17', 'C', 'Nzuri'],
-                                ['D', '50–59', '4', 'Inaridhisha', 'IV', '18–19', 'D', 'Inaridhisha'],
-                                ['E', '40–49', '5', 'Tosheleza', '0', '20–21', 'F', 'Mbaya'],
-                                ['S', '35–39', '6', 'Subsidiary', '-', '-', '-', '-'],
-                                ['F', '0–34', '7', 'Mbaya', '-', '-', '-', '-'],
+                                ['A', '80-100', '1', 'Bora sana', 'I', '3-9', 'A', 'Bora sana'],
+                                ['B', '70-79', '2', 'Nzuri sana', 'II', '10-12', 'B', 'Nzuri sana'],
+                                ['C', '60-69', '3', 'Nzuri', 'III', '13-17', 'C', 'Nzuri'],
+                                ['D', '50-59', '4', 'Inaridhisha', 'IV', '18-19', 'D', 'Inaridhisha'],
+                                ['E', '40-49', '5', 'Tosheleza', '0', '20-21', 'F', 'Mbaya'],
+                                ['S', '35-39', '6', 'Subsidiary', '-', '-', '-', '-'],
+                                ['F', '0-34', '7', 'Mbaya', '-', '-', '-', '-'],
                             ];
                         } else {
                             $gradeKeyRows = [
-                                ['A', '75–100', '1', 'Bora sana', 'I', '7–17', 'A', 'Bora sana'],
-                                ['B', '65–74', '2', 'Nzuri sana', 'II', '18–21', 'B', 'Nzuri sana'],
-                                ['C', '45–64', '3', 'Nzuri', 'III', '22–25', 'C', 'Nzuri'],
-                                ['D', '30–44', '4', 'Inaridhisha', 'IV', '26–33', 'D', 'Inaridhisha'],
-                                ['F', '0–29', '5', 'Mbaya', '0', '34–35', 'F', 'Mbaya'],
+                                ['A', '75-100', '1', 'Bora sana', 'I', '7-17', 'A', 'Bora sana'],
+                                ['B', '65-74', '2', 'Nzuri sana', 'II', '18-21', 'B', 'Nzuri sana'],
+                                ['C', '45-64', '3', 'Nzuri', 'III', '22-25', 'C', 'Nzuri'],
+                                ['D', '30-44', '4', 'Inaridhisha', 'IV', '26-33', 'D', 'Inaridhisha'],
+                                ['F', '0-29', '5', 'Mbaya', '0', '34-35', 'F', 'Mbaya'],
                             ];
                         }
                     @endphp

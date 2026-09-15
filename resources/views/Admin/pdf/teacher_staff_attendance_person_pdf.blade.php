@@ -113,7 +113,7 @@
             </tr>
             <tr>
                 <td class="label">Official Time:</td>
-                <td>{{ $work_start_time }} – {{ $work_end_time }}</td>
+                <td>{{ $work_start_time }} - {{ $work_end_time }}</td>
                 <td class="label">Employee No:</td>
                 <td>{{ $person['employee_number'] ?? 'N/A' }}</td>
             </tr>

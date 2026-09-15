@@ -35,7 +35,7 @@
                     <div class="icon"><i class="fa fa-phone"></i></div>
                     <div class="contact-details">
                         <h5><a href="tel:{{ config('shulexpert.phone_e164') }}" style="color:#222;">{{ config('shulexpert.phone_display') }}</a></h5>
-                        <p>Mon–Fri 09:00–19:00 · Sat 09:00–12:00</p>
+                        <p>Mon-Fri 09:00-19:00 · Sat 09:00-12:00</p>
                     </div>
                 </div>
                 <div class="sx-contact-box single-contact-address d-flex flex-row">

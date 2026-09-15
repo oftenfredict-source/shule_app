@@ -104,7 +104,7 @@
     .board-wrap:last-child,
     .board-wrap.board-wrap-last { page-break-after: auto; }
 
-    /* Header: compact centred block — logos sit beside titles, not page edges */
+    /* Header: compact centred block - logos sit beside titles, not page edges */
     .board-page-header {
         margin: 0 0 6px 0;
         border-bottom: 2px solid #940000;
@@ -619,7 +619,7 @@
         foreach ($vertLabels as $vl) {
             $maxVertLen = max($maxVertLen, mb_strlen($vl, 'UTF-8'));
         }
-        // Header height from longest short label at 12px — not from full subject names
+        // Header height from longest short label at 12px - not from full subject names
         $vHeaderH = (int) round($maxVertLen * 7.2 + 16);
         $vInnerH = max(1, $vHeaderH - 4);
         $vBoxH = max(1, $vHeaderH - 8);

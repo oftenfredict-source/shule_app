@@ -2640,7 +2640,7 @@
                             $('#registerStudentForm')[0].reset();
                             $('#student_photo').val('');
 
-                            // Simple message – user will proceed to capture fingerprint directly on device
+                            // Simple message - user will proceed to capture fingerprint directly on device
                             if (response.fingerprint_id) {
                                 var fid = response.fingerprint_id;
                                 Swal.fire({

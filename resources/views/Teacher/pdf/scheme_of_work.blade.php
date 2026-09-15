@@ -139,9 +139,9 @@
             if($schoolType === 'Primary') {
                 $mainClassNameLower = strtolower(trim($mainClassName));
                 if(preg_match('/^standard\s*(3|iii|iv|v|vi|4|5|6|7)/i', $mainClassNameLower)) {
-                    $objectivesIntro = "The objectives of Primary Education Standard III – VI are to:";
+                    $objectivesIntro = "The objectives of Primary Education Standard III - VI are to:";
                 } else {
-                    $objectivesIntro = "The objectives of Primary Education Standard Baby class – standard2 are to:";
+                    $objectivesIntro = "The objectives of Primary Education Standard Baby class - standard2 are to:";
                 }
             }
         @endphp
