@@ -10,6 +10,7 @@ use App\Models\ClassSubject;
 use App\Models\SchemeOfWork;
 use App\Models\SchemeOfWorkItem;
 use App\Models\LessonPlan;
+use App\Models\ClassModel;
 use App\Models\SchoolSubject;
 use App\Models\PermissionRequest;
 use App\Models\ParentModel;
@@ -990,28 +991,6 @@ class AdminController extends Controller
                 ->with("error", "Unauthorized access");
         }
 
-        // Get all subjects for the school
-        $subjects = DB::table("school_subjects")
-            ->where("schoolID", $schoolID)
-            ->where("status", "Active")
-            ->orderBy("subject_name")
-            ->get();
-
-        // Get all classes for the school
-        $classes = DB::table("subclasses")
-            ->join("classes", "subclasses.classID", "=", "classes.classID")
-            ->where("classes.schoolID", $schoolID)
-            ->where("subclasses.status", "Active")
-            ->select(
-                "subclasses.subclassID",
-                "subclasses.subclass_name",
-                "classes.class_name",
-            )
-            ->orderBy("classes.class_name")
-            ->orderBy("subclasses.subclass_name")
-            ->get();
-
-        // Get school info
         $school = School::where("schoolID", $schoolID)->first();
         $schoolType =
             $school && $school->school_type
@@ -1024,9 +1003,29 @@ class AdminController extends Controller
             ? "PRE AND PRIMARY SCHOOL"
             : "SECONDARY SCHOOL";
 
+        $classes = ClassModel::where("schoolID", $schoolID)
+            ->where("status", "Active")
+            ->orderBy("class_name")
+            ->get(["classID", "class_name"]);
+
+        $schoolStampUrl =
+            $school && $school->school_stamp
+                ? asset($school->school_stamp)
+                : null;
+        $schoolSignatureUrl =
+            $school && $school->school_signature
+                ? asset($school->school_signature)
+                : null;
+
         return view(
             "Admin.lesson_plans",
-            compact("subjects", "classes", "schoolTypeDisplay"),
+            compact(
+                "classes",
+                "school",
+                "schoolTypeDisplay",
+                "schoolStampUrl",
+                "schoolSignatureUrl",
+            ),
         );
     }
 
@@ -6172,7 +6171,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Get lesson plans sent to admin by subject and class
+     * Lesson plans created by teachers for a class / subclass / subject.
      */
     public function getLessonPlansForAdmin(Request $request)
     {
@@ -6180,6 +6179,7 @@ class AdminController extends Controller
             $schoolID = Session::get("schoolID");
             $subjectID = $request->input("subjectID");
             $classID = $request->input("classID");
+            $subclassID = $request->input("subclassID");
 
             if (!$schoolID) {
                 return response()->json([
@@ -6191,11 +6191,10 @@ class AdminController extends Controller
             if (!$subjectID || !$classID) {
                 return response()->json([
                     "success" => false,
-                    "error" => "Please select both subject and class",
+                    "error" => "Please select class and subject",
                 ]);
             }
 
-            // Get subject name
             $subject = DB::table("school_subjects")
                 ->where("subjectID", $subjectID)
                 ->where("schoolID", $schoolID)
@@ -6208,92 +6207,46 @@ class AdminController extends Controller
                 ]);
             }
 
-            // Get class name
-            $subclass = DB::table("subclasses")
-                ->join("classes", "subclasses.classID", "=", "classes.classID")
-                ->where("subclasses.subclassID", $classID)
-                ->where("classes.schoolID", $schoolID)
-                ->select("subclasses.subclass_name", "classes.class_name")
+            $class = ClassModel::where("classID", $classID)
+                ->where("schoolID", $schoolID)
                 ->first();
 
-            if (!$subclass) {
+            if (!$class) {
                 return response()->json([
                     "success" => false,
                     "error" => "Class not found",
                 ]);
             }
 
-            // Get session timetables for this subject and class
-            $sessionTimetableIDs = DB::table("class_session_timetables")
-                ->join("class_subjects", function ($join) use (
-                    $subjectID,
-                    $classID,
-                ) {
-                    $join
-                        ->on(
-                            "class_session_timetables.class_subjectID",
-                            "=",
-                            "class_subjects.class_subjectID",
-                        )
-                        ->where("class_subjects.subjectID", "=", $subjectID)
-                        ->where("class_subjects.subclassID", "=", $classID);
-                })
-                ->pluck("class_session_timetables.session_timetableID")
-                ->toArray();
+            $lessonPlans = $this->queryAdminLessonPlans(
+                (int) $schoolID,
+                (int) $classID,
+                $subclassID,
+                (int) $subjectID,
+            );
 
-            if (empty($sessionTimetableIDs)) {
-                return response()->json([
-                    "success" => true,
-                    "lesson_plans" => [],
-                    "subject_name" => $subject->subject_name,
-                    "class_name" =>
-                        $subclass->class_name .
-                        " - " .
-                        $subclass->subclass_name,
-                ]);
-            }
-
-            // Get lesson plans sent to admin
-            $lessonPlans = LessonPlan::whereIn(
-                "session_timetableID",
-                $sessionTimetableIDs,
-            )
-                ->where("schoolID", $schoolID)
-                ->where("sent_to_admin", true)
-                ->with("teacher")
-                ->orderBy("lesson_date", "desc")
-                ->get();
-
-            // Format data
             $formattedPlans = $lessonPlans->map(function ($plan) {
-                $teacherName = "N/A";
-                if ($plan->teacher) {
-                    $teacherName = trim(
-                        ($plan->teacher->first_name ?? "") .
-                            " " .
-                            ($plan->teacher->last_name ?? ""),
-                    );
-                }
-
-                return [
-                    "lesson_planID" => $plan->lesson_planID,
-                    "lesson_date" => $plan->lesson_date,
-                    "subject" => $plan->subject,
-                    "class_name" => $plan->class_name,
-                    "teacher_name" => $teacherName,
-                    "lesson_time_start" => $plan->lesson_time_start,
-                    "lesson_time_end" => $plan->lesson_time_end,
-                    "sent_at" => $plan->sent_at,
-                    "supervisor_signature" => $plan->supervisor_signature,
-                ];
+                return $this->formatAdminLessonPlanRow($plan);
             });
+
+            $scopeLabel = $class->class_name;
+            if ($subclassID && $subclassID !== "all" && $subclassID !== "") {
+                $sub = DB::table("subclasses")
+                    ->where("subclassID", $subclassID)
+                    ->where("classID", $classID)
+                    ->value("subclass_name");
+                if ($sub) {
+                    $scopeLabel .= " — " . $sub;
+                }
+            } else {
+                $scopeLabel .= " — All subclasses";
+            }
 
             return response()->json([
                 "success" => true,
                 "lesson_plans" => $formattedPlans,
                 "subject_name" => $subject->subject_name,
-                "class_name" =>
-                    $subclass->class_name . " - " . $subclass->subclass_name,
+                "class_name" => $scopeLabel,
             ]);
         } catch (\Exception $e) {
             Log::error(
@@ -6324,8 +6277,11 @@ class AdminController extends Controller
 
             $lessonPlan = LessonPlan::where("lesson_planID", $lessonPlanID)
                 ->where("schoolID", $schoolID)
-                ->where("sent_to_admin", true)
-                ->with("teacher")
+                ->with([
+                    "teacher",
+                    "sessionTimetable.subclass",
+                    "sessionTimetable.classSubject.subject",
+                ])
                 ->first();
 
             if (!$lessonPlan) {
@@ -6347,6 +6303,9 @@ class AdminController extends Controller
 
             $data = $lessonPlan->toArray();
             $data["teacher_name"] = $teacherName;
+            $data["is_approved"] = !empty($lessonPlan->supervisor_signature);
+            $data["subclass_name"] =
+                $lessonPlan->sessionTimetable->subclass->subclass_name ?? "";
 
             return response()->json([
                 "success" => true,
@@ -6364,14 +6323,13 @@ class AdminController extends Controller
     }
 
     /**
-     * Sign lesson plan as supervisor
+     * Approve lesson plan: apply headmaster signature and school stamp.
      */
     public function signLessonPlan(Request $request)
     {
         try {
             $schoolID = Session::get("schoolID");
             $lessonPlanID = $request->input("lesson_planID");
-            $supervisorSignature = $request->input("supervisor_signature");
 
             if (!$schoolID) {
                 return response()->json([
@@ -6380,16 +6338,8 @@ class AdminController extends Controller
                 ]);
             }
 
-            if (!$supervisorSignature) {
-                return response()->json([
-                    "success" => false,
-                    "error" => "Please provide supervisor signature",
-                ]);
-            }
-
             $lessonPlan = LessonPlan::where("lesson_planID", $lessonPlanID)
                 ->where("schoolID", $schoolID)
-                ->where("sent_to_admin", true)
                 ->first();
 
             if (!$lessonPlan) {
@@ -6399,13 +6349,30 @@ class AdminController extends Controller
                 ]);
             }
 
+            $school = School::where("schoolID", $schoolID)->first();
+            $headSign = $this->schoolFileToDataUrl(
+                $school?->school_signature,
+            );
+
+            if (!$headSign) {
+                return response()->json([
+                    "success" => false,
+                    "error" =>
+                        "Headmaster signature is not set. Upload it in School settings first.",
+                ]);
+            }
+
             $lessonPlan->update([
-                "supervisor_signature" => $supervisorSignature,
+                "supervisor_signature" => $headSign,
+                "status" => "completed",
+                "sent_to_admin" => true,
+                "sent_at" => $lessonPlan->sent_at ?: now(),
             ]);
 
             return response()->json([
                 "success" => true,
-                "message" => "Lesson plan signed successfully",
+                "message" =>
+                    "Lesson plan approved. Headmaster signature and stamp applied.",
             ]);
         } catch (\Exception $e) {
             Log::error("Error signing lesson plan: " . $e->getMessage());
@@ -6434,7 +6401,6 @@ class AdminController extends Controller
 
             $lessonPlan = LessonPlan::where("lesson_planID", $lessonPlanID)
                 ->where("schoolID", $schoolID)
-                ->where("sent_to_admin", true)
                 ->first();
 
             if (!$lessonPlan) {
@@ -6468,6 +6434,342 @@ class AdminController extends Controller
                 "error" => $e->getMessage(),
             ]);
         }
+    }
+
+    public function getLessonPlanFilterOptions(Request $request)
+    {
+        try {
+            $schoolID = Session::get("schoolID");
+            $classID = $request->input("classID");
+            $subclassID = $request->input("subclassID");
+
+            if (!$schoolID || !$classID) {
+                return response()->json([
+                    "success" => false,
+                    "error" => "Class is required",
+                ]);
+            }
+
+            $class = ClassModel::where("classID", $classID)
+                ->where("schoolID", $schoolID)
+                ->first();
+            if (!$class) {
+                return response()->json([
+                    "success" => false,
+                    "error" => "Class not found",
+                ]);
+            }
+
+            $subclasses = DB::table("subclasses")
+                ->where("classID", $classID)
+                ->orderBy("subclass_name")
+                ->get(["subclassID", "subclass_name"]);
+
+            $subjectsQuery = DB::table("class_subjects")
+                ->join(
+                    "school_subjects",
+                    "class_subjects.subjectID",
+                    "=",
+                    "school_subjects.subjectID",
+                )
+                ->where("class_subjects.classID", $classID)
+                ->where("class_subjects.status", "Active")
+                ->where("school_subjects.status", "Active")
+                ->where("school_subjects.schoolID", $schoolID);
+
+            if ($subclassID && $subclassID !== "all") {
+                $subjectsQuery->where(
+                    "class_subjects.subclassID",
+                    $subclassID,
+                );
+            }
+
+            $subjects = $subjectsQuery
+                ->select(
+                    "school_subjects.subjectID",
+                    "school_subjects.subject_name",
+                )
+                ->distinct()
+                ->orderBy("school_subjects.subject_name")
+                ->get();
+
+            return response()->json([
+                "success" => true,
+                "subclasses" => $subclasses,
+                "subjects" => $subjects,
+            ]);
+        } catch (\Exception $e) {
+            Log::error(
+                "Error getting lesson plan filter options: " .
+                    $e->getMessage(),
+            );
+            return response()->json([
+                "success" => false,
+                "error" => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function approveAllLessonPlans(Request $request)
+    {
+        try {
+            $schoolID = Session::get("schoolID");
+            $subjectID = $request->input("subjectID");
+            $classID = $request->input("classID");
+            $subclassID = $request->input("subclassID");
+
+            if (!$schoolID) {
+                return response()->json([
+                    "success" => false,
+                    "error" => "Session expired",
+                ]);
+            }
+
+            if (!$subjectID || !$classID) {
+                return response()->json([
+                    "success" => false,
+                    "error" => "Please select class and subject",
+                ]);
+            }
+
+            $school = School::where("schoolID", $schoolID)->first();
+            $headSign = $this->schoolFileToDataUrl(
+                $school?->school_signature,
+            );
+            if (!$headSign) {
+                return response()->json([
+                    "success" => false,
+                    "error" =>
+                        "Headmaster signature is not set. Upload it in School settings first.",
+                ]);
+            }
+
+            $plans = $this->queryAdminLessonPlans(
+                (int) $schoolID,
+                (int) $classID,
+                $subclassID,
+                (int) $subjectID,
+            )->filter(function ($plan) {
+                return empty($plan->supervisor_signature);
+            });
+
+            $count = 0;
+            foreach ($plans as $plan) {
+                $plan->update([
+                    "supervisor_signature" => $headSign,
+                    "status" => "completed",
+                    "sent_to_admin" => true,
+                    "sent_at" => $plan->sent_at ?: now(),
+                ]);
+                $count++;
+            }
+
+            return response()->json([
+                "success" => true,
+                "message" =>
+                    $count === 0
+                        ? "All lesson plans in this filter are already approved."
+                        : "Approved {$count} lesson plan(s). Headmaster signature and stamp applied.",
+                "approved_count" => $count,
+            ]);
+        } catch (\Exception $e) {
+            Log::error(
+                "Error approving all lesson plans: " . $e->getMessage(),
+            );
+            return response()->json([
+                "success" => false,
+                "error" => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function downloadAllLessonPlans(Request $request)
+    {
+        try {
+            $schoolID = Session::get("schoolID");
+            $subjectID = $request->input("subjectID");
+            $classID = $request->input("classID");
+            $subclassID = $request->input("subclassID");
+
+            if (!$schoolID) {
+                return redirect()
+                    ->back()
+                    ->with("error", "Session expired");
+            }
+
+            if (!$subjectID || !$classID) {
+                return redirect()
+                    ->back()
+                    ->with("error", "Please select class and subject");
+            }
+
+            $lessonPlans = $this->queryAdminLessonPlans(
+                (int) $schoolID,
+                (int) $classID,
+                $subclassID,
+                (int) $subjectID,
+            );
+
+            if ($lessonPlans->isEmpty()) {
+                return redirect()
+                    ->back()
+                    ->with("error", "No lesson plans found for this filter");
+            }
+
+            $school = School::find($schoolID);
+            $schoolType =
+                $school && $school->school_type
+                    ? strtolower($school->school_type)
+                    : "primary";
+            $isPrimary =
+                strpos($schoolType, "primary") !== false ||
+                strpos($schoolType, "pre") !== false;
+            $schoolTypeDisplay = $isPrimary
+                ? "PRE AND PRIMARY SCHOOL"
+                : "SECONDARY SCHOOL";
+
+            $html = view("Teacher.pdf.bulk_lesson_plans", [
+                "lessonPlans" => $lessonPlans,
+                "school" => $school,
+                "schoolType" => $schoolTypeDisplay,
+            ])->render();
+
+            $options = new \Dompdf\Options();
+            $options->set("defaultFont", "Helvetica");
+            $options->set("isRemoteEnabled", true);
+            $options->set("isHtml5ParserEnabled", true);
+            $options->setChroot(public_path());
+
+            $dompdf = new \Dompdf\Dompdf($options);
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper("A4", "portrait");
+            $dompdf->render();
+
+            $filename =
+                "Lesson_Plans_" .
+                Carbon::now()->format("Y-m-d_His") .
+                ".pdf";
+
+            return response($dompdf->output(), 200, [
+                "Content-Type" => "application/pdf",
+                "Content-Disposition" =>
+                    'attachment; filename="' . $filename . '"',
+            ]);
+        } catch (\Exception $e) {
+            Log::error(
+                "Error downloading admin lesson plans: " . $e->getMessage(),
+            );
+            return redirect()
+                ->back()
+                ->with("error", "Failed to generate PDF");
+        }
+    }
+
+    private function queryAdminLessonPlans(
+        int $schoolID,
+        int $classID,
+        $subclassID,
+        int $subjectID,
+    ) {
+        return LessonPlan::with([
+            "teacher",
+            "sessionTimetable.subclass",
+            "sessionTimetable.classSubject.subject",
+        ])
+            ->where("schoolID", $schoolID)
+            ->whereHas("sessionTimetable", function ($q) use (
+                $classID,
+                $subclassID,
+                $subjectID,
+            ) {
+                $q->whereHas("subclass", function ($s) use ($classID) {
+                    $s->where("classID", $classID);
+                });
+                if (
+                    $subclassID &&
+                    $subclassID !== "all" &&
+                    $subclassID !== ""
+                ) {
+                    $q->where("subclassID", $subclassID);
+                }
+                $q->where(function ($inner) use ($subjectID) {
+                    $inner
+                        ->where("subjectID", $subjectID)
+                        ->orWhereHas("classSubject", function ($cs) use (
+                            $subjectID,
+                        ) {
+                            $cs->where("subjectID", $subjectID);
+                        });
+                });
+            })
+            ->orderBy("lesson_date", "asc")
+            ->orderBy("lesson_time_start", "asc")
+            ->get();
+    }
+
+    private function formatAdminLessonPlanRow(LessonPlan $plan): array
+    {
+        $teacherName = "N/A";
+        if ($plan->teacher) {
+            $teacherName = trim(
+                ($plan->teacher->first_name ?? "") .
+                    " " .
+                    ($plan->teacher->last_name ?? ""),
+            );
+        }
+
+        $subclassName =
+            $plan->sessionTimetable->subclass->subclass_name ?? "";
+
+        return [
+            "lesson_planID" => $plan->lesson_planID,
+            "lesson_date" =>
+                $plan->lesson_date instanceof \DateTimeInterface
+                    ? $plan->lesson_date->format("Y-m-d")
+                    : $plan->lesson_date,
+            "subject" => $plan->subject,
+            "class_name" => $plan->class_name,
+            "subclass_name" => $subclassName,
+            "teacher_name" => $teacherName ?: "N/A",
+            "lesson_time_start" => $plan->lesson_time_start,
+            "lesson_time_end" => $plan->lesson_time_end,
+            "sent_at" => $plan->sent_at,
+            "is_approved" => !empty($plan->supervisor_signature),
+            "supervisor_signature" => $plan->supervisor_signature,
+        ];
+    }
+
+    private function schoolFileToDataUrl(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+        $relative = ltrim($path, "/");
+        $parent = dirname(base_path());
+        $possibilities = [
+            public_path($relative),
+            $parent . "/public_html/" . $relative,
+        ];
+        foreach ($possibilities as $fullPath) {
+            if (@file_exists($fullPath) && is_file($fullPath)) {
+                try {
+                    $ext = strtolower(
+                        pathinfo($fullPath, PATHINFO_EXTENSION) ?: "png",
+                    );
+                    if ($ext === "jpg") {
+                        $ext = "jpeg";
+                    }
+                    return "data:image/" .
+                        $ext .
+                        ";base64," .
+                        base64_encode(file_get_contents($fullPath));
+                } catch (\Exception $e) {
+                    return null;
+                }
+            }
+        }
+
+        return null;
     }
 
     public function getVisitorNotificationCount()

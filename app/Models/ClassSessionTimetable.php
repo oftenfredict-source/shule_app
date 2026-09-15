@@ -22,6 +22,7 @@ class ClassSessionTimetable extends Model
         'end_time',
         'is_prepo',
         'notes',
+        'timetable_scope',
     ];
 
     protected $casts = [

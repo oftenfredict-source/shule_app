@@ -106,8 +106,8 @@
     <div class="container-fluid">
         <div class="row align-items-center">
             <div class="col-md-8">
-                <h3><i class="fa fa-file-text"></i> Lesson Plans Management</h3>
-                <p class="mb-0">View and sign lesson plans sent by teachers</p>
+                <h3><i class="fa fa-file-text"></i> Lesson Plans</h3>
+                <p class="mb-0">View lesson plans created by teachers, approve with headmaster signature &amp; stamp, and download</p>
             </div>
         </div>
     </div>
@@ -122,36 +122,35 @@
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label><strong>Subject</strong></label>
-                            <select class="form-control" id="subjectFilter" style="border-radius: 0;">
-                                <option value="">-- Select Subject --</option>
-                                @foreach($subjects as $subject)
-                                    <option value="{{ $subject->subjectID }}">{{ $subject->subject_name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="form-group">
                             <label><strong>Class</strong></label>
                             <select class="form-control" id="classFilter" style="border-radius: 0;">
                                 <option value="">-- Select Class --</option>
                                 @foreach($classes as $class)
-                                    <option value="{{ $class->subclassID }}">{{ $class->class_name }} - {{ $class->subclass_name }}</option>
+                                    <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
                                 @endforeach
                             </select>
                         </div>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-12">
-                        <button class="btn btn-primary-custom" onclick="loadLessonPlans()" style="border-radius: 0;">
-                            <i class="fa fa-search"></i> Load Lesson Plans
-                        </button>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label><strong>Subclass</strong></label>
+                            <select class="form-control" id="subclassFilter" style="border-radius: 0;" disabled>
+                                <option value="all">All subclasses</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label><strong>Subject</strong></label>
+                            <select class="form-control" id="subjectFilter" style="border-radius: 0;" disabled>
+                                <option value="">-- Select Subject --</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
+                <p class="text-muted small mb-0">Select class, then subclass (or All), then subject. Lesson plans for that subject load automatically, sorted by date.</p>
             </div>
         </div>
 
@@ -159,7 +158,7 @@
         <div id="lessonPlansContainer">
             <div class="text-center text-muted py-5">
                 <i class="fa fa-info-circle" style="font-size: 3rem;"></i>
-                <p class="mt-3">Please select subject and class to view lesson plans</p>
+                <p class="mt-3">Select class, subclass, and subject to view lesson plans created by teachers</p>
             </div>
         </div>
     </div>
@@ -189,23 +188,76 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-let supervisorSignaturePad = null;
 let currentLessonPlanID = null;
+const schoolStampUrl = @json($schoolStampUrl ?? null);
+const schoolSignatureUrl = @json($schoolSignatureUrl ?? null);
 
-function loadLessonPlans() {
-    const subjectID = $('#subjectFilter').val();
-    const classID = $('#classFilter').val();
-    
-    if (!subjectID || !classID) {
-        Swal.fire({
-            title: 'Error!',
-            text: 'Please select both subject and class',
-            icon: 'error',
-            confirmButtonColor: '#940000'
-        });
+function currentFilters() {
+    return {
+        classID: $('#classFilter').val() || '',
+        subclassID: $('#subclassFilter').val() || 'all',
+        subjectID: $('#subjectFilter').val() || ''
+    };
+}
+
+function resetSubjectSelect(placeholder) {
+    $('#subjectFilter').html('<option value="">' + (placeholder || '-- Select Subject --') + '</option>').prop('disabled', true);
+}
+
+$('#classFilter').on('change', function() {
+    const classID = $(this).val();
+    $('#subclassFilter').html('<option value="all">All subclasses</option>').prop('disabled', !classID);
+    resetSubjectSelect();
+    if (!classID) {
         return;
     }
-    
+    loadFilterOptions(classID, 'all', true);
+});
+
+$('#subclassFilter').on('change', function() {
+    const classID = $('#classFilter').val();
+    if (!classID) return;
+    loadFilterOptions(classID, $(this).val() || 'all', false);
+});
+
+$('#subjectFilter').on('change', function() {
+    if ($(this).val()) {
+        loadLessonPlans();
+    }
+});
+
+function loadFilterOptions(classID, subclassID, refreshSubclasses) {
+    $.ajax({
+        url: '{{ route("admin.lesson_plan_filter_options") }}',
+        method: 'GET',
+        data: { classID: classID, subclassID: subclassID },
+        success: function(res) {
+            if (!res.success) {
+                return;
+            }
+            if (refreshSubclasses) {
+                let html = '<option value="all">All subclasses</option>';
+                (res.subclasses || []).forEach(function(s) {
+                    html += '<option value="' + s.subclassID + '">' + (s.subclass_name || '') + '</option>';
+                });
+                $('#subclassFilter').html(html).prop('disabled', false);
+            }
+            let subj = '<option value="">-- Select Subject --</option>';
+            (res.subjects || []).forEach(function(s) {
+                subj += '<option value="' + s.subjectID + '">' + (s.subject_name || '') + '</option>';
+            });
+            $('#subjectFilter').html(subj).prop('disabled', false);
+        }
+    });
+}
+
+function loadLessonPlans() {
+    const f = currentFilters();
+
+    if (!f.subjectID || !f.classID) {
+        return;
+    }
+
     $('#lessonPlansContainer').html(`
         <div class="text-center py-5">
             <div class="spinner-border text-primary" role="status">
@@ -214,27 +266,24 @@ function loadLessonPlans() {
             <p class="mt-3 text-muted">Loading lesson plans...</p>
         </div>
     `);
-    
+
     $.ajax({
         url: '{{ route("admin.get_lesson_plans") }}',
         method: 'GET',
-        data: {
-            subjectID: subjectID,
-            classID: classID
-        },
+        data: f,
         success: function(response) {
             if (response.success && response.lesson_plans && response.lesson_plans.length > 0) {
                 renderLessonPlansList(response.lesson_plans, response.subject_name, response.class_name);
             } else {
                 $('#lessonPlansContainer').html(`
                     <div class="alert alert-info" style="border-radius: 0;">
-                        <i class="fa fa-info-circle"></i> No lesson plans found for ${response.subject_name || 'selected subject'} - ${response.class_name || 'selected class'}.
+                        <i class="fa fa-info-circle"></i> No lesson plans found for ${response.subject_name || 'selected subject'} — ${response.class_name || 'selected class'}.
                     </div>
                 `);
             }
         },
         error: function(xhr) {
-            const error = xhr.responseJSON?.error || 'Failed to load lesson plans';
+            const error = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to load lesson plans';
             $('#lessonPlansContainer').html(`
                 <div class="alert alert-danger" style="border-radius: 0;">
                     <i class="fa fa-exclamation-circle"></i> ${error}
@@ -245,12 +294,21 @@ function loadLessonPlans() {
 }
 
 function renderLessonPlansList(lessonPlans, subjectName, className) {
+    const pendingCount = lessonPlans.filter(function(p) { return !p.is_approved && !p.supervisor_signature; }).length;
     let html = `
         <div class="card" style="border-radius: 0;">
-            <div class="card-header" style="background-color: #940000; color: white; border-radius: 0;">
-                <h5 class="mb-0">
-                    <i class="fa fa-list"></i> ${subjectName} - ${className} (${lessonPlans.length} lesson plan(s))
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap" style="background-color: #940000; color: white; border-radius: 0;">
+                <h5 class="mb-0 mr-2">
+                    <i class="fa fa-list"></i> ${subjectName} — ${className} (${lessonPlans.length} lesson plan(s))
                 </h5>
+                <div class="mt-2 mt-md-0">
+                    <button type="button" class="btn btn-sm btn-light" onclick="approveAllLessonPlans()" style="border-radius: 0;" ${pendingCount === 0 ? 'disabled' : ''}>
+                        <i class="fa fa-check-double"></i> Approve All
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-light" onclick="downloadAllLessonPlans()" style="border-radius: 0;">
+                        <i class="fa fa-download"></i> Download All
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -260,53 +318,56 @@ function renderLessonPlansList(lessonPlans, subjectName, className) {
                                 <th>#</th>
                                 <th>Date</th>
                                 <th>Teacher</th>
+                                <th>Subclass</th>
                                 <th>Time</th>
-                                <th>Sent At</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
     `;
-    
+
     lessonPlans.forEach(function(plan, index) {
         const dateObj = new Date(plan.lesson_date);
         const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        const sentAt = plan.sent_at ? new Date(plan.sent_at).toLocaleString('en-GB') : 'N/A';
         const formatTime = (timeStr) => {
             if (!timeStr) return 'N/A';
-            const parts = timeStr.split(':');
-            const hours = parseInt(parts[0]);
-            const minutes = parts[1];
+            const parts = String(timeStr).split(':');
+            const hours = parseInt(parts[0], 10);
+            const minutes = parts[1] || '00';
             const ampm = hours >= 12 ? 'PM' : 'AM';
             const displayHours = hours % 12 || 12;
             return displayHours + ':' + minutes + ' ' + ampm;
         };
-        
-        const isSigned = plan.supervisor_signature ? true : false;
-        
+
+        const isApproved = !!(plan.is_approved || plan.supervisor_signature);
+
         html += `
             <tr>
                 <td>${index + 1}</td>
                 <td>${formattedDate}</td>
                 <td>${plan.teacher_name || 'N/A'}</td>
+                <td>${plan.subclass_name || '—'}</td>
                 <td>${formatTime(plan.lesson_time_start)} - ${formatTime(plan.lesson_time_end)}</td>
-                <td>${sentAt}</td>
                 <td>
-                    ${isSigned ? 
-                        '<span class="badge badge-success">Signed</span>' : 
-                        '<span class="badge badge-warning">Pending Signature</span>'
+                    ${isApproved ?
+                        '<span class="badge badge-success">Approved</span>' :
+                        '<span class="badge badge-warning">Pending</span>'
                     }
                 </td>
                 <td>
                     <button class="btn btn-sm btn-primary-custom" onclick="viewLessonPlan(${plan.lesson_planID})" style="border-radius: 0;">
-                        <i class="fa fa-eye"></i> View & Sign
+                        <i class="fa fa-eye"></i> View
                     </button>
+                    ${!isApproved ? `
+                    <button class="btn btn-sm btn-success" onclick="approveLessonPlan(${plan.lesson_planID})" style="border-radius: 0;">
+                        <i class="fa fa-check"></i> Approve
+                    </button>` : ''}
                 </td>
             </tr>
         `;
     });
-    
+
     html += `
                         </tbody>
                     </table>
@@ -314,7 +375,7 @@ function renderLessonPlansList(lessonPlans, subjectName, className) {
             </div>
         </div>
     `;
-    
+
     $('#lessonPlansContainer').html(html);
 }
 
@@ -326,9 +387,6 @@ function viewLessonPlan(lessonPlanID) {
     
     // Store current lesson plan ID
     currentLessonPlanID = lessonPlanID;
-    
-    // Reset signature pad
-    supervisorSignaturePad = null;
     
     $.ajax({
         url: '{{ route("admin.get_lesson_plan") }}',
@@ -522,35 +580,37 @@ function renderLessonPlanView(data) {
         
         <div class="mt-4">
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-4 text-center">
                     <div class="mb-2">
                         <label><strong>Subject Teacher's Signature:</strong></label>
                     </div>
-                    ${data.teacher_signature ? 
+                    ${data.teacher_signature ?
                         `<img src="${data.teacher_signature}" class="signature-preview" style="max-width: 100%;">` :
-                        `<div style="border: 2px solid #212529; border-radius: 4px; min-height: 150px; padding: 10px; background-color: #f9f9f9; display: flex; align-items: center; justify-content: center;">
+                        `<div style="border: 2px solid #212529; min-height: 120px; padding: 10px; background-color: #f9f9f9; display: flex; align-items: center; justify-content: center;">
                             <p class="text-muted mb-0">No signature</p>
                         </div>`
                     }
+                    <div class="small mt-1">${data.teacher_name || ''}</div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4 text-center">
                     <div class="mb-2">
-                        <label><strong>Academic/Supervisor's Signature:</strong></label>
+                        <label><strong>School Stamp:</strong></label>
                     </div>
-                    ${data.supervisor_signature ? 
-                        `<img src="${data.supervisor_signature}" class="signature-preview" style="max-width: 100%;">` :
-                        `<div style="width: 100%;">
-                            <div style="border: 2px solid #212529; border-radius: 4px; padding: 10px; background-color: white;">
-                                <canvas id="supervisorSignatureCanvas" class="signature-canvas" style="width: 100%; max-width: 400px; height: 150px; display: block; margin: 0 auto; cursor: crosshair;"></canvas>
-                            </div>
-                            <div class="mt-2 text-center">
-                                <button type="button" class="btn btn-sm btn-secondary" onclick="clearSupervisorSignature()" style="border-radius: 0;">
-                                    <i class="fa fa-eraser"></i> Clear Signature
-                                </button>
-                            </div>
-                            <small class="text-muted d-block text-center mt-1">
-                                <i class="fa fa-info-circle"></i> Draw your signature above
-                            </small>
+                    ${(data.is_approved || data.supervisor_signature) && schoolStampUrl ?
+                        `<img src="${schoolStampUrl}" style="max-height: 110px;">` :
+                        `<div style="border: 1px dashed #ccc; min-height: 110px; display: flex; align-items: center; justify-content: center;">
+                            <p class="text-muted mb-0 small">Appears after approval</p>
+                        </div>`
+                    }
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="mb-2">
+                        <label><strong>Headmaster's Signature:</strong></label>
+                    </div>
+                    ${(data.is_approved || data.supervisor_signature) ?
+                        `<img src="${data.supervisor_signature && String(data.supervisor_signature).indexOf('data:image') === 0 ? data.supervisor_signature : (schoolSignatureUrl || '')}" class="signature-preview" style="max-width: 100%;">` :
+                        `<div style="border: 1px dashed #ccc; min-height: 110px; display: flex; align-items: center; justify-content: center;">
+                            <p class="text-muted mb-0 small">Appears after approval</p>
                         </div>`
                     }
                 </div>
@@ -558,248 +618,212 @@ function renderLessonPlanView(data) {
         </div>
         
         <div class="mt-4 text-center">
-            <button class="btn btn-primary-custom btn-lg" onclick="signLessonPlan(${data.lesson_planID})" style="border-radius: 0;" ${data.supervisor_signature ? 'disabled' : ''}>
-                <i class="fa fa-check"></i> ${data.supervisor_signature ? 'Already Signed' : 'Sign Lesson Plan'}
-            </button>
+            ${(data.is_approved || data.supervisor_signature) ? `
+                <button class="btn btn-success btn-lg" disabled style="border-radius: 0;">
+                    <i class="fa fa-check"></i> Approved
+                </button>
+                <button class="btn btn-outline-danger btn-lg" onclick="removeSignature(${data.lesson_planID})" style="border-radius: 0;">
+                    <i class="fa fa-undo"></i> Remove Approval
+                </button>
+            ` : `
+                <button class="btn btn-primary-custom btn-lg" onclick="approveLessonPlan(${data.lesson_planID})" style="border-radius: 0;">
+                    <i class="fa fa-check"></i> Approve (apply headmaster signature &amp; stamp)
+                </button>
+            `}
         </div>
     `;
     
     $('#lessonPlanModalContent').html(html);
-    
-    // Signature pad will be initialized automatically when modal is shown
-    // via the 'shown.bs.modal' event handler below
 }
 
-function initializeSupervisorSignaturePad() {
-    const canvas = document.getElementById('supervisorSignatureCanvas');
-    if (!canvas) {
-        console.error('Signature canvas not found');
-        return;
-    }
-    
-    // Clear any existing signature pad
-    if (supervisorSignaturePad) {
-        supervisorSignaturePad.clear();
-        supervisorSignaturePad.off();
-    }
-    
-    // Get canvas dimensions
-    const rect = canvas.getBoundingClientRect();
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    
-    // Set canvas size
-    canvas.width = rect.width * ratio;
-    canvas.height = 150 * ratio; // Fixed height
-    
-    // Scale context
-    const ctx = canvas.getContext('2d');
-    ctx.scale(ratio, ratio);
-    
-    // Initialize SignaturePad
-    supervisorSignaturePad = new SignaturePad(canvas, {
-        backgroundColor: 'rgb(255, 255, 255)',
-        penColor: 'rgb(0, 0, 0)',
-        minWidth: 1,
-        maxWidth: 3,
-        throttle: 16,
-    });
-    
-    // Handle resize
-    function resizeCanvas() {
-        const rect = canvas.getBoundingClientRect();
-        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        canvas.width = rect.width * ratio;
-        canvas.height = 150 * ratio;
-        canvas.getContext('2d').scale(ratio, ratio);
-        
-        // Redraw signature if it exists
-        if (supervisorSignaturePad && !supervisorSignaturePad.isEmpty()) {
-            supervisorSignaturePad.fromDataURL(supervisorSignaturePad.toDataURL());
-        }
-    }
-    
-    // Remove existing resize listener if any
-    window.removeEventListener('resize', resizeCanvas);
-    window.addEventListener('resize', resizeCanvas);
-    
-    console.log('Signature pad initialized successfully');
-}
-
-function clearSupervisorSignature() {
-    if (supervisorSignaturePad) {
-        supervisorSignaturePad.clear();
-    }
-}
-
-function removeSignature(lessonPlanID) {
+function approveLessonPlan(lessonPlanID) {
     Swal.fire({
-        title: 'Remove Signature?',
-        text: 'Are you sure you want to remove your signature? You will be able to sign again later.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Yes, Remove It',
-        cancelButtonText: 'Cancel'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            $.ajax({
-                url: '{{ route("admin.remove_lesson_plan_signature") }}',
-                method: 'POST',
-                data: {
-                    lesson_planID: lessonPlanID,
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(response) {
-                    if (response.success) {
-                        Swal.fire({
-                            title: 'Success!',
-                            text: response.message || 'Signature removed successfully',
-                            icon: 'success',
-                            confirmButtonColor: '#940000'
-                        }).then(() => {
-                            // Reload the lesson plan view to show signature pad
-                            if (currentLessonPlanID) {
-                                viewLessonPlan(currentLessonPlanID);
-                            } else {
-                                // If currentLessonPlanID is not set, reload from the button's onclick
-                                viewLessonPlan(lessonPlanID);
-                            }
-                        });
-                    } else {
-                        Swal.fire({
-                            title: 'Error!',
-                            text: response.error || 'Failed to remove signature',
-                            icon: 'error',
-                            confirmButtonColor: '#940000'
-                        });
-                    }
-                },
-                error: function(xhr) {
-                    const error = xhr.responseJSON?.error || 'Failed to remove signature';
-                    Swal.fire({
-                        title: 'Error!',
-                        text: error,
-                        icon: 'error',
-                        confirmButtonColor: '#940000'
-                    });
-                }
-            });
-        }
-    });
-}
-
-function signLessonPlan(lessonPlanID) {
-    if (!supervisorSignaturePad || supervisorSignaturePad.isEmpty()) {
-        Swal.fire({
-            title: 'Error!',
-            text: 'Please provide your signature',
-            icon: 'error',
-            confirmButtonColor: '#940000'
-        });
-        return;
-    }
-    
-    const signature = supervisorSignaturePad.toDataURL();
-    
-    Swal.fire({
-        title: 'Sign Lesson Plan?',
-        text: 'Are you sure you want to sign this lesson plan?',
+        title: 'Approve Lesson Plan?',
+        text: 'Headmaster signature and school stamp will be applied.',
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#940000',
         cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Yes, Sign',
-        cancelButtonText: 'Cancel',
-        allowOutsideClick: true,
-        allowEscapeKey: true
+        confirmButtonText: 'Yes, Approve',
+        cancelButtonText: 'Cancel'
     }).then((result) => {
-        if (result.isConfirmed) {
-            $.ajax({
-                url: '{{ route("admin.sign_lesson_plan") }}',
-                method: 'POST',
-                data: {
-                    lesson_planID: lessonPlanID,
-                    supervisor_signature: signature,
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(response) {
-                    if (response.success) {
-                        Swal.fire({
-                            title: 'Success!',
-                            text: response.message || 'Lesson plan signed successfully',
-                            icon: 'success',
-                            confirmButtonColor: '#940000'
-                        }).then(() => {
-                            // Properly close modal and clean up
-                            $('#lessonPlanModal').modal('hide');
-                            
-                            // Clean up backdrop after modal closes
-                            setTimeout(function() {
-                                $('.modal-backdrop').remove();
-                                $('body').removeClass('modal-open');
-                                $('body').css('padding-right', '');
-                            }, 300);
-                            
-                            loadLessonPlans();
-                        });
-                    } else {
-                        Swal.fire({
-                            title: 'Error!',
-                            text: response.error || 'Failed to sign lesson plan',
-                            icon: 'error',
-                            confirmButtonColor: '#940000'
-                        });
-                    }
-                },
-                error: function(xhr) {
-                    const error = xhr.responseJSON?.error || 'Failed to sign lesson plan';
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: '{{ route("admin.sign_lesson_plan") }}',
+            method: 'POST',
+            data: {
+                lesson_planID: lessonPlanID,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        title: 'Approved',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonColor: '#940000'
+                    }).then(() => {
+                        $('#lessonPlanModal').modal('hide');
+                        $('.modal-backdrop').remove();
+                        $('body').removeClass('modal-open');
+                        loadLessonPlans();
+                    });
+                } else {
                     Swal.fire({
                         title: 'Error!',
-                        text: error,
+                        text: response.error || 'Failed to approve',
                         icon: 'error',
                         confirmButtonColor: '#940000'
                     });
                 }
-            });
-        }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    title: 'Error!',
+                    text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to approve',
+                    icon: 'error',
+                    confirmButtonColor: '#940000'
+                });
+            }
+        });
     });
 }
 
-// Initialize signature pad when modal is shown
-$('#lessonPlanModal').on('shown.bs.modal', function() {
-    // Check if signature canvas exists and is not signed
-    const canvas = document.getElementById('supervisorSignatureCanvas');
-    if (canvas && !supervisorSignaturePad) {
-        setTimeout(function() {
-            initializeSupervisorSignaturePad();
-        }, 300);
+function approveAllLessonPlans() {
+    const f = currentFilters();
+    if (!f.classID || !f.subjectID) {
+        Swal.fire({
+            title: 'Select filters',
+            text: 'Choose class and subject first.',
+            icon: 'info',
+            confirmButtonColor: '#940000'
+        });
+        return;
     }
-});
+    Swal.fire({
+        title: 'Approve All?',
+        text: 'All pending lesson plans in this filter will get the headmaster signature and stamp.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#940000',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, Approve All'
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: '{{ route("admin.approve_all_lesson_plans") }}',
+            method: 'POST',
+            data: Object.assign({}, f, { _token: $('meta[name="csrf-token"]').attr('content') }),
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        title: 'Done',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonColor: '#940000'
+                    }).then(() => loadLessonPlans());
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.error || 'Failed to approve',
+                        icon: 'error',
+                        confirmButtonColor: '#940000'
+                    });
+                }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    title: 'Error!',
+                    text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to approve all',
+                    icon: 'error',
+                    confirmButtonColor: '#940000'
+                });
+            }
+        });
+    });
+}
 
-// Clean up modal backdrop when modal is hidden
+function downloadAllLessonPlans() {
+    const f = currentFilters();
+    if (!f.classID || !f.subjectID) {
+        Swal.fire({
+            title: 'Select filters',
+            text: 'Choose class and subject first.',
+            icon: 'info',
+            confirmButtonColor: '#940000'
+        });
+        return;
+    }
+    const params = new URLSearchParams(f).toString();
+    window.location.href = '{{ route("admin.download_all_lesson_plans") }}?' + params;
+}
+
+function removeSignature(lessonPlanID) {
+    Swal.fire({
+        title: 'Remove Approval?',
+        text: 'Headmaster signature and stamp will be removed from this lesson plan.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, Remove',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: '{{ route("admin.remove_lesson_plan_signature") }}',
+            method: 'POST',
+            data: {
+                lesson_planID: lessonPlanID,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        title: 'Removed',
+                        text: response.message || 'Approval removed',
+                        icon: 'success',
+                        confirmButtonColor: '#940000'
+                    }).then(() => {
+                        if (currentLessonPlanID) {
+                            viewLessonPlan(currentLessonPlanID);
+                        }
+                        loadLessonPlans();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.error || 'Failed to remove approval',
+                        icon: 'error',
+                        confirmButtonColor: '#940000'
+                    });
+                }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    title: 'Error!',
+                    text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to remove approval',
+                    icon: 'error',
+                    confirmButtonColor: '#940000'
+                });
+            }
+        });
+    });
+}
+
 $('#lessonPlanModal').on('hidden.bs.modal', function() {
-    // Remove any lingering backdrops
     $('.modal-backdrop').remove();
     $('body').removeClass('modal-open');
     $('body').css('padding-right', '');
     $('body').css('overflow', '');
-    
-    // Reset signature pad
-    if (supervisorSignaturePad) {
-        supervisorSignaturePad.clear();
-        supervisorSignaturePad = null;
-    }
 });
 
-// Ensure modal is properly closed when clicking backdrop
 $('#lessonPlanModal').on('click', function(e) {
     if ($(e.target).hasClass('modal') || $(e.target).hasClass('modal-dialog')) {
         $('#lessonPlanModal').modal('hide');
     }
 });
 
-// Ensure buttons inside modal are clickable
 $(document).on('click', '#lessonPlanModal button, #lessonPlanModal a', function(e) {
     e.stopPropagation();
 });

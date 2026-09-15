@@ -23,7 +23,7 @@ use Illuminate\View\View;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Schema;
 
 class TimeTableController extends Controller
 {
@@ -3667,6 +3667,140 @@ class TimeTableController extends Controller
     }
 
     /**
+     * Block main-class session timetable if any stream already has one.
+     */
+    public function checkMainClassStreamTimetables(Request $request)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            $classID = $request->input('classID');
+
+            if (!$schoolID || !$classID) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Class ID and school ID required',
+                ]);
+            }
+
+            $class = ClassModel::where('classID', $classID)
+                ->where('schoolID', $schoolID)
+                ->first();
+
+            if (!$class) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Class not found',
+                ]);
+            }
+
+            $subclasses = DB::table('subclasses')
+                ->where('classID', $classID)
+                ->orderBy('subclass_name')
+                ->get(['subclassID', 'subclass_name']);
+
+            $definition = DB::table('session_timetable_definitions')
+                ->where('schoolID', $schoolID)
+                ->first();
+
+            $blocked = [];
+            if ($definition && $subclasses->isNotEmpty()) {
+                $idsWithTt = DB::table('class_session_timetables')
+                    ->where('definitionID', $definition->definitionID)
+                    ->whereIn('subclassID', $subclasses->pluck('subclassID'))
+                    ->distinct()
+                    ->pluck('subclassID')
+                    ->all();
+
+                $blocked = $subclasses
+                    ->filter(function ($s) use ($idsWithTt) {
+                        return in_array($s->subclassID, $idsWithTt);
+                    })
+                    ->map(function ($s) use ($class) {
+                        $stream = trim((string) $s->subclass_name);
+                        return [
+                            'subclassID' => $s->subclassID,
+                            'name' => $stream !== ''
+                                ? trim($class->class_name . ' ' . $stream)
+                                : $class->class_name,
+                        ];
+                    })
+                    ->values()
+                    ->all();
+            }
+
+            return response()->json([
+                'success' => true,
+                'hasConflict' => count($blocked) > 0,
+                'subclasses' => $blocked,
+                'message' => count($blocked) > 0
+                    ? 'Cannot create. There is a subclass (stream) in this class that already has a timetable: '
+                        . implode(', ', array_column($blocked, 'name'))
+                        . '. To resolve, delete those stream timetables first.'
+                    : null,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error checking main class stream timetables: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Subjects for every stream under a main class (session timetable builder).
+     */
+    public function getMainClassSubjectsForTimetable(Request $request)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            $classID = $request->input('classID');
+
+            if (!$schoolID || !$classID) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Class ID and school ID required',
+                ]);
+            }
+
+            $subjects = ClassSubjectModel::with(['subject', 'teacher', 'subclass'])
+                ->where('status', 'Active')
+                ->where(function ($q) use ($classID) {
+                    $q->where('classID', $classID)
+                        ->orWhereHas('subclass', function ($s) use ($classID) {
+                            $s->where('classID', $classID);
+                        });
+                })
+                ->get()
+                ->map(function ($cs) {
+                    $stream = trim((string) ($cs->subclass->subclass_name ?? ''));
+                    $subjectName = $cs->subject->subject_name ?? 'N/A';
+                    $label = $stream !== ''
+                        ? $subjectName . ' (' . $stream . ')'
+                        : $subjectName;
+
+                    return [
+                        'class_subjectID' => $cs->class_subjectID,
+                        'subjectID' => $cs->subjectID,
+                        'subclassID' => $cs->subclassID,
+                        'stream_name' => $stream,
+                        'name' => $label,
+                        'subject_name' => $label,
+                        'teacherID' => $cs->teacherID,
+                        'teacher_name' => $cs->teacher
+                            ? trim($cs->teacher->first_name . ' ' . $cs->teacher->last_name)
+                            : 'Not Assigned',
+                        'student_status' => $cs->student_status ?? null,
+                    ];
+                })
+                ->sortBy('subject_name')
+                ->values();
+
+            return response()->json(['success' => true, 'subjects' => $subjects]);
+        } catch (\Exception $e) {
+            \Log::error('Error getting main class subjects: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * School-wide (or filtered) teacher double-booking conflicts for class sessions.
      * Query: teacherID, day, start_time, end_time, excludeSubclassID (optional for realtime form check).
      */
@@ -4103,6 +4237,11 @@ class TimeTableController extends Controller
             }
 
             $timetables = $request->input('timetables', []);
+            $createScope = strtolower(trim((string) $request->input('create_scope', 'subclass')));
+            if (!in_array($createScope, ['main_class', 'subclass'], true)) {
+                $createScope = 'subclass';
+            }
+            $hasScopeColumn = Schema::hasColumn('class_session_timetables', 'timetable_scope');
             
             if (empty($timetables)) {
                 return response()->json(['success' => false, 'error' => 'No timetable data provided']);
@@ -4188,7 +4327,7 @@ class TimeTableController extends Controller
                 // For free sessions, teacherID can be null
                 $teacherID = $timetable['teacherID'] ?? null;
                 
-                DB::table('class_session_timetables')->insert([
+                $insertRow = [
                     'schoolID' => $schoolID,
                     'definitionID' => $definition->definitionID,
                     'subclassID' => $subclassID,
@@ -4201,8 +4340,12 @@ class TimeTableController extends Controller
                     'end_time' => $endTime,
                     'is_prepo' => $timetable['is_prepo'] ?? 0,
                     'created_at' => now(),
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ];
+                if ($hasScopeColumn) {
+                    $insertRow['timetable_scope'] = $createScope;
+                }
+                DB::table('class_session_timetables')->insert($insertRow);
                 
                 // Group by teacher for SMS (only if teacherID exists - skip free sessions)
                 if ($teacherID) {
@@ -4505,6 +4648,398 @@ class TimeTableController extends Controller
             \Log::error('Error getting session timetable: ' . $e->getMessage());
             return response()->json(['success' => false, 'error' => $e->getMessage()]);
         }
+    }
+
+    public function getSchoolSessionTimetable(Request $request)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json(['success' => false, 'error' => 'School ID required']);
+            }
+
+            $payload = $this->buildSchoolMasterTimetableData((int) $schoolID);
+            if (empty($payload['success'])) {
+                return response()->json($payload);
+            }
+
+            return response()->json($payload);
+        } catch (\Exception $e) {
+            Log::error('Error getting school session timetable: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    public function exportSchoolSessionTimetablePdf(Request $request)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json(['success' => false, 'error' => 'School ID required'], 422);
+            }
+
+            $school = DB::table('schools')->where('schoolID', $schoolID)->first();
+            if (!$school) {
+                return response()->json(['success' => false, 'error' => 'School not found'], 404);
+            }
+
+            $payload = $this->buildSchoolMasterTimetableData((int) $schoolID);
+            if (empty($payload['success'])) {
+                return response()->json($payload, 404);
+            }
+
+            $reportTitle = strtoupper($school->school_name ?? 'School') . ' — SCHOOL SESSION TIMETABLE';
+            $filename = 'School_Session_Timetable_' . date('Ymd') . '.pdf';
+            $data = array_merge($payload, [
+                'school' => $school,
+                'reportTitle' => $reportTitle,
+                'title' => $reportTitle,
+            ]);
+
+            try {
+                $pdf = Pdf::loadView('Admin.pdf.school_session_timetable_pdf', $data);
+                $pdf->setOptions([
+                    'isRemoteEnabled' => true,
+                    'isHtml5ParserEnabled' => true,
+                    'chroot' => base_path(),
+                ]);
+                $pdf->setPaper('A3', 'landscape');
+                return $pdf->download($filename);
+            } catch (\Exception $e) {
+                $dompdf = new \Dompdf\Dompdf();
+                $html = view('Admin.pdf.school_session_timetable_pdf', $data)->render();
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A3', 'landscape');
+                $dompdf->render();
+                return response()->streamDownload(function () use ($dompdf) {
+                    echo $dompdf->output();
+                }, $filename, ['Content-Type' => 'application/pdf']);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error exporting school session timetable PDF: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => 'Failed to generate PDF: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function buildSchoolMasterTimetableData(int $schoolID): array
+    {
+        $definition = DB::table('session_timetable_definitions')
+            ->where('schoolID', $schoolID)
+            ->first();
+
+        if (!$definition) {
+            return ['success' => false, 'error' => 'Timetable definition not found', 'has_timetable' => false];
+        }
+
+        $breakTimes = DB::table('break_times')
+            ->where('definitionID', $definition->definitionID)
+            ->orderBy('start_time')
+            ->get();
+
+        $hasScopeColumn = Schema::hasColumn('class_session_timetables', 'timetable_scope');
+        $scopeSelect = $hasScopeColumn
+            ? 'class_session_timetables.timetable_scope'
+            : DB::raw("'subclass' as timetable_scope");
+
+        $sessions = DB::table('class_session_timetables')
+            ->leftJoin('class_subjects', 'class_session_timetables.class_subjectID', '=', 'class_subjects.class_subjectID')
+            ->leftJoin('school_subjects', 'class_subjects.subjectID', '=', 'school_subjects.subjectID')
+            ->leftJoin('subclasses', 'class_session_timetables.subclassID', '=', 'subclasses.subclassID')
+            ->leftJoin('classes', 'subclasses.classID', '=', 'classes.classID')
+            ->leftJoin('teachers', 'class_session_timetables.teacherID', '=', 'teachers.id')
+            ->leftJoin('session_types', 'class_session_timetables.session_typeID', '=', 'session_types.session_typeID')
+            ->where('class_session_timetables.definitionID', $definition->definitionID)
+            ->select(
+                'class_session_timetables.session_timetableID',
+                'class_session_timetables.subclassID',
+                'class_session_timetables.day',
+                'class_session_timetables.start_time',
+                'class_session_timetables.end_time',
+                'class_session_timetables.is_prepo',
+                'class_session_timetables.class_subjectID',
+                'class_session_timetables.subjectID',
+                'class_session_timetables.teacherID',
+                $scopeSelect,
+                'school_subjects.subject_name',
+                'classes.classID',
+                'classes.class_name',
+                'subclasses.subclass_name',
+                'session_types.type as session_type',
+                'session_types.name as session_type_name',
+                'teachers.first_name',
+                'teachers.last_name',
+                DB::raw("TRIM(CONCAT(COALESCE(teachers.first_name,''),' ',COALESCE(teachers.last_name,''))) as teacher_name")
+            )
+            ->orderBy('classes.class_name')
+            ->orderBy('subclasses.subclass_name')
+            ->orderBy('class_session_timetables.day')
+            ->orderBy('class_session_timetables.start_time')
+            ->get();
+
+        if ($sessions->isEmpty()) {
+            return [
+                'success' => false,
+                'error' => 'No class session timetables have been created yet',
+                'has_timetable' => false,
+            ];
+        }
+
+        $norm = function ($t) {
+            $t = (string) $t;
+            if ($t === '') {
+                return '00:00';
+            }
+            $parts = explode(':', $t);
+
+            return str_pad($parts[0] ?? '00', 2, '0', STR_PAD_LEFT) . ':' . str_pad($parts[1] ?? '00', 2, '0', STR_PAD_LEFT);
+        };
+
+        $initials = function ($name) {
+            $name = trim((string) $name);
+            if ($name === '' || strtoupper($name) === 'FREE' || strtoupper($name) === 'N/A') {
+                return '';
+            }
+            $parts = preg_split('/\s+/', $name) ?: [];
+            $ini = '';
+            foreach ($parts as $p) {
+                if ($p !== '') {
+                    $ini .= mb_strtoupper(mb_substr($p, 0, 1));
+                }
+            }
+
+            return $ini;
+        };
+
+        $palette = ['#fdecea', '#eaf4fc', '#eaf8ea', '#fff6e5', '#f3eafc', '#e8f7f4', '#fceef5'];
+        $classColor = function ($classID) use ($palette) {
+            $i = abs((int) $classID) % count($palette);
+
+            return $palette[$i];
+        };
+
+        $mapped = $sessions->map(function ($s) use ($norm, $initials) {
+            $isFree = false;
+            if (
+                ($s->session_type && strtolower((string) $s->session_type) === 'free')
+                || ($s->session_type_name && stripos(strtolower((string) $s->session_type_name), 'free') !== false)
+                || (!$s->class_subjectID && !$s->subjectID && !$s->teacherID)
+            ) {
+                $isFree = true;
+            }
+            $teacherName = trim((string) ($s->teacher_name ?? ''));
+
+            return [
+                'classID' => (int) ($s->classID ?? 0),
+                'class_name' => (string) ($s->class_name ?? ''),
+                'subclassID' => (int) $s->subclassID,
+                'subclass_name' => (string) ($s->subclass_name ?? ''),
+                'scope' => ($s->timetable_scope ?? 'subclass') === 'main_class' ? 'main_class' : 'subclass',
+                'day' => (string) $s->day,
+                'start' => $norm($s->start_time),
+                'end' => $norm($s->end_time),
+                'is_prepo' => (int) ($s->is_prepo ?? 0) === 1,
+                'is_free' => $isFree,
+                'subject_name' => $isFree ? 'FREE' : (string) ($s->subject_name ?? 'N/A'),
+                'teacher_name' => $isFree ? '' : $teacherName,
+                'teacher_initials' => $isFree ? '' : $initials($teacherName),
+            ];
+        });
+
+        $mainClassIds = $mapped->where('scope', 'main_class')->pluck('classID')->unique()->filter()->values();
+        $classRows = [];
+
+        foreach ($mainClassIds as $cid) {
+            $sample = $mapped->firstWhere('classID', $cid);
+            $classRows[] = [
+                'key' => 'class-' . $cid,
+                'classID' => $cid,
+                'subclassID' => null,
+                'scope' => 'main_class',
+                'label' => $sample['class_name'] ?? ('Class ' . $cid),
+                'color' => $classColor($cid),
+            ];
+        }
+
+        $subclassSeen = [];
+        foreach ($mapped as $s) {
+            if ($s['scope'] === 'main_class') {
+                continue;
+            }
+            if (in_array($s['classID'], $mainClassIds->all(), true)) {
+                continue;
+            }
+            $sid = $s['subclassID'];
+            if (isset($subclassSeen[$sid])) {
+                continue;
+            }
+            $subclassSeen[$sid] = true;
+            $stream = trim($s['subclass_name']);
+            $label = $stream !== '' ? trim($s['class_name'] . ' ' . $stream) : $s['class_name'];
+            $classRows[] = [
+                'key' => 'sub-' . $sid,
+                'classID' => $s['classID'],
+                'subclassID' => $sid,
+                'scope' => 'subclass',
+                'label' => $label,
+                'color' => $classColor($sid ?: $s['classID']),
+            ];
+        }
+
+        usort($classRows, function ($a, $b) {
+            return strcasecmp($a['label'], $b['label']);
+        });
+
+        $boundaries = [];
+        $addBoundary = function ($t) use (&$boundaries, $norm) {
+            $t = $norm($t);
+            $boundaries[$t] = $t;
+        };
+        $addBoundary($definition->session_start_time ?? '08:00');
+        $addBoundary($definition->session_end_time ?? '16:00');
+        foreach ($mapped->where('is_prepo', false) as $s) {
+            $addBoundary($s['start']);
+            $addBoundary($s['end']);
+        }
+        foreach ($breakTimes as $bt) {
+            $addBoundary($bt->start_time ?? '');
+            $addBoundary($bt->end_time ?? '');
+        }
+        $sortedBounds = array_values($boundaries);
+        sort($sortedBounds);
+
+        $breakIndex = 0;
+        $periods = [];
+        $periodNumber = 0;
+        for ($i = 0; $i < count($sortedBounds) - 1; $i++) {
+            $start = $sortedBounds[$i];
+            $end = $sortedBounds[$i + 1];
+            if ($start === $end) {
+                continue;
+            }
+            $breakMatch = null;
+            foreach ($breakTimes as $bt) {
+                $bs = $norm($bt->start_time ?? '');
+                $be = $norm($bt->end_time ?? '');
+                if ($bs <= $start && $be >= $end && !($bs === '00:00' && $be === '00:00')) {
+                    $breakMatch = $bt;
+                    break;
+                }
+            }
+            if ($breakMatch) {
+                $hour = (int) substr($start, 0, 2);
+                $label = $hour < 11 ? 'BREAKFAST' : ($hour < 15 ? 'LUNCH BREAK' : ('BREAK ' . ($breakIndex + 1)));
+                $periods[] = [
+                    'start' => $start,
+                    'end' => $end,
+                    'is_break' => true,
+                    'break_label' => $label,
+                    'number' => null,
+                ];
+                $breakIndex++;
+            } else {
+                $periodNumber++;
+                $periods[] = [
+                    'start' => $start,
+                    'end' => $end,
+                    'is_break' => false,
+                    'number' => $periodNumber,
+                ];
+            }
+        }
+
+        $mergedPeriods = [];
+        foreach ($periods as $p) {
+            $last = end($mergedPeriods);
+            if ($last && !empty($p['is_break']) && !empty($last['is_break']) && ($last['break_label'] ?? '') === ($p['break_label'] ?? '')) {
+                $mergedPeriods[count($mergedPeriods) - 1]['end'] = $p['end'];
+            } else {
+                $mergedPeriods[] = $p;
+            }
+        }
+        $periods = $mergedPeriods;
+
+        if ((int) ($definition->has_prepo ?? 0) === 1) {
+            $prepoStart = $norm($definition->prepo_start_time ?? '');
+            $prepoEnd = $norm($definition->prepo_end_time ?? '');
+            if ($prepoStart !== '00:00' || $prepoEnd !== '00:00') {
+                $periods[] = [
+                    'start' => $prepoStart,
+                    'end' => $prepoEnd,
+                    'is_break' => false,
+                    'is_prepo' => true,
+                    'break_label' => 'PREPARATION',
+                    'number' => null,
+                ];
+            }
+        }
+
+        $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        $grid = [];
+        foreach ($days as $day) {
+            foreach ($classRows as $row) {
+                foreach ($periods as $p) {
+                    if (!empty($p['is_break'])) {
+                        continue;
+                    }
+                    $cellKey = $day . '|' . $row['key'] . '|' . $p['start'] . '-' . $p['end'];
+                    $isPrepoCol = !empty($p['is_prepo']);
+                    $matches = $mapped->filter(function ($s) use ($day, $row, $p, $isPrepoCol) {
+                        if ($s['day'] !== $day) {
+                            return false;
+                        }
+                        if ((bool) $s['is_prepo'] !== $isPrepoCol) {
+                            return false;
+                        }
+                        if ($s['start'] > $p['start'] || $s['end'] < $p['end']) {
+                            return false;
+                        }
+                        if ($row['scope'] === 'main_class') {
+                            return $s['classID'] === $row['classID'];
+                        }
+
+                        return $s['subclassID'] === $row['subclassID'];
+                    });
+                    $items = [];
+                    $seen = [];
+                    foreach ($matches as $s) {
+                        $uniq = $s['subject_name'] . '|' . $s['teacher_initials'] . '|' . $s['subclass_name'];
+                        if (isset($seen[$uniq])) {
+                            continue;
+                        }
+                        $seen[$uniq] = true;
+                        $display = $s['is_free']
+                            ? 'FREE'
+                            : ($s['subject_name'] . ($s['teacher_initials'] ? ' (' . $s['teacher_initials'] . ')' : ''));
+                        if ($row['scope'] === 'main_class' && $s['subclass_name'] !== '' && !$s['is_free']) {
+                            $display .= ' [' . $s['subclass_name'] . ']';
+                        }
+                        $items[] = [
+                            'text' => $display,
+                            'subject' => $s['subject_name'],
+                            'teacher' => $s['teacher_name'],
+                        ];
+                    }
+                    $grid[$cellKey] = $items;
+                }
+            }
+        }
+
+        return [
+            'success' => true,
+            'has_timetable' => true,
+            'definition' => [
+                'session_start_time' => $definition->session_start_time,
+                'session_end_time' => $definition->session_end_time,
+                'has_prepo' => (bool) $definition->has_prepo,
+                'prepo_start_time' => $definition->prepo_start_time,
+                'prepo_end_time' => $definition->prepo_end_time,
+            ],
+            'break_times' => $breakTimes,
+            'days' => $days,
+            'periods' => $periods,
+            'class_rows' => $classRows,
+            'grid' => $grid,
+        ];
     }
 
     /**

@@ -282,11 +282,8 @@
                         <div class="signature-img">
                             @if($supervisorSigB64)
                                 <img src="{{ $supervisorSigB64 }}">
-                                @if($isApproved && $headmasterSignBase64)
-                                    <div style="margin-top: -8px;">
-                                        <img src="{{ $headmasterSignBase64 }}" style="max-width: 75px; max-height: 28px; opacity: 0.8;">
-                                    </div>
-                                @endif
+                            @elseif($isApproved && $headmasterSignBase64)
+                                <img src="{{ $headmasterSignBase64 }}">
                             @endif
                         </div>
                         <span class="sig-line"></span>

@@ -88,6 +88,35 @@
         vertical-align: middle;
         text-align: center;
     }
+    #schoolTimetableTable th.school-tt-break {
+        background: #856404;
+        color: #fff;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        min-width: 28px;
+    }
+    #schoolTimetableTable td.school-tt-day {
+        background: #f3e6e6;
+        font-weight: 700;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        letter-spacing: 2px;
+        min-width: 32px;
+    }
+    #schoolTimetableTable td.school-tt-break {
+        background: #fff3cd;
+        color: #856404;
+        font-weight: 700;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        letter-spacing: 1px;
+    }
+    #schoolTimetableTable td.school-tt-prepo {
+        background: #e8f4fd;
+        color: #0c5460;
+        font-weight: 600;
+        font-size: 0.72rem;
+    }
 </style>
 
 <!-- Bootstrap Icons -->
@@ -188,6 +217,11 @@
                         <li class="nav-item" role="presentation">
                             <a class="nav-link active" id="class-timetable-tab" data-toggle="tab" href="#class-timetable" role="tab">
                                 <i class="bi bi-calendar-event"></i> Class Timetable
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="school-timetable-tab" data-toggle="tab" href="#school-timetable" role="tab">
+                                <i class="bi bi-building"></i> School Timetable
                             </a>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -298,6 +332,34 @@
                             <div id="sessionTimetableEmpty" class="text-center py-5">
                                 <i class="bi bi-calendar-x" style="font-size: 4rem; color: #ccc;"></i>
                                 <p class="text-muted mt-3">Select a class to view session timetable</p>
+                            </div>
+                        </div>
+
+                        <!-- School Timetable Tab (all class sessions grouped) -->
+                        <div class="tab-pane fade" id="school-timetable" role="tabpanel">
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <p class="text-muted mb-0">
+                                        Combined class session timetable for every class. Streams created as <strong>main class</strong> appear as one class row; streams created as <strong>subclass</strong> appear separately. Class colours stay on the class column.
+                                    </p>
+                                </div>
+                                <div class="col-md-4 text-md-right">
+                                    <button class="btn btn-primary-custom" id="loadSchoolTimetableBtn">
+                                        <i class="bi bi-search"></i> Load School Timetable
+                                    </button>
+                                    <button class="btn btn-danger" id="exportSchoolTimetablePdfBtn" style="display:none;">
+                                        <i class="bi bi-file-earmark-pdf"></i> PDF
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="schoolTimetableDisplay" style="display:none;">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered timetable-table mb-0" id="schoolTimetableTable" style="font-size: 0.78rem;"></table>
+                                </div>
+                            </div>
+                            <div id="schoolTimetableEmpty" class="text-center py-5">
+                                <i class="bi bi-calendar-week" style="font-size: 4rem; color: #ccc;"></i>
+                                <p class="text-muted mt-3">Click Load School Timetable to view the combined master timetable</p>
                             </div>
                         </div>
 
@@ -962,6 +1024,17 @@
                         <!-- Step 2: Create Timetable for Classes -->
                         <div id="sessionTimetableStep" style="display: none;">
                             <h5 class="mb-3"><i class="bi bi-calendar-week"></i> Step 2: Create Timetable for Classes</h5>
+                            <div class="form-group mb-3">
+                                <label for="session_create_scope"><strong>Create for</strong> <span class="text-danger">*</span></label>
+                                <select class="form-control" id="session_create_scope" name="session_create_scope">
+                                    <option value="subclass" selected>Subclass (stream) — current</option>
+                                    <option value="main_class">Main class</option>
+                                </select>
+                                <small class="text-muted">
+                                    Subclass: one stream, same as now.
+                                    Main class: whole class (e.g. Form Six). One period can have different subjects per stream (PCM Physics, PCB Biology, PGM Maths) without clashing on the teacher’s My Sessions.
+                                </small>
+                            </div>
                             <div id="classTimetableForms">
                                 <!-- Class timetable forms will be added here -->
                             </div>
@@ -2800,6 +2873,156 @@ $(function() {
                 console.error('Timetable PDF Export Error:', error);
             });
     }
+
+    function renderSchoolMasterTable(data) {
+        const days = data.days || [];
+        const periods = data.periods || [];
+        const classRows = data.class_rows || [];
+        const grid = data.grid || {};
+        if (!classRows.length) {
+            return '<thead><tr><th>No classes</th></tr></thead>';
+        }
+        let html = '<thead><tr><th rowspan="2">Day</th><th rowspan="2">Class</th>';
+        periods.forEach(function(p) {
+            if (p.is_break) {
+                html += '<th rowspan="2" class="school-tt-break">' + (p.break_label || 'Break') + '</th>';
+            } else if (p.is_prepo) {
+                html += '<th rowspan="2">' + (p.break_label || 'PREPARATION') + '<br><small>' + String(p.start || '').substring(0, 5) + ' - ' + String(p.end || '').substring(0, 5) + '</small></th>';
+            } else {
+                html += '<th>' + String(p.start || '').substring(0, 5) + ' - ' + String(p.end || '').substring(0, 5) + '</th>';
+            }
+        });
+        html += '</tr><tr>';
+        periods.forEach(function(p) {
+            if (!p.is_break && !p.is_prepo) {
+                html += '<th>' + (p.number || '') + '</th>';
+            }
+        });
+        html += '</tr></thead><tbody>';
+        days.forEach(function(day) {
+            classRows.forEach(function(row, i) {
+                html += '<tr>';
+                if (i === 0) {
+                    html += '<td class="school-tt-day" rowspan="' + classRows.length + '">' + day.toUpperCase() + '</td>';
+                }
+                html += '<td class="fw-bold" style="background:' + (row.color || '#f8f8f8') + ';">' + (row.label || '') + '</td>';
+                periods.forEach(function(p) {
+                    if (p.is_break) {
+                        if (i === 0) {
+                            html += '<td class="school-tt-break" rowspan="' + classRows.length + '">' + (p.break_label || 'BREAK') + '</td>';
+                        }
+                    } else {
+                        const key = day + '|' + row.key + '|' + p.start + '-' + p.end;
+                        const items = grid[key] || [];
+                        const cell = items.map(function(it) { return '<div>' + (it.text || '') + '</div>'; }).join('');
+                        const extra = p.is_prepo ? ' class="school-tt-prepo"' : '';
+                        html += '<td' + extra + '>' + (cell || '&nbsp;') + '</td>';
+                    }
+                });
+                html += '</tr>';
+            });
+        });
+        html += '</tbody>';
+        return html;
+    }
+
+    $('#loadSchoolTimetableBtn').on('click', function() {
+        const btn = $(this);
+        const originalHtml = btn.html();
+        btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Loading...');
+        $.ajax({
+            url: '{{ route("admin.get_school_session_timetable") }}',
+            method: 'GET',
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            success: function(response) {
+                if (response.success) {
+                    $('#schoolTimetableTable').html(renderSchoolMasterTable(response));
+                    $('#schoolTimetableDisplay').show();
+                    $('#schoolTimetableEmpty').hide();
+                    $('#exportSchoolTimetablePdfBtn').show();
+                } else {
+                    $('#schoolTimetableDisplay').hide();
+                    $('#exportSchoolTimetablePdfBtn').hide();
+                    $('#schoolTimetableEmpty').html(
+                        '<i class="bi bi-calendar-x" style="font-size: 4rem; color: #ccc;"></i>' +
+                        '<p class="text-muted mt-3">' + (response.error || 'No school timetable found') + '</p>'
+                    ).show();
+                }
+                btn.prop('disabled', false).html(originalHtml);
+            },
+            error: function(xhr) {
+                btn.prop('disabled', false).html(originalHtml);
+                const msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to load school timetable';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonColor: '#940000' });
+                }
+            }
+        });
+    });
+
+    $('a[href="#school-timetable"]').on('shown.bs.tab', function() {
+        if (!$('#schoolTimetableDisplay').is(':visible')) {
+            $('#loadSchoolTimetableBtn').trigger('click');
+        }
+    });
+
+    $('#exportSchoolTimetablePdfBtn').on('click', function() {
+        $('#timetablePdfProgressModal').modal('show');
+        $('#timetablePdfProgressBar').css('width', '0%');
+        $('#timetablePdfProgressPercent').text('0%');
+        let progress = 0;
+        const interval = setInterval(function() {
+            if (progress < 95) {
+                progress += 2 + Math.random() * 5;
+                if (progress > 95) progress = 95;
+                $('#timetablePdfProgressBar').css('width', progress + '%');
+                $('#timetablePdfProgressPercent').text(Math.round(progress) + '%');
+            }
+        }, 300);
+        fetch('{{ route("admin.export_school_session_timetable_pdf") }}', {
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept': 'application/pdf,application/json'
+            }
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                return response.json().catch(function() { return {}; }).then(function(err) {
+                    throw new Error(err.error || err.message || ('Server error: ' + response.status));
+                });
+            }
+            return response.blob();
+        })
+        .then(function(blob) {
+            clearInterval(interval);
+            $('#timetablePdfProgressBar').css('width', '100%');
+            $('#timetablePdfProgressPercent').text('100%');
+            setTimeout(function() {
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = downloadUrl;
+                a.download = 'School_Session_Timetable_' + new Date().toISOString().slice(0, 10) + '.pdf';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(downloadUrl);
+                document.body.removeChild(a);
+                setTimeout(function() { $('#timetablePdfProgressModal').modal('hide'); }, 500);
+            }, 400);
+        })
+        .catch(function(error) {
+            clearInterval(interval);
+            $('#timetablePdfProgressModal').modal('hide');
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Export Failed',
+                    text: error.message || 'Failed to generate school timetable PDF',
+                    confirmButtonColor: '#940000'
+                });
+            }
+        });
+    });
     // Handle Shuffle Session Timetable button
     $('#shuffleSessionTimetableBtn').on('click', function() {
         if (!currentSubclassID) {
@@ -4117,6 +4340,16 @@ $(function() {
     let classTimetableCounter = 0;
     let selectedClasses = [];
 
+    function isMainClassCreateScope() {
+        return $('#session_create_scope').val() === 'main_class';
+    }
+
+    $('#session_create_scope').on('change', function() {
+        $('#classTimetableForms').empty();
+        classTimetableCounter = 0;
+        $('#saveAllTimetablesBtn').hide();
+    });
+
     // Load definition data when Step 2 is shown
     function loadDefinitionData() {
         $.ajax({
@@ -4174,16 +4407,20 @@ $(function() {
     // Add class timetable form
     function addClassTimetableForm() {
         classTimetableCounter++;
-        const classFormHtml = `
-            <div class="card mb-3 class-timetable-form" data-class-index="${classTimetableCounter}">
-                <div class="card-header bg-primary-custom text-white d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">Class Timetable ${classTimetableCounter}</h6>
-                    <button type="button" class="btn btn-sm btn-light remove-class-form">
-                        <i class="bi bi-trash"></i> Remove
-                    </button>
-                </div>
-                <div class="card-body">
-                    <!-- Subclass Selection -->
+        const mainClassMode = isMainClassCreateScope();
+        const classSelectHtml = mainClassMode ? `
+                    <div class="form-group mb-3">
+                        <label>Select Main Class <span class="text-danger">*</span></label>
+                        <select class="form-control main-class-select" data-class-index="${classTimetableCounter}" required>
+                            <option value="">Select Main Class...</option>
+                            @foreach($classes ?? [] as $class)
+                                <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">All streams in this class. One period can include different subjects per stream.</small>
+                        <div class="main-class-conflict-msg text-danger small mt-1" style="display:none;"></div>
+                    </div>
+        ` : `
                     <div class="form-group mb-3">
                         <label>Select Class (Subclass) <span class="text-danger">*</span></label>
                         <select class="form-control subclass-select" data-class-index="${classTimetableCounter}" required>
@@ -4194,7 +4431,7 @@ $(function() {
                                     $subclassName = trim($subclass->subclass_name ?? '');
                                     $displayName = $subclassName ? $className . ' ' . $subclassName : $className;
                                 @endphp
-                                <option value="{{ $subclass->subclassID }}" 
+                                <option value="{{ $subclass->subclassID }}"
                                         data-class-name="{{ $className }}"
                                         data-subclass-name="{{ $subclassName }}">
                                     {{ $displayName }}
@@ -4203,6 +4440,17 @@ $(function() {
                         </select>
                         <small class="text-muted">Select the class/subclass for this timetable</small>
                     </div>
+        `;
+        const classFormHtml = `
+            <div class="card mb-3 class-timetable-form" data-class-index="${classTimetableCounter}" data-create-scope="${mainClassMode ? 'main_class' : 'subclass'}">
+                <div class="card-header bg-primary-custom text-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">${mainClassMode ? 'Main Class Timetable' : 'Class Timetable'} ${classTimetableCounter}</h6>
+                    <button type="button" class="btn btn-sm btn-light remove-class-form">
+                        <i class="bi bi-trash"></i> Remove
+                    </button>
+                </div>
+                <div class="card-body">
+                    ${classSelectHtml}
 
                     <!-- Days Container -->
                     <div class="days-container" id="days-container-${classTimetableCounter}">
@@ -4219,22 +4467,32 @@ $(function() {
         setTimeout(function() {
             disableSubclassesWithTimetables();
         }, 100);
-        
-        // Initialize days when subclass is selected
-        $(`.subclass-select[data-class-index="${classTimetableCounter}"]`).on('change', function() {
-            const subclassID = $(this).val();
-            const classIndex = $(this).data('class-index');
-            if (subclassID) {
-                // Check if subclass already has timetable
-                checkSubclassTimetableStatus(subclassID, classIndex);
-                initializeDaysForClass(classIndex, subclassID);
-                
-                // Disable other subclasses that have sessions
-                updateSubclassDropdowns(classIndex);
-            } else {
-                $(`#days-container-${classIndex}`).empty();
-            }
-        });
+
+        if (mainClassMode) {
+            $(`.main-class-select[data-class-index="${classTimetableCounter}"]`).on('change', function() {
+                const classID = $(this).val();
+                const classIndex = $(this).data('class-index');
+                const form = $(`.class-timetable-form[data-class-index="${classIndex}"]`);
+                form.find('.main-class-conflict-msg').hide().empty();
+                if (classID) {
+                    checkMainClassStreamTimetables(classID, classIndex);
+                } else {
+                    $(`#days-container-${classIndex}`).empty();
+                }
+            });
+        } else {
+            $(`.subclass-select[data-class-index="${classTimetableCounter}"]`).on('change', function() {
+                const subclassID = $(this).val();
+                const classIndex = $(this).data('class-index');
+                if (subclassID) {
+                    checkSubclassTimetableStatus(subclassID, classIndex);
+                    initializeDaysForClass(classIndex, subclassID);
+                    updateSubclassDropdowns(classIndex);
+                } else {
+                    $(`#days-container-${classIndex}`).empty();
+                }
+            });
+        }
     }
 
     // Update subclass dropdowns to disable classes with sessions
@@ -4306,6 +4564,67 @@ $(function() {
             },
             error: function(xhr) {
                 console.error('Error checking timetable status:', xhr);
+            }
+        });
+    }
+
+    function checkMainClassStreamTimetables(classID, classIndex) {
+        const form = $(`.class-timetable-form[data-class-index="${classIndex}"]`);
+        const msg = form.find('.main-class-conflict-msg');
+        const select = form.find('.main-class-select');
+        $.ajax({
+            url: '{{ route("check_main_class_stream_timetables") }}',
+            method: 'GET',
+            data: { classID: classID },
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.success && response.hasConflict) {
+                    $(`#days-container-${classIndex}`).empty();
+                    const names = (response.subclasses || []).map(function(s) { return s.name; }).join(', ');
+                    const text = response.message || ('Cannot create. There is a subclass (stream) in this class that already has a timetable: ' + names + '. To resolve, delete those stream timetables first.');
+                    msg.text(text).show();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Cannot create main class timetable',
+                            html: text + '<br><br>Delete the existing stream timetable(s), then try again.'
+                        });
+                    }
+                    return;
+                }
+                msg.hide().empty();
+                initializeDaysForMainClass(classIndex, classID);
+            },
+            error: function(xhr) {
+                msg.text((xhr.responseJSON && xhr.responseJSON.error) || 'Failed to validate this class').show();
+            }
+        });
+    }
+
+    function initializeDaysForMainClass(classIndex, classID) {
+        $(`.class-timetable-form[data-class-index="${classIndex}"]`).data('classID', classID);
+        $(`.class-timetable-form[data-class-index="${classIndex}"]`).data('subclassID', 'main-' + classID);
+        initializeDaysForClass(classIndex, 'main-' + classID);
+    }
+
+    function loadSubjectsForMainClass(classIndex, classID) {
+        $.ajax({
+            url: '{{ route("get_main_class_subjects_timetable") }}',
+            method: 'GET',
+            data: { classID: classID },
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.success && response.subjects) {
+                    $(`.class-timetable-form[data-class-index="${classIndex}"]`).data('subjects', response.subjects);
+                    updateAllSubjectDropdowns(classIndex);
+                }
+            },
+            error: function(xhr) {
+                console.error('Error loading main class subjects:', xhr);
             }
         });
     }
@@ -4400,8 +4719,12 @@ $(function() {
             container.append(dayHtml);
         });
 
-        // Load subjects for this subclass
-        loadSubjectsForSubclass(classIndex, subclassID);
+        // Load subjects for this subclass / main class
+        if (String(subclassID).indexOf('main-') === 0) {
+            loadSubjectsForMainClass(classIndex, String(subclassID).replace('main-', ''));
+        } else {
+            loadSubjectsForSubclass(classIndex, subclassID);
+        }
     }
 
     // Load subjects for subclass
@@ -4457,7 +4780,9 @@ $(function() {
             const status = subj.student_status || '';
             const statusLabel = status === 'Optional' ? ' [Optional]' : (status === 'Required' ? ' [Required]' : '');
             const name = subj.subject_name || subj.name || 'N/A';
-            options += `<option value="${subjectID}" ${selected} data-teacher-id="${subj.teacherID || ''}" data-teacher-name="${subj.teacher_name || 'Not Assigned'}" data-student-status="${status}">${name}${statusLabel}</option>`;
+            const subclassAttr = subj.subclassID ? ` data-subclass-id="${subj.subclassID}"` : '';
+            const streamAttr = subj.stream_name ? ` data-stream-name="${subj.stream_name}"` : '';
+            options += `<option value="${subjectID}" ${selected} data-teacher-id="${subj.teacherID || ''}" data-teacher-name="${subj.teacher_name || 'Not Assigned'}" data-student-status="${status}"${subclassAttr}${streamAttr}>${name}${statusLabel}</option>`;
         });
         return options;
     }
@@ -4498,14 +4823,21 @@ $(function() {
             || getSubjectStatusFromData(subjects, firstSelect.val());
         const addBtn = sessionRow.find('.add-optional-to-period');
         const hint = sessionRow.find('.optional-period-hint');
+        const mainClassMode = isMainClassCreateScope()
+            || sessionRow.closest('.class-timetable-form').data('create-scope') === 'main_class';
 
-        if (firstStatus === 'Optional' && firstSelect.val()) {
+        if (mainClassMode && firstSelect.val()) {
             addBtn.show();
+            addBtn.html('<i class="bi bi-plus-circle"></i> Add another subject to this period');
+            hint.removeClass('d-none').show()
+                .text('Main class: add another stream subject in this same period (e.g. PCM Physics, PCB Biology).');
+        } else if (firstStatus === 'Optional' && firstSelect.val()) {
+            addBtn.show();
+            addBtn.html('<i class="bi bi-plus-circle"></i> Add optional subject to this period');
             hint.removeClass('d-none').show();
         } else {
             addBtn.hide();
             hint.addClass('d-none').hide();
-            // Keep only the first pair if subject is Required / empty
             if (firstStatus !== 'Optional') {
                 pairs.slice(1).remove();
             }
@@ -4535,8 +4867,10 @@ $(function() {
                 pair.find('.session-teacher-info').text('');
             }
 
-            // If first subject changed away from Optional, drop extra pairs
-            if (pair.is(currentSessionRow.find('.session-subject-pair').first()) && status !== 'Optional') {
+            // If first subject changed away from Optional, drop extra pairs (subclass mode only)
+            const mainClassMode = isMainClassCreateScope()
+                || currentSessionRow.closest('.class-timetable-form').data('create-scope') === 'main_class';
+            if (!mainClassMode && pair.is(currentSessionRow.find('.session-subject-pair').first()) && status !== 'Optional') {
                 currentSessionRow.find('.session-subject-pair').slice(1).remove();
             }
 
@@ -4598,7 +4932,8 @@ $(function() {
                     sessionRow.find('.session-subject-pair').each(function(pairIdx) {
                         const select = $(this).find('.session-subject');
                         const currentValue = select.val();
-                        const onlyOptional = pairIdx > 0;
+                        const onlyOptional = pairIdx > 0 && !(isMainClassCreateScope()
+                            || sessionRow.closest('.class-timetable-form').data('create-scope') === 'main_class');
                         const excludeIds = selectedInPeriod.filter(id => id !== String(currentValue || ''));
                         select.html(buildSubjectOptionsHtml(subjects, currentValue, excludeIds, onlyOptional));
                         if (currentValue) {
@@ -4638,7 +4973,14 @@ $(function() {
         const breakEndTime = $(this).data('break-end'); // For "After Break" button
         
         const subclassSelect = $(`.subclass-select[data-class-index="${classIndex}"]`);
+        const mainClassSelect = $(`.main-class-select[data-class-index="${classIndex}"]`);
         let subclassID = subclassSelect.val();
+        const formScope = $(`.class-timetable-form[data-class-index="${classIndex}"]`).data('create-scope');
+        
+        if (formScope === 'main_class' || isMainClassCreateScope()) {
+            subclassID = $(`.class-timetable-form[data-class-index="${classIndex}"]`).data('subclassID')
+                || (mainClassSelect.val() ? ('main-' + mainClassSelect.val()) : '');
+        }
         
         // If val() is empty but we are in edit mode, use the editingSubclassID
         if (!subclassID && isEditingMode && editingSubclassID) {
@@ -4650,10 +4992,12 @@ $(function() {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Select Class First',
-                    text: 'Please select a class/subclass first before adding sessions'
+                    text: formScope === 'main_class'
+                        ? 'Please select a main class first before adding sessions'
+                        : 'Please select a class/subclass first before adding sessions'
                 });
             } else {
-                alert('Please select a class/subclass first');
+                alert('Please select a class first');
             }
             return;
         }
@@ -4681,7 +5025,9 @@ $(function() {
 
         const firstStatus = sessionRow.find('.session-subject-pair').first()
             .find('.session-subject option:selected').data('student-status');
-        if (firstStatus !== 'Optional') {
+        const mainClassMode = isMainClassCreateScope()
+            || sessionRow.closest('.class-timetable-form').data('create-scope') === 'main_class';
+        if (!mainClassMode && firstStatus !== 'Optional') {
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
                     icon: 'info',
@@ -4692,23 +5038,27 @@ $(function() {
             return;
         }
 
-        const availableOptional = subjects.filter(s =>
-            s.student_status === 'Optional' &&
-            !selectedInPeriod.includes(String(s.class_subjectID || s.subjectID))
-        );
-        if (availableOptional.length === 0) {
+        const availableExtra = subjects.filter(s => {
+            const id = String(s.class_subjectID || s.subjectID);
+            if (selectedInPeriod.includes(id)) return false;
+            if (mainClassMode) return true;
+            return s.student_status === 'Optional';
+        });
+        if (availableExtra.length === 0) {
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
                     icon: 'info',
-                    title: 'No more optional subjects',
-                    text: 'All optional subjects for this class are already in this period.'
+                    title: mainClassMode ? 'No more subjects' : 'No more optional subjects',
+                    text: mainClassMode
+                        ? 'All subjects for this class are already in this period.'
+                        : 'All optional subjects for this class are already in this period.'
                 });
             }
             return;
         }
 
         sessionRow.find('.session-subject-pairs').append(
-            buildSubjectPairHtml(subjects, null, true, selectedInPeriod, true)
+            buildSubjectPairHtml(subjects, null, !mainClassMode, selectedInPeriod, true)
         );
         bindSubjectPairEvents(sessionRow, classIndex, day);
         refreshOptionalPeriodControls(sessionRow);
@@ -5364,19 +5714,25 @@ $(function() {
 
         $('.class-timetable-form').each(function() {
             const classIndex = $(this).data('class-index');
+            const form = $(this);
+            const mainClassMode = form.data('create-scope') === 'main_class' || isMainClassCreateScope();
             const subclassSelect = $(this).find('.subclass-select');
-            const subclassID = subclassSelect.val();
+            const mainClassSelect = $(this).find('.main-class-select');
+            const subclassID = mainClassMode
+                ? (form.data('subclassID') || (mainClassSelect.val() ? ('main-' + mainClassSelect.val()) : ''))
+                : subclassSelect.val();
             
             // Validate subclass selection
-            if (!subclassID) {
+            if (!subclassID || (mainClassMode && !mainClassSelect.val())) {
                 hasErrors = true;
-                subclassSelect.addClass('is-invalid');
-                subclassSelect.closest('.form-group').find('.invalid-feedback').remove();
-                subclassSelect.after('<div class="invalid-feedback d-block">Please select a class/subclass</div>');
+                const target = mainClassMode ? mainClassSelect : subclassSelect;
+                target.addClass('is-invalid');
+                target.closest('.form-group').find('.invalid-feedback').remove();
+                target.after('<div class="invalid-feedback d-block">Please select a class</div>');
                 
                 // Scroll to first error
                 $('html, body').animate({
-                    scrollTop: subclassSelect.offset().top - 100
+                    scrollTop: target.offset().top - 100
                 }, 500);
                 return;
             }
@@ -5488,7 +5844,10 @@ $(function() {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json'
                 },
-                data: JSON.stringify({ timetables: timetables }),
+                data: JSON.stringify({
+                    timetables: timetables,
+                    create_scope: $('#session_create_scope').val() || 'subclass'
+                }),
                 success: function(response) {
                     if (response.success) {
                         if (typeof Swal !== 'undefined') {
@@ -5607,8 +5966,9 @@ $(function() {
             if (!sessionTypeID || !startTime || !endTime) {
                 return null;
             }
-            return [{
-                subclassID: subclassID,
+            const mainClassMode = isMainClassCreateScope()
+                || row.closest('.class-timetable-form').data('create-scope') === 'main_class';
+            const freePayload = {
                 class_subjectID: null,
                 subjectID: null,
                 session_typeID: String(sessionTypeID),
@@ -5617,7 +5977,24 @@ $(function() {
                 end_time: endTime,
                 teacherID: null,
                 is_prepo: isPrepo ? 1 : 0
-            }];
+            };
+            if (mainClassMode) {
+                const form = row.closest('.class-timetable-form');
+                const subjects = form.data('subjects') || [];
+                const streamIds = [];
+                subjects.forEach(function(s) {
+                    if (s.subclassID && streamIds.indexOf(s.subclassID) === -1) {
+                        streamIds.push(s.subclassID);
+                    }
+                });
+                if (streamIds.length === 0) {
+                    return null;
+                }
+                return streamIds.map(function(sid) {
+                    return Object.assign({}, freePayload, { subclassID: sid });
+                });
+            }
+            return [Object.assign({}, freePayload, { subclassID: subclassID })];
         }
 
         if (!sessionTypeID || !startTime || !endTime) {
@@ -5638,9 +6015,15 @@ $(function() {
                 return false;
             }
 
+            const pairSubclass = $(this).find('.session-subject option:selected').data('subclass-id') || subclassID;
+            if (!pairSubclass || String(pairSubclass).indexOf('main-') === 0) {
+                hasIncomplete = true;
+                return false;
+            }
+
             statuses.push(status || null);
             results.push({
-                subclassID: subclassID,
+                subclassID: pairSubclass,
                 class_subjectID: subjectID,
                 subjectID: null,
                 session_typeID: String(sessionTypeID),
@@ -5656,8 +6039,11 @@ $(function() {
             return null;
         }
 
-        // Multiple subjects in one period must all be Optional
-        if (results.length > 1 && statuses.some(s => s !== 'Optional')) {
+        // Multiple subjects in one period: subclass mode = Optional only;
+        // main class = different streams can share the period
+        const mainClassMode = isMainClassCreateScope()
+            || row.closest('.class-timetable-form').data('create-scope') === 'main_class';
+        if (results.length > 1 && !mainClassMode && statuses.some(s => s !== 'Optional')) {
             row.find('.session-validation-error')
                 .html('<strong>Only Optional subjects can share the same period.</strong>')
                 .show();

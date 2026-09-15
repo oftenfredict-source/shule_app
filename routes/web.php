@@ -724,6 +724,18 @@ Route::post("admin/lesson-plan/remove-signature", [
     AdminController::class,
     "removeLessonPlanSignature",
 ])->name("admin.remove_lesson_plan_signature");
+Route::get("admin/lesson-plans/filter-options", [
+    AdminController::class,
+    "getLessonPlanFilterOptions",
+])->name("admin.lesson_plan_filter_options");
+Route::post("admin/lesson-plans/approve-all", [
+    AdminController::class,
+    "approveAllLessonPlans",
+])->name("admin.approve_all_lesson_plans");
+Route::get("admin/lesson-plans/download-all", [
+    AdminController::class,
+    "downloadAllLessonPlans",
+])->name("admin.download_all_lesson_plans");
 Route::get("task-management", [AdminController::class, "taskManagement"])->name(
     "taskManagement",
 );
@@ -3486,6 +3498,14 @@ Route::get("admin/get-all-subclasses-with-timetables", [
     TimeTableController::class,
     "getAllSubclassesWithTimetables",
 ])->name("get_all_subclasses_with_timetables");
+Route::get("admin/check-main-class-stream-timetables", [
+    TimeTableController::class,
+    "checkMainClassStreamTimetables",
+])->name("check_main_class_stream_timetables");
+Route::get("admin/get-main-class-subjects-timetable", [
+    TimeTableController::class,
+    "getMainClassSubjectsForTimetable",
+])->name("get_main_class_subjects_timetable");
 Route::get("admin/class-session-teacher-conflicts", [
     TimeTableController::class,
     "getClassSessionTeacherConflicts",
@@ -3498,6 +3518,14 @@ Route::get("admin/export-session-timetable-pdf", [
     TimeTableController::class,
     "exportSessionTimetablePdf",
 ])->name("admin.export_session_timetable_pdf");
+Route::get("admin/get-school-session-timetable", [
+    TimeTableController::class,
+    "getSchoolSessionTimetable",
+])->name("admin.get_school_session_timetable");
+Route::get("admin/export-school-session-timetable-pdf", [
+    TimeTableController::class,
+    "exportSchoolSessionTimetablePdf",
+])->name("admin.export_school_session_timetable_pdf");
 Route::post("admin/save-class-session-timetables", [
     TimeTableController::class,
     "saveClassSessionTimetables",
