@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <title>Subject Results - {{ $subject->subject_name }}</title>
     <style>
-        body { font-family: 'Helvetica', sans-serif; font-size: 11px; color: #333; line-height: 1.4; }
+        body { font-family: 'Helvetica', sans-serif; font-size: 11px; color: #333; line-height: 1.4; padding-bottom: 28px; }
         .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #940000; padding-bottom: 10px; }
         .school-logo { max-height: 80px; max-width: 120px; margin-bottom: 6px; }
         .school-name { font-size: 18px; font-weight: bold; color: #940000; text-transform: uppercase; }
@@ -18,11 +18,13 @@
         table.results { width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center; }
         table.results th, table.results td { border: 1px solid #ddd; padding: 6px 4px; }
         table.results th { background-color: #940000; color: white; font-size: 10px; text-transform: uppercase; }
+        table.results thead { display: table-header-group; }
+        table.results tr { page-break-inside: avoid; }
         .student-name { text-align: left; }
         .muted { color: #888; }
         .formula-note { font-size: 9px; color: #555; margin-bottom: 10px; }
 
-        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #777; border-top: 1px solid #eee; padding-top: 5px; }
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; width: 100%; text-align: center; font-size: 9px; color: #777; border-top: 1px solid #eee; padding-top: 5px; background: #fff; }
 
         table.results tr:nth-child(even) { background-color: #fffafa; }
     </style>
@@ -168,7 +170,8 @@
                             @if($result->student_raw_total !== null)
                                 <br><span class="muted" style="font-size:8px;">{{ $result->student_raw_total }}/{{ $paperMaxTotal }}</span>
                             @endif
-                        @else,
+                        @else
+                            -
                         @endif
                     </td>
                 @else

@@ -7343,7 +7343,26 @@ class TeachersController extends Controller
                 $paperMaxTotal = (int) collect($duoPapers)->sum("max_marks");
             }
 
-            // Fetch results by joining with students to filter by schoolID
+            // Same scope as getSubjectResults (view): related class_subjects + all_subclasses / stream filter
+            $subjectIdForRelated =
+                (int) ($classSubject->subjectID ?? $classSubject->subject_id ?? 0);
+            $relatedClassSubjectIDs = ClassSubject::where(
+                "classID",
+                $classSubject->classID,
+            )
+                ->where("subjectID", $subjectIdForRelated)
+                ->where("status", "Active")
+                ->pluck("class_subjectID")
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+            if (!in_array((int) $classSubjectID, $relatedClassSubjectIDs, true)) {
+                $relatedClassSubjectIDs[] = (int) $classSubjectID;
+            }
+            $classSubjectIDs = $relatedClassSubjectIDs;
+            $allSubclasses = (bool) $request->get("all_subclasses");
+
             $query = Result::with(["student"])
                 ->join(
                     "students",
@@ -7351,15 +7370,23 @@ class TeachersController extends Controller
                     "=",
                     "students.studentID",
                 )
-                ->where("results.class_subjectID", $classSubjectID)
+                ->whereIn("results.class_subjectID", $classSubjectIDs)
                 ->where("students.schoolID", $schoolID)
                 ->select("results.*");
+
+            if (!$allSubclasses && !empty($classSubject->subclassID)) {
+                $query->where(function ($q) use ($classSubject, $classSubjectID) {
+                    $q->where("results.subclassID", $classSubject->subclassID)
+                        ->orWhere("results.class_subjectID", (int) $classSubjectID)
+                        ->orWhereNull("results.subclassID");
+                });
+            }
 
             if ($examID) {
                 $query->where("results.examID", $examID);
             }
 
-            if ($request->has("test_week") && !empty($request->test_week)) {
+            if ($request->filled("test_week")) {
                 $query->where("results.test_week", $request->test_week);
             }
 
@@ -7388,10 +7415,9 @@ class TeachersController extends Controller
 
                         foreach ($duoPapers as $paper) {
                             $cid = (int) $paper["componentID"];
-                            $row = $studentResults->firstWhere(
-                                "componentID",
-                                $cid,
-                            );
+                            $row = $studentResults->first(function ($r) use ($cid) {
+                                return (int) ($r->componentID ?? 0) === $cid;
+                            });
                             $mark =
                                 $row &&
                                 $row->marks !== null &&
@@ -7402,6 +7428,23 @@ class TeachersController extends Controller
                             if ($mark !== null) {
                                 $anyMarked = true;
                                 $studentRawTotal += $mark;
+                            }
+                        }
+
+                        // Legacy rows saved without a paper (componentID 0/null)
+                        if (!$anyMarked) {
+                            $legacy = $studentResults->first(function ($r) {
+                                $cid = (int) ($r->componentID ?? 0);
+                                return $cid === 0 &&
+                                    $r->marks !== null &&
+                                    $r->marks !== "";
+                            });
+                            if ($legacy && !empty($duoPapers)) {
+                                $anyMarked = true;
+                                $legacyMark = (float) $legacy->marks;
+                                $firstPaperId = (int) $duoPapers[0]["componentID"];
+                                $paperMarks[$firstPaperId] = $legacyMark;
+                                $studentRawTotal = $legacyMark;
                             }
                         }
 
@@ -7459,7 +7502,7 @@ class TeachersController extends Controller
                         "=",
                         "students.studentID",
                     )
-                        ->where("results.class_subjectID", $classSubjectID)
+                        ->whereIn("results.class_subjectID", $classSubjectIDs)
                         ->where("students.schoolID", $schoolID)
                         ->whereIn("results.examID", $caDefinition->test_ids)
                         ->select("results.*")
