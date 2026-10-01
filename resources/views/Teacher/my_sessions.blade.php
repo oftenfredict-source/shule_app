@@ -672,8 +672,21 @@ document.addEventListener('DOMContentLoaded', function() {
 let currentSessionData = {};
 
 window.collectAttendance = function(sessionTimetableID, date) {
+    var waitTries = 0;
     function executeWhenJQueryReady() {
-        if (typeof jQuery === 'undefined' || typeof $ === 'undefined') {
+        if (typeof jQuery === 'undefined' || !jQuery.fn || typeof jQuery.fn.modal !== 'function') {
+            waitTries++;
+            if (waitTries > 80) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Could not open attendance',
+                        text: 'Page scripts did not load. Refresh and try again.',
+                        confirmButtonColor: '#940000'
+                    });
+                }
+                return;
+            }
             setTimeout(executeWhenJQueryReady, 50);
             return;
         }

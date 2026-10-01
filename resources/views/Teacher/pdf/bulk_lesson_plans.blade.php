@@ -4,34 +4,33 @@
     <meta charset="utf-8">
     <title>Bulk Lesson Plans</title>
     <style>
-        body { font-family: 'Helvetica', sans-serif; font-size: 11px; color: #333; line-height: 1.4; padding: 0; margin: 0; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #940000; padding-bottom: 15px; }
-        .school-name { font-size: 18px; font-weight: bold; color: #940000; text-transform: uppercase; margin-bottom: 5px; }
-        .report-title { font-size: 14px; font-weight: bold; margin-top: 10px; background: #f8f9fa; padding: 5px; color: #333; border: 1px solid #eee; }
-        .school-info { font-size: 10px; color: #666; margin-bottom: 3px; }
+        @page { margin: 14px 14px 20px 14px; }
+        body { font-family: 'Helvetica', sans-serif; font-size: 9px; color: #333; line-height: 1.2; padding: 0; margin: 0; }
+        .plan-page { page-break-inside: avoid; }
+        .plan-break { page-break-before: always; }
+        .header { text-align: center; margin-bottom: 6px; border-bottom: 2px solid #940000; padding-bottom: 4px; }
+        .school-name { font-size: 13px; font-weight: bold; color: #940000; text-transform: uppercase; margin-bottom: 1px; }
+        .report-title { font-size: 10px; font-weight: bold; margin-top: 3px; background: #f8f9fa; padding: 2px; color: #333; border: 1px solid #eee; }
+        .school-info { font-size: 8px; color: #666; margin-bottom: 1px; }
 
-        table { width: 100%; border-collapse: collapse; margin-bottom: 12px; table-layout: fixed; }
-        th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; word-wrap: break-word; }
-        th { background-color: #f8f9fa; font-weight: bold; color: #940000; font-size: 9px; text-transform: uppercase; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 4px; table-layout: fixed; }
+        th, td { border: 1px solid #ddd; padding: 2px 4px; text-align: left; word-wrap: break-word; }
+        th { background-color: #f8f9fa; font-weight: bold; color: #940000; font-size: 7px; text-transform: uppercase; }
 
         .nested-table { width: 100%; border-collapse: collapse; }
-        .nested-table th, .nested-table td { font-size: 8px; padding: 3px; text-align: center; border: 1px solid #ddd; }
+        .nested-table th, .nested-table td { font-size: 7px; padding: 1px 2px; text-align: center; border: 1px solid #ddd; }
         .nested-table th { background-color: #f8f9fa; color: #333; }
 
-        .section-title { font-size: 11px; font-weight: bold; color: #940000; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px; }
-        .dotted-line { border-bottom: 1.5px dotted #940000; min-height: 22px; padding: 4px 0; margin: 4px 0; background: #fffafb; }
+        .section-title { font-size: 9px; font-weight: bold; color: #940000; margin-top: 4px; margin-bottom: 2px; border-bottom: 1px solid #eee; padding-bottom: 1px; }
+        .dotted-line { border-bottom: 1.5px dotted #940000; min-height: 14px; padding: 1px 0; margin: 1px 0; background: #fffafb; }
 
-        /* ── SIGNATURE AND STAMP ─────────────────── */
-        .sig-table { width: 100%; margin-top: 20px; border-collapse: collapse; page-break-inside: avoid; }
-        .sig-table td { border: none; padding: 8px; vertical-align: bottom; text-align: center; }
-        .stamp-cell img { max-width: 90px; max-height: 90px; }
-        .signature-img { height: 35px; margin-bottom: 4px; }
-        .signature-img img { max-width: 110px; max-height: 35px; }
-        .sig-line { border-top: 1.5px solid #940000; width: 130px; margin: 0 auto; display: block; }
-        .sig-label { font-size: 8px; color: #940000; font-weight: bold; padding-top: 3px; display: block; text-transform: uppercase; }
-
-        .page-break { page-break-before: always; }
-        .plan-divider { border-top: 3px solid #940000; margin-top: 25px; margin-bottom: 20px; }
+        .sig-table { width: 100%; margin-top: 6px; border-collapse: collapse; }
+        .sig-table td { border: none; padding: 2px 4px; vertical-align: bottom; text-align: center; }
+        .stamp-cell img { max-width: 70px; max-height: 70px; }
+        .signature-img { height: 22px; margin-bottom: 2px; }
+        .signature-img img { max-width: 90px; max-height: 22px; }
+        .sig-line { border-top: 1.5px solid #940000; width: 110px; margin: 0 auto; display: block; }
+        .sig-label { font-size: 7px; color: #940000; font-weight: bold; padding-top: 2px; display: block; text-transform: uppercase; }
 
         /* ── WATERMARK ─────────────────── */
         .watermark {
@@ -83,17 +82,6 @@
         }
     @endphp
 
-    {{-- ── SHARED HEADER ─────────────────── --}}
-    <div class="header">
-        @if($schoolLogoBase64)
-            <img src="{{ $schoolLogoBase64 }}" style="max-height: 70px; margin-bottom: 8px;">
-        @endif
-        <div class="school-name">{{ $school->school_name ?? 'School Name' }}</div>
-        <div class="school-info">{{ $school->address ?? '' }}</div>
-        <div class="school-info">Phone: {{ $school?->formattedPhones() }} | Email: {{ $school?->email ?? '' }}</div>
-        <div class="report-title">LESSON PLANS REPORT - {{ $schoolType }} ({{ $lessonPlans->count() }} Plan(s))</div>
-    </div>
-
     <div class="footer">
         Generated by ShuleXpert (School Management System), Powered By EmCa Technology &copy; {{ date('Y') }}
     </div>
@@ -142,7 +130,16 @@
             $isApproved = !empty($lessonPlan->supervisor_signature);
         @endphp
 
-        <div class="{{ $index > 0 ? 'page-break' : '' }}">
+        <div class="plan-page{{ $index > 0 ? ' plan-break' : '' }}">
+            <div class="header">
+                @if($schoolLogoBase64)
+                    <img src="{{ $schoolLogoBase64 }}" style="max-height: 36px; margin-bottom: 2px;">
+                @endif
+                <div class="school-name">{{ $school->school_name ?? 'School Name' }}</div>
+                <div class="school-info">{{ $school->address ?? '' }}</div>
+                <div class="school-info">Phone: {{ $school?->formattedPhones() }} | Email: {{ $school?->email ?? '' }}</div>
+                <div class="report-title">LESSON PLAN - {{ $schoolType }} ({{ $index + 1 }} / {{ $lessonPlans->count() }})</div>
+            </div>
 
             {{-- ── INFO TABLE ─────────────────── --}}
             <table style="table-layout: auto;">
@@ -249,15 +246,13 @@
 
             {{-- ── REMARKS / REFLECTION / EVALUATION ─────────────────── --}}
             <div class="section-title">Remarks</div>
-            <div class="dotted-line"><p style="margin:0; padding: 2px 0;">{{ $lessonPlan->remarks ?? '' }}</p></div>
+            <div class="dotted-line"><p style="margin:0; padding: 1px 0;">{{ $lessonPlan->remarks ?? '' }}</p></div>
 
             <div class="section-title">Reflection</div>
-            <div class="dotted-line"><p style="margin:0; padding: 2px 0;">{{ $lessonPlan->reflection ?? '' }}</p></div>
-            <div class="dotted-line"></div>
+            <div class="dotted-line"><p style="margin:0; padding: 1px 0;">{{ $lessonPlan->reflection ?? '' }}</p></div>
 
             <div class="section-title">Evaluation</div>
-            <div class="dotted-line"><p style="margin:0; padding: 2px 0;">{{ $lessonPlan->evaluation ?? '' }}</p></div>
-            <div class="dotted-line"></div>
+            <div class="dotted-line"><p style="margin:0; padding: 1px 0;">{{ $lessonPlan->evaluation ?? '' }}</p></div>
 
             {{-- ── SIGNATURES ─────────────────── --}}
             <table class="sig-table">
@@ -274,7 +269,7 @@
                     </td>
                     <td style="width: 34%; text-align: center;">
                         @if($isApproved && $schoolStampBase64)
-                            <img src="{{ $schoolStampBase64 }}" style="max-height: 75px;">
+                            <img src="{{ $schoolStampBase64 }}" style="max-height: 48px;">
                             <div style="font-size: 7px; color: #940000; font-weight: bold; margin-top: 4px;">SCHOOL OFFICIAL STAMP</div>
                         @endif
                     </td>

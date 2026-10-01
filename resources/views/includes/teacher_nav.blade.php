@@ -18,13 +18,20 @@
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,600,700,800' rel='stylesheet' type='text/css'>
 
-    <script src="{{ asset('vendors/jquery/dist/jquery.min.js') }}"></script>
-    <script src="{{ asset('vendors/popper.js/dist/umd/popper.min.js') }}"></script>
-    <script src="{{ asset('vendors/bootstrap/dist/js/bootstrap.min.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ asset('vendors/jquery/dist/jquery.js') }}"></script>
     <script>
+        if (!window.jQuery) {
+            document.write('<script src="https://code.jquery.com/jquery-3.6.4.min.js"><\/script>');
+        }
         window.$ = window.jQuery;
     </script>
+    <script src="{{ asset('vendors/bootstrap/dist/js/bootstrap.bundle.js') }}"></script>
+    <script>
+        if (!window.jQuery || !window.jQuery.fn || typeof window.jQuery.fn.modal !== 'function') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"><\/script>');
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
 /* Badilisha rangi ya background ya sidebar */
