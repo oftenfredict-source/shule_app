@@ -193,7 +193,7 @@
     </style>
     
     @stack('styles')
-    <link rel="stylesheet" href="{{ asset('css/shulexpert-theme.css') }}?v={{ filemtime(public_path('css/shulexpert-theme.css')) }}">
+    @include('includes.shulexpert_theme_css')
   </head>
 
   <body>

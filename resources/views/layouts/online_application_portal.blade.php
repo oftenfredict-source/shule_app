@@ -25,7 +25,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="{{ asset('css/site-base.css') }}?v={{ filemtime(public_path('css/site-base.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/shulexpert-site.css') }}?v={{ filemtime(public_path('css/shulexpert-site.css')) }}">
-    <link rel="stylesheet" href="{{ asset('css/shulexpert-theme.css') }}?v={{ filemtime(public_path('css/shulexpert-theme.css')) }}">
+    @include('includes.shulexpert_theme_css')
     @stack('styles')
 </head>
 <body class="sx-oa-portal-body">

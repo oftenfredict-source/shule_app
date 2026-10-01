@@ -514,9 +514,12 @@
     </div>
 </div>
 
-<div class="modal fade" id="downloadProgressModal" data-backdrop="static" tabindex="-1">
+<div class="modal fade" id="downloadProgressModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content text-center p-4">
+        <div class="modal-content text-center p-4" style="position: relative;">
+            <button type="button" class="btn btn-sm btn-light" id="pdfProgressClose" aria-label="Close" style="position: absolute; top: 8px; right: 8px;">
+                <i class="fa fa-times"></i>
+            </button>
             <div class="modal-body">
                 <i class="fa fa-file-pdf-o fa-3x text-danger mb-3"></i>
                 <h6 class="mb-3">Generating ID Card PDF...</h6>
@@ -525,10 +528,36 @@
                 </div>
                 <div id="pdfProgressPercent" class="font-weight-bold text-muted mt-2" style="font-size: 14px;">0%</div>
                 <div id="pdfProgressNote" class="text-muted small mt-2"></div>
+                <div class="text-muted small mt-3">You can close this. The download continues in the background.</div>
             </div>
         </div>
     </div>
 </div>
+<button type="button" id="pdfProgressChip" class="is-hidden" aria-label="Show download progress">
+    <i class="fa fa-file-pdf-o text-danger"></i>
+    <span id="pdfProgressChipNote">Generating PDF</span>
+    <strong id="pdfProgressChipPercent">0%</strong>
+</button>
+<style>
+    #pdfProgressChip {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 1040;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 0;
+        border-radius: 999px;
+        background: #fff;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #333;
+        cursor: pointer;
+    }
+    #pdfProgressChip.is-hidden { display: none; }
+</style>
 
 <script>
     $(document).ready(function() {
@@ -541,6 +570,32 @@
         let cardTotal = {{ (int) ($idCardTotal ?? 0) }};
         let cardsLoading = false;
         let cardsHasMore = cardOffset < cardTotal;
+        let downloadRunning = false;
+
+        function setPdfProgress(percent, note) {
+            const pct = Math.max(0, Math.min(100, Math.round(percent)));
+            const label = note || '';
+            $('#pdfProgressBar').css('width', pct + '%');
+            $('#pdfProgressPercent').text(pct + '%');
+            $('#pdfProgressNote').text(label);
+            $('#pdfProgressChipPercent').text(pct + '%');
+            $('#pdfProgressChipNote').text(label);
+        }
+
+        function openPdfProgress(note) {
+            setPdfProgress(0, note);
+            $('#pdfProgressChip').addClass('is-hidden');
+            $('#downloadProgressModal').modal('show');
+        }
+
+        function finishPdfProgress(note) {
+            downloadRunning = false;
+            setPdfProgress(100, note);
+            setTimeout(function() {
+                $('#downloadProgressModal').modal('hide');
+                $('#pdfProgressChip').addClass('is-hidden');
+            }, 800);
+        }
 
         function buildDownloadUrl(id, extra) {
             const primary = $('#primaryColorPicker').val();
@@ -593,48 +648,53 @@
         }
 
         function downloadPdf(url, filename) {
-            $('#downloadProgressModal').modal('show');
-            $('#pdfProgressBar').css('width', '0%');
-            $('#pdfProgressPercent').text('0%');
-            $('#pdfProgressNote').text('Preparing one card');
+            if (downloadRunning) {
+                $('#downloadProgressModal').modal('show');
+                return;
+            }
+            downloadRunning = true;
+            openPdfProgress('Preparing one card');
 
             let progress = 0;
             const interval = setInterval(function() {
                 if (progress < 90) {
                     progress += 4;
-                    $('#pdfProgressBar').css('width', progress + '%');
-                    $('#pdfProgressPercent').text(progress + '%');
+                    setPdfProgress(progress, 'Preparing one card');
                 }
             }, 400);
 
             fetchPdf(url)
                 .then(function(file) {
                     clearInterval(interval);
-                    $('#pdfProgressBar').css('width', '100%');
-                    $('#pdfProgressPercent').text('100%');
                     saveBlob(file.blob, filename || file.filename);
-                    setTimeout(function() { $('#downloadProgressModal').modal('hide'); }, 600);
+                    finishPdfProgress('Download complete');
                 })
                 .catch(function(error) {
                     clearInterval(interval);
+                    downloadRunning = false;
                     $('#downloadProgressModal').modal('hide');
+                    $('#pdfProgressChip').addClass('is-hidden');
                     alert(shortPdfError(error.message));
                 });
         }
 
         function downloadAllCards() {
+            if (downloadRunning) {
+                $('#downloadProgressModal').modal('show');
+                return;
+            }
+            downloadRunning = true;
             const countUrl = buildDownloadUrl('all', '&count=1');
-            $('#downloadProgressModal').modal('show');
-            $('#pdfProgressBar').css('width', '0%');
-            $('#pdfProgressPercent').text('0%');
-            $('#pdfProgressNote').text('Counting students');
+            openPdfProgress('Counting students');
 
             fetch(countUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(function(response) { return response.json(); })
                 .then(async function(info) {
                     const total = parseInt(info.total, 10) || 0;
                     if (!total) {
+                        downloadRunning = false;
                         $('#downloadProgressModal').modal('hide');
+                        $('#pdfProgressChip').addClass('is-hidden');
                         alert('No students found for this filter.');
                         return;
                     }
@@ -644,14 +704,12 @@
                         const startPct = Math.round((i / parts) * 100);
                         const endPct = Math.round(((i + 1) / parts) * 100);
                         let shown = startPct;
-                        $('#pdfProgressBar').css('width', Math.max(shown, 1) + '%');
-                        $('#pdfProgressPercent').text(Math.max(shown, 1) + '%');
-                        $('#pdfProgressNote').text('File ' + (i + 1) + ' of ' + parts);
+                        const fileNote = 'File ' + (i + 1) + ' of ' + parts;
+                        setPdfProgress(Math.max(shown, 1), fileNote);
                         const creep = setInterval(function() {
                             if (shown < endPct - 1) {
                                 shown += 1;
-                                $('#pdfProgressBar').css('width', shown + '%');
-                                $('#pdfProgressPercent').text(shown + '%');
+                                setPdfProgress(shown, fileNote);
                             }
                         }, 700);
                         try {
@@ -660,16 +718,14 @@
                         } finally {
                             clearInterval(creep);
                         }
-                        $('#pdfProgressBar').css('width', endPct + '%');
-                        $('#pdfProgressPercent').text(endPct + '%');
+                        setPdfProgress(endPct, fileNote);
                     }
-                    $('#pdfProgressBar').css('width', '100%');
-                    $('#pdfProgressPercent').text('100%');
-                    $('#pdfProgressNote').text('Downloaded ' + parts + ' file(s)');
-                    setTimeout(function() { $('#downloadProgressModal').modal('hide'); }, 800);
+                    finishPdfProgress('Downloaded ' + parts + ' file(s)');
                 })
                 .catch(function(error) {
+                    downloadRunning = false;
                     $('#downloadProgressModal').modal('hide');
+                    $('#pdfProgressChip').addClass('is-hidden');
                     alert(shortPdfError(error.message));
                 });
         }
@@ -706,6 +762,23 @@
                     cardsLoading = false;
                 });
         }
+
+        $('#pdfProgressClose').on('click', function() {
+            $('#downloadProgressModal').modal('hide');
+        });
+        $('#downloadProgressModal').on('hidden.bs.modal', function() {
+            if (downloadRunning) {
+                $('#pdfProgressChip').removeClass('is-hidden');
+            }
+        });
+        $('#downloadProgressModal').on('shown.bs.modal', function() {
+            $('#pdfProgressChip').addClass('is-hidden');
+        });
+        $('#pdfProgressChip').on('click', function() {
+            if (downloadRunning) {
+                $('#downloadProgressModal').modal('show');
+            }
+        });
 
         $('#downloadAllBtn').on('click', function() {
             downloadAllCards();

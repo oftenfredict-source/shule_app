@@ -122,6 +122,167 @@
         }
     }
 
+    if (!function_exists('idCardJpegOrientation')) {
+        function idCardJpegOrientation($fullPath) {
+            $ext = strtolower(pathinfo((string) $fullPath, PATHINFO_EXTENSION));
+            if (!in_array($ext, ['jpg', 'jpeg'], true)) {
+                return 1;
+            }
+            if (function_exists('exif_read_data')) {
+                $exif = @exif_read_data($fullPath);
+                if (is_array($exif) && !empty($exif['Orientation'])) {
+                    $orientation = (int) $exif['Orientation'];
+                    if ($orientation >= 1 && $orientation <= 8) {
+                        return $orientation;
+                    }
+                }
+            }
+
+            return idCardJpegOrientationFromBytes($fullPath);
+        }
+    }
+
+    if (!function_exists('idCardJpegOrientationFromBytes')) {
+        function idCardJpegOrientationFromBytes($fullPath) {
+            $handle = @fopen($fullPath, 'rb');
+            if (!$handle) {
+                return 1;
+            }
+            $data = fread($handle, 131072);
+            fclose($handle);
+            if (!is_string($data) || strlen($data) < 12 || substr($data, 0, 2) !== "\xFF\xD8") {
+                return 1;
+            }
+
+            $offset = 2;
+            $length = strlen($data);
+            while ($offset + 4 < $length) {
+                if (ord($data[$offset]) !== 0xFF) {
+                    break;
+                }
+                $marker = ord($data[$offset + 1]);
+                if ($marker === 0xD8 || $marker === 0x01 || ($marker >= 0xD0 && $marker <= 0xD7)) {
+                    $offset += 2;
+                    continue;
+                }
+                if ($marker === 0xDA || $marker === 0xD9) {
+                    break;
+                }
+                $segLen = (ord($data[$offset + 2]) << 8) + ord($data[$offset + 3]);
+                if ($segLen < 2 || $offset + 2 + $segLen > $length) {
+                    break;
+                }
+                if ($marker === 0xE1) {
+                    return idCardOrientationFromExifSegment(substr($data, $offset + 4, $segLen - 2));
+                }
+                $offset += 2 + $segLen;
+            }
+
+            return 1;
+        }
+    }
+
+    if (!function_exists('idCardOrientationFromExifSegment')) {
+        function idCardOrientationFromExifSegment($segment) {
+            if (!is_string($segment) || substr($segment, 0, 6) !== "Exif\x00\x00" || strlen($segment) < 14) {
+                return 1;
+            }
+            $tiff = substr($segment, 6);
+            $endian = substr($tiff, 0, 2);
+            $little = $endian === 'II';
+            if (!$little && $endian !== 'MM') {
+                return 1;
+            }
+            $read16 = function ($bytes, $pos) use ($little) {
+                if ($pos + 2 > strlen($bytes)) {
+                    return 0;
+                }
+                return $little
+                    ? ord($bytes[$pos]) + (ord($bytes[$pos + 1]) << 8)
+                    : (ord($bytes[$pos]) << 8) + ord($bytes[$pos + 1]);
+            };
+            $read32 = function ($bytes, $pos) use ($little) {
+                if ($pos + 4 > strlen($bytes)) {
+                    return 0;
+                }
+                if ($little) {
+                    return ord($bytes[$pos])
+                        + (ord($bytes[$pos + 1]) << 8)
+                        + (ord($bytes[$pos + 2]) << 16)
+                        + (ord($bytes[$pos + 3]) << 24);
+                }
+                return (ord($bytes[$pos]) << 24)
+                    + (ord($bytes[$pos + 1]) << 16)
+                    + (ord($bytes[$pos + 2]) << 8)
+                    + ord($bytes[$pos + 3]);
+            };
+            $ifd = $read32($tiff, 4);
+            if ($ifd <= 0 || $ifd + 2 > strlen($tiff)) {
+                return 1;
+            }
+            $count = $read16($tiff, $ifd);
+            for ($i = 0; $i < $count; $i++) {
+                $entry = $ifd + 2 + ($i * 12);
+                if ($entry + 12 > strlen($tiff)) {
+                    break;
+                }
+                if ($read16($tiff, $entry) === 0x0112) {
+                    $value = $read16($tiff, $entry + 8);
+                    return ($value >= 1 && $value <= 8) ? $value : 1;
+                }
+            }
+
+            return 1;
+        }
+    }
+
+    if (!function_exists('idCardApplyImageOrientation')) {
+        function idCardApplyImageOrientation($image, $orientation) {
+            $orientation = (int) $orientation;
+            if ($orientation < 2 || $orientation > 8) {
+                return $image;
+            }
+            $rotate = function ($img, $angle) {
+                $next = imagerotate($img, $angle, 0xFFFFFF);
+                if ($next) {
+                    imagedestroy($img);
+                    return $next;
+                }
+                return $img;
+            };
+            switch ($orientation) {
+                case 2:
+                    if (function_exists('imageflip')) {
+                        imageflip($image, IMG_FLIP_HORIZONTAL);
+                    }
+                    return $image;
+                case 3:
+                    return $rotate($image, 180);
+                case 4:
+                    if (function_exists('imageflip')) {
+                        imageflip($image, IMG_FLIP_VERTICAL);
+                    }
+                    return $image;
+                case 5:
+                    if (function_exists('imageflip')) {
+                        imageflip($image, IMG_FLIP_HORIZONTAL);
+                    }
+                    return $rotate($image, -90);
+                case 6:
+                    return $rotate($image, -90);
+                case 7:
+                    if (function_exists('imageflip')) {
+                        imageflip($image, IMG_FLIP_HORIZONTAL);
+                    }
+                    return $rotate($image, 90);
+                case 8:
+                    return $rotate($image, 90);
+            }
+
+            return $image;
+        }
+    }
+
     if (!function_exists('idCardPdfThumbDataUri')) {
         function idCardPdfThumbDataUri($path, $maxWidth = 240, $maxHeight = 300) {
             static $cache = [];
@@ -145,6 +306,8 @@
                 $cache[$key] = idCardPdfImageSrc($path);
                 return $cache[$key];
             }
+
+            $source = idCardApplyImageOrientation($source, idCardJpegOrientation($fullPath));
 
             $width = imagesx($source);
             $height = imagesy($source);
