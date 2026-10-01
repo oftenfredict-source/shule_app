@@ -134,10 +134,25 @@
     .download-card-btn {
         bottom: 10px;
         right: 10px;
-        background: rgba(0,0,0,0.85);
+        background: #000;
+        border-color: #000;
         color: #fff;
     }
-    .download-card-btn:hover { background: #000; transform: scale(1.15); }
+    .download-card-btn i {
+        color: #fff;
+    }
+    .download-card-btn:hover { background: #1a1a1a; color: #fff; transform: scale(1.15); }
+    #downloadAllBtn,
+    #downloadAllBtn:hover,
+    #downloadAllBtn:focus {
+        background: #000;
+        border-color: #000;
+        color: #fff;
+    }
+    #downloadAllBtn i,
+    #downloadAllBtn:hover i {
+        color: #fff;
+    }
 
     .corner-accent {
         position: absolute;
@@ -480,7 +495,7 @@
                             </div>
 
                             <div class="col-md-6 text-right">
-                                <button type="button" id="downloadAllBtn" class="btn btn-sm btn-success">
+                                <button type="button" id="downloadAllBtn" class="btn btn-sm">
                                     <i class="fa fa-download"></i> Download All Cards (PDF)
                                 </button>
                                 <button type="button" class="btn btn-sm btn-primary" id="flipAllBtn">
