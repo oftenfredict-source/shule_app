@@ -117,6 +117,64 @@ class School extends Model
         return implode(' / ', $this->phoneNumbers());
     }
 
+    public static function imageToDataUrl(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        $path = trim($path);
+        if (str_starts_with($path, 'data:image')) {
+            return $path;
+        }
+
+        if (preg_match('#^https?://#i', $path)) {
+            $urlPath = parse_url($path, PHP_URL_PATH);
+            $path = is_string($urlPath) && $urlPath !== '' ? $urlPath : $path;
+        }
+
+        $relative = ltrim(str_replace('\\', '/', $path), '/');
+        $parent = dirname(base_path());
+        $possibilities = [
+            public_path($relative),
+            public_path('uploads/' . $relative),
+            base_path($relative),
+            base_path('public/' . $relative),
+            $parent . '/public_html/' . $relative,
+            $parent . '/public_html/uploads/' . $relative,
+            base_path('../public_html/' . $relative),
+        ];
+
+        if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+            $docRoot = rtrim($_SERVER['DOCUMENT_ROOT'], '/\\');
+            $possibilities[] = $docRoot . '/' . $relative;
+            $possibilities[] = $docRoot . '/uploads/' . $relative;
+        }
+
+        if (!empty($_SERVER['SCRIPT_FILENAME'])) {
+            $possibilities[] = dirname($_SERVER['SCRIPT_FILENAME']) . '/' . $relative;
+        }
+
+        foreach ($possibilities as $fullPath) {
+            if (@file_exists($fullPath) && is_file($fullPath)) {
+                try {
+                    $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION) ?: 'png');
+                    if ($ext === 'jpg') {
+                        $ext = 'jpeg';
+                    }
+                    if ($ext === 'svg') {
+                        $ext = 'svg+xml';
+                    }
+                    return 'data:image/' . $ext . ';base64,' . base64_encode(file_get_contents($fullPath));
+                } catch (\Exception $e) {
+                    return null;
+                }
+            }
+        }
+
+        return null;
+    }
+
     public function teachers()
     {
         return $this->hasMany(Teacher::class, 'schoolID', 'schoolID');

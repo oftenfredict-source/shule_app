@@ -7,7 +7,9 @@
 @endif
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <style>
@@ -326,8 +328,9 @@ function renderProgressBars(progress) {
     progress.forEach(function(row) {
         const plans = parseInt(row.lesson_plans, 10) || 0;
         const periods = parseInt(row.periods, 10) || 0;
-        const pct = periods > 0 ? Math.round((plans / periods) * 100) : (plans > 0 ? 100 : 0);
-        const width = Math.max(0, Math.min(100, pct));
+        const rawPct = periods > 0 ? Math.round((plans / periods) * 100) : (plans > 0 ? 100 : 0);
+        const pct = Math.max(0, Math.min(100, rawPct));
+        const width = pct;
         const source = row.period_source === 'scheme'
             ? 'scheme of work periods'
             : (row.period_source === 'timetable' ? 'timetable periods' : 'periods not set');
@@ -388,7 +391,7 @@ function renderLessonPlansList(lessonPlans, subjectName, className, progress) {
             <div class="card-body">
                 ${bars}
                 <div class="table-responsive">
-                    <table class="table table-bordered table-hover" style="border-radius: 0;">
+                    <table id="adminLessonPlansTable" class="table table-bordered table-hover" style="border-radius: 0; width: 100%;">
                         <thead style="background-color: #f5f5f5;">
                             <tr>
                                 <th>#</th>
@@ -452,7 +455,19 @@ function renderLessonPlansList(lessonPlans, subjectName, className, progress) {
         </div>
     `;
 
+    if ($.fn.dataTable && $.fn.dataTable.isDataTable('#adminLessonPlansTable')) {
+        $('#adminLessonPlansTable').DataTable().destroy();
+    }
     $('#lessonPlansContainer').html(html);
+    $('#adminLessonPlansTable').DataTable({
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+        order: [],
+        autoWidth: false,
+        columnDefs: [
+            { orderable: false, targets: [0, 6] }
+        ]
+    });
 }
 
 function viewLessonPlan(lessonPlanID) {

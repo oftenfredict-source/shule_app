@@ -6,6 +6,9 @@
     <style>
         body { font-family: 'Helvetica', sans-serif; font-size: 11px; color: #333; line-height: 1.4; padding: 0; margin: 0; }
         .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #940000; padding-bottom: 15px; }
+        .logo-wrap { width: 100%; border-collapse: collapse; margin: 0 0 8px 0; }
+        .logo-wrap td { border: none; text-align: center; padding: 0; background: transparent; }
+        .school-logo { height: 70px; }
         .school-name { font-size: 18px; font-weight: bold; color: #940000; text-transform: uppercase; margin-bottom: 5px; }
         .report-title { font-size: 14px; font-weight: bold; margin-top: 10px; background: #f8f9fa; padding: 5px; color: #333; border: 1px solid #eee; }
         .school-info { font-size: 10px; color: #666; margin-bottom: 3px; }
@@ -45,7 +48,11 @@
 
     <div class="header">
         @if(isset($schoolLogoBase64) && $schoolLogoBase64)
-            <img src="{{ $schoolLogoBase64 }}" style="max-height: 70px; margin-bottom: 8px;">
+            <table class="logo-wrap">
+                <tr>
+                    <td><img class="school-logo" src="{{ $schoolLogoBase64 }}" alt="School logo"></td>
+                </tr>
+            </table>
         @endif
         <div class="school-name">{{ $school->school_name ?? 'School Name' }}</div>
         <div class="school-info">{{ $school->address ?? '' }}</div>

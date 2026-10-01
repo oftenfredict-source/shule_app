@@ -17747,6 +17747,15 @@ class TeachersController extends Controller
 
             $data = $lessonPlan->toArray();
             $data["teacher_name"] = $teacherName;
+            $signature = $data["supervisor_signature"] ?? "";
+            if (
+                is_string($signature) &&
+                $signature !== "" &&
+                !str_starts_with($signature, "data:image") &&
+                !str_starts_with($signature, "http")
+            ) {
+                $data["supervisor_signature"] = asset(ltrim($signature, "/"));
+            }
 
             return response()->json([
                 "success" => true,
@@ -17886,31 +17895,9 @@ class TeachersController extends Controller
             }
 
             // Get school logo path and convert to base64 if exists
-            $schoolLogoBase64 = null;
-            if ($school && $school->school_logo) {
-                $logoPath = public_path($school->school_logo);
-                // Check if file exists and convert to base64
-                if (file_exists($logoPath)) {
-                    $imageData = file_get_contents($logoPath);
-                    // Detect mime type from file extension
-                    $extension = strtolower(
-                        pathinfo($logoPath, PATHINFO_EXTENSION),
-                    );
-                    $mimeTypes = [
-                        "jpg" => "image/jpeg",
-                        "jpeg" => "image/jpeg",
-                        "png" => "image/png",
-                        "gif" => "image/gif",
-                        "webp" => "image/webp",
-                    ];
-                    $mimeType = $mimeTypes[$extension] ?? "image/png";
-                    $schoolLogoBase64 =
-                        "data:" .
-                        $mimeType .
-                        ";base64," .
-                        base64_encode($imageData);
-                }
-            }
+            $schoolLogoBase64 = $school
+                ? School::imageToDataUrl($school->school_logo)
+                : null;
 
             // Mime types for base64 conversion
             $mimeTypes = [
@@ -17952,38 +17939,9 @@ class TeachersController extends Controller
                 }
             }
 
-            $supervisorSignatureBase64 = null;
-            if ($lessonPlan->supervisor_signature) {
-                if (
-                    strpos($lessonPlan->supervisor_signature, "data:image") ===
-                    0
-                ) {
-                    // Already base64 encoded
-                    $supervisorSignatureBase64 =
-                        $lessonPlan->supervisor_signature;
-                } elseif (file_exists($lessonPlan->supervisor_signature)) {
-                    // File path - convert to base64
-                    $imageData = file_get_contents(
-                        $lessonPlan->supervisor_signature,
-                    );
-                    $extension = strtolower(
-                        pathinfo(
-                            $lessonPlan->supervisor_signature,
-                            PATHINFO_EXTENSION,
-                        ),
-                    );
-                    $mimeType = $mimeTypes[$extension] ?? "image/png";
-                    $supervisorSignatureBase64 =
-                        "data:" .
-                        $mimeType .
-                        ";base64," .
-                        base64_encode($imageData);
-                } else {
-                    // Assume it's already a data URL
-                    $supervisorSignatureBase64 =
-                        $lessonPlan->supervisor_signature;
-                }
-            }
+            $supervisorSignatureBase64 = \App\Models\School::imageToDataUrl(
+                $lessonPlan->supervisor_signature,
+            );
 
             // Get School Stamp and Headmaster Signature if approved
             $schoolStampBase64 = null;
@@ -18419,6 +18377,15 @@ class TeachersController extends Controller
 
             $data = $lessonPlan->toArray();
             $data["teacher_name"] = $teacherName;
+            $signature = $data["supervisor_signature"] ?? "";
+            if (
+                is_string($signature) &&
+                $signature !== "" &&
+                !str_starts_with($signature, "data:image") &&
+                !str_starts_with($signature, "http")
+            ) {
+                $data["supervisor_signature"] = asset(ltrim($signature, "/"));
+            }
 
             return response()->json([
                 "success" => true,

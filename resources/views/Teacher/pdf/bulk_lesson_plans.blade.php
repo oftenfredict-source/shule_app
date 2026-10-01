@@ -4,33 +4,36 @@
     <meta charset="utf-8">
     <title>Bulk Lesson Plans</title>
     <style>
-        @page { margin: 14px 14px 20px 14px; }
-        body { font-family: 'Helvetica', sans-serif; font-size: 9px; color: #333; line-height: 1.2; padding: 0; margin: 0; }
+        @page { margin: 12px 14px 18px 14px; }
+        body { font-family: 'Helvetica', sans-serif; font-size: 11px; color: #333; line-height: 1.25; padding: 0; margin: 0; }
         .plan-page { page-break-inside: avoid; }
         .plan-break { page-break-before: always; }
         .header { text-align: center; margin-bottom: 6px; border-bottom: 2px solid #940000; padding-bottom: 4px; }
-        .school-name { font-size: 13px; font-weight: bold; color: #940000; text-transform: uppercase; margin-bottom: 1px; }
-        .report-title { font-size: 10px; font-weight: bold; margin-top: 3px; background: #f8f9fa; padding: 2px; color: #333; border: 1px solid #eee; }
-        .school-info { font-size: 8px; color: #666; margin-bottom: 1px; }
+        .logo-wrap { width: 100%; border-collapse: collapse; margin: 0 0 3px 0; }
+        .logo-wrap td { border: none; text-align: center; padding: 0; background: transparent; }
+        .school-logo { height: 52px; }
+        .school-name { font-size: 15px; font-weight: bold; color: #940000; text-transform: uppercase; margin-bottom: 1px; }
+        .report-title { font-size: 12px; font-weight: bold; margin-top: 3px; background: #f8f9fa; padding: 2px; color: #333; border: 1px solid #eee; }
+        .school-info { font-size: 10px; color: #666; margin-bottom: 1px; }
 
         table { width: 100%; border-collapse: collapse; margin-bottom: 4px; table-layout: fixed; }
-        th, td { border: 1px solid #ddd; padding: 2px 4px; text-align: left; word-wrap: break-word; }
-        th { background-color: #f8f9fa; font-weight: bold; color: #940000; font-size: 7px; text-transform: uppercase; }
+        th, td { border: 1px solid #ddd; padding: 3px 4px; text-align: left; word-wrap: break-word; font-size: 11px; }
+        th { background-color: #f8f9fa; font-weight: bold; color: #940000; font-size: 9px; text-transform: uppercase; }
 
         .nested-table { width: 100%; border-collapse: collapse; }
-        .nested-table th, .nested-table td { font-size: 7px; padding: 1px 2px; text-align: center; border: 1px solid #ddd; }
+        .nested-table th, .nested-table td { font-size: 9px; padding: 1px 2px; text-align: center; border: 1px solid #ddd; }
         .nested-table th { background-color: #f8f9fa; color: #333; }
 
-        .section-title { font-size: 9px; font-weight: bold; color: #940000; margin-top: 4px; margin-bottom: 2px; border-bottom: 1px solid #eee; padding-bottom: 1px; }
-        .dotted-line { border-bottom: 1.5px dotted #940000; min-height: 14px; padding: 1px 0; margin: 1px 0; background: #fffafb; }
+        .section-title { font-size: 11px; font-weight: bold; color: #940000; margin-top: 4px; margin-bottom: 2px; border-bottom: 1px solid #eee; padding-bottom: 1px; }
+        .dotted-line { border-bottom: 1.5px dotted #940000; min-height: 16px; padding: 1px 0; margin: 1px 0; background: #fffafb; font-size: 11px; }
 
         .sig-table { width: 100%; margin-top: 6px; border-collapse: collapse; }
-        .sig-table td { border: none; padding: 2px 4px; vertical-align: bottom; text-align: center; }
-        .stamp-cell img { max-width: 70px; max-height: 70px; }
+        .sig-table td { border: none; padding: 2px 4px; vertical-align: bottom; text-align: center; font-size: 9px; }
+        .stamp-cell img { max-width: 64px; max-height: 64px; }
         .signature-img { height: 22px; margin-bottom: 2px; }
         .signature-img img { max-width: 90px; max-height: 22px; }
         .sig-line { border-top: 1.5px solid #940000; width: 110px; margin: 0 auto; display: block; }
-        .sig-label { font-size: 7px; color: #940000; font-weight: bold; padding-top: 2px; display: block; text-transform: uppercase; }
+        .sig-label { font-size: 8px; color: #940000; font-weight: bold; padding-top: 2px; display: block; text-transform: uppercase; }
 
         /* ── WATERMARK ─────────────────── */
         .watermark {
@@ -38,47 +41,21 @@
             transform: rotate(-45deg); font-size: 100px; font-weight: bold; color: #000; z-index: -1; text-transform: uppercase;
         }
 
-        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #940000; border-top: 1px solid #eee; padding-top: 5px; }
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #940000; border-top: 1px solid #eee; padding-top: 4px; }
     </style>
 </head>
 <body>
     <div class="watermark">ShuleXpert</div>
 
     @php
-        $schoolLogoBase64 = null;
-        if ($school && $school->school_logo) {
-            $logoPath = public_path($school->school_logo);
-            $parent = dirname(base_path());
-            $possibilities = [
-                $logoPath,
-                $parent . '/public_html/' . ltrim($school->school_logo, '/'),
-            ];
-            foreach ($possibilities as $p) {
-                if (@file_exists($p) && is_file($p)) {
-                    try {
-                        $ext = pathinfo($p, PATHINFO_EXTENSION);
-                        $schoolLogoBase64 = 'data:image/' . ($ext ?: 'png') . ';base64,' . base64_encode(file_get_contents($p));
-                    } catch (\Exception $e) {}
-                    break;
-                }
-            }
-        }
+        $schoolLogoBase64 = $school ? \App\Models\School::imageToDataUrl($school->school_logo ?? null) : null;
 
         // School stamp & signature (for approved plans)
         $schoolStampBase64 = null;
         $headmasterSignBase64 = null;
         if ($school) {
-            foreach (['school_stamp' => 'schoolStampBase64', 'school_signature' => 'headmasterSignBase64'] as $field => $var) {
-                if ($school->$field) {
-                    $p = public_path($school->$field);
-                    if (@file_exists($p) && is_file($p)) {
-                        try {
-                            $ext = pathinfo($p, PATHINFO_EXTENSION);
-                            $$var = 'data:image/' . ($ext ?: 'png') . ';base64,' . base64_encode(file_get_contents($p));
-                        } catch (\Exception $e) {}
-                    }
-                }
-            }
+            $schoolStampBase64 = \App\Models\School::imageToDataUrl($school->school_stamp ?? null);
+            $headmasterSignBase64 = \App\Models\School::imageToDataUrl($school->school_signature ?? null);
         }
     @endphp
 
@@ -121,19 +98,18 @@
                     $teacherSigB64 = $lessonPlan->teacher_signature;
                 }
             }
-            $supervisorSigB64 = null;
-            if ($lessonPlan->supervisor_signature) {
-                if (str_starts_with($lessonPlan->supervisor_signature, 'data:image')) {
-                    $supervisorSigB64 = $lessonPlan->supervisor_signature;
-                }
-            }
+            $supervisorSigB64 = \App\Models\School::imageToDataUrl($lessonPlan->supervisor_signature ?? null);
             $isApproved = !empty($lessonPlan->supervisor_signature);
         @endphp
 
         <div class="plan-page{{ $index > 0 ? ' plan-break' : '' }}">
             <div class="header">
                 @if($schoolLogoBase64)
-                    <img src="{{ $schoolLogoBase64 }}" style="max-height: 36px; margin-bottom: 2px;">
+                    <table class="logo-wrap">
+                        <tr>
+                            <td><img class="school-logo" src="{{ $schoolLogoBase64 }}" alt="School logo"></td>
+                        </tr>
+                    </table>
                 @endif
                 <div class="school-name">{{ $school->school_name ?? 'School Name' }}</div>
                 <div class="school-info">{{ $school->address ?? '' }}</div>
@@ -164,12 +140,12 @@
                                 <th colspan="3" style="text-align: center; width: 50%;">PRESENT</th>
                             </tr>
                             <tr>
-                                <th style="font-size: 7px;">GIRLS</th>
-                                <th style="font-size: 7px;">BOYS</th>
-                                <th style="font-size: 7px;">TOTAL</th>
-                                <th style="font-size: 7px;">GIRLS</th>
-                                <th style="font-size: 7px;">BOYS</th>
-                                <th style="font-size: 7px;">TOTAL</th>
+                                <th style="font-size: 9px;">GIRLS</th>
+                                <th style="font-size: 9px;">BOYS</th>
+                                <th style="font-size: 9px;">TOTAL</th>
+                                <th style="font-size: 9px;">GIRLS</th>
+                                <th style="font-size: 9px;">BOYS</th>
+                                <th style="font-size: 9px;">TOTAL</th>
                             </tr>
                             <tr>
                                 <td>{{ $lessonPlan->registered_girls ?? 0 }}</td>
@@ -265,12 +241,12 @@
                         </div>
                         <span class="sig-line"></span>
                         <span class="sig-label">SUBJECT TEACHER'S SIGNATURE</span>
-                        <div style="font-size: 7px; margin-top: 2px;">{{ strtoupper($teacherName) }}</div>
+                        <div style="font-size: 9px; margin-top: 2px;">{{ strtoupper($teacherName) }}</div>
                     </td>
                     <td style="width: 34%; text-align: center;">
                         @if($isApproved && $schoolStampBase64)
                             <img src="{{ $schoolStampBase64 }}" style="max-height: 48px;">
-                            <div style="font-size: 7px; color: #940000; font-weight: bold; margin-top: 4px;">SCHOOL OFFICIAL STAMP</div>
+                            <div style="font-size: 9px; color: #940000; font-weight: bold; margin-top: 4px;">SCHOOL OFFICIAL STAMP</div>
                         @endif
                     </td>
                     <td style="width: 33%;">
@@ -283,7 +259,7 @@
                         </div>
                         <span class="sig-line"></span>
                         <span class="sig-label">HEADMASTER'S SIGNATURE</span>
-                        <div style="font-size: 7px; margin-top: 2px;">ACADEMIC DEPARTMENT</div>
+                        <div style="font-size: 9px; margin-top: 2px;">ACADEMIC DEPARTMENT</div>
                     </td>
                 </tr>
             </table>
