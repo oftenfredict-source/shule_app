@@ -6373,15 +6373,18 @@ class AdminController extends Controller
             }
 
             $school = School::where("schoolID", $schoolID)->first();
+            $storedSignature = trim((string) ($school?->school_signature ?? ""));
             $headSign = $this->schoolFileToDataUrl(
-                $school?->school_signature,
+                $storedSignature !== "" ? $storedSignature : null,
             );
 
             if (!$headSign) {
                 return response()->json([
                     "success" => false,
                     "error" =>
-                        "Headmaster signature is not set. Upload it in School settings first.",
+                        $storedSignature === ""
+                            ? "Headmaster signature is not set. Upload it in School settings first."
+                            : "Headmaster signature is saved, but the file could not be read. Upload it again in School settings.",
                 ]);
             }
 
@@ -6556,14 +6559,17 @@ class AdminController extends Controller
             }
 
             $school = School::where("schoolID", $schoolID)->first();
+            $storedSignature = trim((string) ($school?->school_signature ?? ""));
             $headSign = $this->schoolFileToDataUrl(
-                $school?->school_signature,
+                $storedSignature !== "" ? $storedSignature : null,
             );
             if (!$headSign) {
                 return response()->json([
                     "success" => false,
                     "error" =>
-                        "Headmaster signature is not set. Upload it in School settings first.",
+                        $storedSignature === ""
+                            ? "Headmaster signature is not set. Upload it in School settings first."
+                            : "Headmaster signature is saved, but the file could not be read. Upload it again in School settings.",
                 ]);
             }
 
@@ -6937,12 +6943,40 @@ class AdminController extends Controller
         if (!$path) {
             return null;
         }
-        $relative = ltrim($path, "/");
+
+        $path = trim($path);
+        if (str_starts_with($path, "data:image")) {
+            return $path;
+        }
+
+        if (preg_match("#^https?://#i", $path)) {
+            $urlPath = parse_url($path, PHP_URL_PATH);
+            $path = is_string($urlPath) && $urlPath !== "" ? $urlPath : $path;
+        }
+
+        $relative = ltrim(str_replace("\\", "/", $path), "/");
         $parent = dirname(base_path());
         $possibilities = [
             public_path($relative),
+            public_path("uploads/" . $relative),
+            base_path($relative),
+            base_path("public/" . $relative),
             $parent . "/public_html/" . $relative,
+            $parent . "/public_html/uploads/" . $relative,
+            base_path("../public_html/" . $relative),
         ];
+
+        if (!empty($_SERVER["DOCUMENT_ROOT"])) {
+            $docRoot = rtrim($_SERVER["DOCUMENT_ROOT"], "/\\");
+            $possibilities[] = $docRoot . "/" . $relative;
+            $possibilities[] = $docRoot . "/uploads/" . $relative;
+        }
+
+        if (!empty($_SERVER["SCRIPT_FILENAME"])) {
+            $possibilities[] =
+                dirname($_SERVER["SCRIPT_FILENAME"]) . "/" . $relative;
+        }
+
         foreach ($possibilities as $fullPath) {
             if (@file_exists($fullPath) && is_file($fullPath)) {
                 try {
@@ -6951,6 +6985,9 @@ class AdminController extends Controller
                     );
                     if ($ext === "jpg") {
                         $ext = "jpeg";
+                    }
+                    if ($ext === "svg") {
+                        $ext = "svg+xml";
                     }
                     return "data:image/" .
                         $ext .
