@@ -79,6 +79,44 @@ class School extends Model
         return $links;
     }
 
+    public function phoneNumbers(): array
+    {
+        $numbers = [];
+        $stored = $this->getAttribute('phones');
+        if (is_string($stored)) {
+            $decoded = json_decode($stored, true);
+            $stored = is_array($decoded) ? $decoded : [];
+        }
+        if (is_array($stored)) {
+            foreach ($stored as $number) {
+                $number = trim((string) $number);
+                if ($number !== '') {
+                    $numbers[] = $number;
+                }
+            }
+        }
+
+        $primary = trim((string) ($this->phone ?? ''));
+        if ($primary !== '') {
+            array_unshift($numbers, $primary);
+        }
+
+        $unique = [];
+        foreach ($numbers as $number) {
+            $key = preg_replace('/\s+/', '', $number);
+            if (!isset($unique[$key])) {
+                $unique[$key] = $number;
+            }
+        }
+
+        return array_values($unique);
+    }
+
+    public function formattedPhones(): string
+    {
+        return implode(' / ', $this->phoneNumbers());
+    }
+
     public function teachers()
     {
         return $this->hasMany(Teacher::class, 'schoolID', 'schoolID');

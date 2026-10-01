@@ -6687,14 +6687,14 @@ class AdminController extends Controller
                 "Content-Disposition" =>
                     'attachment; filename="' . $filename . '"',
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error(
                 "Error downloading admin lesson plans: " . $e->getMessage(),
             );
             return response()->json(
                 [
                     "success" => false,
-                    "error" => "Failed to generate PDF",
+                    "error" => $e->getMessage() ?: "Failed to generate PDF",
                 ],
                 500,
             );
