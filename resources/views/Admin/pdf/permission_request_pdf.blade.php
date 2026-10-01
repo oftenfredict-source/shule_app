@@ -119,7 +119,7 @@
         @endif
         <div class="school-name">{{ $school->school_name ?? 'Shule' }}</div>
         <div>{{ $school->address ?? '' }}</div>
-        <div>Simu: {{ $school->phone ?? '' }} | Barua pepe: {{ $school->email ?? '' }}</div>
+        <div>Simu: {{ $school->formattedPhones() }} | Barua pepe: {{ $school->email ?? '' }}</div>
         <div class="report-title">MAELEZO YA OMBI LA RUHUSA</div>
     </div>
 

@@ -107,7 +107,7 @@
         @endif
         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
         <div>{{ $school->address ?? '' }}</div>
-        <div>Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+        <div>Phone: {{ $school->formattedPhones() }} | Email: {{ $school->email ?? '' }}</div>
         <div class="report-title">SCHOOL ACADEMIC CALENDAR - {{ $currentYear }}</div>
     </div>
 

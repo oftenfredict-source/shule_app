@@ -190,18 +190,32 @@ class AdminController extends Controller
                 ->where("subclasses.status", "Active")
                 ->count();
 
-            // Count all active students in school
-            $studentsCount = DB::table("students")
-                ->join(
-                    "subclasses",
-                    "students.subclassID",
-                    "=",
-                    "subclasses.subclassID",
-                )
-                ->join("classes", "subclasses.classID", "=", "classes.classID")
-                ->where("classes.schoolID", $schoolID)
-                ->where("students.status", "Active")
-                ->count();
+            // Active enrollment only (same default as Manage Students for the header year)
+            $yearIds = app(\App\Services\SelectedAcademicYearService::class)
+                ->selectedYearIds((int) $schoolID);
+            $hasEnrollments = DB::table("student_enrollments")
+                ->where("schoolID", $schoolID)
+                ->exists();
+
+            $activeStudents = DB::table("students")->where("students.schoolID", $schoolID);
+            if ($hasEnrollments) {
+                $activeStudents->whereExists(function ($q) use ($schoolID, $yearIds) {
+                    $q->select(DB::raw(1))
+                        ->from("student_enrollments")
+                        ->whereColumn("student_enrollments.studentID", "students.studentID")
+                        ->where("student_enrollments.schoolID", $schoolID)
+                        ->where("student_enrollments.status", "Active");
+                    if (!empty($yearIds)) {
+                        $q->whereIn("student_enrollments.academic_yearID", $yearIds);
+                    }
+                });
+            } else {
+                $activeStudents->where("students.status", "Active");
+            }
+
+            $studentsCount = (clone $activeStudents)->count();
+            $maleStudents = (clone $activeStudents)->where("students.gender", "Male")->count();
+            $femaleStudents = (clone $activeStudents)->where("students.gender", "Female")->count();
 
             // Count all parents in school
             $parentsCount = DB::table("parents")
@@ -354,6 +368,8 @@ class AdminController extends Controller
                 "subjects_count" => $subjectsCount,
                 "classes_count" => $classesCount,
                 "students_count" => $studentsCount,
+                "male_students" => $maleStudents,
+                "female_students" => $femaleStudents,
                 "parents_count" => $parentsCount,
                 "teachers_count" => $teachersCount,
                 "examinations_count" => $examinationsCount,
@@ -6236,10 +6252,10 @@ class AdminController extends Controller
                     ->where("classID", $classID)
                     ->value("subclass_name");
                 if ($sub) {
-                    $scopeLabel .= " — " . $sub;
+                    $scopeLabel .= " - " . $sub;
                 }
             } else {
-                $scopeLabel .= " — All subclasses";
+                $scopeLabel .= " - All subclasses";
             }
 
             return response()->json([
@@ -6247,6 +6263,13 @@ class AdminController extends Controller
                 "lesson_plans" => $formattedPlans,
                 "subject_name" => $subject->subject_name,
                 "class_name" => $scopeLabel,
+                "progress" => $this->lessonPlanTeacherProgress(
+                    (int) $schoolID,
+                    (int) $classID,
+                    $subclassID,
+                    (int) $subjectID,
+                    $formattedPlans,
+                ),
             ]);
         } catch (\Exception $e) {
             Log::error(
@@ -6730,6 +6753,7 @@ class AdminController extends Controller
             "subject" => $plan->subject,
             "class_name" => $plan->class_name,
             "subclass_name" => $subclassName,
+            "teacherID" => (int) ($plan->teacherID ?? 0),
             "teacher_name" => $teacherName ?: "N/A",
             "lesson_time_start" => $plan->lesson_time_start,
             "lesson_time_end" => $plan->lesson_time_end,
@@ -6737,6 +6761,162 @@ class AdminController extends Controller
             "is_approved" => !empty($plan->supervisor_signature),
             "supervisor_signature" => $plan->supervisor_signature,
         ];
+    }
+
+    /**
+     * Lesson-plan completion against the periods that teacher has for this subject.
+     * Scheme of work period total is used when it exists; otherwise weekly timetable slots.
+     */
+    private function lessonPlanTeacherProgress(
+        int $schoolID,
+        int $classID,
+        $subclassID,
+        int $subjectID,
+        $plans,
+    ): array {
+        $query = DB::table("class_subjects as cs")
+            ->join("subclasses as sc", "cs.subclassID", "=", "sc.subclassID")
+            ->leftJoin("teachers as t", "cs.teacherID", "=", "t.id")
+            ->where("sc.classID", $classID)
+            ->where("cs.subjectID", $subjectID)
+            ->where("cs.status", "Active");
+
+        if ($subclassID && $subclassID !== "all" && $subclassID !== "") {
+            $query->where("cs.subclassID", (int) $subclassID);
+        }
+
+        $assignments = $query
+            ->select(
+                "cs.class_subjectID",
+                "cs.teacherID",
+                "cs.subclassID",
+                "t.first_name",
+                "t.last_name",
+            )
+            ->get();
+
+        $groups = [];
+        foreach ($assignments as $row) {
+            $tid = (int) ($row->teacherID ?? 0);
+            if (!isset($groups[$tid])) {
+                $name = trim(
+                    ($row->first_name ?? "") . " " . ($row->last_name ?? ""),
+                );
+                $groups[$tid] = [
+                    "teacherID" => $tid,
+                    "teacher_name" => $name !== "" ? $name : "Unassigned",
+                    "periods" => 0,
+                    "period_source" => "timetable",
+                    "lesson_plans" => 0,
+                    "class_subject_ids" => [],
+                    "subclass_ids" => [],
+                ];
+            }
+            $groups[$tid]["class_subject_ids"][] = (int) $row->class_subjectID;
+            if ($row->subclassID) {
+                $groups[$tid]["subclass_ids"][] = (int) $row->subclassID;
+            }
+        }
+
+        $planRows = $plans instanceof \Illuminate\Support\Collection
+            ? $plans
+            : collect($plans);
+        foreach ($planRows as $plan) {
+            $plan = (array) $plan;
+            $tid = (int) ($plan["teacherID"] ?? 0);
+            if (!isset($groups[$tid])) {
+                $groups[$tid] = [
+                    "teacherID" => $tid,
+                    "teacher_name" => $plan["teacher_name"] ?? "Teacher",
+                    "periods" => 0,
+                    "period_source" => "timetable",
+                    "lesson_plans" => 0,
+                    "class_subject_ids" => [],
+                    "subclass_ids" => [],
+                ];
+            }
+            $groups[$tid]["lesson_plans"]++;
+        }
+
+        $year = (int) date("Y");
+        $out = [];
+        foreach ($groups as $group) {
+            $schemePeriods = 0;
+            if (!empty($group["class_subject_ids"])) {
+                $schemePeriods = (int) DB::table("scheme_of_work_items as i")
+                    ->join(
+                        "scheme_of_works as s",
+                        "i.scheme_of_workID",
+                        "=",
+                        "s.scheme_of_workID",
+                    )
+                    ->whereIn("s.class_subjectID", $group["class_subject_ids"])
+                    ->where("s.year", $year)
+                    ->sum("i.number_of_periods");
+                if ($schemePeriods < 1) {
+                    $schemePeriods = (int) DB::table("scheme_of_work_items as i")
+                        ->join(
+                            "scheme_of_works as s",
+                            "i.scheme_of_workID",
+                            "=",
+                            "s.scheme_of_workID",
+                        )
+                        ->whereIn(
+                            "s.class_subjectID",
+                            $group["class_subject_ids"],
+                        )
+                        ->sum("i.number_of_periods");
+                }
+            }
+
+            $periods = $schemePeriods;
+            $source = "scheme";
+            if ($periods < 1 && $group["teacherID"] > 0) {
+                $slotQuery = DB::table("class_session_timetables as cst")
+                    ->leftJoin(
+                        "class_subjects as cs",
+                        "cst.class_subjectID",
+                        "=",
+                        "cs.class_subjectID",
+                    )
+                    ->where("cst.schoolID", $schoolID)
+                    ->where("cst.teacherID", $group["teacherID"])
+                    ->where(function ($q) use ($subjectID) {
+                        $q->where("cst.subjectID", $subjectID)->orWhere(
+                            "cs.subjectID",
+                            $subjectID,
+                        );
+                    });
+                if (!empty($group["subclass_ids"])) {
+                    $slotQuery->whereIn(
+                        "cst.subclassID",
+                        array_values(array_unique($group["subclass_ids"])),
+                    );
+                }
+                $periods = (int) $slotQuery->count();
+                $source = "timetable";
+            }
+
+            $plansCount = (int) $group["lesson_plans"];
+            $percent = $periods > 0
+                ? (int) round(($plansCount / $periods) * 100)
+                : ($plansCount > 0 ? 100 : 0);
+
+            $out[] = [
+                "teacherID" => $group["teacherID"],
+                "teacher_name" => $group["teacher_name"],
+                "lesson_plans" => $plansCount,
+                "periods" => $periods,
+                "percent" => $percent,
+                "period_source" => $periods > 0 ? $source : "none",
+            ];
+        }
+
+        usort($out, function ($a, $b) {
+            return strcasecmp($a["teacher_name"], $b["teacher_name"]);
+        });
+
+        return $out;
     }
 
     private function schoolFileToDataUrl(?string $path): ?string

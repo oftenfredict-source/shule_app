@@ -102,7 +102,7 @@
         @endif
         <div class="school-name">{{ $school->school_name ?? 'School Name' }}</div>
         <div class="school-info">{{ $school->address ?? '' }}</div>
-        <div class="school-info">Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+        <div class="school-info">Phone: {{ $school->formattedPhones() }} | Email: {{ $school->email ?? '' }}</div>
         <div class="report-title">SCHEME OF WORK REPORT - {{ strtoupper($school->school_type ?? 'Secondary') }}</div>
     </div>
 

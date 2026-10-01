@@ -137,7 +137,7 @@
         @endif
         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
         <div>{{ $school->address ?? '' }}</div>
-        <div>Phone: {{ $school->phone ?? '' }}@if(!empty($school->email)) | Email: {{ $school->email }}@endif</div>
+        <div>Phone: {{ $school->formattedPhones() }}@if(!empty($school->email)) | Email: {{ $school->email }}@endif</div>
         <div class="report-title">{{ $reportTitle ?? ('TEACHER SESSIONS, ' . strtoupper($teacherName)) }}</div>
     </div>
 

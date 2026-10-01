@@ -111,7 +111,7 @@
     <div class="header">
         <div class="school-name">{{ $school->school_name ?? 'School Report' }}</div>
         <div>{{ $school->address ?? '' }}</div>
-        <div>Phone: {{ $school->phone ?? 'N/A' }} | Email: {{ $school->email ?? 'N/A' }}</div>
+        <div>Phone: {{ $school->formattedPhones() ?: 'N/A' }} | Email: {{ $school->email ?? 'N/A' }}</div>
         <div class="report-title">DAILY ATTENDANCE & DUTY REPORT</div>
     </div>
     

@@ -871,11 +871,10 @@
                 $('#total-' + index).text(sum);
             });
 
-            // Recalculate percentage if totalActiveStudents is available
             let totalPres = parseInt($('#total-5').text()) || 0;
-            let totalActive = window.totalActiveStudentsInSchool || 0;
-            if (totalActive > 0) {
-                let perc = (totalPres / totalActive) * 100;
+            let totalReg = parseInt($('#total-2').text()) || 0;
+            if (totalReg > 0) {
+                let perc = (totalPres / totalReg) * 100;
                 $('#attendance_percentage').val(perc.toFixed(2));
             }
         }

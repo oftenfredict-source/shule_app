@@ -133,7 +133,7 @@
             <div class="col-lg-7 mb-4">
                 <h3 class="sx-school-details__heading">School information</h3>
                 <dl class="sx-school-landing__info">
-                    @if($school->phone)
+                    @if($school->formattedPhones())
                         <div><dt>Phone</dt><dd>{{ $school->phone }}</dd></div>
                     @endif
                     @if($school->email)
@@ -390,7 +390,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'image' => $schoolLogoUrl,
         'logo' => $schoolLogoUrl,
         'description' => $seo['description'],
-        'telephone' => $school->phone ?: null,
+        'telephone' => $school->formattedPhones() ?: null,
         'email' => $school->email ?: null,
         'address' => array_filter([
             '@type' => 'PostalAddress',

@@ -174,7 +174,7 @@
                     @endif
                     <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
                     <div class="school-sub">{{ $school->address ?? '' }}</div>
-                    <div class="school-sub">Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+                    <div class="school-sub">Phone: {{ $school->formattedPhones() }} | Email: {{ $school->email ?? '' }}</div>
                 </td>
                 <td class="logo-side right">
                     @if($orgLogoBase64 && $schoolLogoBase64)

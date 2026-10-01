@@ -103,7 +103,7 @@
         @endif
         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
         <div style="font-size: 10px;">{{ $school->address ?? '' }}</div>
-        <div style="font-size: 10px;">Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+        <div style="font-size: 10px;">Phone: {{ $school->formattedPhones() }} | Email: {{ $school->email ?? '' }}</div>
         <div class="report-title">
             {{ isset($with_data) && $with_data ? 'EXAM ATTENDANCE RECORD' : 'EXAM ATTENDANCE COLLECTION SHEET' }}
         </div>

@@ -17,7 +17,7 @@
     <div class="header">
         <div class="school-name">{{ $school->school_name ?? 'School Roster' }}</div>
         <div>{{ $school->address ?? '' }}</div>
-        <div>Email: {{ $school->email ?? 'N/A' }} | Phone: {{ $school->phone ?? 'N/A' }}</div>
+        <div>Email: {{ $school->email ?? 'N/A' }} | Phone: {{ $school->formattedPhones() ?: 'N/A' }}</div>
         <hr>
         <div class="report-title">TEACHER DUTY ROSTER: {{ $monthTitle }}</div>
     </div>

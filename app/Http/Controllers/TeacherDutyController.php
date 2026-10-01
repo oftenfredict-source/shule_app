@@ -282,14 +282,15 @@ class TeacherDutyController extends Controller
                 ->all()
         );
 
-        // Calculate total present students for the day
+        $totalRegistered = 0;
         $totalPresentAcrossSchool = 0;
         foreach ($systemAttendance as $classStat) {
-            $totalPresentAcrossSchool += ($classStat['pres_b'] + $classStat['pres_g']);
+            $totalRegistered += ((int) ($classStat['reg_b'] ?? 0) + (int) ($classStat['reg_g'] ?? 0));
+            $totalPresentAcrossSchool += ((int) ($classStat['pres_b'] ?? 0) + (int) ($classStat['pres_g'] ?? 0));
         }
 
-        $calculatedPercentage = $totalActiveStudents > 0
-            ? round(($totalPresentAcrossSchool / $totalActiveStudents) * 100, 2)
+        $calculatedPercentage = $totalRegistered > 0
+            ? round(($totalPresentAcrossSchool / $totalRegistered) * 100, 2)
             : 0;
 
         $academicYearLabel = null;
@@ -312,7 +313,9 @@ class TeacherDutyController extends Controller
         return response()->json([
             'success' => true,
             'report' => $report ? array_merge($report->toArray(), [
-                'teacher_name' => $report->teacher ? $report->teacher->first_name . ' ' . $report->teacher->last_name : 'N/A'
+                'teacher_name' => $report->teacher ? $report->teacher->first_name . ' ' . $report->teacher->last_name : 'N/A',
+                'attendance_percentage' => $this->percentageFromAttendanceData($report->attendance_data ?? null)
+                    ?? $report->attendance_percentage,
             ]) : null,
             'system_attendance' => $systemAttendance,
             'attendance_source' => $useFingerprint ? 'fingerprint' : 'system',
@@ -350,6 +353,35 @@ class TeacherDutyController extends Controller
             'b' => (int) ($row->boys ?? 0),
             'g' => (int) ($row->girls ?? 0),
         ];
+    }
+
+    /**
+     * Present / registered from the duty sheet rows.
+     */
+    private function percentageFromAttendanceData($attendanceData): ?float
+    {
+        if (is_string($attendanceData)) {
+            $attendanceData = json_decode($attendanceData, true);
+        }
+        if (!is_array($attendanceData) || $attendanceData === []) {
+            return null;
+        }
+
+        $registered = 0;
+        $present = 0;
+        foreach ($attendanceData as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $registered += (int) ($row['reg_b'] ?? 0) + (int) ($row['reg_g'] ?? 0);
+            $present += (int) ($row['pres_b'] ?? 0) + (int) ($row['pres_g'] ?? 0);
+        }
+
+        if ($registered < 1) {
+            return null;
+        }
+
+        return round(($present / $registered) * 100, 2);
     }
 
     public function saveDailyReport(Request $request)
@@ -676,6 +708,8 @@ class TeacherDutyController extends Controller
             $school = \App\Models\School::find($schoolID);
         }
         $classes = \App\Models\ClassModel::where('schoolID', $report->schoolID)->orderBy('class_name', 'asc')->get();
+        $report->attendance_percentage = $this->percentageFromAttendanceData($report->attendance_data ?? null)
+            ?? $report->attendance_percentage;
 
         Log::info("PDF Exporting for Report: " . $report->reportID, [
             'report_teacherID' => $report->teacherID,

@@ -29,8 +29,11 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 
-    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script src="{{ asset('vendors/jquery/dist/jquery.js') }}"></script>
     <script>
+        if (!window.jQuery) {
+            document.write('<script src="https://code.jquery.com/jquery-3.6.4.min.js"><\/script>');
+        }
         window.$ = window.jQuery;
     </script>
 
@@ -558,7 +561,9 @@ a#menuToggle.menutoggle:hover {
 </style>
 
 @include('includes.mobile_app_bar_styles')
-<link rel="stylesheet" href="{{ asset('css/shulexpert-theme.css') }}@if(is_file(public_path('css/shulexpert-theme.css')))?v={{ filemtime(public_path('css/shulexpert-theme.css')) }}@endif">
+@if(is_file(public_path('css/shulexpert-theme.css')))
+<link rel="stylesheet" href="{{ asset('css/shulexpert-theme.css') }}?v={{ filemtime(public_path('css/shulexpert-theme.css')) }}">
+@endif
 </head>
 <body>
     {{-- Fixed mobile top bar (visible when sidebar is off-canvas) --}}
@@ -586,7 +591,7 @@ a#menuToggle.menutoggle:hover {
                 ShuleXpert
             </a>
             <a href="{{ route('AdminDashboard') }}" class="admin-sidebar-title" style="text-decoration:none;">
-                <img src="{{ asset('images/shuleXpert.jpg') }}" alt="ShuleXpert" class="admin-brand-logo" onerror="this.onerror=null; this.src='{{ asset('images/logo.png') }}';">
+                <img src="{{ asset('images/shuleXpert-favicon.png') }}" alt="ShuleXpert" class="admin-brand-logo">
             </a>
             <button class="navbar-toggler d-none" type="button" aria-hidden="true" tabindex="-1">
                 <span class="nav-dot"></span>

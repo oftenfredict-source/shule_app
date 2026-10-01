@@ -139,7 +139,7 @@
         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
         <div class="school-meta">
             @if(!empty($school->address)) {{ $school->address }} · @endif
-            @if(!empty($school->phone)) Tel: {{ $school->phone }} · @endif
+            @if($school->formattedPhones()) Tel: {{ $school->formattedPhones() }} · @endif
             Online Admission Application
         </div>
         <div class="report-title">APPLICATION DETAILS, {{ $meta['application_number'] ?? '' }}</div>

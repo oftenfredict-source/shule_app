@@ -42,18 +42,9 @@
         ->where('status', 'Approved') // Assuming only approved expenses count
         ->sum('amount') ?? 0;
 
-    // 3. Gender Distribution
-    $genderStats = DB::table('students')
-        ->join('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
-        ->join('classes', 'subclasses.classID', '=', 'classes.classID')
-        ->where('classes.schoolID', $schoolID)
-        ->where('students.status', 'Active')
-        ->select('students.gender', DB::raw('count(*) as total'))
-        ->groupBy('students.gender')
-        ->get();
-        
-    $maleCount = $genderStats->where('gender', 'Male')->first()->total ?? 0;
-    $femaleCount = $genderStats->where('gender', 'Female')->first()->total ?? 0;
+    // 3. Gender Distribution (same active-enrollment set as Total Students)
+    $maleCount = (int) ($dashboardStats['male_students'] ?? 0);
+    $femaleCount = (int) ($dashboardStats['female_students'] ?? 0);
 
     // 4. Monthly Collection (Last 6 months)
     $monthlyCollections = DB::table('payment_records')
@@ -284,6 +275,7 @@
                         <i class="bi bi-people text-corporate fs-3 mb-2"></i>
                         <div class="stat-label mb-1">Total Students</div>
                         <div class="stat-value text-dark">{{ number_format($dashboardStats['students_count'] ?? 0) }}</div>
+                        <small class="text-muted">Active enrollment</small>
                     </div>
                 </div>
                 <div class="col-md-3">

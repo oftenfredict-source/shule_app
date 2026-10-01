@@ -186,7 +186,11 @@
 @include('includes.footer')
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+<script>
+if (window.jQuery) {
+    window.$ = window.jQuery;
+}
+</script>
 <script>
 let currentLessonPlanID = null;
 const schoolStampUrl = @json($schoolStampUrl ?? null);
@@ -272,12 +276,17 @@ function loadLessonPlans() {
         method: 'GET',
         data: f,
         success: function(response) {
-            if (response.success && response.lesson_plans && response.lesson_plans.length > 0) {
-                renderLessonPlansList(response.lesson_plans, response.subject_name, response.class_name);
+            if (response.success) {
+                renderLessonPlansList(
+                    response.lesson_plans || [],
+                    response.subject_name,
+                    response.class_name,
+                    response.progress || []
+                );
             } else {
                 $('#lessonPlansContainer').html(`
-                    <div class="alert alert-info" style="border-radius: 0;">
-                        <i class="fa fa-info-circle"></i> No lesson plans found for ${response.subject_name || 'selected subject'} - ${response.class_name || 'selected class'}.
+                    <div class="alert alert-danger" style="border-radius: 0;">
+                        <i class="fa fa-exclamation-circle"></i> ${response.error || 'Failed to load lesson plans'}
                     </div>
                 `);
             }
@@ -293,7 +302,57 @@ function loadLessonPlans() {
     });
 }
 
-function renderLessonPlansList(lessonPlans, subjectName, className) {
+function renderProgressBars(progress) {
+    if (!progress || !progress.length) {
+        return '';
+    }
+    let html = '<div class="mb-3">';
+    progress.forEach(function(row) {
+        const plans = parseInt(row.lesson_plans, 10) || 0;
+        const periods = parseInt(row.periods, 10) || 0;
+        const pct = periods > 0 ? Math.round((plans / periods) * 100) : (plans > 0 ? 100 : 0);
+        const width = Math.max(0, Math.min(100, pct));
+        const source = row.period_source === 'scheme'
+            ? 'scheme of work periods'
+            : (row.period_source === 'timetable' ? 'timetable periods' : 'periods not set');
+        const ratio = periods > 0
+            ? (plans + ' / ' + periods + ' periods')
+            : (plans + ' lesson plan(s)');
+        html += `
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <strong>${row.teacher_name || 'Teacher'}</strong>
+                    <span>${ratio} (${pct}%)</span>
+                </div>
+                <div class="progress" style="height: 22px; border-radius: 0; background: #f0f0f0;">
+                    <div class="progress-bar" role="progressbar" style="width: ${width}%; background-color: #940000; border-radius: 0;" aria-valuenow="${width}" aria-valuemin="0" aria-valuemax="100">${pct}%</div>
+                </div>
+                <small class="text-muted">Based on ${source} for this subject</small>
+            </div>
+        `;
+    });
+    html += '</div>';
+    return html;
+}
+
+function renderLessonPlansList(lessonPlans, subjectName, className, progress) {
+    const bars = renderProgressBars(progress);
+    if (!lessonPlans || !lessonPlans.length) {
+        $('#lessonPlansContainer').html(`
+            <div class="card" style="border-radius: 0;">
+                <div class="card-header" style="background-color: #940000; color: white; border-radius: 0;">
+                    <h5 class="mb-0"><i class="fa fa-list"></i> ${subjectName || 'Subject'} - ${className || 'Class'}</h5>
+                </div>
+                <div class="card-body">
+                    ${bars}
+                    <div class="alert alert-info mb-0" style="border-radius: 0;">
+                        <i class="fa fa-info-circle"></i> No lesson plans found for ${subjectName || 'selected subject'} - ${className || 'selected class'}.
+                    </div>
+                </div>
+            </div>
+        `);
+        return;
+    }
     const pendingCount = lessonPlans.filter(function(p) { return !p.is_approved && !p.supervisor_signature; }).length;
     let html = `
         <div class="card" style="border-radius: 0;">
@@ -311,6 +370,7 @@ function renderLessonPlansList(lessonPlans, subjectName, className) {
                 </div>
             </div>
             <div class="card-body">
+                ${bars}
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover" style="border-radius: 0;">
                         <thead style="background-color: #f5f5f5;">

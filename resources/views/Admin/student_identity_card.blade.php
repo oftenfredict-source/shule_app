@@ -586,10 +586,10 @@
                                                     @if(!empty($student->school->district) || !empty($student->school->region))
                                                         {{ trim(($student->school->district ?? '') . ($student->school->region ? ', ' . $student->school->region : '')) }}<br>
                                                     @endif
-                                                    @if(!empty($student->school->phone))
+                                                    @if($student->school && $student->school->formattedPhones())
                                                         <div class="id-back-phone-row">
                                                             <span class="id-back-phone-icon"><i class="fa fa-phone"></i></span>
-                                                            <span>Tel: {{ $student->school->phone }}</span>
+                                                            <span>Tel: {{ $student->school->formattedPhones() }}</span>
                                                         </div>
                                                     @endif
                                                 </div>

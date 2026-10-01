@@ -410,7 +410,7 @@
                                     <div class="header-meta">{{ $school->address }}</div>
                                 @endif
                                 <div class="header-meta">
-                                    Phone: {{ $school->phone ?? 'N/A' }}
+                                    Phone: {{ $school->formattedPhones() ?: 'N/A' }}
                                     @if(!empty($school->email))
                                         | Email: {{ $school->email }}
                                     @endif

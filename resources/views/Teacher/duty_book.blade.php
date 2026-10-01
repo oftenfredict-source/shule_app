@@ -278,12 +278,11 @@ $(document).ready(function() {
             $('#total-' + index).text(sum);
         });
 
-        // Calculate auto-percentage based on school-wide totals
         let totalPres = parseInt($('#total-5').text()) || 0;
-        let totalActiveInSchool = window.totalActiveStudentsInSchool || 0;
-        
-        if (totalActiveInSchool > 0) {
-            let perc = (totalPres / totalActiveInSchool) * 100;
+        let totalReg = parseInt($('#total-2').text()) || 0;
+
+        if (totalReg > 0) {
+            let perc = (totalPres / totalReg) * 100;
             $('#attendance_percentage').val(perc.toFixed(2));
         }
     }

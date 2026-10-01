@@ -170,7 +170,7 @@
                                             <input type="number" step="0.01" name="attendance_percentage" id="attendance_percentage" class="form-control font-weight-bold" readonly tabindex="-1" style="background-color: #e8f5e9; color: #2e7d32;">
                                             <div class="input-group-append"><span class="input-group-text bg-success text-white">%</span></div>
                                         </div>
-                                        <small class="text-muted"><i class="fa fa-info-circle"></i> Auto-calculated from Active enrollments + system attendance (read-only).</small>
+                                        <small class="text-muted"><i class="fa fa-info-circle"></i> Present divided by registered students on this sheet (read-only).</small>
                                     </div>
                                     <div class="form-group mb-3">
                                         <label>2. School environment:</label>

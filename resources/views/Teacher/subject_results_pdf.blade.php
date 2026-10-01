@@ -86,7 +86,7 @@
             <div>{{ $school->address }}</div>
         @endif
         <div>
-            @if(!empty($school->phone))Tel: {{ $school->phone }}@endif
+            @if($school->formattedPhones())Tel: {{ $school->formattedPhones() }}@endif
             @if(!empty($school->phone) && !empty($school->email)) | @endif
             @if(!empty($school->email))Email: {{ $school->email }}@endif
         </div>

@@ -848,7 +848,7 @@
                         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
                         @if($school)
                             <div class="school-sub">{{ $school->address ?? '' }}</div>
-                            <div class="school-sub">Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+                            <div class="school-sub">Phone: {{ $school->formattedPhones() }} | Email: {{ $school->email ?? '' }}</div>
                         @endif
                     </td>
                     <td class="board-logo-side right">
