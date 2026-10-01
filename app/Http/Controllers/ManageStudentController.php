@@ -5666,12 +5666,12 @@ class ManageStudentController extends Controller
             }
 
             $offset = max(0, (int) $request->input('offset', 0));
-            $limit = (int) $request->input('limit', 40);
+            $limit = (int) $request->input('limit', 20);
             if ($limit < 1) {
-                $limit = 40;
+                $limit = 20;
             }
-            if ($limit > 40) {
-                $limit = 40;
+            if ($limit > 20) {
+                $limit = 20;
             }
 
             $students = $this->idCardStudentsSlice((int) $schoolID, $studentIDs, $offset, $limit);
@@ -5693,11 +5693,11 @@ class ManageStudentController extends Controller
 
         $pdf = Pdf::loadView('Admin.student_id_card_pdf', compact('students', 'primaryColor', 'secondaryColor', 'school'))
             ->setOptions([
-                'isRemoteEnabled' => true,
+                'isRemoteEnabled' => false,
                 'isHtml5ParserEnabled' => true,
                 'chroot' => $this->idCardPdfChroot(),
                 'defaultFont' => 'Helvetica',
-                'dpi' => 150,
+                'dpi' => 96,
             ])
             ->setPaper([0, 0, 242.65, 153.07], 'landscape');
 

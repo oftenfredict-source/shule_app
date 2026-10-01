@@ -209,7 +209,7 @@
     } elseif ($students->isNotEmpty() && !empty($students->first()->id_card_logo_path)) {
         $sharedLogoRel = idCardNormalizeAssetPath($students->first()->id_card_logo_path);
     }
-    $sharedLogoSrc = $sharedLogoRel ? idCardPdfImageSrc($sharedLogoRel) : null;
+    $sharedLogoSrc = $sharedLogoRel ? idCardPdfThumbDataUri($sharedLogoRel, 180, 180) : null;
 @endphp
 
 @foreach($students as $student)
@@ -221,7 +221,7 @@
         if (!idCardResolveAssetFile($photoRel)) {
             $photoRel = $placeholder;
         }
-        $photoSrc = idCardPdfImageSrc($photoRel);
+        $photoSrc = idCardPdfThumbDataUri($photoRel, 220, 280);
         $schoolName = $schoolData->school_name ?? 'School';
         $schoolHeaderName = idCardSchoolHeaderName($schoolName);
         $backPageClass = 'id-page' . (!$loop->last ? ' id-page-back-after' : '');

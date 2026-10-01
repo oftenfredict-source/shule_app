@@ -638,15 +638,30 @@
                         alert('No students found for this filter.');
                         return;
                     }
-                    const chunk = 40;
+                    const chunk = 20;
                     const parts = Math.ceil(total / chunk);
                     for (let i = 0; i < parts; i++) {
-                        const pct = Math.round((i / parts) * 100);
-                        $('#pdfProgressBar').css('width', pct + '%');
-                        $('#pdfProgressPercent').text(pct + '%');
+                        const startPct = Math.round((i / parts) * 100);
+                        const endPct = Math.round(((i + 1) / parts) * 100);
+                        let shown = startPct;
+                        $('#pdfProgressBar').css('width', Math.max(shown, 1) + '%');
+                        $('#pdfProgressPercent').text(Math.max(shown, 1) + '%');
                         $('#pdfProgressNote').text('File ' + (i + 1) + ' of ' + parts);
-                        const file = await fetchPdf(buildDownloadUrl('all', '&offset=' + (i * chunk) + '&limit=' + chunk));
-                        saveBlob(file.blob, file.filename);
+                        const creep = setInterval(function() {
+                            if (shown < endPct - 1) {
+                                shown += 1;
+                                $('#pdfProgressBar').css('width', shown + '%');
+                                $('#pdfProgressPercent').text(shown + '%');
+                            }
+                        }, 700);
+                        try {
+                            const file = await fetchPdf(buildDownloadUrl('all', '&offset=' + (i * chunk) + '&limit=' + chunk));
+                            saveBlob(file.blob, file.filename);
+                        } finally {
+                            clearInterval(creep);
+                        }
+                        $('#pdfProgressBar').css('width', endPct + '%');
+                        $('#pdfProgressPercent').text(endPct + '%');
                     }
                     $('#pdfProgressBar').css('width', '100%');
                     $('#pdfProgressPercent').text('100%');

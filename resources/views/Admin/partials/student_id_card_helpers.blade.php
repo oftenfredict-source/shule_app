@@ -122,6 +122,50 @@
         }
     }
 
+    if (!function_exists('idCardPdfThumbDataUri')) {
+        function idCardPdfThumbDataUri($path, $maxWidth = 240, $maxHeight = 300) {
+            static $cache = [];
+            $key = idCardNormalizeAssetPath($path) . '|' . $maxWidth . 'x' . $maxHeight;
+            if (!$key || $key === '|' . $maxWidth . 'x' . $maxHeight) {
+                return null;
+            }
+            if (isset($cache[$key])) {
+                return $cache[$key];
+            }
+
+            $fullPath = idCardResolveAssetFile($path);
+            if (!$fullPath || !function_exists('imagecreatefromstring')) {
+                $cache[$key] = idCardPdfImageSrc($path);
+                return $cache[$key];
+            }
+
+            $raw = @file_get_contents($fullPath);
+            $source = $raw ? @imagecreatefromstring($raw) : false;
+            if (!$source) {
+                $cache[$key] = idCardPdfImageSrc($path);
+                return $cache[$key];
+            }
+
+            $width = imagesx($source);
+            $height = imagesy($source);
+            $scale = min($maxWidth / max(1, $width), $maxHeight / max(1, $height), 1);
+            $newWidth = max(1, (int) round($width * $scale));
+            $newHeight = max(1, (int) round($height * $scale));
+            $thumb = imagecreatetruecolor($newWidth, $newHeight);
+            $white = imagecolorallocate($thumb, 255, 255, 255);
+            imagefill($thumb, 0, 0, $white);
+            imagecopyresampled($thumb, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+            ob_start();
+            imagejpeg($thumb, null, 70);
+            $jpeg = ob_get_clean();
+            imagedestroy($source);
+            imagedestroy($thumb);
+
+            $cache[$key] = 'data:image/jpeg;base64,' . base64_encode($jpeg);
+            return $cache[$key];
+        }
+    }
+
     if (!function_exists('idCardPdfImageSrc')) {
         function idCardPdfImageSrc($path) {
             static $cache = [];
