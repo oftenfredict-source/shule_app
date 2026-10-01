@@ -496,110 +496,16 @@
                         <i class="fa fa-info-circle"></i> No Active enrollments found for the selected class/year. Change the academic year in the header or class filter.
                     </div>
                 @else
-                    <div class="id-cards-grid">
+                    <p id="idCardsCountLabel" class="text-muted small mb-2">Showing {{ $students->count() }} of {{ $idCardTotal }} cards. Scroll to load more.</p>
+                    <div class="id-cards-grid" id="idCardsGrid">
                         @foreach($students as $student)
-                            @php
-                                $schoolLogo = idCardAssetUrl($student->id_card_logo_path);
-                                $defaultPhoto = strtolower($student->gender ?? 'male') === 'female'
-                                    ? asset('images/female.png')
-                                    : asset('images/male.png');
-                                $photo = $student->photo ? asset('userImages/' . $student->photo) : $defaultPhoto;
-                                $schoolName = $student->school->school_name ?? 'School';
-                                $schoolHeaderName = idCardSchoolHeaderName($schoolName);
-                            @endphp
-                            <div class="id-card-container" data-student-id="{{ $student->studentID }}">
-                                <button type="button" data-id="{{ $student->id_card_encrypted_id }}" class="download-card-btn" title="Download PDF"><i class="fa fa-download"></i></button>
-                                <button class="flip-btn" type="button"><i class="fa fa-rotate-right"></i></button>
-                                <div class="id-card-inner">
-                                    <!-- Front -->
-                                    <div class="id-card-front">
-                                        <div class="corner-accent"></div>
-                                        <div class="dot-grid">
-                                            @for($d = 0; $d < 21; $d++)<span></span>@endfor
-                                        </div>
-                                        <div class="id-card-content">
-                                            @if($schoolLogo)
-                                                <img src="{{ $schoolLogo }}" class="id-logo-watermark" alt="">
-                                            @endif
-                                            <div class="id-header">
-                                                @if($schoolLogo)
-                                                    <img src="{{ $schoolLogo }}" alt="Logo">
-                                                @endif
-                                                <div class="id-header-text">
-                                                    <h6>{{ $schoolHeaderName }}</h6>
-                                                    <small>Student Identity Card</small>
-                                                </div>
-                                            </div>
-                                            <div class="id-body">
-                                                <img src="{{ $photo }}" class="id-photo" alt="Student">
-                                                <div class="id-details">
-                                                    <div class="id-name">{{ $student->id_card_full_name }}</div>
-                                                    <div class="id-name-line"></div>
-                                                    <div class="id-info-row">
-                                                        <span class="id-info-icon"><i class="fa fa-id-card"></i></span>
-                                                        <span><strong>Adm No:</strong> {{ $student->id_card_admission }}</span>
-                                                    </div>
-                                                    <div class="id-info-row">
-                                                        <span class="id-info-icon"><i class="fa fa-graduation-cap"></i></span>
-                                                        <span><strong>Class:</strong> {{ $student->id_card_main_class }}</span>
-                                                    </div>
-                                                    <div class="id-info-row">
-                                                        <span class="id-info-icon"><i class="fa fa-user"></i></span>
-                                                        <span><strong>Sex:</strong> {{ $student->id_card_sex }}</span>
-                                                    </div>
-                                                    <div class="id-info-row">
-                                                        <span class="id-info-icon"><i class="fa fa-calendar"></i></span>
-                                                        <span><strong>Expire:</strong> {{ $student->id_card_expire_date }}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="id-footer"><div class="id-footer-track"><div class="id-footer-fill"></div></div></div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Back -->
-                                    <div class="id-card-back">
-                                        <div class="id-card-content">
-                                            @if($schoolLogo)
-                                                <img src="{{ $schoolLogo }}" class="id-logo-watermark" alt="">
-                                            @endif
-                                            <div class="id-back-top">
-                                                @if($schoolLogo)
-                                                    <img src="{{ $schoolLogo }}" alt="Logo">
-                                                @endif
-                                            </div>
-                                            <div class="id-back-banner">
-                                                <span class="banner-line">This identity card is the property of</span>
-                                                <span class="banner-school">{{ strtoupper($schoolName) }}</span>
-                                                <span class="banner-line">and is not transferable. This card must be returned to the Headmaster</span>
-                                                <span class="banner-line">upon termination of studies. If found please return to address below:</span>
-                                            </div>
-                                            <div class="id-back-bottom">
-                                                <div class="id-back-contact">
-                                                    <div class="id-back-contact-name">
-                                                        <i class="fa fa-map-marker"></i>
-                                                        <span>{{ strtoupper($schoolName) }}</span>
-                                                    </div>
-                                                    @if(!empty($student->school->address))
-                                                        {{ $student->school->address }}<br>
-                                                    @endif
-                                                    @if(!empty($student->school->district) || !empty($student->school->region))
-                                                        {{ trim(($student->school->district ?? '') . ($student->school->region ? ', ' . $student->school->region : '')) }}<br>
-                                                    @endif
-                                                    @if($student->school && $student->school->formattedPhones())
-                                                        <div class="id-back-phone-row">
-                                                            <span class="id-back-phone-icon"><i class="fa fa-phone"></i></span>
-                                                            <span>Tel: {{ $student->school->formattedPhones() }}</span>
-                                                        </div>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                            <div class="id-footer"><div class="id-footer-track"><div class="id-footer-fill"></div></div></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            @include('Admin.partials.student_id_card_item')
                         @endforeach
+                    </div>
+                    <div id="idCardsScrollSentinel" class="text-center text-muted small py-3">
+                        @if($idCardTotal > $students->count())
+                            Scroll for more cards
+                        @endif
                     </div>
                 @endif
 
@@ -618,6 +524,7 @@
                     <div id="pdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" style="width: 0%;"></div>
                 </div>
                 <div id="pdfProgressPercent" class="font-weight-bold text-muted mt-2" style="font-size: 14px;">0%</div>
+                <div id="pdfProgressNote" class="text-muted small mt-2"></div>
             </div>
         </div>
     </div>
@@ -626,85 +533,170 @@
 <script>
     $(document).ready(function() {
         const downloadBase = @json(url('admin/student-id-cards/download'));
+        const cardsUrl = @json(route('admin.student_id_cards_page'));
         const encryptedClassID = @json($encryptedClassID);
         const subclassID = "{{ $selectedSubclassID }}";
+        const pageSize = 9;
+        let cardOffset = {{ (int) ($students->count() ?? 0) }};
+        let cardTotal = {{ (int) ($idCardTotal ?? 0) }};
+        let cardsLoading = false;
+        let cardsHasMore = cardOffset < cardTotal;
 
-        function buildDownloadUrl(id) {
+        function buildDownloadUrl(id, extra) {
             const primary = $('#primaryColorPicker').val();
             const secondary = $('#secondaryColorPicker').val();
             let url = downloadBase + '/' + encodeURIComponent(id);
             url += `?primaryColor=${encodeURIComponent(primary)}&secondaryColor=${encodeURIComponent(secondary)}`;
             if (id === 'all') {
-                url += `&classID=${encodeURIComponent(encryptedClassID)}&subclassID=${encodeURIComponent(subclassID)}`;
+                url += `&classID=${encodeURIComponent(encryptedClassID || '')}&subclassID=${encodeURIComponent(subclassID || '')}`;
+            }
+            if (extra) {
+                url += extra;
             }
             return url;
+        }
+
+        function shortPdfError(text) {
+            const raw = String(text || '');
+            if (raw.indexOf('<') !== -1 || raw.length > 180) {
+                return 'The file was too large for one download. It is now split into smaller files. Try again.';
+            }
+            return raw || 'Could not generate the ID card file.';
+        }
+
+        function saveBlob(blob, filename) {
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = downloadUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(downloadUrl);
+            document.body.removeChild(a);
+        }
+
+        function fetchPdf(url) {
+            return fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/pdf, application/json' } })
+                .then(async function(response) {
+                    const type = (response.headers.get('content-type') || '').toLowerCase();
+                    if (!response.ok || type.indexOf('application/pdf') === -1) {
+                        const body = await response.json().catch(function() { return {}; });
+                        throw new Error(body.error || 'Could not generate the ID card file.');
+                    }
+                    let filename = 'Student_ID_Card.pdf';
+                    const disposition = response.headers.get('content-disposition') || '';
+                    const match = disposition.match(/filename="?([^";]+)"?/i);
+                    if (match && match[1]) filename = match[1];
+                    return response.blob().then(function(blob) { return { blob: blob, filename: filename }; });
+                });
         }
 
         function downloadPdf(url, filename) {
             $('#downloadProgressModal').modal('show');
             $('#pdfProgressBar').css('width', '0%');
             $('#pdfProgressPercent').text('0%');
+            $('#pdfProgressNote').text('Preparing one card');
 
             let progress = 0;
             const interval = setInterval(function() {
-                if (progress < 95) {
-                    let inc = 2 + Math.random() * 5;
-                    if (progress > 50) inc = 1 + Math.random() * 2;
-                    if (progress > 80) inc = 0.5 + Math.random();
-                    progress += inc;
-                    if (progress > 95) progress = 95;
+                if (progress < 90) {
+                    progress += 4;
                     $('#pdfProgressBar').css('width', progress + '%');
-                    $('#pdfProgressPercent').text(Math.round(progress) + '%');
+                    $('#pdfProgressPercent').text(progress + '%');
                 }
             }, 400);
 
-            fetch(url)
-                .then(async response => {
-                    if (!response.ok) {
-                        const text = await response.text();
-                        throw new Error(text || ('Server error: ' + response.statusText));
-                    }
-                    return response.blob();
-                })
-                .then(blob => {
+            fetchPdf(url)
+                .then(function(file) {
                     clearInterval(interval);
                     $('#pdfProgressBar').css('width', '100%');
                     $('#pdfProgressPercent').text('100%');
-
-                    setTimeout(() => {
-                        const downloadUrl = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.style.display = 'none';
-                        a.href = downloadUrl;
-                        a.download = filename;
-                        document.body.appendChild(a);
-                        a.click();
-                        window.URL.revokeObjectURL(downloadUrl);
-                        document.body.removeChild(a);
-
-                        setTimeout(() => {
-                            $('#downloadProgressModal').modal('hide');
-                            setTimeout(() => {
-                                $('#pdfProgressBar').css('width', '0%');
-                                $('#pdfProgressPercent').text('0%');
-                            }, 500);
-                        }, 800);
-                    }, 400);
+                    saveBlob(file.blob, filename || file.filename);
+                    setTimeout(function() { $('#downloadProgressModal').modal('hide'); }, 600);
                 })
-                .catch(error => {
+                .catch(function(error) {
                     clearInterval(interval);
                     $('#downloadProgressModal').modal('hide');
-                    alert('Failed to generate PDF: ' + error.message);
-                    console.error('PDF Export Error:', error);
+                    alert(shortPdfError(error.message));
+                });
+        }
+
+        function downloadAllCards() {
+            const countUrl = buildDownloadUrl('all', '&count=1');
+            $('#downloadProgressModal').modal('show');
+            $('#pdfProgressBar').css('width', '0%');
+            $('#pdfProgressPercent').text('0%');
+            $('#pdfProgressNote').text('Counting students');
+
+            fetch(countUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function(response) { return response.json(); })
+                .then(async function(info) {
+                    const total = parseInt(info.total, 10) || 0;
+                    if (!total) {
+                        $('#downloadProgressModal').modal('hide');
+                        alert('No students found for this filter.');
+                        return;
+                    }
+                    const chunk = 40;
+                    const parts = Math.ceil(total / chunk);
+                    for (let i = 0; i < parts; i++) {
+                        const pct = Math.round((i / parts) * 100);
+                        $('#pdfProgressBar').css('width', pct + '%');
+                        $('#pdfProgressPercent').text(pct + '%');
+                        $('#pdfProgressNote').text('File ' + (i + 1) + ' of ' + parts);
+                        const file = await fetchPdf(buildDownloadUrl('all', '&offset=' + (i * chunk) + '&limit=' + chunk));
+                        saveBlob(file.blob, file.filename);
+                    }
+                    $('#pdfProgressBar').css('width', '100%');
+                    $('#pdfProgressPercent').text('100%');
+                    $('#pdfProgressNote').text('Downloaded ' + parts + ' file(s)');
+                    setTimeout(function() { $('#downloadProgressModal').modal('hide'); }, 800);
+                })
+                .catch(function(error) {
+                    $('#downloadProgressModal').modal('hide');
+                    alert(shortPdfError(error.message));
+                });
+        }
+
+        function updateCardsLabel() {
+            const shown = $('#idCardsGrid .id-card-container').length;
+            $('#idCardsCountLabel').text('Showing ' + shown + ' of ' + cardTotal + ' cards. Scroll to load more.');
+            $('#idCardsScrollSentinel').text(cardsHasMore ? 'Scroll for more cards' : '');
+        }
+
+        function loadMoreCards() {
+            if (cardsLoading || !cardsHasMore) return;
+            cardsLoading = true;
+            $('#idCardsScrollSentinel').text('Loading more cards...');
+            const url = cardsUrl
+                + '?offset=' + encodeURIComponent(cardOffset)
+                + '&classID=' + encodeURIComponent(encryptedClassID || '')
+                + '&subclassID=' + encodeURIComponent(subclassID || '');
+            fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.html) {
+                        $('#idCardsGrid').append(data.html);
+                    }
+                    cardOffset = parseInt(data.next, 10) || cardOffset;
+                    cardTotal = parseInt(data.total, 10) || cardTotal;
+                    cardsHasMore = !!data.hasMore;
+                    updateCardsLabel();
+                })
+                .catch(function() {
+                    $('#idCardsScrollSentinel').text('Could not load more cards.');
+                })
+                .finally(function() {
+                    cardsLoading = false;
                 });
         }
 
         $('#downloadAllBtn').on('click', function() {
-            const timestamp = new Date().toISOString().slice(0, 10);
-            downloadPdf(buildDownloadUrl('all'), `All_Student_ID_Cards_${timestamp}.pdf`);
+            downloadAllCards();
         });
 
-        $('.download-card-btn').on('click', function(e) {
+        $(document).on('click', '.download-card-btn', function(e) {
             e.preventDefault();
             e.stopPropagation();
             const id = $(this).data('id');
@@ -712,11 +704,23 @@
             downloadPdf(buildDownloadUrl(id), 'Student_ID_Card.pdf');
         });
 
-        $('.flip-btn').on('click', function(e) {
+        $(document).on('click', '.flip-btn', function(e) {
             e.preventDefault();
             e.stopPropagation();
             $(this).closest('.id-card-container').toggleClass('flipped');
         });
+
+        if (cardsHasMore && 'IntersectionObserver' in window) {
+            const sentinel = document.getElementById('idCardsScrollSentinel');
+            if (sentinel) {
+                const observer = new IntersectionObserver(function(entries) {
+                    if (entries[0] && entries[0].isIntersecting) {
+                        loadMoreCards();
+                    }
+                }, { rootMargin: '200px' });
+                observer.observe(sentinel);
+            }
+        }
 
         $('#flipAllBtn').on('click', function() {
             $('.id-card-container').toggleClass('flipped');

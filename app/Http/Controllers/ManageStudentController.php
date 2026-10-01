@@ -5563,25 +5563,26 @@ class ManageStudentController extends Controller
         $students = collect();
         $subclasses = collect();
         $school = School::find($schoolID);
+        $idCardTotal = 0;
+        $idCardPageSize = 9;
 
         if ($selectedClassID) {
             $subclasses = Subclass::where('classID', $selectedClassID)
                 ->where('status', 'Active')
                 ->get();
 
-            $enrollmentService = app(StudentEnrollmentService::class);
-            $studentIDs = $selectedSubclassID
-                ? $enrollmentService->studentIDsInSubclass((int) $selectedSubclassID, (int) $schoolID, 'Active')
-                : $enrollmentService->studentIDsInClass((int) $selectedClassID, (int) $schoolID, 'Active');
-
-            if (!empty($studentIDs)) {
-                $students = Student::where('schoolID', $schoolID)
-                    ->whereIn('studentID', $studentIDs)
-                    ->with(['subclass.class', 'school', 'currentEnrollment.subclass.class', 'currentEnrollment.classModel'])
-                    ->orderBy('first_name')
-                    ->get()
-                    ->map(fn ($student) => $this->enrichStudentIdCardData($student));
-            }
+            $studentIDs = $this->idCardStudentIds(
+                (int) $schoolID,
+                (int) $selectedClassID,
+                $selectedSubclassID
+            );
+            $idCardTotal = count($studentIDs);
+            $students = $this->idCardStudentsSlice(
+                (int) $schoolID,
+                $studentIDs,
+                0,
+                $idCardPageSize
+            );
         }
 
         return view('Admin.student_identity_card', compact(
@@ -5591,8 +5592,42 @@ class ManageStudentController extends Controller
             'selectedClassID',
             'selectedSubclassID',
             'encryptedClassID',
-            'school'
+            'school',
+            'idCardTotal',
+            'idCardPageSize'
         ));
+    }
+
+    public function studentIdCardsPage(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'error' => 'Session expired'], 401);
+        }
+
+        $classID = $request->input('classID')
+            ? $this->decryptRouteParam($request->input('classID'))
+            : null;
+        $subclassID = $request->input('subclassID');
+        $offset = max(0, (int) $request->input('offset', 0));
+        $limit = 9;
+
+        $studentIDs = $this->idCardStudentIds((int) $schoolID, $classID, $subclassID);
+        $total = count($studentIDs);
+        $students = $this->idCardStudentsSlice((int) $schoolID, $studentIDs, $offset, $limit);
+        $html = view('Admin.partials.student_id_card_batch', [
+            'students' => $students,
+        ])->render();
+
+        $next = $offset + $students->count();
+
+        return response()->json([
+            'success' => true,
+            'html' => $html,
+            'next' => $next,
+            'total' => $total,
+            'hasMore' => $next < $total,
+        ]);
     }
 
     /**
@@ -5620,33 +5655,29 @@ class ManageStudentController extends Controller
                 ? $this->decryptRouteParam($request->input('classID'))
                 : null;
             $subclassID = $request->input('subclassID');
+            $studentIDs = $this->idCardStudentIds((int) $schoolID, $classID, $subclassID);
+            $total = count($studentIDs);
 
-            $enrollmentService = app(StudentEnrollmentService::class);
-            $studentIDs = [];
-
-            if ($subclassID) {
-                $studentIDs = $enrollmentService->studentIDsInSubclass((int) $subclassID, (int) $schoolID, 'Active');
-            } elseif ($classID) {
-                $studentIDs = $enrollmentService->studentIDsInClass((int) $classID, (int) $schoolID, 'Active');
-            } else {
-                $studentIDs = $enrollmentService
-                    ->activeEnrollments((int) $schoolID)
-                    ->pluck('studentID')
-                    ->unique()
-                    ->values()
-                    ->all();
+            if ($request->boolean('count')) {
+                return response()->json([
+                    'success' => true,
+                    'total' => $total,
+                ]);
             }
 
-            if (!empty($studentIDs)) {
-                $students = Student::where('schoolID', $schoolID)
-                    ->whereIn('studentID', $studentIDs)
-                    ->with(['subclass.class', 'school', 'currentEnrollment.subclass.class', 'currentEnrollment.classModel'])
-                    ->orderBy('first_name')
-                    ->get()
-                    ->map(fn ($student) => $this->enrichStudentIdCardData($student));
+            $offset = max(0, (int) $request->input('offset', 0));
+            $limit = (int) $request->input('limit', 40);
+            if ($limit < 1) {
+                $limit = 40;
+            }
+            if ($limit > 40) {
+                $limit = 40;
             }
 
-            $filename = 'All_Student_ID_Cards_' . date('Y-m-d') . '.pdf';
+            $students = $this->idCardStudentsSlice((int) $schoolID, $studentIDs, $offset, $limit);
+            $part = (int) floor($offset / $limit) + 1;
+            $parts = max(1, (int) ceil($total / $limit));
+            $filename = 'Student_ID_Cards_part_' . $part . '_of_' . $parts . '_' . date('Y-m-d') . '.pdf';
         } else {
             $studentID = $this->decryptRouteParam($id);
             $student = Student::where('studentID', $studentID)
@@ -5674,10 +5705,61 @@ class ManageStudentController extends Controller
         } catch (\Throwable $e) {
             \Log::error('Student ID card PDF failed: ' . $e->getMessage(), [
                 'id' => $id,
-                'trace' => $e->getTraceAsString(),
             ]);
-            return response('Failed to generate PDF: ' . $e->getMessage(), 500);
+            return response()->json([
+                'success' => false,
+                'error' => 'Could not generate this ID card file. Try again.',
+            ], 500);
         }
+    }
+
+    private function idCardStudentIds(int $schoolID, $classID, $subclassID): array
+    {
+        $enrollmentService = app(StudentEnrollmentService::class);
+
+        if ($subclassID) {
+            return $enrollmentService->studentIDsInSubclass((int) $subclassID, $schoolID, 'Active');
+        }
+        if ($classID) {
+            return $enrollmentService->studentIDsInClass((int) $classID, $schoolID, 'Active');
+        }
+
+        return $enrollmentService
+            ->activeEnrollments($schoolID)
+            ->pluck('studentID')
+            ->unique()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    private function idCardStudentsSlice(int $schoolID, array $studentIDs, int $offset, int $limit)
+    {
+        if ($studentIDs === [] || $limit < 1) {
+            return collect();
+        }
+
+        $pageIds = Student::where('schoolID', $schoolID)
+            ->whereIn('studentID', $studentIDs)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->skip($offset)
+            ->take($limit)
+            ->pluck('studentID');
+
+        if ($pageIds->isEmpty()) {
+            return collect();
+        }
+
+        $order = array_flip($pageIds->map(fn ($id) => (int) $id)->all());
+
+        return Student::where('schoolID', $schoolID)
+            ->whereIn('studentID', $pageIds)
+            ->with(['subclass.class', 'school', 'currentEnrollment.subclass.class', 'currentEnrollment.classModel'])
+            ->get()
+            ->sortBy(fn ($student) => $order[(int) $student->studentID] ?? 0)
+            ->values()
+            ->map(fn ($student) => $this->enrichStudentIdCardData($student));
     }
 
     public function downloadTemplate()

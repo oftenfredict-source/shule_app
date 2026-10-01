@@ -755,6 +755,10 @@ Route::post("reject-task/{taskID}", [
     AdminController::class,
     "rejectTask",
 ])->name("reject_task");
+Route::get("admin/student-id-cards/cards", [
+    ManageStudentController::class,
+    "studentIdCardsPage",
+])->name("admin.student_id_cards_page");
 Route::get("admin/student-id-cards/{classID?}", [
     ManageStudentController::class,
     "studentIdCards",
