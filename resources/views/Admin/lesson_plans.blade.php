@@ -331,11 +331,11 @@ function renderProgressBars(progress) {
         const rawPct = periods > 0 ? Math.round((plans / periods) * 100) : (plans > 0 ? 100 : 0);
         const pct = Math.max(0, Math.min(100, rawPct));
         const width = pct;
-        const source = row.period_source === 'scheme'
-            ? 'scheme of work periods'
-            : (row.period_source === 'timetable' ? 'timetable periods' : 'periods not set');
+        const source = periods > 0
+            ? 'all timetable sessions for this subject, all subclasses of this class'
+            : 'sessions not set';
         const ratio = periods > 0
-            ? (plans + ' / ' + periods + ' periods')
+            ? (plans + ' / ' + periods + ' sessions')
             : (plans + ' lesson plan(s)');
         html += `
             <div class="mb-3">
@@ -437,6 +437,9 @@ function renderLessonPlansList(lessonPlans, subjectName, className, progress) {
                 <td>
                     <button class="btn btn-sm btn-primary-custom" onclick="viewLessonPlan(${plan.lesson_planID})" style="border-radius: 0;">
                         <i class="fa fa-eye"></i> View
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="downloadOneLessonPlan(${plan.lesson_planID})" style="border-radius: 0;">
+                        <i class="fa fa-download"></i> Download
                     </button>
                     ${!isApproved ? `
                     <button class="btn btn-sm btn-success" onclick="approveLessonPlan(${plan.lesson_planID})" style="border-radius: 0;">
@@ -834,18 +837,7 @@ function approveAllLessonPlans() {
     });
 }
 
-function downloadAllLessonPlans() {
-    const f = currentFilters();
-    if (!f.classID || !f.subjectID) {
-        Swal.fire({
-            title: 'Select filters',
-            text: 'Choose class and subject first.',
-            icon: 'info',
-            confirmButtonColor: '#940000'
-        });
-        return;
-    }
-
+function downloadLessonPlanFile(url, fallbackName) {
     $('#lessonPlansPdfProgressModal').modal('show');
     $('#lessonPlansPdfProgressBar').css('width', '0%');
     $('#lessonPlansPdfProgressPercent').text('0%');
@@ -859,8 +851,7 @@ function downloadAllLessonPlans() {
         }
     }, 300);
 
-    const params = new URLSearchParams(f).toString();
-    fetch('{{ route("admin.download_all_lesson_plans") }}?' + params, {
+    fetch(url, {
         headers: {
             'Accept': 'application/pdf, application/json',
             'X-Requested-With': 'XMLHttpRequest',
@@ -874,7 +865,7 @@ function downloadAllLessonPlans() {
                 throw new Error(err.error || err.message || 'Failed to generate lesson plans PDF');
             });
         }
-        let filename = 'Lesson_Plans.pdf';
+        let filename = fallbackName;
         const disposition = response.headers.get('content-disposition') || '';
         const match = disposition.match(/filename="?([^";]+)"?/i);
         if (match && match[1]) {
@@ -889,14 +880,14 @@ function downloadAllLessonPlans() {
         $('#lessonPlansPdfProgressBar').css('width', '100%');
         $('#lessonPlansPdfProgressPercent').text('100%');
         setTimeout(function() {
-            const url = window.URL.createObjectURL(file.blob);
+            const objectUrl = window.URL.createObjectURL(file.blob);
             const a = document.createElement('a');
             a.style.display = 'none';
-            a.href = url;
+            a.href = objectUrl;
             a.download = file.filename;
             document.body.appendChild(a);
             a.click();
-            window.URL.revokeObjectURL(url);
+            window.URL.revokeObjectURL(objectUrl);
             document.body.removeChild(a);
             $('#lessonPlansPdfProgressModal').modal('hide');
         }, 400);
@@ -911,6 +902,32 @@ function downloadAllLessonPlans() {
             confirmButtonColor: '#940000'
         });
     });
+}
+
+function downloadOneLessonPlan(lessonPlanID) {
+    downloadLessonPlanFile(
+        '{{ url("admin/lesson-plans/download") }}/' + lessonPlanID,
+        'Lesson_Plan_' + lessonPlanID + '.pdf'
+    );
+}
+
+function downloadAllLessonPlans() {
+    const f = currentFilters();
+    if (!f.classID || !f.subjectID) {
+        Swal.fire({
+            title: 'Select filters',
+            text: 'Choose class and subject first.',
+            icon: 'info',
+            confirmButtonColor: '#940000'
+        });
+        return;
+    }
+
+    const params = new URLSearchParams(f).toString();
+    downloadLessonPlanFile(
+        '{{ route("admin.download_all_lesson_plans") }}?' + params,
+        'Lesson_Plans.pdf'
+    );
 }
 
 function removeSignature(lessonPlanID) {

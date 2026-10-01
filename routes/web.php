@@ -736,6 +736,10 @@ Route::get("admin/lesson-plans/download-all", [
     AdminController::class,
     "downloadAllLessonPlans",
 ])->name("admin.download_all_lesson_plans");
+Route::get("admin/lesson-plans/download/{lessonPlanID}", [
+    AdminController::class,
+    "downloadOneLessonPlan",
+])->name("admin.download_one_lesson_plan");
 Route::get("task-management", [AdminController::class, "taskManagement"])->name(
     "taskManagement",
 );

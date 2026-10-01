@@ -29,7 +29,8 @@
 
         .sig-table { width: 100%; margin-top: 6px; border-collapse: collapse; }
         .sig-table td { border: none; padding: 2px 4px; vertical-align: bottom; text-align: center; font-size: 9px; }
-        .stamp-cell img { max-width: 64px; max-height: 64px; }
+        .stamp-slot { height: 108px; text-align: center; line-height: 1; }
+        .stamp-slot img { width: 108px; height: 108px; }
         .signature-img { height: 22px; margin-bottom: 2px; }
         .signature-img img { max-width: 90px; max-height: 22px; }
         .sig-line { border-top: 1.5px solid #940000; width: 110px; margin: 0 auto; display: block; }
@@ -100,6 +101,18 @@
             }
             $supervisorSigB64 = \App\Models\School::imageToDataUrl($lessonPlan->supervisor_signature ?? null);
             $isApproved = !empty($lessonPlan->supervisor_signature);
+            $registeredGirls = (int) ($lessonPlan->registered_girls ?? 0);
+            $registeredBoys = (int) ($lessonPlan->registered_boys ?? 0);
+            $registeredTotal = (int) ($lessonPlan->registered_total ?? 0);
+            if ($registeredTotal < 1) {
+                $registeredTotal = $registeredGirls + $registeredBoys;
+            }
+            $presentGirls = (int) ($lessonPlan->present_girls ?? 0);
+            $presentBoys = (int) ($lessonPlan->present_boys ?? 0);
+            $presentTotal = (int) ($lessonPlan->present_total ?? 0);
+            if ($presentTotal < 1) {
+                $presentTotal = $presentGirls + $presentBoys;
+            }
         @endphp
 
         <div class="plan-page{{ $index > 0 ? ' plan-break' : '' }}">
@@ -148,12 +161,12 @@
                                 <th style="font-size: 9px;">TOTAL</th>
                             </tr>
                             <tr>
-                                <td>{{ $lessonPlan->registered_girls ?? 0 }}</td>
-                                <td>{{ $lessonPlan->registered_boys ?? 0 }}</td>
-                                <td>{{ $lessonPlan->registered_total ?? 0 }}</td>
-                                <td>{{ $lessonPlan->present_girls ?? 0 }}</td>
-                                <td>{{ $lessonPlan->present_boys ?? 0 }}</td>
-                                <td>{{ $lessonPlan->present_total ?? 0 }}</td>
+                                <td>{{ $registeredGirls }}</td>
+                                <td>{{ $registeredBoys }}</td>
+                                <td>{{ $registeredTotal }}</td>
+                                <td>{{ $presentGirls }}</td>
+                                <td>{{ $presentBoys }}</td>
+                                <td>{{ $presentTotal }}</td>
                             </tr>
                         </table>
                     </td>
@@ -245,8 +258,10 @@
                     </td>
                     <td style="width: 34%; text-align: center;">
                         @if($isApproved && $schoolStampBase64)
-                            <img src="{{ $schoolStampBase64 }}" style="max-height: 48px;">
-                            <div style="font-size: 9px; color: #940000; font-weight: bold; margin-top: 4px;">SCHOOL OFFICIAL STAMP</div>
+                            <div class="stamp-slot">
+                                <img src="{{ $schoolStampBase64 }}" alt="School stamp">
+                            </div>
+                            <div style="font-size: 9px; color: #940000; font-weight: bold; margin-top: 2px;">SCHOOL OFFICIAL STAMP</div>
                         @endif
                     </td>
                     <td style="width: 33%;">

@@ -6654,45 +6654,11 @@ class AdminController extends Controller
                 );
             }
 
-            $school = School::find($schoolID);
-            $schoolType =
-                $school && $school->school_type
-                    ? strtolower($school->school_type)
-                    : "primary";
-            $isPrimary =
-                strpos($schoolType, "primary") !== false ||
-                strpos($schoolType, "pre") !== false;
-            $schoolTypeDisplay = $isPrimary
-                ? "PRE AND PRIMARY SCHOOL"
-                : "SECONDARY SCHOOL";
-
-            $html = view("Teacher.pdf.bulk_lesson_plans", [
-                "lessonPlans" => $lessonPlans,
-                "school" => $school,
-                "schoolType" => $schoolTypeDisplay,
-            ])->render();
-
-            $options = new \Dompdf\Options();
-            $options->set("defaultFont", "Helvetica");
-            $options->set("isRemoteEnabled", true);
-            $options->set("isHtml5ParserEnabled", true);
-            $options->setChroot(public_path());
-
-            $dompdf = new \Dompdf\Dompdf($options);
-            $dompdf->loadHtml($html);
-            $dompdf->setPaper("A4", "portrait");
-            $dompdf->render();
-
-            $filename =
-                "Lesson_Plans_" .
-                Carbon::now()->format("Y-m-d_His") .
-                ".pdf";
-
-            return response($dompdf->output(), 200, [
-                "Content-Type" => "application/pdf",
-                "Content-Disposition" =>
-                    'attachment; filename="' . $filename . '"',
-            ]);
+            return $this->lessonPlansPdfResponse(
+                $lessonPlans,
+                (int) $schoolID,
+                "Lesson_Plans_" . Carbon::now()->format("Y-m-d_His") . ".pdf",
+            );
         } catch (\Throwable $e) {
             Log::error(
                 "Error downloading admin lesson plans: " . $e->getMessage(),
@@ -6705,6 +6671,86 @@ class AdminController extends Controller
                 500,
             );
         }
+    }
+
+    public function downloadOneLessonPlan($lessonPlanID)
+    {
+        try {
+            $schoolID = Session::get("schoolID");
+            if (!$schoolID) {
+                return response()->json(
+                    ["success" => false, "error" => "Session expired"],
+                    401,
+                );
+            }
+
+            $lessonPlan = LessonPlan::with([
+                "teacher",
+                "sessionTimetable.subclass",
+                "sessionTimetable.classSubject.subject",
+            ])
+                ->where("lesson_planID", $lessonPlanID)
+                ->where("schoolID", $schoolID)
+                ->first();
+
+            if (!$lessonPlan) {
+                return response()->json(
+                    ["success" => false, "error" => "Lesson plan not found"],
+                    404,
+                );
+            }
+
+            return $this->lessonPlansPdfResponse(
+                collect([$lessonPlan]),
+                (int) $schoolID,
+                "Lesson_Plan_" . $lessonPlanID . ".pdf",
+            );
+        } catch (\Throwable $e) {
+            Log::error(
+                "Error downloading one admin lesson plan: " . $e->getMessage(),
+            );
+            return response()->json(
+                ["success" => false, "error" => "Failed to generate PDF"],
+                500,
+            );
+        }
+    }
+
+    private function lessonPlansPdfResponse($lessonPlans, int $schoolID, string $filename)
+    {
+        $school = School::find($schoolID);
+        $schoolType =
+            $school && $school->school_type
+                ? strtolower($school->school_type)
+                : "primary";
+        $isPrimary =
+            strpos($schoolType, "primary") !== false ||
+            strpos($schoolType, "pre") !== false;
+        $schoolTypeDisplay = $isPrimary
+            ? "PRE AND PRIMARY SCHOOL"
+            : "SECONDARY SCHOOL";
+
+        $html = view("Teacher.pdf.bulk_lesson_plans", [
+            "lessonPlans" => $lessonPlans,
+            "school" => $school,
+            "schoolType" => $schoolTypeDisplay,
+        ])->render();
+
+        $options = new \Dompdf\Options();
+        $options->set("defaultFont", "Helvetica");
+        $options->set("isRemoteEnabled", true);
+        $options->set("isHtml5ParserEnabled", true);
+        $options->setChroot(public_path());
+
+        $dompdf = new \Dompdf\Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper("A4", "portrait");
+        $dompdf->render();
+
+        return response($dompdf->output(), 200, [
+            "Content-Type" => "application/pdf",
+            "Content-Disposition" => 'attachment; filename="' . $filename . '"',
+        ]);
     }
 
     private function queryAdminLessonPlans(
@@ -6783,8 +6829,8 @@ class AdminController extends Controller
     }
 
     /**
-     * Lesson-plan completion against the periods that teacher has for this subject.
-     * Scheme of work period total is used when it exists; otherwise weekly timetable slots.
+     * Lesson plans a teacher has written, against every timetable session
+     * for this subject on the main class, across all subclasses.
      */
     private function lessonPlanTeacherProgress(
         int $schoolID,
@@ -6857,41 +6903,20 @@ class AdminController extends Controller
             $groups[$tid]["lesson_plans"]++;
         }
 
-        $year = (int) date("Y");
         $out = [];
         foreach ($groups as $group) {
-            $schemePeriods = 0;
-            if (!empty($group["class_subject_ids"])) {
-                $schemePeriods = (int) DB::table("scheme_of_work_items as i")
-                    ->join(
-                        "scheme_of_works as s",
-                        "i.scheme_of_workID",
-                        "=",
-                        "s.scheme_of_workID",
-                    )
-                    ->whereIn("s.class_subjectID", $group["class_subject_ids"])
-                    ->where("s.year", $year)
-                    ->sum("i.number_of_periods");
-                if ($schemePeriods < 1) {
-                    $schemePeriods = (int) DB::table("scheme_of_work_items as i")
-                        ->join(
-                            "scheme_of_works as s",
-                            "i.scheme_of_workID",
-                            "=",
-                            "s.scheme_of_workID",
-                        )
-                        ->whereIn(
-                            "s.class_subjectID",
-                            $group["class_subject_ids"],
-                        )
-                        ->sum("i.number_of_periods");
-                }
-            }
+            $teacherID = (int) $group["teacherID"];
+            $periods = 0;
+            $plansCount = 0;
 
-            $periods = $schemePeriods;
-            $source = "scheme";
-            if ($periods < 1 && $group["teacherID"] > 0) {
-                $slotQuery = DB::table("class_session_timetables as cst")
+            if ($teacherID > 0) {
+                $periods = (int) DB::table("class_session_timetables as cst")
+                    ->join(
+                        "subclasses as sc",
+                        "cst.subclassID",
+                        "=",
+                        "sc.subclassID",
+                    )
                     ->leftJoin(
                         "class_subjects as cs",
                         "cst.class_subjectID",
@@ -6899,24 +6924,43 @@ class AdminController extends Controller
                         "cs.class_subjectID",
                     )
                     ->where("cst.schoolID", $schoolID)
-                    ->where("cst.teacherID", $group["teacherID"])
+                    ->where("sc.classID", $classID)
+                    ->where(function ($q) use ($teacherID) {
+                        $q->where("cst.teacherID", $teacherID)->orWhere(
+                            "cs.teacherID",
+                            $teacherID,
+                        );
+                    })
                     ->where(function ($q) use ($subjectID) {
                         $q->where("cst.subjectID", $subjectID)->orWhere(
                             "cs.subjectID",
                             $subjectID,
                         );
-                    });
-                if (!empty($group["subclass_ids"])) {
-                    $slotQuery->whereIn(
-                        "cst.subclassID",
-                        array_values(array_unique($group["subclass_ids"])),
-                    );
-                }
-                $periods = (int) $slotQuery->count();
-                $source = "timetable";
+                    })
+                    ->count();
+
+                $plansCount = (int) LessonPlan::where("schoolID", $schoolID)
+                    ->where("teacherID", $teacherID)
+                    ->whereHas("sessionTimetable", function ($q) use (
+                        $classID,
+                        $subjectID,
+                    ) {
+                        $q->whereHas("subclass", function ($s) use ($classID) {
+                            $s->where("classID", $classID);
+                        });
+                        $q->where(function ($inner) use ($subjectID) {
+                            $inner
+                                ->where("subjectID", $subjectID)
+                                ->orWhereHas("classSubject", function ($cs) use (
+                                    $subjectID,
+                                ) {
+                                    $cs->where("subjectID", $subjectID);
+                                });
+                        });
+                    })
+                    ->count();
             }
 
-            $plansCount = (int) $group["lesson_plans"];
             $percent = $periods > 0
                 ? (int) round(($plansCount / $periods) * 100)
                 : ($plansCount > 0 ? 100 : 0);
@@ -6925,12 +6969,12 @@ class AdminController extends Controller
             }
 
             $out[] = [
-                "teacherID" => $group["teacherID"],
+                "teacherID" => $teacherID,
                 "teacher_name" => $group["teacher_name"],
                 "lesson_plans" => $plansCount,
                 "periods" => $periods,
                 "percent" => $percent,
-                "period_source" => $periods > 0 ? $source : "none",
+                "period_source" => $periods > 0 ? "timetable" : "none",
             ];
         }
 
