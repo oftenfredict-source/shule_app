@@ -6615,15 +6615,20 @@ class AdminController extends Controller
             $subclassID = $request->input("subclassID");
 
             if (!$schoolID) {
-                return redirect()
-                    ->back()
-                    ->with("error", "Session expired");
+                return response()->json(
+                    ["success" => false, "error" => "Session expired"],
+                    401,
+                );
             }
 
             if (!$subjectID || !$classID) {
-                return redirect()
-                    ->back()
-                    ->with("error", "Please select class and subject");
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" => "Please select class and subject",
+                    ],
+                    422,
+                );
             }
 
             $lessonPlans = $this->queryAdminLessonPlans(
@@ -6634,9 +6639,13 @@ class AdminController extends Controller
             );
 
             if ($lessonPlans->isEmpty()) {
-                return redirect()
-                    ->back()
-                    ->with("error", "No lesson plans found for this filter");
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" => "No lesson plans found for this filter",
+                    ],
+                    404,
+                );
             }
 
             $school = School::find($schoolID);
@@ -6682,9 +6691,13 @@ class AdminController extends Controller
             Log::error(
                 "Error downloading admin lesson plans: " . $e->getMessage(),
             );
-            return redirect()
-                ->back()
-                ->with("error", "Failed to generate PDF");
+            return response()->json(
+                [
+                    "success" => false,
+                    "error" => "Failed to generate PDF",
+                ],
+                500,
+            );
         }
     }
 

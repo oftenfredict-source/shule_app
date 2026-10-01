@@ -164,6 +164,22 @@
     </div>
 </div>
 
+<div class="modal fade" id="lessonPlansPdfProgressModal" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true" style="z-index: 2000;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content" style="border-radius: 0;">
+            <div class="modal-body p-4 text-center">
+                <i class="fa fa-file-pdf-o fa-3x mb-3" style="color: #940000;"></i>
+                <h5 class="mb-3" style="color: #940000; font-weight: bold;">Downloading lesson plans</h5>
+                <div class="progress mb-2" style="height: 14px; border-radius: 0;">
+                    <div id="lessonPlansPdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%; background-color: #940000;"></div>
+                </div>
+                <div id="lessonPlansPdfProgressPercent" class="font-weight-bold" style="color: #940000;">0%</div>
+                <p class="mt-3 mb-0 text-muted small">Please wait. The file downloads when it reaches 100%.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Lesson Plan View Modal -->
 <div class="modal fade" id="lessonPlanModal" tabindex="-1" role="dialog" data-backdrop="true" data-keyboard="true">
     <div class="modal-dialog modal-xl" role="document" style="max-width: 95%;">
@@ -814,8 +830,72 @@ function downloadAllLessonPlans() {
         });
         return;
     }
+
+    $('#lessonPlansPdfProgressModal').modal('show');
+    $('#lessonPlansPdfProgressBar').css('width', '0%');
+    $('#lessonPlansPdfProgressPercent').text('0%');
+    let progress = 0;
+    const interval = setInterval(function() {
+        if (progress < 90) {
+            progress += 2 + Math.random() * 5;
+            if (progress > 90) progress = 90;
+            $('#lessonPlansPdfProgressBar').css('width', progress + '%');
+            $('#lessonPlansPdfProgressPercent').text(Math.round(progress) + '%');
+        }
+    }, 300);
+
     const params = new URLSearchParams(f).toString();
-    window.location.href = '{{ route("admin.download_all_lesson_plans") }}?' + params;
+    fetch('{{ route("admin.download_all_lesson_plans") }}?' + params, {
+        headers: {
+            'Accept': 'application/pdf, application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    })
+    .then(function(response) {
+        const type = (response.headers.get('content-type') || '').toLowerCase();
+        if (!response.ok || type.indexOf('application/pdf') === -1) {
+            return response.json().catch(function() { return {}; }).then(function(err) {
+                throw new Error(err.error || err.message || 'Failed to generate lesson plans PDF');
+            });
+        }
+        let filename = 'Lesson_Plans.pdf';
+        const disposition = response.headers.get('content-disposition') || '';
+        const match = disposition.match(/filename="?([^";]+)"?/i);
+        if (match && match[1]) {
+            filename = match[1];
+        }
+        return response.blob().then(function(blob) {
+            return { blob: blob, filename: filename };
+        });
+    })
+    .then(function(file) {
+        clearInterval(interval);
+        $('#lessonPlansPdfProgressBar').css('width', '100%');
+        $('#lessonPlansPdfProgressPercent').text('100%');
+        setTimeout(function() {
+            const url = window.URL.createObjectURL(file.blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = file.filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            $('#lessonPlansPdfProgressModal').modal('hide');
+        }, 400);
+    })
+    .catch(function(error) {
+        clearInterval(interval);
+        $('#lessonPlansPdfProgressModal').modal('hide');
+        Swal.fire({
+            title: 'Download failed',
+            text: error.message || 'Failed to generate lesson plans PDF',
+            icon: 'error',
+            confirmButtonColor: '#940000'
+        });
+    });
 }
 
 function removeSignature(lessonPlanID) {
