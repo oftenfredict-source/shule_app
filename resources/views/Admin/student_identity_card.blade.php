@@ -134,14 +134,16 @@
     .download-card-btn {
         bottom: 10px;
         right: 10px;
-        background: #000;
+        background: #fff;
         border-color: #000;
-        color: #fff;
+        color: #000;
     }
-    .download-card-btn i {
-        color: #fff;
+    .download-card-btn i,
+    .download-card-btn:hover,
+    .download-card-btn:hover i {
+        color: #000;
     }
-    .download-card-btn:hover { background: #1a1a1a; color: #fff; transform: scale(1.15); }
+    .download-card-btn:hover { background: #f2f2f2; transform: scale(1.15); }
     #downloadAllBtn,
     #downloadAllBtn:hover,
     #downloadAllBtn:focus {
