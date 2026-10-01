@@ -38,8 +38,12 @@ class SmsService
             return $message;
         }
 
-        // Add school name prefix if no senderID
+        // Add school name prefix if no senderID. Skip when the message already starts with it.
         $prefix = $detectedSchoolName ? "{$detectedSchoolName}. " : '';
+        if ($prefix !== '' && str_starts_with($message, $prefix)) {
+            return $message;
+        }
+
         return $prefix . $message;
     }
 

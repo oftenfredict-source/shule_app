@@ -1519,17 +1519,29 @@
         return String(hr12).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ' ' + ampm;
     }
 
+    var tsSmsSchoolPrefix = @json($school_details->sms_prefix ?? '');
+
+    function withSchoolSmsPrefix(message) {
+        var body = (message || '').trim();
+        var prefix = tsSmsSchoolPrefix || '';
+        if (!prefix || body.indexOf(prefix) === 0) {
+            return body;
+        }
+        return prefix + body;
+    }
+
     function buildDefaultTsSmsMessage(data) {
         var meta = tsLastReportMeta || {};
         var period = meta.period_label || '';
         var workStart = meta.work_start_time || '';
         var workEnd = meta.work_end_time || '';
-        return 'Habari ' + (data.name || '') + ', ripoti ya mahudhurio (' + period + '): ' +
+        var body = 'Habari ' + (data.name || '') + ', ripoti ya mahudhurio (' + period + '): ' +
             'Present ' + (data.present || 0) + ', Absent ' + (data.absent || 0) + ', ' +
             'Late ' + (data.late || 0) + ', Early ' + (data.early || 0) + '. ' +
             'Siku za kazi (mwezi): ' + (meta.total_working_days || 0) + '. ' +
             (meta.period_incomplete ? ('Siku zilizopita: ' + (meta.complete_working_days || meta.elapsed_working_days || 0) + '. ') : '') +
             'Muda rasmi: ' + workStart + ' - ' + workEnd + '.';
+        return withSchoolSmsPrefix(body);
     }
 
     function downloadTsAttendancePdf(url, title, filename) {
@@ -1629,7 +1641,7 @@
                 _token: getCsrf(),
                 person_type: tsSmsTarget.person_type,
                 person_id: tsSmsTarget.person_id,
-                message: ($('#tsSmsMessage').val() || '').trim()
+                message: withSchoolSmsPrefix($('#tsSmsMessage').val() || '')
             }),
             success: function (res) {
                 if (res.success) {

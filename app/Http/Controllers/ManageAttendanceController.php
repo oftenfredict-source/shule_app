@@ -12,6 +12,7 @@ use App\Models\OtherStaff;
 use App\Models\Combie;
 use App\Models\Attendance;
 use App\Models\School;
+use App\Models\SmsLog;
 use App\Models\StudentFingerprintAttendance;
 use App\Models\TeacherFingerprintAttendance;
 use App\Models\StaffFingerprintAttendance;
@@ -198,6 +199,7 @@ class ManageAttendanceController extends Controller
         $school_details = (object) [
             'school_name' => $school->school_name ?? 'School',
             'school_logo' => $school->school_logo ?? null,
+            'sms_prefix' => ($school && !empty($school->senderID)) ? '' : trim((string) ($school->school_name ?? 'School')) . '. ',
         ];
 
         $teacherCount = Teacher::where('schoolID', $schoolID)->where('status', 'Active')->count();
@@ -3792,7 +3794,7 @@ class ManageAttendanceController extends Controller
             $message = trim((string) $request->input('message', ''));
             if ($message === '') {
                 $message = sprintf(
-                    'Habari %s, ripoti ya mahudhurio (%s): Present %d, Absent %d, Late %d, Early %d. Siku za kazi: %d. Muda rasmi: %s - %s. - %s',
+                    'Habari %s, ripoti ya mahudhurio (%s): Present %d, Absent %d, Late %d, Early %d. Siku za kazi: %d. Muda rasmi: %s - %s.',
                     $person['name'],
                     $payload['range']['label'],
                     $stats['present_days'],
@@ -3801,13 +3803,32 @@ class ManageAttendanceController extends Controller
                     $stats['early_days'],
                     $stats['total_working_days'],
                     substr((string) $payload['workTime']->work_start_time, 0, 5),
-                    substr((string) $payload['workTime']->work_end_time, 0, 5),
-                    $schoolName
+                    substr((string) $payload['workTime']->work_end_time, 0, 5)
                 );
             }
 
             $smsService = new SmsService();
+            $message = $smsService->formatMessage($message, $schoolName);
             $result = $smsService->sendSms($phone, $message);
+
+            try {
+                SmsLog::create([
+                    'schoolID' => (int) $schoolID,
+                    'message_id' => $result['message_id'] ?? null,
+                    'message_type' => $person['person_type'] === 'staff' ? 'staff' : 'teacher',
+                    'recipient_name' => $person['name'],
+                    'recipient_phone' => $phone,
+                    'recipient_role' => $person['person_type'] ?? 'teacher',
+                    'sent_by_name' => Session::get('name', 'System'),
+                    'sent_by_role' => Session::get('role', 'admin'),
+                    'message' => $message,
+                    'status' => ($result['success'] ?? false) ? 'PENDING' : 'FAILED',
+                    'sent_date' => now()->toDateString(),
+                    'sent_time' => now()->toTimeString(),
+                ]);
+            } catch (\Throwable $e) {
+                // Delivery must not fail just because the log row could not be stored.
+            }
 
             if ($result['success']) {
                 return response()->json([
