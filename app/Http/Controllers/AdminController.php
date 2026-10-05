@@ -3479,6 +3479,86 @@ class AdminController extends Controller
             ->with("success", "Feedback rejected successfully.");
     }
 
+    private function parentStudentPermissionsForAdmin(
+        int $schoolID,
+        string $filterType,
+        $dateFrom,
+        $dateTo,
+        $filterMonth,
+        $filterMonthYear,
+        $filterYear,
+        string $search,
+    ) {
+        $query = DB::table("student_permissions")
+            ->where("schoolID", $schoolID)
+            ->where("requester_type", "parent");
+
+        if ($filterType === "range") {
+            if ($dateFrom) {
+                $query->whereDate("start_date", ">=", $dateFrom);
+            }
+            if ($dateTo) {
+                $query->whereDate("start_date", "<=", $dateTo);
+            }
+        } elseif ($filterType === "month" && $filterMonth) {
+            $query
+                ->whereMonth("start_date", $filterMonth)
+                ->whereYear("start_date", $filterMonthYear);
+        } elseif ($filterType === "year" && $filterYear) {
+            $query->whereYear("start_date", $filterYear);
+        }
+
+        if ($search !== "") {
+            $studentIds = Student::where("schoolID", $schoolID)
+                ->where(function ($q) use ($search) {
+                    $q->where("first_name", "like", "%{$search}%")
+                        ->orWhere("last_name", "like", "%{$search}%")
+                        ->orWhere("admission_number", "like", "%{$search}%");
+                })
+                ->pluck("studentID");
+            $query->whereIn("student_id", $studentIds);
+        }
+
+        $rows = $query->orderBy("created_at", "desc")->get();
+        $students = Student::whereIn(
+            "studentID",
+            $rows->pluck("student_id")->filter()->unique()->values(),
+        )->get()->keyBy("studentID");
+
+        return $rows->map(function ($row) use ($students) {
+            $item = new \stdClass();
+            $item->permissionID = (int) $row->id;
+            $item->is_student_permission = true;
+            $item->status = $row->status;
+            $item->time_mode = $row->time_mode ?: "days";
+            $item->days_count = $row->days_count;
+            $item->start_date = $row->start_date
+                ? Carbon::parse($row->start_date)
+                : null;
+            $item->end_date = $row->end_date
+                ? Carbon::parse($row->end_date)
+                : null;
+            $item->start_time = $row->start_time ?? null;
+            $item->end_time = $row->end_time ?? null;
+            $item->reason_type = $row->reason_type;
+            $item->reason_description = $row->reason_description;
+            $item->current_approval_order = (int) ($row->current_approval_order ?: 1);
+            $item->created_at = $row->created_at
+                ? Carbon::parse($row->created_at)
+                : null;
+            $item->student = $students->get($row->student_id);
+            $item->teacher = null;
+            $item->staff = null;
+            $attachment = $row->attachment ?? null;
+            if ($attachment && !str_contains((string) $attachment, "/")) {
+                $attachment = "uploads/permissions/" . $attachment;
+            }
+            $item->attachment_path = $attachment ?: null;
+
+            return $item;
+        });
+    }
+
     public function managePermissionsAdmin(Request $request)
     {
         $user = Session::get("user_type");
@@ -3576,15 +3656,46 @@ class AdminController extends Controller
 
         $permissions = $query->orderBy("created_at", "desc")->get();
 
+        if ($tab === "student") {
+            $parentPermissions = $this->parentStudentPermissionsForAdmin(
+                (int) $schoolID,
+                $filterType,
+                $dateFrom,
+                $dateTo,
+                $filterMonth,
+                $filterMonthYear,
+                $filterYear,
+                $search,
+            );
+            $permissions = $permissions
+                ->concat($parentPermissions)
+                ->sortByDesc(function ($row) {
+                    $created = $row->created_at ?? null;
+                    if ($created instanceof Carbon) {
+                        return $created->timestamp;
+                    }
+
+                    return $created ? strtotime((string) $created) : 0;
+                })
+                ->values();
+        }
+
+        $parentStatusCounts = DB::table("student_permissions")
+            ->where("schoolID", $schoolID)
+            ->where("requester_type", "parent")
+            ->select("status", DB::raw("COUNT(*) as total"))
+            ->groupBy("status")
+            ->pluck("total", "status");
+
         $pendingCount = PermissionRequest::where("schoolID", $schoolID)
             ->where("status", "pending")
-            ->count();
+            ->count() + (int) ($parentStatusCounts["pending"] ?? 0);
         $approvedCount = PermissionRequest::where("schoolID", $schoolID)
             ->where("status", "approved")
-            ->count();
+            ->count() + (int) ($parentStatusCounts["approved"] ?? 0);
         $rejectedCount = PermissionRequest::where("schoolID", $schoolID)
             ->where("status", "rejected")
-            ->count();
+            ->count() + (int) ($parentStatusCounts["rejected"] ?? 0);
 
         $tabCounts = [
             "teacher" => PermissionRequest::where("schoolID", $schoolID)
@@ -3594,7 +3705,7 @@ class AdminController extends Controller
             "student" => PermissionRequest::where("schoolID", $schoolID)
                 ->where("requester_type", "student")
                 ->where("status", "pending")
-                ->count(),
+                ->count() + (int) ($parentStatusCounts["pending"] ?? 0),
             "staff" => PermissionRequest::where("schoolID", $schoolID)
                 ->where("requester_type", "staff")
                 ->where("status", "pending")
@@ -3614,7 +3725,11 @@ class AdminController extends Controller
             : true;
 
         if ($request->ajax() || $request->expectsJson()) {
-            $data = $permissions->map(function ($permission) use ($tab) {
+            $data = $permissions->map(function ($permission) use (
+                $tab,
+                $adminInChain,
+                $adminApprovalOrder,
+            ) {
                 $requesterName = "N/A";
                 if ($tab === "student" && $permission->student) {
                     $requesterName = trim(
@@ -3637,8 +3752,17 @@ class AdminController extends Controller
                             ($permission->teacher->last_name ?? ""),
                     );
                 }
+                $isStudentPermission = !empty($permission->is_student_permission);
+                $canApprove = $permission->status === "pending"
+                    && (!$adminInChain || (int) $permission->current_approval_order === (int) $adminApprovalOrder);
+
                 return [
                     "permissionID" => $permission->permissionID,
+                    "isStudentPermission" => $isStudentPermission,
+                    "modalKey" => $isStudentPermission
+                        ? "sp" . $permission->permissionID
+                        : (string) $permission->permissionID,
+                    "canApprove" => $canApprove,
                     "requesterName" => $requesterName,
                     "timeMode" => $permission->time_mode,
                     "daysCount" => $permission->days_count,
@@ -3651,12 +3775,15 @@ class AdminController extends Controller
                     "startTime" => $permission->start_time,
                     "endTime" => $permission->end_time,
                     "reasonType" => $permission->reason_type,
+                    "reasonDescription" => $permission->reason_description,
                     "status" => $permission->status,
                     "attachment" => $permission->attachment_path
-                        ? route(
-                            "admin.permissions.attachment",
-                            $permission->permissionID,
-                        )
+                        ? ($isStudentPermission
+                            ? asset($permission->attachment_path)
+                            : route(
+                                "admin.permissions.attachment",
+                                $permission->permissionID,
+                            ))
                         : null,
                 ];
             });
@@ -3904,11 +4031,21 @@ class AdminController extends Controller
                 ->where("id", $permission->id)
                 ->update([
                     "status" => "approved",
-                    "reason_description" => $validated["admin_response"],
                     "updated_at" => now(),
                     "is_chain_completed" => true,
                     "attachment" => $attachmentPath,
+                    "is_read_by_parent" => false,
                 ]);
+
+            try {
+                app(\App\Services\StudentPermissionAttendanceService::class)
+                    ->syncApprovedPermissionAttendanceRows($permission);
+            } catch (\Throwable $e) {
+                Log::warning(
+                    "Approved student permission attendance sync failed: " .
+                        $e->getMessage(),
+                );
+            }
 
             $this->safeNotify(function () use (
                 $permission,
@@ -4311,7 +4448,8 @@ class AdminController extends Controller
             $message = "Ndugu {$name}, maombi ya ruhusa ya mwanafunzi {$studentName} yamepata mabadiliko.";
         }
 
-        (new SmsService())->sendSms($phone, $message);
+        $sms = new SmsService();
+        $sms->sendSms($phone, $sms->formatMessage($message));
     }
 
     private function notifyStudentPermissionParent(
@@ -4346,7 +4484,8 @@ class AdminController extends Controller
             $message = "Ruhusa ya mwanafunzi {$studentName} imepata mabadiliko kwenye mfumo.";
         }
 
-        (new SmsService())->sendSms($parentPhone, $message);
+        $sms = new SmsService();
+        $sms->sendSms($parentPhone, $sms->formatMessage($message));
     }
 
     public function notifyNextApprover(
@@ -4603,7 +4742,7 @@ class AdminController extends Controller
                     ->where("id", $permission->id)
                     ->update([
                         "status" => "rejected",
-                        "reason_description" => $validated["admin_response"],
+                        "is_read_by_parent" => false,
                         "updated_at" => now(),
                     ]);
 
@@ -4623,9 +4762,10 @@ class AdminController extends Controller
                 $this->safeNotify(function () use ($permission, $validated) {
                     $student = \App\Models\Student::find($permission->student_id);
                     if ($student && $student->parent) {
-                        (new SmsService())->sendSms(
+                        $sms = new SmsService();
+                        $sms->sendSms(
                             $student->parent->phone,
-                            "Ruksa ya mwanafunzi {$student->first_name} {$student->last_name} imekataliwa. Sababu: {$validated["admin_response"]}",
+                            $sms->formatMessage("Ruksa ya mwanafunzi {$student->first_name} {$student->last_name} imekataliwa. Sababu: {$validated["admin_response"]}"),
                         );
                     }
                 });
@@ -7006,10 +7146,14 @@ class AdminController extends Controller
             ? Carbon::parse($lastSeen)
             : Carbon::createFromTimestamp(0);
 
-        $visitorCount = DB::table("school_visitors")
+        $readVisitorIds = $this->bellReadIds("bell_read_visitors");
+        $visitorCountQuery = DB::table("school_visitors")
             ->where("schoolID", $schoolID)
-            ->where("created_at", ">", $lastSeenAt)
-            ->count();
+            ->where("created_at", ">", $lastSeenAt);
+        if ($readVisitorIds !== []) {
+            $visitorCountQuery->whereNotIn("visitorID", $readVisitorIds);
+        }
+        $visitorCount = $visitorCountQuery->count();
 
         $oaLastSeen = Session::get("online_admissions_last_seen");
         $oaLastSeenAt = $oaLastSeen
@@ -7018,20 +7162,27 @@ class AdminController extends Controller
 
         $onlineAdmissionCount = 0;
         try {
-            $onlineAdmissionCount = DB::table("online_admissions")
+            $readAdmissionIds = $this->bellReadIds("bell_read_admissions");
+            $admissionCountQuery = DB::table("online_admissions")
                 ->where("schoolID", $schoolID)
                 ->where("status", "Pending")
-                ->where("created_at", ">", $oaLastSeenAt)
-                ->count();
+                ->where("created_at", ">", $oaLastSeenAt);
+            if ($readAdmissionIds !== []) {
+                $admissionCountQuery->whereNotIn("id", $readAdmissionIds);
+            }
+            $onlineAdmissionCount = $admissionCountQuery->count();
         } catch (\Throwable $e) {
             $onlineAdmissionCount = 0;
         }
 
+        $permissionCount = $this->pendingParentPermissionNotes((int) $schoolID)["count"];
+
         return response()->json([
             "success" => true,
-            "count" => $visitorCount + $onlineAdmissionCount,
+            "count" => $visitorCount + $onlineAdmissionCount + $permissionCount,
             "visitors" => $visitorCount,
             "online_admissions" => $onlineAdmissionCount,
+            "parent_permissions" => $permissionCount,
         ]);
     }
 
@@ -7047,10 +7198,75 @@ class AdminController extends Controller
 
         Session::put("visitors_last_seen", now()->toDateTimeString());
         Session::put("online_admissions_last_seen", now()->toDateTimeString());
+        Session::put("parent_permissions_bell_seen", now()->toDateTimeString());
+        Session::forget([
+            "bell_read_visitors",
+            "bell_read_admissions",
+            "bell_read_permissions",
+        ]);
         return response()->json(["success" => true]);
     }
 
-    public function getRecentVisitors()
+    public function markOneNotificationRead(Request $request)
+    {
+        $isAdmin = Session::get("user_type") === "Admin";
+        if (!$isAdmin) {
+            return response()->json(
+                ["success" => false, "error" => "Unauthorized"],
+                403,
+            );
+        }
+
+        $validated = $request->validate([
+            "type" => "required|in:permission,admission,visitor",
+            "id" => "required|integer|min:1",
+        ]);
+
+        $keys = [
+            "permission" => "bell_read_permissions",
+            "admission" => "bell_read_admissions",
+            "visitor" => "bell_read_visitors",
+        ];
+        $this->rememberBellReadId($keys[$validated["type"]], (int) $validated["id"]);
+
+        return response()->json(["success" => true]);
+    }
+
+    private function bellReadIds(string $key): array
+    {
+        $ids = Session::get($key, []);
+        if (!is_array($ids)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_map("intval", $ids)));
+    }
+
+    private function rememberBellReadId(string $key, int $id): void
+    {
+        $ids = $this->bellReadIds($key);
+        $ids[] = $id;
+        $ids = array_values(array_unique($ids));
+        if (count($ids) > 300) {
+            $ids = array_slice($ids, -300);
+        }
+        Session::put($key, $ids);
+    }
+
+    private function bellItemIsUnread($createdAt, $cutoff, int $id, array $readIds): bool
+    {
+        if (!$createdAt) {
+            return false;
+        }
+        $created = $createdAt instanceof Carbon ? $createdAt : Carbon::parse($createdAt);
+        if (!$created->gt($cutoff)) {
+            return false;
+        }
+
+        return !in_array($id, $readIds, true);
+    }
+
+    public function getRecentVisitors(Request $request)
     {
         $isAdmin = Session::get("user_type") === "Admin";
         $schoolID = Session::get("schoolID");
@@ -7061,23 +7277,34 @@ class AdminController extends Controller
             );
         }
 
+        $page = max(1, (int) $request->get("page", 1));
+        $perPage = 10;
+        $window = $page * $perPage;
         $lastSeenAt = Session::get("visitors_last_seen");
         $oaLastSeenAt = Session::get("online_admissions_last_seen");
 
         $visitors = DB::table("school_visitors")
             ->where("schoolID", $schoolID)
             ->orderBy("created_at", "desc")
-            ->limit(5)
+            ->limit($window)
             ->get()
             ->map(function ($visitor) use ($lastSeenAt) {
                 $created = Carbon::parse($visitor->created_at);
+                $cutoff = $lastSeenAt
+                    ? Carbon::parse($lastSeenAt)
+                    : Carbon::createFromTimestamp(0);
                 $visitor->time_label = $created->isToday()
                     ? $created->diffForHumans()
                     : $created->format("d M Y");
-                $visitor->is_new = $lastSeenAt
-                    ? $created->gt(Carbon::parse($lastSeenAt))
-                    : true;
+                $visitor->is_new = $this->bellItemIsUnread(
+                    $created,
+                    $cutoff,
+                    (int) $visitor->visitorID,
+                    $this->bellReadIds("bell_read_visitors"),
+                );
                 $visitor->type = "visitor";
+                $visitor->url = route("admin.school_visitors");
+                $visitor->sort = $created->timestamp;
                 return $visitor;
             });
 
@@ -7090,31 +7317,197 @@ class AdminController extends Controller
             $onlineAdmissions = DB::table("online_admissions")
                 ->where("schoolID", $schoolID)
                 ->where("status", "Pending")
-                ->where("created_at", ">", $oaCutoff)
                 ->orderBy("created_at", "desc")
-                ->limit(5)
+                ->limit($window)
                 ->get()
-                ->map(function ($app) {
+                ->map(function ($app) use ($oaCutoff) {
                     $created = Carbon::parse($app->created_at);
                     return [
                         "type" => "online_admission",
+                        "id" => (int) $app->id,
                         "name" => trim(($app->student_first_name ?? "") . " " . ($app->student_last_name ?? "")),
                         "application_number" => $app->application_number ?? "",
                         "time_label" => $created->isToday()
                             ? $created->diffForHumans()
                             : $created->format("d M Y"),
+                        "is_new" => $this->bellItemIsUnread(
+                            $created,
+                            $oaCutoff,
+                            (int) $app->id,
+                            $this->bellReadIds("bell_read_admissions"),
+                        ),
                         "url" => route("school.online_admission.index"),
+                        "sort" => $created->timestamp,
                     ];
                 });
         } catch (\Throwable $e) {
             $onlineAdmissions = collect();
         }
 
+        $permissionNotes = $this->pendingParentPermissionNotes((int) $schoolID, $window);
+        $feed = [];
+
+        foreach ($permissionNotes["items"] as $perm) {
+            $feed[] = [
+                "type" => "permission",
+                "id" => $perm["id"],
+                "sort" => (int) ($perm["sort"] ?? 0),
+                "title" => "Permission request",
+                "meta" => trim(($perm["student_name"] ?? "") . " | " . ($perm["reason_label"] ?? "") . " | " . ($perm["start_date"] ?? "") . " - " . ($perm["end_date"] ?? "")),
+                "time_label" => $perm["time_label"] ?? "",
+                "is_unread" => !empty($perm["is_unread"]),
+                "url" => $perm["url"] ?? route("admin.hr.permission", ["tab" => "student", "open" => "sp" . $perm["id"]]),
+                "permission" => $perm,
+            ];
+        }
+
+        foreach ($onlineAdmissions as $app) {
+            $feed[] = [
+                "type" => "admission",
+                "id" => $app["id"],
+                "sort" => (int) ($app["sort"] ?? 0),
+                "title" => "Online application",
+                "meta" => trim(($app["name"] ?? "Applicant") . " | " . ($app["application_number"] ?? "")),
+                "time_label" => $app["time_label"] ?? "",
+                "is_unread" => !empty($app["is_new"]),
+                "url" => $app["url"] ?? route("school.online_admission.index"),
+            ];
+        }
+
+        foreach ($visitors as $visitor) {
+            $feed[] = [
+                "type" => "visitor",
+                "id" => (int) $visitor->visitorID,
+                "sort" => (int) ($visitor->sort ?? 0),
+                "title" => (string) ($visitor->name ?? "Visitor"),
+                "meta" => trim(($visitor->reason ?? "N/A") . " | " . ($visitor->contact ?? "N/A")),
+                "time_label" => $visitor->time_label ?? "",
+                "is_unread" => !empty($visitor->is_new),
+                "url" => $visitor->url ?? route("admin.school_visitors"),
+            ];
+        }
+
+        usort($feed, function ($a, $b) {
+            return $b["sort"] <=> $a["sort"];
+        });
+
+        $offset = ($page - 1) * $perPage;
+        $pageItems = array_slice($feed, $offset, $perPage);
+        $sourceFilled = count($permissionNotes["items"]) >= $window
+            || $visitors->count() >= $window
+            || (is_countable($onlineAdmissions) && count($onlineAdmissions) >= $window);
+        $hasMore = count($feed) > ($offset + count($pageItems)) || ($sourceFilled && count($pageItems) === $perPage);
+
         return response()->json([
             "success" => true,
+            "items" => array_values($pageItems),
+            "page" => $page,
+            "has_more" => $hasMore,
             "visitors" => $visitors,
             "online_admissions" => $onlineAdmissions,
+            "parent_permissions" => $permissionNotes["items"],
+            "parent_permission_count" => $permissionNotes["count"],
         ]);
+    }
+
+    /**
+     * Pending parent permission requests for the admin header bell.
+     *
+     * @return array{count: int, items: array<int, array<string, mixed>>}
+     */
+    private function parentPermissionBellSeenAt(): \Carbon\Carbon
+    {
+        $seen = Session::get("parent_permissions_bell_seen");
+
+        return $seen ? Carbon::parse($seen) : Carbon::createFromTimestamp(0);
+    }
+
+    private function pendingParentPermissionNotes(int $schoolID, int $limit = 10): array
+    {
+        try {
+            return $this->queryPendingParentPermissionNotes($schoolID, $limit);
+        } catch (\Throwable $e) {
+            Log::warning("Pending parent permission notes failed: " . $e->getMessage());
+            return ["count" => 0, "items" => []];
+        }
+    }
+
+    /**
+     * @return array{count: int, items: array<int, array<string, mixed>>}
+     */
+    private function queryPendingParentPermissionNotes(int $schoolID, int $limit = 10): array
+    {
+        $base = DB::table("student_permissions as sp")
+            ->leftJoin("students as s", "sp.student_id", "=", "s.studentID")
+            ->leftJoin("parents as p", "s.parentID", "=", "p.parentID")
+            ->where("sp.schoolID", $schoolID)
+            ->where("sp.requester_type", "parent")
+            ->where("sp.status", "pending");
+
+        $seenAt = $this->parentPermissionBellSeenAt();
+        $readPermissionIds = $this->bellReadIds("bell_read_permissions");
+        $countQuery = (clone $base)->where("sp.created_at", ">", $seenAt);
+        if ($readPermissionIds !== []) {
+            $countQuery->whereNotIn("sp.id", $readPermissionIds);
+        }
+        $count = $countQuery->count();
+        $rows = (clone $base)
+            ->orderByDesc("sp.created_at")
+            ->limit(max(1, $limit))
+            ->get([
+                "sp.id",
+                "sp.reason_type",
+                "sp.reason_description",
+                "sp.days_count",
+                "sp.start_date",
+                "sp.end_date",
+                "sp.attachment",
+                "sp.created_at",
+                "s.first_name as student_first_name",
+                "s.last_name as student_last_name",
+                "p.first_name as parent_first_name",
+                "p.last_name as parent_last_name",
+            ]);
+
+        $items = $rows->map(function ($row) use ($seenAt, $readPermissionIds) {
+            $created = $row->created_at ? Carbon::parse($row->created_at) : null;
+            $reason = strtolower((string) $row->reason_type);
+            $reasonLabel = in_array($reason, ["sick", "medical"], true) ? "Sick" : "Permission";
+            $attachmentUrl = "";
+            if (!empty($row->attachment)) {
+                $attachmentUrl = str_contains((string) $row->attachment, "/")
+                    ? asset($row->attachment)
+                    : asset("uploads/permissions/" . $row->attachment);
+            }
+
+            return [
+                "id" => (int) $row->id,
+                "student_name" => trim(($row->student_first_name ?? "") . " " . ($row->student_last_name ?? "")) ?: "Student",
+                "parent_name" => trim(($row->parent_first_name ?? "") . " " . ($row->parent_last_name ?? "")) ?: "Parent",
+                "reason_label" => $reasonLabel,
+                "reason_description" => (string) ($row->reason_description ?? ""),
+                "days_count" => (int) ($row->days_count ?? 0),
+                "start_date" => $row->start_date ? Carbon::parse($row->start_date)->format("j M Y") : "",
+                "end_date" => $row->end_date ? Carbon::parse($row->end_date)->format("j M Y") : "",
+                "time_label" => $created
+                    ? ($created->isToday() ? $created->diffForHumans() : $created->format("d M Y"))
+                    : "",
+                "attachment_url" => $attachmentUrl,
+                "url" => route("admin.hr.permission", [
+                    "tab" => "student",
+                    "open" => "sp" . (int) $row->id,
+                ]),
+                "sort" => $created ? $created->timestamp : 0,
+                "is_unread" => $this->bellItemIsUnread(
+                    $created,
+                    $seenAt,
+                    (int) $row->id,
+                    $readPermissionIds,
+                ),
+            ];
+        })->values()->all();
+
+        return ["count" => $count, "items" => $items];
     }
 
     // Student Permission Requesters Management

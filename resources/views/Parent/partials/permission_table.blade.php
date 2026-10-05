@@ -20,16 +20,9 @@
     };
 @endphp
 
-<style>
-    @media (max-width: 991px) {
-        #perm-list-view { display: none !important; }
-        #perm-grid-view { display: block !important; }
-    }
-</style>
-
 <div class="d-flex align-items-center justify-content-between mb-3 px-1">
     <small class="text-muted">{{ $permissions->count() }} rekodi</small>
-    <div class="btn-group btn-group-sm" id="perm-view-toggle" role="group" aria-label="Badilisha mwonekano">
+    <div class="btn-group btn-group-sm perm-view-toggle" role="group" aria-label="Badilisha mwonekano">
         <button type="button" class="btn btn-outline-secondary perm-view-btn" data-view="list" title="Orodha">
             <i class="bx bx-list-ul"></i>
         </button>
@@ -39,7 +32,7 @@
     </div>
 </div>
 
-<div id="perm-list-view">
+<div class="perm-list-view">
     <div class="table-responsive">
         <table class="table table-hover align-middle border">
             <thead class="bg-light">
@@ -126,7 +119,7 @@
     </div>
 </div>
 
-<div id="perm-grid-view" style="display:none;">
+<div class="perm-grid-view" style="display:none;">
     <div class="row g-3">
         @foreach($permissions as $permission)
         @php

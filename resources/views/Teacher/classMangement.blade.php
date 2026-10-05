@@ -7193,30 +7193,37 @@
                                     ? '<span class="badge badge-secondary ml-1">' + student.enrollment_status + '</span>'
                                     : '';
                                 var canMark = !student.enrollment_status || student.enrollment_status === 'Active';
-                                var statusDisabled = canMark ? '' : ' disabled';
+                                var permissionLocked = !!student.permission_locked;
+                                var permissionLabel = student.permission_label || (status === 'Sick' ? 'Sick' : 'Permission');
+                                var statusDisabled = (!canMark || permissionLocked) ? ' disabled' : '';
+                                var lockedClass = permissionLocked ? ' permission-locked' : '';
+                                var nameStyle = permissionLocked ? ' style="text-decoration: line-through;"' : '';
+                                var lockNote = permissionLocked
+                                    ? '<small class="text-muted d-block">' + permissionLabel + '</small>'
+                                    : (!canMark ? '<small class="text-muted">View only (past enrollment)</small>' : '');
 
                                 var row = '<tr>' +
                                     '<td data-label="#" class="mobile-hide">' + (studentIndex + 1) + '</td>' +
                                     '<td class="student-info-col" data-label="Student">' +
                                     '<div class="d-flex align-items-center gap-2">' +
                                     photoHtml +
-                                    '<div><strong>' + studentName + '</strong> ' + enrBadge +
+                                    '<div><strong' + nameStyle + '>' + studentName + '</strong> ' + enrBadge +
                                     (student.enrollmentID ? '<div class="small text-muted">Enr #' + student.enrollmentID + '</div>' : '') +
                                     '</div>' +
                                     '</div>' +
                                     '</td>' +
                                     '<td class="mobile-hide toggle-row-' + student.studentID + '" data-label="Adm No.">' + admissionNo + '</td>' +
                                     '<td class="action-col" data-label="Status">' +
-                                    '<select class="form-control form-control-sm attendance-status w-100" name="attendance[' + student.studentID + '][status]" data-student-id="' + student.studentID + '"' + statusDisabled + '>' +
+                                    '<select class="form-control form-control-sm attendance-status w-100' + lockedClass + '" name="attendance[' + student.studentID + '][status]" data-student-id="' + student.studentID + '"' + statusDisabled + ' style="' + (permissionLocked ? 'pointer-events:none;' : '') + '">' +
                                     '<option value="Present"' + (status === 'Present' ? ' selected' : '') + '>Present</option>' +
                                     '<option value="Absent"' + (status === 'Absent' ? ' selected' : '') + '>Absent</option>' +
                                     '<option value="Sick"' + (status === 'Sick' ? ' selected' : '') + '>Sick</option>' +
                                     '<option value="Excused"' + (status === 'Excused' ? ' selected' : '') + '>Permission</option>' +
                                     '</select>' +
-                                    (!canMark ? '<small class="text-muted">View only (past enrollment)</small>' : '') +
+                                    lockNote +
                                     '</td>' +
                                     '<td class="mobile-hide toggle-row-' + student.studentID + '" data-label="Remark">' +
-                                    '<input type="text" class="form-control form-control-sm w-100" name="attendance[' + student.studentID + '][remark]" placeholder="Optional remark" value="' + remark + '">' +
+                                    '<input type="text" class="form-control form-control-sm w-100" name="attendance[' + student.studentID + '][remark]" placeholder="Optional remark" value="' + remark + '"' + (permissionLocked ? ' disabled' : '') + '>' +
                                     '<input type="hidden" name="attendance[' + student.studentID + '][studentID]" value="' + student.studentID + '">' +
                                     '</td>' +
                                     '<td class="desktop-hide mobile-action-bar">' +
@@ -7276,9 +7283,9 @@
             $('#markAllPresent').on('click', function () {
                 if (typeof $.fn.DataTable !== 'undefined' && $.fn.DataTable.isDataTable('#attendanceCollectionTable')) {
                     var table = $('#attendanceCollectionTable').DataTable();
-                    table.$('.attendance-status').val('Present');
+                    table.$('.attendance-status').not('.permission-locked').not(':disabled').val('Present');
                 } else {
-                    $('.attendance-status').val('Present');
+                    $('.attendance-status').not('.permission-locked').not(':disabled').val('Present');
                 }
             });
 
@@ -7286,9 +7293,9 @@
             $('#markAllAbsent').on('click', function () {
                 if (typeof $.fn.DataTable !== 'undefined' && $.fn.DataTable.isDataTable('#attendanceCollectionTable')) {
                     var table = $('#attendanceCollectionTable').DataTable();
-                    table.$('.attendance-status').val('Absent');
+                    table.$('.attendance-status').not('.permission-locked').not(':disabled').val('Absent');
                 } else {
-                    $('.attendance-status').val('Absent');
+                    $('.attendance-status').not('.permission-locked').not(':disabled').val('Absent');
                 }
             });
 

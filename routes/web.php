@@ -837,6 +837,10 @@ Route::post("parentPermissions", [
     ParentsContoller::class,
     "storeParentPermission",
 ])->name("parent.permissions.store");
+Route::post("parentPermissions/read", [
+    ParentsContoller::class,
+    "markParentPermissionTabRead",
+])->name("parent.permissions.read");
 Route::get("parent/get-published-exams", [
     ParentsContoller::class,
     "getPublishedExams",
@@ -2781,6 +2785,10 @@ Route::post("admin/mark-visitor-notifications-read", [
     AdminController::class,
     "markVisitorNotificationsRead",
 ])->name("admin.mark_visitor_notifications_read");
+Route::post("admin/mark-notification-read", [
+    AdminController::class,
+    "markOneNotificationRead",
+])->name("admin.mark_notification_read");
 
 Route::post("damaged-lost", [
     AdminController::class,

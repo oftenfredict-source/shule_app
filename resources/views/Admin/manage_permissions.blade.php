@@ -22,6 +22,7 @@
         font-weight: 700;
         border-bottom: 2px solid #dee2e6 !important;
     }
+    .permission-focus { outline: 2px solid #940000; background: #fff4f4 !important; }
     .permission-tabs .nav-link { cursor: pointer; color: #940000; border-radius: 0; }
     .permission-tabs .nav-link.active { background: #fff5f5; color: #940000; font-weight: 600; border-color: #940000; }
     .badge-count { background: #940000; color: #fff; border-radius: 10px; padding: 2px 6px; font-size: 0.75rem; margin-left: 6px; }
@@ -58,15 +59,16 @@
     .modal-loading {
         display: none;
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(255, 255, 255, 0.8);
-        z-index: 10;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.9);
+        z-index: 20;
         align-items: center;
         justify-content: center;
         flex-direction: column;
+        border-radius: 4px;
+    }
+    .modal-content.is-ajax-loading {
+        position: relative;
     }
 
     /* Action Circle Style */
@@ -88,6 +90,27 @@
         border-color: #940000;
     }
     .action-circle i { font-size: 14px; }
+    .perm-reason-short,
+    .perm-reason-full { white-space: pre-wrap; }
+    .perm-reason-full { display: none; }
+    .perm-reason-text.is-open .perm-reason-full { display: block; }
+    .perm-reason-text.is-open .perm-reason-short { display: none; }
+    .perm-reason-toggle {
+        display: inline-block;
+        margin-top: 2px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #940000;
+    }
+    #perm-list-view .table-responsive,
+    #perm-list-view,
+    #perm-grid-view { overflow: visible; }
+    #perm-list-view .perm-action-dropdown,
+    #perm-grid-view .perm-action-dropdown { position: static; }
+    body > .dropdown-menu.perm-action-menu {
+        position: fixed !important;
+        z-index: 200000 !important;
+    }
 
     /* Layout Toggle */
     .view-toggle-btn.active {
@@ -262,7 +285,17 @@
                         </thead>
                         <tbody id="permissionTableBody">
                             @forelse($permissions as $permission)
-                                <tr data-permission-id="{{ $permission->permissionID }}">
+                                @php
+                                    $isStudentPermissionRow = !empty($permission->is_student_permission);
+                                    $permissionModalKey = $isStudentPermissionRow ? 'sp'.$permission->permissionID : $permission->permissionID;
+                                    $attachmentUrl = null;
+                                    if ($permission->attachment_path) {
+                                        $attachmentUrl = $isStudentPermissionRow
+                                            ? asset($permission->attachment_path)
+                                            : route('admin.permissions.attachment', $permission->permissionID);
+                                    }
+                                @endphp
+                                <tr data-permission-id="{{ $permission->permissionID }}" data-open-key="{{ $permissionModalKey }}">
                                     <td>
                                         @php
                                             $requesterName = 'N/A';
@@ -286,7 +319,22 @@
                                             {{ $permission->start_time }} - {{ $permission->end_time }}
                                         @endif
                                     </td>
-                                    <td>{{ ucfirst($permission->reason_type) }}</td>
+                                    <td>
+                                        @php
+                                            $reasonFull = trim((string) ($permission->reason_description ?? ''));
+                                            $reasonIsLong = mb_strlen($reasonFull) > 80;
+                                        @endphp
+                                        <small class="text-muted d-block">{{ ucfirst($permission->reason_type) }}</small>
+                                        <div class="perm-reason-text">
+                                            @if($reasonIsLong)
+                                                <span class="perm-reason-short">{{ \Illuminate\Support\Str::limit($reasonFull, 80) }}</span>
+                                                <span class="perm-reason-full">{{ $reasonFull }}</span>
+                                                <a href="#" class="perm-reason-toggle">View more</a>
+                                            @else
+                                                <span class="perm-reason-short">{{ $reasonFull }}</span>
+                                            @endif
+                                        </div>
+                                    </td>
                                     <td class="permission-status">
                                         @if($permission->status === 'approved')
                                             <span class="badge badge-success">Approved</span>
@@ -297,12 +345,12 @@
                                         @endif
                                     </td>
                                     <td class="text-center">
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <div class="dropdown perm-action-dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown" data-display="static" aria-haspopup="true" aria-expanded="false">
                                                 <i class="bx bx-cog"></i>
                                             </button>
                                             <div class="dropdown-menu dropdown-menu-right shadow border">
-                                                <a class="dropdown-item" href="#" onclick="viewPermissionProgress({{ $permission->permissionID }}); return false;">
+                                                <a class="dropdown-item" href="#" onclick="viewPermissionProgress({{ $permission->permissionID }}, {{ $isStudentPermissionRow ? 'true' : 'false' }}); return false;">
                                                     <i class="fa fa-project-diagram text-info"></i> View Progress
                                                 </a>
                                                 <a class="dropdown-item" href="#" onclick='viewPermissionDetails({{ json_encode([
@@ -321,11 +369,13 @@
                                                 ]) }}); return false;'>
                                                     <i class="fa fa-list-alt text-secondary"></i> View Details
                                                 </a>
+                                                @if(!$isStudentPermissionRow)
                                                 <a class="dropdown-item" href="{{ route('admin.permissions.download', $permission->permissionID) }}">
                                                     <i class="fa fa-file-pdf text-danger"></i> Download PDF
                                                 </a>
-                                                @if($permission->attachment_path)
-                                                    <a class="dropdown-item" href="{{ route('admin.permissions.attachment', $permission->permissionID) }}" target="_blank">
+                                                @endif
+                                                @if($attachmentUrl)
+                                                    <a class="dropdown-item" href="{{ $attachmentUrl }}" target="_blank">
                                                         <i class="fa fa-paperclip text-warning"></i> View Attachment
                                                     </a>
                                                 @endif
@@ -335,10 +385,10 @@
                                                     @endphp
                                                     @if($canApprove)
                                                     <div class="dropdown-divider"></div>
-                                                    <a class="dropdown-item text-success" href="#" data-toggle="modal" data-target="#approveModal{{ $permission->permissionID }}">
+                                                    <a class="dropdown-item text-success" href="#" data-toggle="modal" data-target="#approveModal{{ $permissionModalKey }}">
                                                         <i class="fa fa-check"></i> Approve
                                                     </a>
-                                                    <a class="dropdown-item text-danger" href="#" data-toggle="modal" data-target="#rejectModal{{ $permission->permissionID }}">
+                                                    <a class="dropdown-item text-danger" href="#" data-toggle="modal" data-target="#rejectModal{{ $permissionModalKey }}">
                                                         <i class="fa fa-times"></i> Reject
                                                     </a>
                                                     @endif
@@ -361,12 +411,19 @@
                 <div class="row" id="permGridContainer">
                     @foreach($permissions as $permission)
                         @php
+                            $isStudentPermissionRow = !empty($permission->is_student_permission);
                             $borderColor = match($permission->status) {
                                 'approved' => '#28a745',
                                 'rejected' => '#dc3545',
                                 default => '#ffc107'
                             };
                             $requesterName = 'N/A';
+                            $gridAttachmentUrl = null;
+                            if ($permission->attachment_path) {
+                                $gridAttachmentUrl = $isStudentPermissionRow
+                                    ? asset($permission->attachment_path)
+                                    : route('admin.permissions.attachment', $permission->permissionID);
+                            }
                             if($activeTab === 'student' && $permission->student) {
                                 $requesterName = trim($permission->student->first_name . ' ' . $permission->student->last_name);
                             } elseif($activeTab === 'staff' && $permission->staff) {
@@ -375,7 +432,7 @@
                                 $requesterName = trim($permission->teacher->first_name . ' ' . $permission->teacher->last_name);
                             }
                         @endphp
-                        <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="col-md-6 col-lg-4 mb-3" data-open-key="{{ $isStudentPermissionRow ? 'sp'.$permission->permissionID : $permission->permissionID }}">
                             <div class="card h-100 shadow-sm border-0" style="border-left: 5px solid {{ $borderColor }} !important; background: #fff;">
                                 <div class="card-body p-3">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
@@ -383,12 +440,12 @@
                                             <h6 class="mb-0"><strong>{{ $requesterName }}</strong></h6>
                                             <small class="text-muted">{{ ucfirst($activeTab) }}</small>
                                         </div>
-                                        <div class="dropdown">
-                                            <div class="action-circle" data-toggle="dropdown">
+                                        <div class="dropdown perm-action-dropdown">
+                                            <div class="action-circle" data-toggle="dropdown" data-display="static">
                                                 <i class="fa fa-ellipsis-v"></i>
                                             </div>
                                             <div class="dropdown-menu dropdown-menu-right">
-                                                <a class="dropdown-item" href="#" onclick="viewPermissionProgress({{ $permission->permissionID }}); return false;">
+                                                <a class="dropdown-item" href="#" onclick="viewPermissionProgress({{ $permission->permissionID }}, {{ $isStudentPermissionRow ? 'true' : 'false' }}); return false;">
                                                     <i class="fa fa-project-diagram text-info"></i> View Progress
                                                 </a>
                                                 <a class="dropdown-item" href="#" onclick='viewPermissionDetails({{ json_encode([
@@ -407,11 +464,13 @@
                                                 ]) }}); return false;'>
                                                     <i class="fa fa-list-alt text-secondary"></i> View Details
                                                 </a>
+                                                @if(!$isStudentPermissionRow)
                                                 <a class="dropdown-item" href="{{ route('admin.permissions.download', $permission->permissionID) }}">
                                                     <i class="fa fa-file-pdf text-danger"></i> Download PDF
                                                 </a>
-                                                @if($permission->attachment_path)
-                                                    <a class="dropdown-item" href="{{ route('admin.permissions.attachment', $permission->permissionID) }}" target="_blank">
+                                                @endif
+                                                @if($gridAttachmentUrl)
+                                                    <a class="dropdown-item" href="{{ $gridAttachmentUrl }}" target="_blank">
                                                         <i class="fa fa-paperclip text-warning"></i> View Attachment
                                                     </a>
                                                 @endif
@@ -429,8 +488,20 @@
                                         @endif
                                     </div>
                                     <div>
+                                        @php
+                                            $gridReasonFull = trim((string) ($permission->reason_description ?? ''));
+                                            $gridReasonIsLong = mb_strlen($gridReasonFull) > 80;
+                                        @endphp
                                         <small class="text-muted d-block">Reason ({{ $permission->reason_type }}):</small>
-                                        <p class="mb-0 text-muted" style="font-size: 0.85rem;">{{ Str::limit($permission->reason_description, 80) }}</p>
+                                        <div class="perm-reason-text" style="font-size: 0.85rem;">
+                                            @if($gridReasonIsLong)
+                                                <span class="perm-reason-short">{{ \Illuminate\Support\Str::limit($gridReasonFull, 80) }}</span>
+                                                <span class="perm-reason-full">{{ $gridReasonFull }}</span>
+                                                <a href="#" class="perm-reason-toggle">View more</a>
+                                            @else
+                                                <span class="perm-reason-short">{{ $gridReasonFull }}</span>
+                                            @endif
+                                        </div>
                                     </div>
                                     <div class="mt-2">
                                         <span class="badge badge-{{ $permission->status === 'approved' ? 'success' : ($permission->status === 'rejected' ? 'danger' : 'warning') }} text-uppercase" style="font-size: 10px;">
@@ -448,10 +519,12 @@
                 @foreach($permissions as $permission)
                     @if($permission->status === 'pending')
                         @php
+                            $isStudentPermissionRow = !empty($permission->is_student_permission);
+                            $permissionModalKey = $isStudentPermissionRow ? 'sp'.$permission->permissionID : $permission->permissionID;
                             $canApprove = !($adminInChain ?? false) || ($permission->current_approval_order == $adminApprovalOrder);
                         @endphp
                         @if($canApprove)
-                        <div class="modal fade" id="approveModal{{ $permission->permissionID }}" tabindex="-1">
+                        <div class="modal fade" id="approveModal{{ $permissionModalKey }}" tabindex="-1">
                             <div class="modal-dialog modal-lg">
                                 <div class="modal-content">
                                     <div class="modal-header bg-primary-custom text-white">
@@ -461,6 +534,9 @@
                                     <form method="POST" action="{{ route('admin.permissions.approve') }}" enctype="multipart/form-data" class="permission-approve-form" data-permission-id="{{ $permission->permissionID }}">
                                         @csrf
                                         <input type="hidden" name="permissionID" value="{{ $permission->permissionID }}">
+                                        @if($isStudentPermissionRow)
+                                            <input type="hidden" name="is_student_permission" value="1">
+                                        @endif
                                         <div class="modal-body position-relative">
                                             <div class="modal-loading">
                                                 <i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i>
@@ -483,7 +559,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="modal fade" id="rejectModal{{ $permission->permissionID }}" tabindex="-1">
+                        <div class="modal fade" id="rejectModal{{ $permissionModalKey }}" tabindex="-1">
                             <div class="modal-dialog modal-lg">
                                 <div class="modal-content">
                                     <div class="modal-header bg-primary-custom text-white">
@@ -493,6 +569,9 @@
                                     <form method="POST" action="{{ route('admin.permissions.reject') }}" class="permission-reject-form" data-permission-id="{{ $permission->permissionID }}">
                                         @csrf
                                         <input type="hidden" name="permissionID" value="{{ $permission->permissionID }}">
+                                        @if($isStudentPermissionRow)
+                                            <input type="hidden" name="is_student_permission" value="1">
+                                        @endif
                                         <div class="modal-body position-relative">
                                             <div class="modal-loading">
                                                 <i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i>
@@ -556,6 +635,29 @@
     const gridContainer = document.getElementById('permGridContainer');
     const activeTab = "{{ $activeTab }}";
 
+    function escapePermText(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function permReasonHtml(label, description) {
+        const text = String(description || '');
+        const labelHtml = '<small class="text-muted d-block">' + escapePermText(label) + '</small>';
+        if (text.length <= 80) {
+            return labelHtml + '<div class="perm-reason-text"><span class="perm-reason-short">' + escapePermText(text) + '</span></div>';
+        }
+        const short = text.slice(0, 80).replace(/\s+\S*$/, '').trim() + '...';
+        return labelHtml
+            + '<div class="perm-reason-text">'
+            + '<span class="perm-reason-short">' + escapePermText(short) + '</span>'
+            + '<span class="perm-reason-full">' + escapePermText(text) + '</span>'
+            + '<a href="#" class="perm-reason-toggle">View more</a>'
+            + '</div>';
+    }
+
     function renderPermissionRows(items) {
         const modalContainer = document.getElementById('permissionModals');
         if (!items || items.length === 0) {
@@ -583,19 +685,22 @@
                 ? `<a class="dropdown-item" href="${item.attachment}" target="_blank"><i class="fa fa-paperclip text-warning"></i> View Attachment</a>`
                 : '';
 
+            const modalKey = item.modalKey || item.permissionID;
+            const studentPermInput = item.isStudentPermission ? '<input type="hidden" name="is_student_permission" value="1">' : '';
+            const progressFlag = item.isStudentPermission ? 'true' : 'false';
             let actionButtons = '';
-            if (item.status === 'pending') {
+            if (item.status === 'pending' && item.canApprove !== false) {
                 actionButtons = `
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item text-success" href="#" data-toggle="modal" data-target="#approveModal${item.permissionID}">
+                    <a class="dropdown-item text-success" href="#" data-toggle="modal" data-target="#approveModal${modalKey}">
                         <i class="fa fa-check"></i> Approve
                     </a>
-                    <a class="dropdown-item text-danger" href="#" data-toggle="modal" data-target="#rejectModal${item.permissionID}">
+                    <a class="dropdown-item text-danger" href="#" data-toggle="modal" data-target="#rejectModal${modalKey}">
                         <i class="fa fa-times"></i> Reject
                     </a>
                 `;
                 modalsHtml += `
-                    <div class="modal fade" id="approveModal${item.permissionID}" tabindex="-1">
+                    <div class="modal fade" id="approveModal${modalKey}" tabindex="-1">
                         <div class="modal-dialog modal-lg">
                             <div class="modal-content">
                                 <div class="modal-header bg-primary-custom text-white">
@@ -605,6 +710,7 @@
                                 <form method="POST" action="{{ route('admin.permissions.approve') }}" enctype="multipart/form-data" class="permission-approve-form" data-permission-id="${item.permissionID}">
                                     <input type="hidden" name="_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="permissionID" value="${item.permissionID}">
+                                    ${studentPermInput}
                                     <div class="modal-body position-relative">
                                         <div class="modal-loading">
                                             <i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i>
@@ -627,7 +733,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="modal fade" id="rejectModal${item.permissionID}" tabindex="-1">
+                    <div class="modal fade" id="rejectModal${modalKey}" tabindex="-1">
                         <div class="modal-dialog modal-lg">
                             <div class="modal-content">
                                 <div class="modal-header bg-primary-custom text-white">
@@ -637,6 +743,7 @@
                                 <form method="POST" action="{{ route('admin.permissions.reject') }}" class="permission-reject-form" data-permission-id="${item.permissionID}">
                                     <input type="hidden" name="_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="permissionID" value="${item.permissionID}">
+                                    ${studentPermInput}
                                     <div class="modal-body position-relative">
                                         <div class="modal-loading">
                                             <i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i>
@@ -667,34 +774,34 @@
                 start_time: item.startTime,
                 end_time: item.endTime,
                 reason_type: item.reasonType ? item.reasonType.charAt(0).toUpperCase() + item.reasonType.slice(1) : '',
+                reason_description: item.reasonDescription || '',
                 status: item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : '',
                 requested_at: item.requested_at || 'N/A'
             });
 
             const downloadUrl = `{{ url('admin/hr/permissions/export-pdf') }}/${item.permissionID}`;
+            const reasonLabel = item.reasonType ? item.reasonType.charAt(0).toUpperCase() + item.reasonType.slice(1) : '';
 
             return `
                 <tr data-permission-id="${item.permissionID}">
                     <td><strong>${item.requesterName || 'N/A'}</strong></td>
                     <td>${item.timeMode ? item.timeMode.charAt(0).toUpperCase() + item.timeMode.slice(1) : ''}</td>
                     <td>${period}</td>
-                    <td>${item.reasonType ? item.reasonType.charAt(0).toUpperCase() + item.reasonType.slice(1) : ''}</td>
+                    <td>${permReasonHtml(reasonLabel, item.reasonDescription || '')}</td>
                     <td class="permission-status">${statusBadge}</td>
                     <td class="text-center">
-                        <div class="dropdown">
-                            <div class="action-circle" data-toggle="dropdown">
+                        <div class="dropdown perm-action-dropdown">
+                            <div class="action-circle" data-toggle="dropdown" data-display="static">
                                 <i class="fa fa-ellipsis-v"></i>
                             </div>
                             <div class="dropdown-menu dropdown-menu-right">
-                                <a class="dropdown-item" href="#" onclick="viewPermissionProgress(${item.permissionID}); return false;">
+                                <a class="dropdown-item" href="#" onclick="viewPermissionProgress(${item.permissionID}, ${progressFlag}); return false;">
                                     <i class="fa fa-project-diagram text-info"></i> View Progress
                                 </a>
                                 <a class="dropdown-item" href="#" onclick='viewPermissionDetails(${detailsData}); return false;'>
                                     <i class="fa fa-list-alt text-secondary"></i> View Details
                                 </a>
-                                <a class="dropdown-item" href="${downloadUrl}">
-                                    <i class="fa fa-file-pdf text-danger"></i> Download PDF
-                                </a>
+                                ${item.isStudentPermission ? '' : `<a class="dropdown-item" href="${downloadUrl}"><i class="fa fa-file-pdf text-danger"></i> Download PDF</a>`}
                                 ${attachmentLink}
                                 ${actionButtons}
                             </div>
@@ -717,14 +824,16 @@
                 ? `<a class="dropdown-item" href="${item.attachment}" target="_blank"><i class="fa fa-paperclip text-warning"></i> View Attachment</a>`
                 : '';
 
+            const modalKey = item.modalKey || item.permissionID;
+            const progressFlag = item.isStudentPermission ? 'true' : 'false';
             let actionButtons = '';
-            if (item.status === 'pending') {
+            if (item.status === 'pending' && item.canApprove !== false) {
                 actionButtons = `
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item text-success" href="#" data-toggle="modal" data-target="#approveModal${item.permissionID}">
+                    <a class="dropdown-item text-success" href="#" data-toggle="modal" data-target="#approveModal${modalKey}">
                         <i class="fa fa-check"></i> Approve
                     </a>
-                    <a class="dropdown-item text-danger" href="#" data-toggle="modal" data-target="#rejectModal${item.permissionID}">
+                    <a class="dropdown-item text-danger" href="#" data-toggle="modal" data-target="#rejectModal${modalKey}">
                         <i class="fa fa-times"></i> Reject
                     </a>
                 `;
@@ -739,6 +848,7 @@
                 start_time: item.startTime,
                 end_time: item.endTime,
                 reason_type: item.reasonType ? item.reasonType.charAt(0).toUpperCase() + item.reasonType.slice(1) : '',
+                reason_description: item.reasonDescription || '',
                 status: item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : '',
                 requested_at: item.requested_at || 'N/A'
             });
@@ -754,20 +864,18 @@
                                     <h6 class="mb-0"><strong>${item.requesterName || 'N/A'}</strong></h6>
                                     <small class="text-muted">${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</small>
                                 </div>
-                                <div class="dropdown">
-                                    <div class="action-circle" data-toggle="dropdown">
+                                <div class="dropdown perm-action-dropdown">
+                                    <div class="action-circle" data-toggle="dropdown" data-display="static">
                                         <i class="fa fa-ellipsis-v"></i>
                                     </div>
                                     <div class="dropdown-menu dropdown-menu-right">
-                                        <a class="dropdown-item" href="#" onclick="viewPermissionProgress(${item.permissionID}); return false;">
+                                        <a class="dropdown-item" href="#" onclick="viewPermissionProgress(${item.permissionID}, ${progressFlag}); return false;">
                                             <i class="fa fa-project-diagram text-info"></i> View Progress
                                         </a>
                                         <a class="dropdown-item" href="#" onclick='viewPermissionDetails(${detailsData}); return false;'>
                                             <i class="fa fa-list-alt text-secondary"></i> View Details
                                         </a>
-                                        <a class="dropdown-item" href="${downloadUrl}">
-                                            <i class="fa fa-file-pdf text-danger"></i> Download PDF
-                                        </a>
+                                        ${item.isStudentPermission ? '' : `<a class="dropdown-item" href="${downloadUrl}"><i class="fa fa-file-pdf text-danger"></i> Download PDF</a>`}
                                         ${attachmentLink}
                                         ${actionButtons}
                                     </div>
@@ -778,9 +886,8 @@
                                 <small class="text-muted d-block">Period:</small>
                                 ${period}
                             </div>
-                            <div>
-                                <small class="text-muted d-block">Reason (${item.reasonType}):</small>
-                                <p class="mb-0 text-muted" style="font-size: 0.85rem;">${item.reasonDescription ? (item.reasonDescription.substring(0, 80) + '...') : ''}</p>
+                            <div style="font-size: 0.85rem;">
+                                ${permReasonHtml('Reason (' + (item.reasonType || '') + ')', item.reasonDescription || '')}
                             </div>
                             <div class="mt-2">
                                 <span class="badge badge-${statusClass} text-uppercase" style="font-size: 10px;">
@@ -875,6 +982,22 @@
     }
 
     initViewToggle();
+
+    (function focusOpenedPermission() {
+        var openKey = new URLSearchParams(window.location.search).get('open');
+        if (!openKey) return;
+        var nodes = document.querySelectorAll('[data-open-key="' + openKey.replace(/"/g, '') + '"]');
+        if (!nodes.length) return;
+        nodes.forEach(function (node) { node.classList.add('permission-focus'); });
+        var target = nodes[0];
+        var listEl = document.getElementById('perm-list-view');
+        if (listEl && listEl.style.display === 'none' && nodes.length > 1) {
+            target = nodes[1];
+        }
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        var details = target.querySelector('a[onclick*="viewPermissionDetails"]');
+        if (details) details.click();
+    })();
 
     function setActiveTab(link) {
         document.querySelectorAll('.permission-tabs .nav-link').forEach(tab => {
@@ -1109,13 +1232,25 @@
         e.preventDefault();
         const form = approveForm || rejectForm;
         const formData = new FormData(form);
-        const modalBody = form.querySelector('.modal-body');
-        const internalLoading = modalBody ? modalBody.querySelector('.modal-loading') : null;
+        const modalContent = form.closest('.modal-content');
+        const internalLoading = form.querySelector('.modal-loading');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const pageLoading = document.getElementById('permissionLoading');
 
-        if (internalLoading) {
+        if (modalContent) {
+            modalContent.classList.add('is-ajax-loading');
+        }
+        if (internalLoading && modalContent) {
+            modalContent.appendChild(internalLoading);
             internalLoading.style.display = 'flex';
-        } else {
-            Swal.fire({ icon: 'info', title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        }
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.dataset.prevLabel = submitBtn.textContent;
+            submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Inaendelea...';
+        }
+        if (pageLoading) {
+            pageLoading.style.display = 'flex';
         }
 
         fetch(form.action, {
@@ -1158,6 +1293,12 @@
         })
         .finally(() => {
             if (internalLoading) internalLoading.style.display = 'none';
+            if (modalContent) modalContent.classList.remove('is-ajax-loading');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = submitBtn.dataset.prevLabel || submitBtn.textContent;
+            }
+            if (pageLoading) pageLoading.style.display = 'none';
         });
     });
 
@@ -1359,6 +1500,62 @@
             }
         });
     }
+
+    function placePermActionMenu(dropdown) {
+        const menu = dropdown.querySelector('.dropdown-menu');
+        const toggle = dropdown.querySelector('[data-toggle="dropdown"]');
+        if (!menu || !toggle) return;
+        const rect = toggle.getBoundingClientRect();
+        menu.classList.add('perm-action-menu');
+        document.body.appendChild(menu);
+        menu.style.visibility = 'hidden';
+        menu.style.display = 'block';
+        const menuWidth = menu.offsetWidth || 200;
+        const menuHeight = menu.offsetHeight || 160;
+        let left = rect.right - menuWidth;
+        if (left < 8) left = 8;
+        if (left + menuWidth > window.innerWidth - 8) left = Math.max(8, window.innerWidth - menuWidth - 8);
+        let top = rect.bottom + 4;
+        if (top + menuHeight > window.innerHeight - 8) top = Math.max(8, rect.top - menuHeight - 4);
+        menu.style.left = left + 'px';
+        menu.style.top = top + 'px';
+        menu.style.right = 'auto';
+        menu.style.bottom = 'auto';
+        menu.style.transform = 'none';
+        menu.style.visibility = 'visible';
+        dropdown._permMenu = menu;
+    }
+
+    function restorePermActionMenu(dropdown) {
+        const menu = dropdown._permMenu;
+        if (!menu) return;
+        menu.classList.remove('perm-action-menu');
+        menu.removeAttribute('style');
+        dropdown.appendChild(menu);
+        dropdown._permMenu = null;
+    }
+
+    $(document).on('show.bs.dropdown', '#perm-list-view .perm-action-dropdown, #perm-grid-view .perm-action-dropdown', function () {
+        placePermActionMenu(this);
+    });
+
+    $(document).on('hidden.bs.dropdown', '#perm-list-view .perm-action-dropdown, #perm-grid-view .perm-action-dropdown', function () {
+        restorePermActionMenu(this);
+    });
+
+    $(window).on('scroll resize', function () {
+        $('#perm-list-view .perm-action-dropdown.show, #perm-grid-view .perm-action-dropdown.show').each(function () {
+            $(this).find('[data-toggle="dropdown"]').dropdown('toggle');
+        });
+    });
+
+    $(document).on('click', '.perm-reason-toggle', function (event) {
+        event.preventDefault();
+        const box = $(this).closest('.perm-reason-text');
+        const open = box.hasClass('is-open');
+        box.toggleClass('is-open', !open);
+        $(this).text(open ? 'View more' : 'View less');
+    });
 </script>
 
 <!-- Student Permission Requesters Modal -->

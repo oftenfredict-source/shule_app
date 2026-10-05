@@ -38,6 +38,49 @@
         border-color: #940000 !important;
         border-bottom: 3px solid #940000 !important;
     }
+    .permission-tabs button.nav-link {
+        background: transparent;
+        border-top: 0;
+        border-left: 0;
+        border-right: 0;
+        cursor: pointer;
+    }
+    .parent-unread-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        margin-left: 6px;
+        background: #940000;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 6px;
+        line-height: 1;
+        vertical-align: middle;
+    }
+    .parent-unread-badge i {
+        font-size: 12px;
+    }
+    .perm-pane { display: none; }
+    .perm-pane.is-active { display: block; }
+    @media (max-width: 991px) {
+        .perm-list-view { display: none !important; }
+        .perm-grid-view { display: block !important; }
+        .permission-tabs {
+            display: flex;
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+        }
+        .permission-tabs .nav-item {
+            flex: 0 0 auto;
+        }
+        .permission-tabs .nav-link {
+            white-space: nowrap;
+        }
+    }
     .tab-content-area {
         background: white;
         padding: 30px;
@@ -55,7 +98,23 @@
     }
     .form-label {
         color: #444 !important;
-        margin-bottom: 8px !important;
+        margin-bottom: 10px !important;
+    }
+    #parentPermissionForm {
+        padding: 8px 6px 4px;
+    }
+    #parentPermissionForm .request-field-row {
+        --bs-gutter-x: 1.5rem;
+        --bs-gutter-y: 0;
+    }
+    #parentPermissionForm .request-field-row > [class*="col-"] {
+        padding-top: 6px;
+        padding-bottom: 18px;
+        margin-bottom: 6px;
+    }
+    #parentPermissionForm small {
+        display: block;
+        margin-top: 8px;
     }
     .form-loading {
         display: none;
@@ -99,107 +158,38 @@
             <div class="card-header bg-transparent p-0">
                 <ul class="nav nav-tabs permission-tabs border-0 bg-white shadow-sm">
                     <li class="nav-item">
-                        <a class="nav-link {{ $activeTab === 'request' ? 'active' : '' }}" href="{{ route('parent.permissions', ['tab' => 'request']) }}">Omba Ruksa</a>
+                        <button type="button" class="nav-link parent-perm-tab {{ $activeTab === 'request' ? 'active' : '' }}" data-tab="request">Omba Ruksa</button>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ $activeTab === 'pending' ? 'active' : '' }}" href="{{ route('parent.permissions', ['tab' => 'pending']) }}">Inasubiri
-                            @if($unreadPendingCount > 0) <span class="badge bg-danger ms-1" style="border-radius:0;">{{ $unreadPendingCount }}</span> @endif
-                        </a>
+                        <button type="button" class="nav-link parent-perm-tab {{ $activeTab === 'pending' ? 'active' : '' }}" data-tab="pending">Inasubiri
+                            <span class="parent-unread-badge" data-unread-for="pending" @if($unreadPendingCount < 1) style="display:none;" @endif><i class="bx bx-bell"></i> <span class="parent-unread-count">{{ $unreadPendingCount }}</span></span>
+                        </button>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ $activeTab === 'approved' ? 'active' : '' }}" href="{{ route('parent.permissions', ['tab' => 'approved']) }}">Zimekubaliwa
-                            @if($unreadApprovedCount > 0) <span class="badge bg-success ms-1" style="border-radius:0;">{{ $unreadApprovedCount }}</span> @endif
-                        </a>
+                        <button type="button" class="nav-link parent-perm-tab {{ $activeTab === 'approved' ? 'active' : '' }}" data-tab="approved">Zimekubaliwa
+                            <span class="parent-unread-badge" data-unread-for="approved" @if($unreadApprovedCount < 1) style="display:none;" @endif><i class="bx bx-bell"></i> <span class="parent-unread-count">{{ $unreadApprovedCount }}</span></span>
+                        </button>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ $activeTab === 'rejected' ? 'active' : '' }}" href="{{ route('parent.permissions', ['tab' => 'rejected']) }}">Zimekataliwa
-                            @if($unreadRejectedCount > 0) <span class="badge bg-secondary ms-1" style="border-radius:0;">{{ $unreadRejectedCount }}</span> @endif
-                        </a>
+                        <button type="button" class="nav-link parent-perm-tab {{ $activeTab === 'rejected' ? 'active' : '' }}" data-tab="rejected">Zimekataliwa
+                            <span class="parent-unread-badge" data-unread-for="rejected" @if($unreadRejectedCount < 1) style="display:none;" @endif><i class="bx bx-bell"></i> <span class="parent-unread-count">{{ $unreadRejectedCount }}</span></span>
+                        </button>
                     </li>
                 </ul>
             </div>
 
             <div class="card-body p-0 mt-4 tab-content-area">
-                @if($activeTab !== 'request')
-                <div class="form-loading" id="parentFilterLoading">
-                    <span><i class="bx bx-loader-alt bx-spin text-danger"></i> Inachuja...</span>
-                    <div class="form-progress"></div>
-                </div>
-                <div class="row mb-3 px-3">
-                    <div class="col-md-12">
-                        <form id="parentFilterForm" method="GET" action="{{ route('parent.permissions') }}" class="p-3 bg-light border shadow-sm">
-                            <input type="hidden" name="tab" value="{{ $activeTab }}">
-                            <div class="row align-items-end g-3">
-                                <div class="col-md-3">
-                                    <label class="form-label small font-weight-bold text-uppercase">Chuja Kwa:</label>
-                                    <select name="filter_type" id="filter_type" class="form-control" onchange="toggleFilterInputs()">
-                                        <option value="all" {{ ($filterType ?? '') == 'all' ? 'selected' : '' }}>Rekodi Zote</option>
-                                        <option value="range" {{ ($filterType ?? '') == 'range' ? 'selected' : '' }}>Muda Maalum</option>
-                                        <option value="month" {{ ($filterType ?? '') == 'month' ? 'selected' : '' }}>Mwezi Maalum</option>
-                                        <option value="year" {{ ($filterType ?? '') == 'year' ? 'selected' : '' }}>Mwaka Maalum</option>
-                                    </select>
-                                </div>
-
-                                <div id="range_inputs" class="col-md-6 filter-input-group" style="display: {{ ($filterType ?? '') == 'range' ? 'flex' : 'none' }}; gap: 10px;">
-                                    <div class="flex-grow-1">
-                                        <label class="form-label small font-weight-bold text-uppercase">Kuanzia:</label>
-                                        <input type="date" name="date_from" id="filterDateFrom" class="form-control" value="{{ $dateFrom ?? '' }}">
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <label class="form-label small font-weight-bold text-uppercase">Hadi:</label>
-                                        <input type="date" name="date_to" id="filterDateTo" class="form-control" value="{{ $dateTo ?? '' }}">
-                                    </div>
-                                </div>
-
-                                <div id="month_inputs" class="col-md-6 filter-input-group" style="display: {{ ($filterType ?? '') == 'month' ? 'flex' : 'none' }}; gap: 10px;">
-                                    <div class="flex-grow-1">
-                                        <label class="form-label small font-weight-bold text-uppercase">Mwezi:</label>
-                                        <select name="filter_month" class="form-control">
-                                            @foreach(['Januari', 'Februari', 'Machi', 'Aprili', 'Mei', 'Juni', 'Julai', 'Agosti', 'Septemba', 'Oktoba', 'Novemba', 'Desemba'] as $index => $monthName)
-                                                <option value="{{ $index + 1 }}" {{ ($filterMonth ?? date('n')) == ($index + 1) ? 'selected' : '' }}>{{ $monthName }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <label class="form-label small font-weight-bold text-uppercase">Mwaka:</label>
-                                        <select name="filter_month_year" class="form-control">
-                                            @for($y = date('Y'); $y >= date('Y')-5; $y--)
-                                                <option value="{{ $y }}" {{ ($filterMonthYear ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
-                                            @endfor
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div id="year_inputs" class="col-md-3 filter-input-group" style="display: {{ ($filterType ?? '') == 'year' ? 'block' : 'none' }};">
-                                    <label class="form-label small font-weight-bold text-uppercase">Year:</label>
-                                    <select name="filter_year" class="form-control">
-                                        @for($y = date('Y'); $y >= date('Y')-5; $y--)
-                                            <option value="{{ $y }}" {{ ($filterYear ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
-                                        @endfor
-                                    </select>
-                                </div>
-
-                                <div class="col-md-3">
-                                    <button class="btn btn-outline-danger w-100 mb-1" style="border-radius: 0; font-weight: bold;" type="submit"><i class="bx bx-filter"></i> CHUJA</button>
-                                    <button class="btn btn-secondary w-100" style="border-radius: 0; font-weight: bold;" type="button" onclick="resetParentFilters()"><i class="bx bx-undo"></i> SAFISHA</button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-                @endif
-
-                @if($activeTab === 'request')
+                <div class="perm-pane {{ $activeTab === 'request' ? 'is-active' : '' }}" data-pane="request">
                     @isset($editPermission)
                     <div class="alert alert-warning d-flex align-items-center gap-2 mb-3 px-3" style="border-radius:0; border-left: 4px solid #ff9800;">
                         <i class="bx bx-edit text-warning me-2" style="font-size:20px;"></i>
-                        <div><strong>Unahariri ombi lililokataliwa</strong> &mdash; Fanya mabadiliko hapa chini kisha bonyeza <em>Sasisha na Tuma Tena</em>.</div>
-                        <a href="{{ url()->current() }}?tab=request" class="btn btn-sm btn-outline-secondary ms-auto" style="border-radius:0;"><i class="bx bx-x"></i> Ghairi</a>
+                        <div><strong>Unahariri ombi lililokataliwa</strong>. Fanya mabadiliko hapa chini kisha bonyeza <em>Sasisha na Tuma Tena</em>.</div>
+                        <a href="{{ route('parent.permissions') }}" class="btn btn-sm btn-outline-secondary ms-auto" style="border-radius:0;"><i class="bx bx-x"></i> Ghairi</a>
                     </div>
                     @endisset
                     @php
                         $editStudentId = isset($editPermission) ? ($editPermission->student_id ?? $editPermission->studentID ?? '') : '';
-                        $editReasonRaw = strtolower($editPermission->reason_type ?? '');
+                        $editReasonRaw = strtolower((string) data_get($editPermission, 'reason_type', ''));
                         $editReason = in_array($editReasonRaw, ['sick', 'medical'], true) ? 'sick' : 'permission';
                     @endphp
                     <h6 class="font-weight-bold mb-4" style="color:#940000; border-left:4px solid #940000; padding-left:15px;">{{ isset($editPermission) ? 'HARIRI NA TUMA TENA RUKSA' : 'OMBA RUKSA MPYA' }}</h6>
@@ -208,7 +198,7 @@
                         @isset($editPermission)
                         <input type="hidden" name="permission_id" value="{{ $editPermission->permissionID ?? $editPermission->id }}">
                         @endisset
-                        <div class="row g-3">
+                        <div class="row request-field-row">
                             <div class="col-md-12 mb-2">
                                 <label class="form-label small font-weight-bold text-uppercase">Mwanafunzi</label>
                                 <select class="form-control" name="student_id" required>
@@ -229,7 +219,7 @@
                                     value="{{ isset($editPermission) && $editPermission->end_date ? \Carbon\Carbon::parse($editPermission->end_date)->format('Y-m-d') : '' }}" required>
                             </div>
                             <div class="col-md-12 mb-3">
-                                <label class="form-label small font-weight-bold text-uppercase">Jumla ya Siku za Kazi (Bila Wikendi)</label>
+                                <label class="form-label small font-weight-bold text-uppercase">Jumla ya Siku za Ruhusa</label>
                                 <input type="text" class="form-control" id="parentDaysDisplay" readonly style="background-color: #f8f9fa; font-weight: bold; color: #940000;">
                                 <small class="text-danger d-none" id="parentDaysError" style="font-weight: bold;">Siku zimezidi kikomo. Ruksa isizidi siku 7 za kazi.</small>
                             </div>
@@ -242,7 +232,7 @@
                                 </select>
                             </div>
                             <div class="col-md-12 mb-2" id="medicalAttachmentField">
-                                <label class="form-label small font-weight-bold text-uppercase">Kiambatanisho (Hiari, PDF/Picha)</label>
+                                <label class="form-label small font-weight-bold text-uppercase">Kiambatanisho (Sio lazima, PDF/Picha)</label>
                                 <input type="file" class="form-control" name="attachment" accept=".pdf,.jpg,.jpeg,.png">
                                 <small class="text-muted">Unaweza kuambatisha barua ya daktari au nyaraka nyingine inayounga mkono ombi lako.</small>
                             </div>
@@ -261,9 +251,86 @@
                             </div>
                         </div>
                     </form>
-                @else
-                    @include('Parent.partials.permission_table', ['permissions' => ($activeTab==='pending'?$pendingPermissions:($activeTab==='approved'?$approvedPermissions:$rejectedPermissions)), 'studentNames' => $studentNames])
-                @endif
+                </div>
+
+                <div id="parentListShell" style="display: {{ $activeTab === 'request' ? 'none' : 'block' }};">
+                    <div class="form-loading" id="parentFilterLoading">
+                        <span><i class="bx bx-loader-alt bx-spin text-danger"></i> Inachuja...</span>
+                        <div class="form-progress"></div>
+                    </div>
+                    <div class="row mb-3 px-3">
+                        <div class="col-md-12">
+                            <form id="parentFilterForm" method="GET" action="{{ route('parent.permissions') }}" class="p-3 bg-light border shadow-sm">
+                                <input type="hidden" name="tab" value="{{ $activeTab === 'request' ? 'pending' : $activeTab }}">
+                                <div class="row align-items-end g-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label small font-weight-bold text-uppercase">Chuja Kwa:</label>
+                                        <select name="filter_type" id="filter_type" class="form-control" onchange="toggleFilterInputs()">
+                                            <option value="all" {{ ($filterType ?? '') == 'all' ? 'selected' : '' }}>Rekodi Zote</option>
+                                            <option value="range" {{ ($filterType ?? '') == 'range' ? 'selected' : '' }}>Muda Maalum</option>
+                                            <option value="month" {{ ($filterType ?? '') == 'month' ? 'selected' : '' }}>Mwezi Maalum</option>
+                                            <option value="year" {{ ($filterType ?? '') == 'year' ? 'selected' : '' }}>Mwaka Maalum</option>
+                                        </select>
+                                    </div>
+
+                                    <div id="range_inputs" class="col-md-6 filter-input-group" style="display: {{ ($filterType ?? '') == 'range' ? 'flex' : 'none' }}; gap: 10px;">
+                                        <div class="flex-grow-1">
+                                            <label class="form-label small font-weight-bold text-uppercase">Kuanzia:</label>
+                                            <input type="date" name="date_from" id="filterDateFrom" class="form-control" value="{{ $dateFrom ?? '' }}">
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <label class="form-label small font-weight-bold text-uppercase">Hadi:</label>
+                                            <input type="date" name="date_to" id="filterDateTo" class="form-control" value="{{ $dateTo ?? '' }}">
+                                        </div>
+                                    </div>
+
+                                    <div id="month_inputs" class="col-md-6 filter-input-group" style="display: {{ ($filterType ?? '') == 'month' ? 'flex' : 'none' }}; gap: 10px;">
+                                        <div class="flex-grow-1">
+                                            <label class="form-label small font-weight-bold text-uppercase">Mwezi:</label>
+                                            <select name="filter_month" class="form-control">
+                                                @foreach(['Januari', 'Februari', 'Machi', 'Aprili', 'Mei', 'Juni', 'Julai', 'Agosti', 'Septemba', 'Oktoba', 'Novemba', 'Desemba'] as $index => $monthName)
+                                                    <option value="{{ $index + 1 }}" {{ ($filterMonth ?? date('n')) == ($index + 1) ? 'selected' : '' }}>{{ $monthName }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <label class="form-label small font-weight-bold text-uppercase">Mwaka:</label>
+                                            <select name="filter_month_year" class="form-control">
+                                                @for($y = date('Y'); $y >= date('Y')-5; $y--)
+                                                    <option value="{{ $y }}" {{ ($filterMonthYear ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                                @endfor
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div id="year_inputs" class="col-md-3 filter-input-group" style="display: {{ ($filterType ?? '') == 'year' ? 'block' : 'none' }};">
+                                        <label class="form-label small font-weight-bold text-uppercase">Year:</label>
+                                        <select name="filter_year" class="form-control">
+                                            @for($y = date('Y'); $y >= date('Y')-5; $y--)
+                                                <option value="{{ $y }}" {{ ($filterYear ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                            @endfor
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-5 d-flex align-items-end gap-2">
+                                        <button class="btn btn-outline-danger flex-fill" style="border-radius: 0; font-weight: bold; height: 48px;" type="submit"><i class="bx bx-filter"></i> CHUJA</button>
+                                        <button class="btn btn-secondary flex-fill" style="border-radius: 0; font-weight: bold; height: 48px;" type="button" onclick="resetParentFilters()"><i class="bx bx-undo"></i> SAFISHA</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="perm-pane {{ $activeTab === 'pending' ? 'is-active' : '' }}" data-pane="pending">
+                        @include('Parent.partials.permission_table', ['permissions' => $pendingPermissions, 'studentNames' => $studentNames])
+                    </div>
+                    <div class="perm-pane {{ $activeTab === 'approved' ? 'is-active' : '' }}" data-pane="approved">
+                        @include('Parent.partials.permission_table', ['permissions' => $approvedPermissions, 'studentNames' => $studentNames])
+                    </div>
+                    <div class="perm-pane {{ $activeTab === 'rejected' ? 'is-active' : '' }}" data-pane="rejected">
+                        @include('Parent.partials.permission_table', ['permissions' => $rejectedPermissions, 'studentNames' => $studentNames])
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -277,19 +344,22 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     $(document).ready(function() {
-        function initPermViewToggle() {
+        function initPermViewToggle(root) {
+            var scope = root || document.querySelector('.perm-pane.is-active') || document;
             var isMobile = window.innerWidth <= 991;
             var storageKey = 'parent_perm_view_pref';
             var savedView = sessionStorage.getItem(storageKey);
             var activeView = savedView || (isMobile ? 'grid' : 'list');
 
             function applyView(view) {
-                var listEl = document.getElementById('perm-list-view');
-                var gridEl = document.getElementById('perm-grid-view');
-                var btns = document.querySelectorAll('.perm-view-btn');
+                var listEl = scope.querySelector('.perm-list-view');
+                var gridEl = scope.querySelector('.perm-grid-view');
+                var btns = scope.querySelectorAll('.perm-view-btn');
                 if (!listEl || !gridEl) return;
-                listEl.style.display = view === 'list' ? 'block' : 'none';
-                gridEl.style.display = view === 'grid' ? 'block' : 'none';
+                if (window.innerWidth > 991) {
+                    listEl.style.display = view === 'list' ? 'block' : 'none';
+                    gridEl.style.display = view === 'grid' ? 'block' : 'none';
+                }
                 btns.forEach(function(btn) {
                     var isActive = btn.getAttribute('data-view') === view;
                     btn.classList.toggle('active', isActive);
@@ -301,14 +371,48 @@
 
             applyView(activeView);
 
-            document.querySelectorAll('.perm-view-btn').forEach(function(btn) {
+            scope.querySelectorAll('.perm-view-btn').forEach(function(btn) {
                 btn.removeEventListener('click', btn._permViewHandler);
                 btn._permViewHandler = function() { applyView(this.getAttribute('data-view')); };
                 btn.addEventListener('click', btn._permViewHandler);
             });
         }
 
-        initPermViewToggle();
+        window.showParentPermissionTab = function(tab) {
+            document.querySelectorAll('.parent-perm-tab').forEach(function(btn) {
+                btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
+            });
+            document.querySelectorAll('.perm-pane').forEach(function(pane) {
+                pane.classList.toggle('is-active', pane.getAttribute('data-pane') === tab);
+            });
+            var shell = document.getElementById('parentListShell');
+            if (shell) shell.style.display = tab === 'request' ? 'none' : 'block';
+            var tabInput = document.querySelector('#parentFilterForm input[name="tab"]');
+            if (tabInput && tab !== 'request') tabInput.value = tab;
+            if (window.history && window.history.replaceState) {
+                var url = new URL(window.location.href);
+                url.searchParams.set('tab', tab);
+                window.history.replaceState({}, '', url.pathname + (url.search || ''));
+            }
+            var activePane = document.querySelector('.perm-pane.is-active');
+            if (activePane) initPermViewToggle(activePane);
+            if (tab !== 'request') {
+                var badge = document.querySelector('.parent-unread-badge[data-unread-for="' + tab + '"]');
+                if (badge) badge.style.display = 'none';
+                $.post("{{ route('parent.permissions.read') }}", {
+                    _token: "{{ csrf_token() }}",
+                    status: tab
+                });
+            }
+        };
+
+        document.querySelectorAll('.parent-perm-tab').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                showParentPermissionTab(this.getAttribute('data-tab'));
+            });
+        });
+
+        initPermViewToggle(document.querySelector('.perm-pane.is-active'));
 
         const startDateInput = $('#parentStartDate');
         const endDateInput = $('#parentEndDate');
@@ -424,7 +528,9 @@
         };
 
         window.resetParentFilters = function() {
-            window.location.href = "{{ route('parent.permissions') }}?tab={{ $activeTab }}";
+            var tabInput = document.querySelector('#parentFilterForm input[name="tab"]');
+            var tab = tabInput && tabInput.value ? tabInput.value : 'pending';
+            window.location.href = "{{ route('parent.permissions') }}?tab=" + encodeURIComponent(tab);
         };
 
         // Fix for dropdowns being cut off inside table-responsive

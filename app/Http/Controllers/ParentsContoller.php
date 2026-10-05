@@ -19,6 +19,7 @@ use App\Models\SubjectElector;
 use App\Models\PermissionRequest;
 use App\Services\SmsService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\ParentResultNotification;
@@ -316,6 +317,34 @@ class ParentsContoller extends Controller
         $unreadPendingCount = 0;
         $unreadApprovedCount = 0;
         $unreadRejectedCount = 0;
+        if (Schema::hasColumn('student_permissions', 'is_read_by_parent')) {
+            $unreadBase = DB::table('student_permissions')
+                ->where('schoolID', $schoolID)
+                ->where('requester_type', 'parent')
+                ->where('requester_id', $parentID)
+                ->whereIn('student_id', $studentIds)
+                ->where('is_read_by_parent', false);
+            $unreadPendingCount = (clone $unreadBase)->where('status', 'pending')->count();
+            $unreadApprovedCount = (clone $unreadBase)->where('status', 'approved')->count();
+            $unreadRejectedCount = (clone $unreadBase)->where('status', 'rejected')->count();
+
+            if (in_array($activeTab, ['pending', 'approved', 'rejected'], true)) {
+                DB::table('student_permissions')
+                    ->where('schoolID', $schoolID)
+                    ->where('requester_type', 'parent')
+                    ->where('requester_id', $parentID)
+                    ->whereIn('student_id', $studentIds)
+                    ->where('status', $activeTab)
+                    ->update(['is_read_by_parent' => true]);
+                if ($activeTab === 'pending') {
+                    $unreadPendingCount = 0;
+                } elseif ($activeTab === 'approved') {
+                    $unreadApprovedCount = 0;
+                } else {
+                    $unreadRejectedCount = 0;
+                }
+            }
+        }
 
         $editPermission = null;
         $editId = $request->input('edit_id');
@@ -352,6 +381,38 @@ class ParentsContoller extends Controller
             'filterYear' => $filterYear,
             'editPermission' => $editPermission,
         ]);
+    }
+
+    public function markParentPermissionTabRead(Request $request)
+    {
+        $userType = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+        $parentID = Session::get('parentID');
+        $status = $request->input('status');
+
+        if (strtolower((string) $userType) !== 'parent' || !$schoolID || !$parentID) {
+            return response()->json(['success' => false, 'message' => 'Umeingia kinyume na sheria'], 403);
+        }
+
+        if (!in_array($status, ['pending', 'approved', 'rejected'], true)) {
+            return response()->json(['success' => false, 'message' => 'Tab haijulikani'], 422);
+        }
+
+        if (Schema::hasColumn('student_permissions', 'is_read_by_parent')) {
+            $studentIds = Student::where('schoolID', $schoolID)
+                ->where('parentID', $parentID)
+                ->pluck('studentID');
+
+            DB::table('student_permissions')
+                ->where('schoolID', $schoolID)
+                ->where('requester_type', 'parent')
+                ->where('requester_id', $parentID)
+                ->whereIn('student_id', $studentIds)
+                ->where('status', $status)
+                ->update(['is_read_by_parent' => true]);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     public function storeParentPermission(Request $request)
@@ -422,6 +483,7 @@ class ParentsContoller extends Controller
             'final_status' => 'pending',
             'current_approval_order' => $hasChain ? 1 : 0,
             'is_chain_completed' => false,
+            'is_read_by_parent' => true,
             'updated_at' => now(),
         ];
 
@@ -476,16 +538,21 @@ class ParentsContoller extends Controller
         if ($parent && $parent->phone) {
             $this->smsService->sendSms(
                 $parent->phone,
-                "Ombi lako la ruksa ({$reasonLabel}) limewasilishwa. Tafadhali subiri uidhinishwe."
+                $this->smsService->formatMessage(
+                    "Ombi lako la ruksa ({$reasonLabel}) limewasilishwa. Tafadhali subiri uidhinishwe."
+                )
             );
         }
 
-        if ($school && $school->phone) {
+        $adminPhones = $school ? $school->phoneNumbers() : [];
+        if ($adminPhones !== []) {
             $studentName = trim(($student->first_name ?? '').' '.($student->last_name ?? ''));
-            $schoolName = $school->school_name ?? 'Shule';
-            $prefix = ($school && $school->senderID) ? '' : "{$schoolName}: ";
-            $message = "{$prefix}Mzazi ameomba ruksa ya {$studentName}. Aina: {$reasonLabel}. Tafadhali ikague.";
-            $this->smsService->sendSms($school->phone, $message);
+            $message = $this->smsService->formatMessage(
+                "Mzazi ameomba ruksa ya {$studentName}. Aina: {$reasonLabel}. Tafadhali ikague kwenye ShuleXpert."
+            );
+            foreach ($adminPhones as $adminPhone) {
+                $this->smsService->sendSms($adminPhone, $message);
+            }
         }
 
         $successMessage = 'Ombi la ruksa limewasilishwa kikamilifu.';

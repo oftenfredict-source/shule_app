@@ -162,14 +162,376 @@
             color: #6c757d;
             margin-top: 2px;
         }
-.notification-count {
+#notification.dropdown-toggle {
+    position: relative;
+    overflow: visible !important;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+#header .header-left .dropdown .dropdown-toggle#notification .notification-count {
     position: absolute;
-    top: -6px;
-    right: -8px;
-    font-size: 0.7rem;
+    top: 2px;
+    right: 0;
+    min-width: 20px;
+    width: auto;
+    height: 20px;
+    padding: 0 5px;
+    margin: 0;
+    border-radius: 999px;
+    background: #940000 !important;
+    color: #fff !important;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    letter-spacing: 0;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    z-index: 3;
+    box-sizing: border-box;
+}
+
+#visitorNotificationMenu.dropdown-menu {
+    padding: 0 !important;
+    min-width: 0;
+    width: min(380px, calc(100vw - 20px));
+    border: 1px solid #ececec !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.12);
+}
+
+.perm-bell-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #fff;
+    border-bottom: 1px solid #eee;
+}
+
+.perm-bell-head .red {
+    padding: 0 !important;
+    margin: 0;
+    flex: 1 1 auto;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1f1f1f;
+    line-height: 1.3;
+}
+
+#visitorNotificationList {
+    max-height: 62vh;
+    overflow-y: auto;
+    background: #fff;
+}
+
+.bell-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #f0f0f0;
+    text-decoration: none !important;
+    color: inherit;
+}
+
+.bell-note[data-href] {
+    cursor: pointer;
+}
+
+.bell-feed-more {
+    padding: 10px 14px 12px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #940000;
+    background: #fff;
+}
+
+.bell-note:last-child {
+    border-bottom: 0;
+}
+
+.bell-note.is-unread {
+    background: #fff4f4;
+    box-shadow: inset 4px 0 0 #940000;
+}
+
+.bell-note.is-read {
+    background: #f6f6f6;
+    box-shadow: inset 4px 0 0 #d5d5d5;
+}
+
+#header #visitorNotificationMenu a.bell-note.is-unread,
+#header #visitorNotificationMenu a.bell-note.is-unread:hover {
+    background: #fff4f4 !important;
+    color: inherit !important;
+}
+
+#header #visitorNotificationMenu a.bell-note.is-read,
+#header #visitorNotificationMenu a.bell-note.is-read:hover {
+    background: #f6f6f6 !important;
+    color: inherit !important;
+}
+
+.bell-note-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 34px;
+    font-size: 14px;
+}
+
+.bell-note.is-unread .bell-note-icon {
+    background: #940000;
+    color: #fff;
+}
+
+.bell-note.is-read .bell-note-icon {
+    background: #e6e6e6;
+    color: #8a8a8a;
+}
+
+.bell-note-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.bell-note-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.bell-note-title {
+    font-size: 13px;
+    line-height: 1.3;
+}
+
+.bell-note.is-unread .bell-note-title {
+    color: #1a1a1a;
+    font-weight: 700;
+}
+
+.bell-note.is-read .bell-note-title {
+    color: #8a8a8a;
+    font-weight: 600;
+}
+
+.bell-note-time {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: #8a8a8a;
+    white-space: nowrap;
+}
+
+.bell-note-meta {
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: #555;
+}
+
+.bell-note.is-read .bell-note-meta {
+    color: #9a9a9a;
+}
+
+.bell-note-status {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.bell-note-flag {
+    display: inline-block;
+    margin-top: 0;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.bell-mark-read {
+    border: 0;
+    background: transparent;
+    color: #940000;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0;
+    cursor: pointer;
+}
+
+.bell-note-title a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.bell-note-title a:hover {
+    text-decoration: underline;
+}
+
+.bell-note.is-unread .bell-note-flag {
+    background: #940000;
+    color: #fff;
+}
+
+.bell-note.is-read .bell-note-flag {
+    background: #e4e4e4;
+    color: #777;
+}
+
+.perm-bell-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.perm-bell-actions .bell-act {
+    flex: 1 1 0;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    position: relative;
+    z-index: 2;
+}
+
+.bell-act-view {
+    background: #fff;
+    color: #222;
+    border: 1px solid #cfcfcf;
+}
+
+.bell-act-accept {
+    background: #157347;
+    color: #fff;
+    border: 1px solid #157347;
+}
+
+.bell-act-reject {
+    background: #940000;
+    color: #fff;
+    border: 1px solid #940000;
+}
+
+#markAllNotificationsRead {
+    flex: 0 0 auto;
+    border: 0;
+    background: transparent;
+    color: #940000;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+#markAllNotificationsRead:hover {
+    text-decoration: underline;
+}
+
+#bellOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 200000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+#bellOverlay.is-open {
+    display: flex;
+}
+
+#bellOverlayCard {
+    width: min(460px, 100%);
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px 16px 14px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+    position: relative;
+}
+
+#bellOverlayLoading {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 12px;
+    z-index: 5;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    color: #940000;
+    font-weight: 700;
+}
+
+#bellOverlayLoading.is-on {
+    display: flex;
+}
+
+#bellOverlayHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+#bellOverlayTitle {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+#bellOverlayClose {
+    border: 0;
+    background: transparent;
+    font-size: 22px;
     line-height: 1;
-    padding: 3px 5px;
-    border-radius: 10px;
+    cursor: pointer;
+    color: #666;
+}
+
+#bellOverlayBody {
+    font-size: 14px;
+    color: #333;
+    line-height: 1.5;
+}
+
+#bellOverlayBody textarea {
+    width: 100%;
+    min-height: 90px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-top: 8px;
+}
+
+#bellOverlayError {
+    color: #940000;
+    font-size: 13px;
+    margin-top: 6px;
 }
 
 /* Rangi ya jina la "Teacher" na maandishi ya ndani ya sidebar */
@@ -743,9 +1105,43 @@ a#menuToggle.menutoggle:hover {
                         </li>
 
                         <!-- HR Operations -->
+                        @php
+                            $navSchoolID = Session::get('schoolID');
+                            $permCount = 0;
+                            $parentPermissionNoticeCount = 0;
+                            if ($navSchoolID && \Illuminate\Support\Facades\Schema::hasTable('permission_approval_chains') && \Illuminate\Support\Facades\Schema::hasTable('permission_requests')) {
+                                $permCount = \App\Models\PermissionRequest::where('schoolID', $navSchoolID)
+                                    ->where('status', 'pending')
+                                    ->where(function($q) {
+                                        $q->where('current_approval_order', 0)
+                                          ->orWhere('current_approval_order', '>', function($sub) {
+                                              $sub->selectRaw('COALESCE(MAX(approval_order), 0)')
+                                                  ->from('permission_approval_chains')
+                                                  ->whereColumn('permission_approval_chains.schoolID', 'permission_requests.schoolID')
+                                                  ->whereColumn('permission_approval_chains.permission_type', 'permission_requests.requester_type');
+                                          });
+                                    })->count();
+                            }
+                            if ($navSchoolID && \Illuminate\Support\Facades\Schema::hasTable('student_permissions')) {
+                                try {
+                                    $parentPermissionNoticeCount = \Illuminate\Support\Facades\DB::table('student_permissions')
+                                        ->where('schoolID', $navSchoolID)
+                                        ->where('requester_type', 'parent')
+                                        ->where('status', 'pending')
+                                        ->count();
+                                } catch (\Throwable $e) {
+                                    $parentPermissionNoticeCount = 0;
+                                }
+                            }
+                            $hrPermissionNoticeCount = $permCount + $parentPermissionNoticeCount;
+                        @endphp
                         <li class="dropdown-nav-item">
                             <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#hrOperations" aria-expanded="false">
-                                <i class="fa fa-briefcase"></i> HR Operations <i class="fa fa-chevron-down float-right"></i>
+                                <i class="fa fa-briefcase"></i> HR Operations
+                                @if($hrPermissionNoticeCount > 0)
+                                    <span class="badge badge-danger ml-1" style="font-size: 10px; border-radius: 50%;">{{ $hrPermissionNoticeCount }}</span>
+                                @endif
+                                <i class="fa fa-chevron-down float-right"></i>
                             </a>
                             <ul id="hrOperations" class="collapse submenu" style="list-style: none; padding-left: 20px; margin: 0;">
                                 <li>
@@ -759,23 +1155,6 @@ a#menuToggle.menutoggle:hover {
                                     </a>
                                 </li>
                                 <li>
-                                    @php
-                                        $navSchoolID = Session::get('schoolID');
-                                        $permCount = 0;
-                                        if (\Illuminate\Support\Facades\Schema::hasTable('permission_approval_chains') && \Illuminate\Support\Facades\Schema::hasTable('permission_requests')) {
-                                            $permCount = \App\Models\PermissionRequest::where('schoolID', $navSchoolID)
-                                                ->where('status', 'pending')
-                                                ->where(function($q) {
-                                                    $q->where('current_approval_order', 0)
-                                                      ->orWhere('current_approval_order', '>', function($sub) {
-                                                          $sub->selectRaw('COALESCE(MAX(approval_order), 0)')
-                                                              ->from('permission_approval_chains')
-                                                              ->whereColumn('permission_approval_chains.schoolID', 'permission_requests.schoolID')
-                                                              ->whereColumn('permission_approval_chains.permission_type', 'permission_requests.requester_type');
-                                                      });
-                                                })->count();
-                                        }
-                                    @endphp
                                     <a href="{{ route('admin.hr.permissions.pending_approvals') }}" class="nav-link">
                                         <i class="fa fa-check-circle"></i> Permission Approvals
                                         @if($permCount > 0)
@@ -977,19 +1356,31 @@ a#menuToggle.menutoggle:hover {
                                 $lastSeenAt = $lastSeen ? \Carbon\Carbon::parse($lastSeen) : \Carbon\Carbon::createFromTimestamp(0);
                                 $oaLastSeen = Session::get('online_admissions_last_seen');
                                 $oaLastSeenAt = $oaLastSeen ? \Carbon\Carbon::parse($oaLastSeen) : \Carbon\Carbon::createFromTimestamp(0);
+                                $permSeen = Session::get('parent_permissions_bell_seen');
+                                $permSeenAt = $permSeen ? \Carbon\Carbon::parse($permSeen) : \Carbon\Carbon::createFromTimestamp(0);
+                                $readVisitorIds = array_values(array_unique(array_map('intval', (array) Session::get('bell_read_visitors', []))));
+                                $readAdmissionIds = array_values(array_unique(array_map('intval', (array) Session::get('bell_read_admissions', []))));
+                                $readPermissionIds = array_values(array_unique(array_map('intval', (array) Session::get('bell_read_permissions', []))));
                                 $newVisitorCount = 0;
                                 $newOnlineAdmissionCount = 0;
+                                $pendingParentPermissionCount = 0;
                                 $recentVisitors = collect();
                                 $recentOnlineAdmissions = collect();
+                                $pendingParentPermissions = collect();
+                                $permBellClient = [];
 
                                 if ($isAdmin && $schoolID) {
-                                    $newVisitorQuery = \Illuminate\Support\Facades\DB::table('school_visitors')
+                                    $visitorCountQuery = \Illuminate\Support\Facades\DB::table('school_visitors')
                                         ->where('schoolID', $schoolID)
                                         ->where('created_at', '>', $lastSeenAt);
-                                    $newVisitorCount = $newVisitorQuery->count();
-                                    $recentVisitors = $newVisitorQuery
+                                    if ($readVisitorIds !== []) {
+                                        $visitorCountQuery->whereNotIn('visitorID', $readVisitorIds);
+                                    }
+                                    $newVisitorCount = $visitorCountQuery->count();
+                                    $recentVisitors = \Illuminate\Support\Facades\DB::table('school_visitors')
+                                        ->where('schoolID', $schoolID)
                                         ->orderBy('created_at', 'desc')
-                                        ->limit(5)
+                                        ->limit(6)
                                         ->get();
 
                                     try {
@@ -997,20 +1388,56 @@ a#menuToggle.menutoggle:hover {
                                             ->where('schoolID', $schoolID)
                                             ->where('status', 'Pending')
                                             ->where('created_at', '>', $oaLastSeenAt);
+                                        if ($readAdmissionIds !== []) {
+                                            $oaQuery->whereNotIn('id', $readAdmissionIds);
+                                        }
                                         $newOnlineAdmissionCount = $oaQuery->count();
                                         $recentOnlineAdmissions = \Illuminate\Support\Facades\DB::table('online_admissions')
                                             ->where('schoolID', $schoolID)
                                             ->where('status', 'Pending')
-                                            ->where('created_at', '>', $oaLastSeenAt)
                                             ->orderBy('created_at', 'desc')
-                                            ->limit(5)
+                                            ->limit(6)
                                             ->get();
                                     } catch (\Throwable $e) {
                                         $newOnlineAdmissionCount = 0;
                                         $recentOnlineAdmissions = collect();
                                     }
+
+                                    try {
+                                        $permQuery = \Illuminate\Support\Facades\DB::table('student_permissions as sp')
+                                            ->leftJoin('students as s', 'sp.student_id', '=', 's.studentID')
+                                            ->leftJoin('parents as p', 's.parentID', '=', 'p.parentID')
+                                            ->where('sp.schoolID', $schoolID)
+                                            ->where('sp.requester_type', 'parent')
+                                            ->where('sp.status', 'pending');
+                                        $permCountQuery = (clone $permQuery)->where('sp.created_at', '>', $permSeenAt);
+                                        if ($readPermissionIds !== []) {
+                                            $permCountQuery->whereNotIn('sp.id', $readPermissionIds);
+                                        }
+                                        $pendingParentPermissionCount = $permCountQuery->count();
+                                        $pendingParentPermissions = (clone $permQuery)
+                                            ->orderByDesc('sp.created_at')
+                                            ->limit(8)
+                                            ->get([
+                                                'sp.id',
+                                                'sp.reason_type',
+                                                'sp.reason_description',
+                                                'sp.days_count',
+                                                'sp.start_date',
+                                                'sp.end_date',
+                                                'sp.attachment',
+                                                'sp.created_at',
+                                                's.first_name as student_first_name',
+                                                's.last_name as student_last_name',
+                                                'p.first_name as parent_first_name',
+                                                'p.last_name as parent_last_name',
+                                            ]);
+                                    } catch (\Throwable $e) {
+                                        $pendingParentPermissionCount = 0;
+                                        $pendingParentPermissions = collect();
+                                    }
                                 }
-                                $headerNotificationCount = $newVisitorCount + $newOnlineAdmissionCount;
+                                $headerNotificationCount = $newVisitorCount + $newOnlineAdmissionCount + $pendingParentPermissionCount;
                             @endphp
                             <button class="btn btn-secondary dropdown-toggle position-relative" type="button" id="notification" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <i class="fa fa-bell-o header-icon-muted"></i>
@@ -1018,53 +1445,146 @@ a#menuToggle.menutoggle:hover {
                                     <span class="count bg-danger notification-count" id="visitorNotificationCount">{{ $headerNotificationCount }}</span>
                                 @endif
                             </button>
-                            <div class="dropdown-menu" aria-labelledby="notification" style="min-width: 320px; max-width: 360px;">
-                                <p class="red" id="visitorNotificationHeader">
-                                    Notifications: {{ $headerNotificationCount }}
-                                    @if($newOnlineAdmissionCount > 0)
-                                        <small class="d-block text-muted" style="font-weight:500;">Online applications: {{ $newOnlineAdmissionCount }}</small>
-                                    @endif
-                                </p>
+                            <div class="dropdown-menu" id="visitorNotificationMenu" aria-labelledby="notification">
+                                <div class="perm-bell-head">
+                                    <p class="red" id="visitorNotificationHeader">
+                                        Notifications: {{ $headerNotificationCount }}
+                                        @if($pendingParentPermissionCount > 0)
+                                            <small class="d-block text-muted" style="font-weight:500;">Permission requests: {{ $pendingParentPermissionCount }}</small>
+                                        @endif
+                                        @if($newOnlineAdmissionCount > 0)
+                                            <small class="d-block text-muted" style="font-weight:500;">Online applications: {{ $newOnlineAdmissionCount }}</small>
+                                        @endif
+                                    </p>
+                                    <button type="button" id="markAllNotificationsRead" @if($headerNotificationCount < 1) style="display:none;" @endif>Mark all as read</button>
+                                </div>
                                 <div id="visitorNotificationList">
-                                    @if($headerNotificationCount === 0)
-                                        <span class="dropdown-item text-muted">No new notifications.</span>
+                                    @php
+                                        $hasBellItems = $pendingParentPermissions->isNotEmpty()
+                                            || $recentOnlineAdmissions->isNotEmpty()
+                                            || $recentVisitors->isNotEmpty();
+                                    @endphp
+                                    @if(! $hasBellItems)
+                                        <div class="bell-note is-read">
+                                            <div class="bell-note-main">
+                                                <div class="bell-note-title">No notifications.</div>
+                                            </div>
+                                        </div>
                                     @else
+                                        @foreach($pendingParentPermissions as $permNote)
+                                            @php
+                                                $permCreated = $permNote->created_at ? \Carbon\Carbon::parse($permNote->created_at) : null;
+                                                $permUnread = $permCreated
+                                                    && $permCreated->gt($permSeenAt)
+                                                    && ! in_array((int) $permNote->id, $readPermissionIds, true);
+                                                $permTimeLabel = $permCreated
+                                                    ? ($permCreated->isToday() ? $permCreated->diffForHumans() : $permCreated->format('d M Y'))
+                                                    : '';
+                                                $permStudent = trim(($permNote->student_first_name ?? '') . ' ' . ($permNote->student_last_name ?? '')) ?: 'Student';
+                                                $permParent = trim(($permNote->parent_first_name ?? '') . ' ' . ($permNote->parent_last_name ?? '')) ?: 'Parent';
+                                                $permReason = strtolower((string) ($permNote->reason_type ?? ''));
+                                                $permReasonLabel = in_array($permReason, ['sick', 'medical'], true) ? 'Sick' : 'Permission';
+                                                $permStart = $permNote->start_date ? \Carbon\Carbon::parse($permNote->start_date)->format('j M Y') : '';
+                                                $permEnd = $permNote->end_date ? \Carbon\Carbon::parse($permNote->end_date)->format('j M Y') : '';
+                                                $permAttachment = '';
+                                                if (!empty($permNote->attachment)) {
+                                                    $permAttachment = str_contains((string) $permNote->attachment, '/')
+                                                        ? asset($permNote->attachment)
+                                                        : asset('uploads/permissions/' . $permNote->attachment);
+                                                }
+                                                $permPayload = [
+                                                    'id' => (int) $permNote->id,
+                                                    'student_name' => $permStudent,
+                                                    'parent_name' => $permParent,
+                                                    'reason_label' => $permReasonLabel,
+                                                    'reason_description' => (string) ($permNote->reason_description ?? ''),
+                                                    'days_count' => (int) ($permNote->days_count ?? 0),
+                                                    'start_date' => $permStart,
+                                                    'end_date' => $permEnd,
+                                                    'time_label' => $permTimeLabel,
+                                                    'attachment_url' => $permAttachment,
+                                                    'is_unread' => $permUnread,
+                                                ];
+                                                $permBellClient[(int) $permNote->id] = $permPayload;
+                                                $permOpenUrl = route('admin.hr.permission', ['tab' => 'student', 'open' => 'sp'.(int) $permNote->id]);
+                                            @endphp
+                                            <div class="bell-note {{ $permUnread ? 'is-unread' : 'is-read' }}" data-href="{{ $permOpenUrl }}" data-note-type="permission" data-note-id="{{ (int) $permNote->id }}">
+                                                <div class="bell-note-icon"><i class="fa fa-calendar-check-o"></i></div>
+                                                <div class="bell-note-main">
+                                                    <div class="bell-note-top">
+                                                        <span class="bell-note-title">Permission request</span>
+                                                        <span class="bell-note-time">{{ $permTimeLabel }}</span>
+                                                    </div>
+                                                    <div class="bell-note-meta">{{ $permStudent }} | {{ $permReasonLabel }} | {{ $permStart }} - {{ $permEnd }}</div>
+                                                    <div class="bell-note-status">
+                                                        <span class="bell-note-flag">{{ $permUnread ? 'Unread' : 'Read' }}</span>
+                                                        @if($permUnread)
+                                                            <button type="button" class="bell-mark-read" data-note-type="permission" data-note-id="{{ (int) $permNote->id }}">Mark as read</button>
+                                                        @endif
+                                                    </div>
+                                                    <div class="perm-bell-actions">
+                                                        <button type="button" class="bell-act bell-act-view" data-perm-id="{{ (int) $permNote->id }}">View</button>
+                                                        <button type="button" class="bell-act bell-act-accept bell-act-decide" data-perm-id="{{ (int) $permNote->id }}" data-action="approve">Accept</button>
+                                                        <button type="button" class="bell-act bell-act-reject bell-act-decide" data-perm-id="{{ (int) $permNote->id }}" data-action="reject">Reject</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
                                         @foreach($recentOnlineAdmissions as $app)
                                             @php
                                                 $created = \Carbon\Carbon::parse($app->created_at);
+                                                $appUnread = $created->gt($oaLastSeenAt) && ! in_array((int) $app->id, $readAdmissionIds, true);
                                                 $timeLabel = $created->isToday()
                                                     ? $created->diffForHumans()
                                                     : $created->format('d M Y');
                                                 $studentLabel = trim(($app->student_first_name ?? '') . ' ' . ($app->student_last_name ?? ''));
                                             @endphp
-                                            <a class="dropdown-item media" href="{{ route('school.online_admission.index') }}">
-                                                <i class="fa fa-wpforms" style="color:#940000;"></i>
-                                                <p>
-                                                    Online application<br>
-                                                    <small>{{ $studentLabel }} | {{ $app->application_number ?? '' }}</small>
-                                                    <span class="time float-right">{{ $timeLabel }}</span>
-                                                </p>
-                                            </a>
+                                            <div class="bell-note {{ $appUnread ? 'is-unread' : 'is-read' }}" data-href="{{ route('school.online_admission.index') }}" data-note-type="admission" data-note-id="{{ (int) $app->id }}">
+                                                <div class="bell-note-icon"><i class="fa fa-wpforms"></i></div>
+                                                <div class="bell-note-main">
+                                                    <div class="bell-note-top">
+                                                        <span class="bell-note-title"><a href="{{ route('school.online_admission.index') }}">Online application</a></span>
+                                                        <span class="bell-note-time">{{ $timeLabel }}</span>
+                                                    </div>
+                                                    <div class="bell-note-meta">{{ $studentLabel }} | {{ $app->application_number ?? '' }}</div>
+                                                    <div class="bell-note-status">
+                                                        <span class="bell-note-flag">{{ $appUnread ? 'Unread' : 'Read' }}</span>
+                                                        @if($appUnread)
+                                                            <button type="button" class="bell-mark-read" data-note-type="admission" data-note-id="{{ (int) $app->id }}">Mark as read</button>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
                                         @endforeach
                                         @foreach($recentVisitors as $visitor)
                                             @php
                                                 $created = \Carbon\Carbon::parse($visitor->created_at);
+                                                $visitorUnread = $created->gt($lastSeenAt) && ! in_array((int) $visitor->visitorID, $readVisitorIds, true);
                                                 $timeLabel = $created->isToday()
                                                     ? $created->diffForHumans()
                                                     : $created->format('d M Y');
                                             @endphp
-                                            <a class="dropdown-item media" href="{{ route('admin.school_visitors') }}">
-                                                <i class="fa fa-user"></i>
-                                                <p>
-                                                    {{ $visitor->name }}<br>
-                                                    <small>{{ $visitor->reason ?? 'N/A' }} | {{ $visitor->contact ?? 'N/A' }}</small>
-                                                    <span class="time float-right">{{ $timeLabel }}</span>
-                                                </p>
-                                            </a>
+                                            <div class="bell-note {{ $visitorUnread ? 'is-unread' : 'is-read' }}" data-href="{{ route('admin.school_visitors') }}" data-note-type="visitor" data-note-id="{{ (int) $visitor->visitorID }}">
+                                                <div class="bell-note-icon"><i class="fa fa-user"></i></div>
+                                                <div class="bell-note-main">
+                                                    <div class="bell-note-top">
+                                                        <span class="bell-note-title"><a href="{{ route('admin.school_visitors') }}">{{ $visitor->name }}</a></span>
+                                                        <span class="bell-note-time">{{ $timeLabel }}</span>
+                                                    </div>
+                                                    <div class="bell-note-meta">{{ $visitor->reason ?? 'N/A' }} | {{ $visitor->contact ?? 'N/A' }}</div>
+                                                    <div class="bell-note-status">
+                                                        <span class="bell-note-flag">{{ $visitorUnread ? 'Unread' : 'Read' }}</span>
+                                                        @if($visitorUnread)
+                                                            <button type="button" class="bell-mark-read" data-note-type="visitor" data-note-id="{{ (int) $visitor->visitorID }}">Mark as read</button>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
                                         @endforeach
                                     @endif
                                 </div>
                             </div>
+                            <script>window.permBellById = @json($permBellClient ?? []);</script>
 
                         </div>
 
@@ -1296,6 +1816,20 @@ a#menuToggle.menutoggle:hover {
             </div>
         @endif
 
+<div id="bellOverlay">
+    <div id="bellOverlayCard">
+        <div id="bellOverlayHead">
+            <div id="bellOverlayTitle"></div>
+            <button type="button" id="bellOverlayClose" aria-label="Close">&times;</button>
+        </div>
+        <div id="bellOverlayBody"></div>
+        <div id="bellOverlayLoading" aria-live="polite">
+            <i class="fa fa-spinner fa-spin fa-2x"></i>
+            <span>Inaendelea...</span>
+        </div>
+    </div>
+</div>
+
 <script>
 // Ensure $ inside this block refers to jQuery (pass window.jQuery into IIFE)
 (function($){
@@ -1357,7 +1891,7 @@ function initializeMenuDropdowns() {
     });
 
     // Remove all existing event listeners by cloning and replacing
-    document.querySelectorAll('.dropdown-toggle').forEach(toggle => {
+    document.querySelectorAll('#left-panel .dropdown-toggle').forEach(toggle => {
         const newToggle = toggle.cloneNode(true);
         toggle.parentNode.replaceChild(newToggle, toggle);
     });
@@ -1633,14 +2167,220 @@ function initializeVisitorNotifications() {
         return;
     }
     var $ = window.jQuery;
-    $('#notification').off('show.bs.dropdown.visitor').on('show.bs.dropdown.visitor', function() {
+    $('#visitorNotificationList').off('scroll.bellMore').on('scroll.bellMore', function () {
+        if (!window.bellFeedHasMore || window.bellFeedLoading) {
+            return;
+        }
+        if (this.scrollTop + this.clientHeight >= this.scrollHeight - 48) {
+            fetchRecentVisitors((window.bellFeedPage || 1) + 1, true);
+        }
+    });
+
+    $(document).off('click.markAllNotes', '#markAllNotificationsRead')
+        .on('click.markAllNotes', '#markAllNotificationsRead', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var $btn = $(this);
+            $btn.prop('disabled', true);
+            $.ajax({
+                url: '{{ route("admin.mark_visitor_notifications_read") }}',
+                method: 'POST',
+                data: { _token: $('meta[name="csrf-token"]').attr('content') },
+                complete: function () {
+                    $btn.prop('disabled', false);
+                    updateVisitorNotificationCount();
+                }
+            });
+        });
+
+    $(document).off('click.bellOverlay').on('click.bellOverlay', '#bellOverlayClose', function () {
+        closeBellOverlay();
+    }).on('click.bellOverlay', '#bellOverlay', function (e) {
+        if (e.target && e.target.id === 'bellOverlay') {
+            closeBellOverlay();
+        }
+    });
+
+    if (!window.permBellClickBound) {
+        window.permBellClickBound = true;
+        document.addEventListener('click', function (e) {
+            var note = e.target.closest('.bell-note[data-href]');
+            if (note && note.closest('#visitorNotificationMenu') && !e.target.closest('button, .bell-act, .bell-mark-read')) {
+                var href = note.getAttribute('data-href');
+                if (href) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var noteType = note.getAttribute('data-note-type');
+                    var noteId = note.getAttribute('data-note-id');
+                    var openNote = function () { window.location.href = href; };
+                    if (!noteType || !noteId || note.classList.contains('is-read')) {
+                        openNote();
+                        return;
+                    }
+                    $.ajax({
+                        url: '{{ route("admin.mark_notification_read") }}',
+                        method: 'POST',
+                        data: {
+                            _token: $('meta[name="csrf-token"]').attr('content'),
+                            type: noteType,
+                            id: noteId
+                        },
+                        complete: openNote
+                    });
+                    return;
+                }
+            }
+            var readButton = e.target.closest('.bell-mark-read');
+            if (readButton && readButton.closest('#visitorNotificationMenu')) {
+                e.preventDefault();
+                e.stopPropagation();
+                readButton.disabled = true;
+                $.ajax({
+                    url: '{{ route("admin.mark_notification_read") }}',
+                    method: 'POST',
+                    data: {
+                        _token: $('meta[name="csrf-token"]').attr('content'),
+                        type: readButton.getAttribute('data-note-type'),
+                        id: readButton.getAttribute('data-note-id')
+                    },
+                    complete: function () {
+                        updateVisitorNotificationCount();
+                    }
+                });
+                return;
+            }
+            var button = e.target.closest('.bell-act-view, .bell-act-decide');
+            if (!button || !button.closest('#visitorNotificationMenu')) {
+                return;
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            var item = (window.permBellById || {})[button.getAttribute('data-perm-id')];
+            if (!item) {
+                return;
+            }
+            if (button.classList.contains('bell-act-view')) {
+                openPermBellView(item);
+                return;
+            }
+            openPermBellDecision(item, button.getAttribute('data-action'));
+        }, true);
+    }
+}
+
+function bellMarkReadButton(type, id, unread) {
+    if (!unread) {
+        return '';
+    }
+    return '<button type="button" class="bell-mark-read" data-note-type="' + escapePermBell(type) + '" data-note-id="' + escapePermBell(id) + '">Mark as read</button>';
+}
+
+function escapePermBell(value) {
+    return $('<div>').text(value == null ? '' : String(value)).html();
+}
+
+function closeBellMenu() {
+    $('#visitorNotificationMenu').removeClass('show');
+    $('#notification').attr('aria-expanded', 'false').parent().removeClass('show');
+}
+
+function openBellOverlay(title, bodyHtml) {
+    var overlay = document.getElementById('bellOverlay');
+    if (!overlay) {
+        return;
+    }
+    if (overlay.parentNode !== document.body) {
+        document.body.appendChild(overlay);
+    }
+    document.getElementById('bellOverlayTitle').textContent = title || '';
+    document.getElementById('bellOverlayBody').innerHTML = bodyHtml || '';
+    overlay.classList.add('is-open');
+    closeBellMenu();
+}
+
+function closeBellOverlay() {
+    var overlay = document.getElementById('bellOverlay');
+    if (overlay) {
+        overlay.classList.remove('is-open');
+    }
+}
+
+function openPermBellView(item) {
+    var attachment = item.attachment_url
+        ? '<p style="margin-top:10px;"><a href="' + escapePermBell(item.attachment_url) + '" target="_blank" rel="noopener">Open attachment</a></p>'
+        : '';
+    openBellOverlay(item.student_name || 'Permission',
+        '<p><strong>Parent:</strong> ' + escapePermBell(item.parent_name) + '</p>' +
+        '<p><strong>Type:</strong> ' + escapePermBell(item.reason_label) + '</p>' +
+        '<p><strong>Days:</strong> ' + escapePermBell(item.days_count) + '</p>' +
+        '<p><strong>From:</strong> ' + escapePermBell(item.start_date) + ' <strong>To:</strong> ' + escapePermBell(item.end_date) + '</p>' +
+        '<p><strong>Reason:</strong><br>' + escapePermBell(item.reason_description) + '</p>' +
+        attachment
+    );
+}
+
+function openPermBellDecision(item, action) {
+    var approving = action === 'approve';
+    openBellOverlay(approving ? 'Accept permission' : 'Reject permission',
+        '<p>' + escapePermBell(item.student_name) + ' | ' + escapePermBell(item.reason_label) + '</p>' +
+        '<label for="bellReasonInput"><strong>Reason</strong></label>' +
+        '<textarea id="bellReasonInput" maxlength="500" placeholder="Andika sababu"></textarea>' +
+        '<div id="bellOverlayError"></div>' +
+        '<div style="margin-top:12px; display:flex; gap:8px;">' +
+        '<button type="button" id="bellReasonSubmit" class="bell-act ' + (approving ? 'bell-act-accept' : 'bell-act-reject') + '" style="flex:1;">' + (approving ? 'Accept' : 'Reject') + '</button>' +
+        '<button type="button" id="bellReasonCancel" class="bell-act bell-act-view" style="flex:1;">Cancel</button>' +
+        '</div>'
+    );
+    $('#bellReasonCancel').on('click', function () {
+        closeBellOverlay();
+    });
+    $('#bellReasonSubmit').on('click', function () {
+        var reason = String($('#bellReasonInput').val() || '').trim();
+        if (!reason) {
+            $('#bellOverlayError').text('Andika sababu');
+            return;
+        }
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+        $('#bellReasonCancel').prop('disabled', true);
+        $('#bellReasonInput').prop('disabled', true);
+        $('#bellOverlayLoading').addClass('is-on');
         $.ajax({
-            url: '{{ route("admin.mark_visitor_notifications_read") }}',
+            url: approving
+                ? '{{ route("admin.permissions.approve") }}'
+                : '{{ route("admin.permissions.reject") }}',
             method: 'POST',
-            data: { _token: $('meta[name="csrf-token"]').attr('content') },
-            success: function() {
-                $('#visitorNotificationCount').remove();
-                $('#visitorNotificationHeader').text('Notifications: 0');
+            dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                permissionID: item.id,
+                is_student_permission: 1,
+                admin_response: reason
+            },
+            success: function (response) {
+                $('#bellOverlayLoading').removeClass('is-on');
+                openBellOverlay('Saved', '<p>' + escapePermBell((response && response.message) ? response.message : 'Saved') + '</p>');
+                updateVisitorNotificationCount();
+            },
+            error: function (xhr) {
+                var message = 'Imeshindikana. Jaribu tena.';
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.message) {
+                        message = xhr.responseJSON.message;
+                    }
+                    if (xhr.responseJSON.errors) {
+                        message = Object.values(xhr.responseJSON.errors).flat().join(' ');
+                    }
+                }
+                $('#bellOverlayLoading').removeClass('is-on');
+                $btn.prop('disabled', false);
+                $('#bellReasonCancel').prop('disabled', false);
+                $('#bellReasonInput').prop('disabled', false);
+                $('#bellOverlayError').text(message);
             }
         });
     });
@@ -1657,6 +2397,7 @@ function updateVisitorNotificationCount() {
         }
         const count = parseInt(response.count || 0, 10);
         const oaCount = parseInt(response.online_admissions || 0, 10);
+        const permCount = parseInt(response.parent_permissions || 0, 10);
         const $button = $('#notification');
         const $badge = $('#visitorNotificationCount');
 
@@ -1667,61 +2408,188 @@ function updateVisitorNotificationCount() {
                 $button.append(`<span class="count bg-danger notification-count" id="visitorNotificationCount">${count}</span>`);
             }
             let header = 'Notifications: ' + count;
+            if (permCount > 0) {
+                header += '<small class="d-block text-muted" style="font-weight:500;">Permission requests: ' + permCount + '</small>';
+            }
             if (oaCount > 0) {
                 header += '<small class="d-block text-muted" style="font-weight:500;">Online applications: ' + oaCount + '</small>';
             }
             $('#visitorNotificationHeader').html(header);
-
-            // Also refresh the visitor list if there are new ones
-            fetchRecentVisitors();
+            $('#markAllNotificationsRead').show();
         } else {
             $badge.remove();
             $('#visitorNotificationHeader').text('Notifications: 0');
+            $('#markAllNotificationsRead').hide();
         }
+        fetchRecentVisitors(1, false);
     });
 }
 
-function fetchRecentVisitors() {
+function bellNoteHtml(item) {
+    var unread = !!item.is_unread;
+    var state = unread ? 'is-unread' : 'is-read';
+    var icon = item.type === 'permission' ? 'fa-calendar-check-o' : (item.type === 'admission' ? 'fa-wpforms' : 'fa-user');
+    var actions = '';
+    if (item.type === 'permission' && item.permission) {
+        actions = '<div class="perm-bell-actions">' +
+            '<button type="button" class="bell-act bell-act-view" data-perm-id="' + escapePermBell(item.id) + '">View</button>' +
+            '<button type="button" class="bell-act bell-act-accept bell-act-decide" data-perm-id="' + escapePermBell(item.id) + '" data-action="approve">Accept</button>' +
+            '<button type="button" class="bell-act bell-act-reject bell-act-decide" data-perm-id="' + escapePermBell(item.id) + '" data-action="reject">Reject</button>' +
+            '</div>';
+    }
+    return '<div class="bell-note ' + state + '" data-href="' + escapePermBell(item.url || '') + '" data-note-type="' + escapePermBell(item.type || '') + '" data-note-id="' + escapePermBell(item.id) + '">' +
+        '<div class="bell-note-icon"><i class="fa ' + icon + '"></i></div>' +
+        '<div class="bell-note-main">' +
+            '<div class="bell-note-top">' +
+                '<span class="bell-note-title">' + escapePermBell(item.title || '') + '</span>' +
+                '<span class="bell-note-time">' + escapePermBell(item.time_label || '') + '</span>' +
+            '</div>' +
+            '<div class="bell-note-meta">' + escapePermBell(item.meta || '') + '</div>' +
+            '<div class="bell-note-status">' +
+                '<span class="bell-note-flag">' + (unread ? 'Unread' : 'Read') + '</span>' +
+                bellMarkReadButton(item.type, item.id, unread) +
+            '</div>' +
+            actions +
+        '</div>' +
+    '</div>';
+}
+
+function renderBellFeed(items, append, hasMore) {
     var $ = window.jQuery;
-    $.get('{{ route("admin.get_recent_visitors") }}', function(response) {
+    var $list = $('#visitorNotificationList');
+    if (!append) {
+        window.permBellById = {};
+    }
+    window.permBellById = window.permBellById || {};
+    items.forEach(function (item) {
+        if (item.type === 'permission' && item.permission) {
+            window.permBellById[String(item.id)] = item.permission;
+        }
+    });
+    var html = '';
+    if (!items.length && !append) {
+        html = '<div class="bell-note is-read"><div class="bell-note-main"><div class="bell-note-title">No notifications.</div></div></div>';
+    } else {
+        items.forEach(function (item) {
+            html += bellNoteHtml(item);
+        });
+    }
+    if (hasMore) {
+        html += '<div class="bell-feed-more" id="bellFeedMore">Scroll for more</div>';
+    }
+    if (append) {
+        $list.find('#bellFeedMore').remove();
+        $list.append(html);
+    } else {
+        $list.html(html);
+    }
+    window.bellFeedHasMore = !!hasMore;
+}
+
+function fetchRecentVisitors(page, append) {
+    var $ = window.jQuery;
+    page = page || 1;
+    if (window.bellFeedLoading) {
+        return;
+    }
+    window.bellFeedLoading = true;
+    $.get('{{ route("admin.get_recent_visitors") }}', { page: page }, function(response) {
+        window.bellFeedLoading = false;
         if (!response || response.success !== true) return;
+        if (Array.isArray(response.items)) {
+            if (append && response.items.length === 0) {
+                window.bellFeedHasMore = false;
+                $('#bellFeedMore').remove();
+                return;
+            }
+            renderBellFeed(response.items, !!append, !!response.has_more);
+            window.bellFeedPage = page;
+            return;
+        }
 
         const $list = $('#visitorNotificationList');
         const admissions = response.online_admissions || [];
         const visitors = response.visitors || [];
-        const newVisitors = visitors.filter(function (v) { return v.is_new; });
+        const permissions = response.parent_permissions || [];
+        window.permBellById = {};
+        permissions.forEach(function (perm) {
+            window.permBellById[String(perm.id)] = perm;
+        });
 
-        if (admissions.length === 0 && newVisitors.length === 0) {
-            $list.html('<span class="dropdown-item text-muted">No new notifications.</span>');
+        if (admissions.length === 0 && visitors.length === 0 && permissions.length === 0) {
+            $list.html('<div class="bell-note is-read"><div class="bell-note-main"><div class="bell-note-title">No notifications.</div></div></div>');
             return;
         }
 
         let html = '';
-        admissions.forEach(function (app) {
+        permissions.forEach(function (perm) {
+            var unread = !!perm.is_unread;
+            var state = unread ? 'is-unread' : 'is-read';
             html += `
-                <a class="dropdown-item media" href="${app.url || '{{ route('school.online_admission.index') }}'}">
-                    <i class="fa fa-wpforms" style="color:#940000;"></i>
-                    <p>
-                        Online application<br>
-                        <small>${app.name || 'Applicant'} | ${app.application_number || ''}</small>
-                        <span class="time float-right">${app.time_label || ''}</span>
-                    </p>
-                </a>
+                <div class="bell-note ${state}">
+                    <div class="bell-note-icon"><i class="fa fa-calendar-check-o"></i></div>
+                    <div class="bell-note-main">
+                        <div class="bell-note-top">
+                            <span class="bell-note-title">Permission request</span>
+                            <span class="bell-note-time">${escapePermBell(perm.time_label)}</span>
+                        </div>
+                        <div class="bell-note-meta">${escapePermBell(perm.student_name)} | ${escapePermBell(perm.reason_label)} | ${escapePermBell(perm.start_date)} - ${escapePermBell(perm.end_date)}</div>
+                        <div class="bell-note-status">
+                            <span class="bell-note-flag">${unread ? 'Unread' : 'Read'}</span>
+                            ${bellMarkReadButton('permission', perm.id, unread)}
+                        </div>
+                        <div class="perm-bell-actions">
+                            <button type="button" class="bell-act bell-act-view" data-perm-id="${escapePermBell(perm.id)}">View</button>
+                            <button type="button" class="bell-act bell-act-accept bell-act-decide" data-perm-id="${escapePermBell(perm.id)}" data-action="approve">Accept</button>
+                            <button type="button" class="bell-act bell-act-reject bell-act-decide" data-perm-id="${escapePermBell(perm.id)}" data-action="reject">Reject</button>
+                        </div>
+                    </div>
+                </div>
             `;
         });
-        newVisitors.forEach(function (visitor) {
+        admissions.forEach(function (app) {
+            var unread = !!app.is_new;
+            var state = unread ? 'is-unread' : 'is-read';
             html += `
-                <a class="dropdown-item media" href="{{ route('admin.school_visitors') }}">
-                    <i class="fa fa-user"></i>
-                    <p>
-                        ${visitor.name}<br>
-                        <small>${visitor.reason || 'N/A'} | ${visitor.contact || 'N/A'}</small>
-                        <span class="time float-right">${visitor.time_label}</span>
-                    </p>
-                </a>
+                <div class="bell-note ${state}">
+                    <div class="bell-note-icon"><i class="fa fa-wpforms"></i></div>
+                    <div class="bell-note-main">
+                        <div class="bell-note-top">
+                            <span class="bell-note-title"><a href="${app.url || '{{ route('school.online_admission.index') }}'}">Online application</a></span>
+                            <span class="bell-note-time">${escapePermBell(app.time_label || '')}</span>
+                        </div>
+                        <div class="bell-note-meta">${escapePermBell(app.name || 'Applicant')} | ${escapePermBell(app.application_number || '')}</div>
+                        <div class="bell-note-status">
+                            <span class="bell-note-flag">${unread ? 'Unread' : 'Read'}</span>
+                            ${bellMarkReadButton('admission', app.id, unread)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        visitors.forEach(function (visitor) {
+            var unread = !!visitor.is_new;
+            var state = unread ? 'is-unread' : 'is-read';
+            html += `
+                <div class="bell-note ${state}">
+                    <div class="bell-note-icon"><i class="fa fa-user"></i></div>
+                    <div class="bell-note-main">
+                        <div class="bell-note-top">
+                            <span class="bell-note-title"><a href="{{ route('admin.school_visitors') }}">${escapePermBell(visitor.name)}</a></span>
+                            <span class="bell-note-time">${escapePermBell(visitor.time_label)}</span>
+                        </div>
+                        <div class="bell-note-meta">${escapePermBell(visitor.reason || 'N/A')} | ${escapePermBell(visitor.contact || 'N/A')}</div>
+                        <div class="bell-note-status">
+                            <span class="bell-note-flag">${unread ? 'Unread' : 'Read'}</span>
+                            ${bellMarkReadButton('visitor', visitor.visitorID, unread)}
+                        </div>
+                    </div>
+                </div>
             `;
         });
         $list.html(html);
+    }).fail(function () {
+        window.bellFeedLoading = false;
     });
 }
 

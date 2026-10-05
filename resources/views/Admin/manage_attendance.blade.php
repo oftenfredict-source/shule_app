@@ -1478,9 +1478,8 @@
 
             // Show widgets based on search type
             if (searchType === 'month' || searchType === 'year') {
-                // Show percentage widgets for month/year
                 html += `
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="card bg-success">
                                     <div class="card-body text-center" style="color: #ffffff;">
                                         <h4 style="color: #ffffff; font-weight: bold;">${classData.present_percentage}%</h4>
@@ -1488,7 +1487,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="card bg-danger">
                                     <div class="card-body text-center" style="color: #ffffff;">
                                         <h4 style="color: #ffffff; font-weight: bold;">${classData.absent_percentage}%</h4>
@@ -1496,11 +1495,26 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="col-md-3">
+                                <div class="card bg-info">
+                                    <div class="card-body text-center" style="color: #ffffff;">
+                                        <h4 style="color: #ffffff; font-weight: bold;">${classData.permission || classData.excused || 0}</h4>
+                                        <p class="mb-0" style="color: #ffffff; font-weight: 500;">Permission</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-warning">
+                                    <div class="card-body text-center" style="color: #ffffff;">
+                                        <h4 style="color: #ffffff; font-weight: bold;">${classData.sick || 0}</h4>
+                                        <p class="mb-0" style="color: #ffffff; font-weight: 500;">Sick</p>
+                                    </div>
+                                </div>
+                            </div>
                 `;
             } else {
-                // Show count widgets for date
                 html += `
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="card bg-success">
                                     <div class="card-body text-center" style="color: #ffffff;">
                                         <h4 style="color: #ffffff; font-weight: bold;">${classData.present || 0}</h4>
@@ -1508,11 +1522,27 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="card bg-danger">
                                     <div class="card-body text-center" style="color: #ffffff;">
                                         <h4 style="color: #ffffff; font-weight: bold;">${classData.absent || 0}</h4>
                                         <p class="mb-0" style="color: #ffffff; font-weight: 500;">Absent</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-info">
+                                    <div class="card-body text-center" style="color: #ffffff;">
+                                        <h4 style="color: #ffffff; font-weight: bold;">${classData.permission || classData.excused || 0}</h4>
+                                        <p class="mb-0" style="color: #ffffff; font-weight: 500;">Permission</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-warning">
+                                    <div class="card-body text-center" style="color: #ffffff;">
+                                        <h4 style="color: #ffffff; font-weight: bold;">${classData.sick || 0}</h4>
+                                        <p class="mb-0" style="color: #ffffff; font-weight: 500;">Sick</p>
                                     </div>
                                 </div>
                             </div>
@@ -1533,10 +1563,13 @@
                                             ${searchType === 'date' ? `
                                             <th>Check In Time</th>
                                             <th>Check Out Time</th>
+                                            <th>Status</th>
                                             ` : `
                                             <th>Gender</th>
                                             <th>Days Present</th>
                                             <th>Days Absent</th>
+                                            <th>Permission</th>
+                                            <th>Sick</th>
                                             <th>Total Days</th>
                                             `}
                                             <th>Actions</th>
@@ -1581,13 +1614,16 @@
                         : '';
                     const rowStyle = isActiveEnrolled ? '' : 'opacity:0.55;background:#f5f5f5;';
                     if (searchType === 'date') {
-                        // For date view, show check in/out times
-                        const checkInBadge = student.check_in_time 
-                            ? '<span class="badge bg-success">' + student.check_in_time + '</span>' 
-                            : '<span class="text-muted">--</span>';
+                        const dayStatus = student.day_status || (student.check_in_time ? 'Present' : 'Absent');
+                        const checkInBadge = (dayStatus === 'Permission' || dayStatus === 'Sick')
+                            ? '<span class="badge ' + (dayStatus === 'Sick' ? 'bg-warning text-dark' : 'bg-info') + '">' + dayStatus + '</span>'
+                            : (student.check_in_time
+                                ? '<span class="badge bg-success">' + student.check_in_time + '</span>'
+                                : '<span class="text-muted">--</span>');
                         const checkOutBadge = student.check_out_time 
                             ? '<span class="badge bg-primary">' + student.check_out_time + '</span>' 
                             : '<span class="text-muted">--</span>';
+                        const statusClass = dayStatus === 'Present' ? 'bg-success' : (dayStatus === 'Sick' ? 'bg-warning text-dark' : (dayStatus === 'Permission' ? 'bg-info' : 'bg-danger'));
                         
                         html += `
                             <tr style="${rowStyle}">
@@ -1596,6 +1632,7 @@
                                 <td>${student.admission_number || 'N/A'}</td>
                                 <td>${checkInBadge}</td>
                                 <td>${checkOutBadge}</td>
+                                <td><span class="badge ${statusClass}">${dayStatus}</span></td>
                                 <td>
                                     <button class="btn btn-sm btn-info view-fingerprint-student-btn" 
                                             data-student-id="${student.studentID}" 
@@ -1617,6 +1654,8 @@
                                 <td>${student.gender || 'N/A'}</td>
                                 <td><span class="badge bg-success">${student.days_present || 0}</span></td>
                                 <td><span class="badge bg-danger">${student.days_absent || 0}</span></td>
+                                <td><span class="badge bg-info">${student.days_excused || 0}</span></td>
+                                <td><span class="badge bg-warning text-dark">${student.days_sick || 0}</span></td>
                                 <td>${workingDays}</td>
                                 <td>
                                     <button class="btn btn-sm btn-info view-fingerprint-student-btn" 
@@ -1939,9 +1978,11 @@
         
         if (records && records.length > 0) {
             records.forEach((record, index) => {
-                const checkInBadge = record.check_in_time 
-                    ? '<span class="badge bg-success">' + record.check_in_time + '</span>' 
-                    : '<span class="text-muted">--</span>';
+                const checkInBadge = (record.status === 'Permission' || record.status === 'Sick')
+                    ? '<span class="badge ' + (record.status === 'Sick' ? 'bg-warning text-dark' : 'bg-info') + '">' + record.status + '</span>'
+                    : (record.check_in_time
+                        ? '<span class="badge bg-success">' + record.check_in_time + '</span>'
+                        : '<span class="text-muted">--</span>');
                 const checkOutBadge = record.check_out_time 
                     ? '<span class="badge bg-primary">' + record.check_out_time + '</span>' 
                     : '<span class="text-muted">--</span>';

@@ -1177,6 +1177,50 @@ class ManageAttendanceController extends Controller
 
             $attendances = $query->orderBy('attendance_date', 'asc')->get();
 
+            $detailFrom = null;
+            $detailTo = null;
+            if ($searchType == 'year' && $year) {
+                $detailFrom = $year . '-01-01';
+                $detailTo = $year . '-12-31';
+            } elseif ($searchType == 'date' && $date) {
+                $detailFrom = $date;
+                $detailTo = $date;
+            } elseif ($year && $month) {
+                $monthStart = Carbon::create((int) $year, (int) $month, 1);
+                $detailFrom = $monthStart->toDateString();
+                $detailTo = $monthStart->copy()->endOfMonth()->toDateString();
+            }
+
+            if ($detailFrom && $detailTo) {
+                $permissionMap = app(\App\Services\StudentPermissionAttendanceService::class)
+                    ->loadApprovedStatusMap((int) $schoolID, $detailFrom, $detailTo, [(int) $studentID]);
+                $permissionDays = $permissionMap['student_' . (int) $studentID] ?? [];
+                $storedDates = [];
+                foreach ($attendances as $attendanceRow) {
+                    $storedDates[$attendanceRow->attendance_date->format('Y-m-d')] = $attendanceRow;
+                }
+                foreach ($permissionDays as $permissionDate => $permissionStatus) {
+                    $remark = $permissionStatus === 'Sick' ? 'Approved sick leave' : 'Approved permission';
+                    if (isset($storedDates[$permissionDate])) {
+                        if ($storedDates[$permissionDate]->status !== $permissionStatus) {
+                            $storedDates[$permissionDate]->status = $permissionStatus;
+                            if (!$storedDates[$permissionDate]->remark) {
+                                $storedDates[$permissionDate]->remark = $remark;
+                            }
+                        }
+                        continue;
+                    }
+                    $attendances->push(new Attendance([
+                        'studentID' => $studentID,
+                        'schoolID' => $schoolID,
+                        'attendance_date' => $permissionDate,
+                        'status' => $permissionStatus,
+                        'remark' => $remark,
+                    ]));
+                }
+                $attendances = $attendances->sortBy('attendance_date')->values();
+            }
+
             $student = Student::find($studentID);
 
             // Calculate statistics
@@ -1409,31 +1453,65 @@ class ManageAttendanceController extends Controller
             );
 
             $hasAttendance = $attendanceCheckQuery->exists();
+            $reportBounds = $this->reportDateBounds($searchType, $date, $year, $month, $fromDate, $toDate);
 
             if (!$hasAttendance) {
-                // No attendance collected
-                // Calculate display name
+                $permissionStudents = $this->permissionOnlySystemStudents(
+                    (int) $schoolID,
+                    $enrolledIDs,
+                    $enrollmentMeta,
+                    $reportBounds
+                );
+                $permissionStudents = $this->filterStudentsByAttendanceStatus($permissionStudents, $statusFilter);
+
                 $subclassName = trim($subclass->subclass_name);
-                $displayName = empty($subclassName) 
-                    ? $subclass->class_name 
+                $displayName = empty($subclassName)
+                    ? $subclass->class_name
                     : $subclass->class_name . ' ' . $subclassName;
-                
+
+                if ($permissionStudents->isEmpty()) {
+                    $result[] = [
+                        'subclassID' => $subclass->subclassID,
+                        'subclass_name' => $subclass->subclass_name,
+                        'class_name' => $subclass->class_name,
+                        'display_name' => $displayName,
+                        'total_students' => $totalStudents,
+                        'has_attendance' => false,
+                        'present' => 0,
+                        'absent' => 0,
+                        'sick' => 0,
+                        'excused' => 0,
+                        'present_percentage' => 0,
+                        'absent_percentage' => 0,
+                        'sick_percentage' => 0,
+                        'excused_percentage' => 0,
+                        'students' => []
+                    ];
+                    continue;
+                }
+
+                $present = (int) $permissionStudents->sum('days_present');
+                $absent = (int) $permissionStudents->sum('days_absent');
+                $sick = (int) $permissionStudents->sum('days_sick');
+                $excused = (int) $permissionStudents->sum('days_excused');
+                $totalRecords = $present + $absent + $sick + $excused;
+
                 $result[] = [
                     'subclassID' => $subclass->subclassID,
                     'subclass_name' => $subclass->subclass_name,
                     'class_name' => $subclass->class_name,
                     'display_name' => $displayName,
                     'total_students' => $totalStudents,
-                    'has_attendance' => false,
-                    'present' => 0,
-                    'absent' => 0,
-                    'sick' => 0,
-                    'excused' => 0,
-                    'present_percentage' => 0,
-                    'absent_percentage' => 0,
-                    'sick_percentage' => 0,
-                    'excused_percentage' => 0,
-                    'students' => []
+                    'has_attendance' => true,
+                    'present' => $present,
+                    'absent' => $absent,
+                    'sick' => $sick,
+                    'excused' => $excused,
+                    'present_percentage' => $totalRecords > 0 ? round(($present / $totalRecords) * 100, 2) : 0,
+                    'absent_percentage' => $totalRecords > 0 ? round(($absent / $totalRecords) * 100, 2) : 0,
+                    'sick_percentage' => $totalRecords > 0 ? round(($sick / $totalRecords) * 100, 2) : 0,
+                    'excused_percentage' => $totalRecords > 0 ? round(($excused / $totalRecords) * 100, 2) : 0,
+                    'students' => $permissionStudents->values()->all(),
                 ];
                 continue;
             }
@@ -1545,20 +1623,24 @@ class ManageAttendanceController extends Controller
                     return $row;
                 });
 
-            if ($statusFilter !== 'all') {
-                $dayField = match ($statusFilter) {
-                    'Present' => 'days_present',
-                    'Absent' => 'days_absent',
-                    'Sick' => 'days_sick',
-                    'Excused' => 'days_excused',
-                    default => null,
-                };
-                if ($dayField) {
-                    $studentsQuery = $studentsQuery
-                        ->filter(fn ($row) => ((int) ($row->{$dayField} ?? 0)) > 0)
-                        ->values();
-                }
+            $studentsQuery = $this->overlayApprovedPermissionsOnStudents(
+                $studentsQuery,
+                (int) $schoolID,
+                $reportBounds
+            );
+            $present = (int) $studentsQuery->sum('days_present');
+            $absent = (int) $studentsQuery->sum('days_absent');
+            $sick = (int) $studentsQuery->sum('days_sick');
+            $excused = (int) $studentsQuery->sum('days_excused');
+            $totalRecords = $present + $absent + $sick + $excused;
+            if (in_array($searchType, ['month', 'year', 'date_range']) && $totalRecords > 0) {
+                $presentPercentage = round(($present / $totalRecords) * 100, 2);
+                $absentPercentage = round(($absent / $totalRecords) * 100, 2);
+                $sickPercentage = round(($sick / $totalRecords) * 100, 2);
+                $excusedPercentage = round(($excused / $totalRecords) * 100, 2);
             }
+
+            $studentsQuery = $this->filterStudentsByAttendanceStatus($studentsQuery, $statusFilter);
 
             // Calculate display name
             $subclassName = trim($subclass->subclass_name);
@@ -1592,6 +1674,144 @@ class ManageAttendanceController extends Controller
         }
 
         return $result;
+    }
+
+    private function reportDateBounds($searchType, $date, $year, $month, $fromDate = null, $toDate = null): ?array
+    {
+        if ($searchType === 'date' && $date) {
+            return [$date, $date];
+        }
+        if ($searchType === 'date_range' && $fromDate && $toDate) {
+            return [$fromDate, $toDate];
+        }
+        if ($searchType === 'month' && $year && $month) {
+            $start = Carbon::create((int) $year, (int) $month, 1);
+            return [$start->toDateString(), $start->copy()->endOfMonth()->toDateString()];
+        }
+        if ($searchType === 'year' && $year) {
+            return [$year . '-01-01', $year . '-12-31'];
+        }
+
+        return null;
+    }
+
+    private function filterStudentsByAttendanceStatus($students, string $statusFilter)
+    {
+        if ($statusFilter === 'all') {
+            return $students;
+        }
+
+        $dayField = match ($statusFilter) {
+            'Present' => 'days_present',
+            'Absent' => 'days_absent',
+            'Sick' => 'days_sick',
+            'Excused' => 'days_excused',
+            default => null,
+        };
+        if (!$dayField) {
+            return $students;
+        }
+
+        return $students
+            ->filter(fn ($row) => ((int) ($row->{$dayField} ?? 0)) > 0)
+            ->values();
+    }
+
+    private function overlayApprovedPermissionsOnStudents($students, int $schoolID, ?array $bounds)
+    {
+        if (!$bounds || $students->isEmpty()) {
+            return $students;
+        }
+
+        $ids = $students->pluck('studentID')->map(fn ($id) => (int) $id)->filter()->values()->all();
+        if ($ids === []) {
+            return $students;
+        }
+
+        $service = app(\App\Services\StudentPermissionAttendanceService::class);
+        $map = $service->loadApprovedStatusMap($schoolID, $bounds[0], $bounds[1], $ids);
+        if ($map === []) {
+            return $students;
+        }
+
+        $stored = [];
+        $existing = DB::table('attendances')
+            ->where('schoolID', $schoolID)
+            ->whereIn('studentID', $ids)
+            ->whereDate('attendance_date', '>=', $bounds[0])
+            ->whereDate('attendance_date', '<=', $bounds[1])
+            ->get(['studentID', 'attendance_date', 'status']);
+
+        foreach ($existing as $row) {
+            $stored[(int) $row->studentID][Carbon::parse($row->attendance_date)->toDateString()] = (string) $row->status;
+        }
+
+        foreach ($students as $student) {
+            $studentId = (int) $student->studentID;
+            $days = $map['student_' . $studentId] ?? [];
+            foreach ($days as $date => $permStatus) {
+                $current = $stored[$studentId][$date] ?? null;
+                if ($current === $permStatus) {
+                    continue;
+                }
+                if ($current === 'Present') {
+                    $student->days_present = max(0, (int) $student->days_present - 1);
+                } elseif ($current === 'Absent') {
+                    $student->days_absent = max(0, (int) $student->days_absent - 1);
+                } elseif ($current === 'Sick') {
+                    $student->days_sick = max(0, (int) $student->days_sick - 1);
+                } elseif ($current === 'Excused') {
+                    $student->days_excused = max(0, (int) $student->days_excused - 1);
+                }
+
+                if ($permStatus === 'Sick') {
+                    $student->days_sick = (int) $student->days_sick + 1;
+                } else {
+                    $student->days_excused = (int) $student->days_excused + 1;
+                }
+            }
+        }
+
+        return $students;
+    }
+
+    private function permissionOnlySystemStudents(int $schoolID, array $enrolledIDs, array $enrollmentMeta, ?array $bounds)
+    {
+        if (!$bounds || $enrolledIDs === []) {
+            return collect();
+        }
+
+        $students = DB::table('students')
+            ->where('schoolID', $schoolID)
+            ->whereIn('studentID', $enrolledIDs)
+            ->select(
+                'studentID',
+                'first_name',
+                'middle_name',
+                'last_name',
+                'admission_number',
+                'gender'
+            )
+            ->orderBy('first_name')
+            ->get()
+            ->map(function ($row) use ($enrollmentMeta) {
+                $meta = $enrollmentMeta[(int) $row->studentID] ?? null;
+                $row->days_present = 0;
+                $row->days_absent = 0;
+                $row->days_sick = 0;
+                $row->days_excused = 0;
+                $row->enrollmentID = $meta['enrollmentID'] ?? null;
+                $row->enrollment_status = $meta['enrollment_status'] ?? null;
+                $row->promotion_status = $meta['promotion_status'] ?? null;
+                $row->academic_year = $meta['year_name'] ?? null;
+                return $row;
+            });
+
+        $students = $this->overlayApprovedPermissionsOnStudents($students, $schoolID, $bounds);
+
+        return $students
+            ->filter(fn ($row) => ((int) $row->days_sick + (int) $row->days_excused) > 0)
+            ->values();
     }
 
     private function applyAttendancePeriodToQuery(
@@ -1761,8 +1981,17 @@ class ManageAttendanceController extends Controller
             }
 
             $hasAttendance = $attendanceCheckQuery->exists();
+            $reportBounds = $this->reportDateBounds($searchType, $date, $year, $month);
+            $permissionStatusMap = ($reportBounds && $enrolledIDs !== [])
+                ? app(\App\Services\StudentPermissionAttendanceService::class)->loadApprovedStatusMap(
+                    (int) $schoolID,
+                    $reportBounds[0],
+                    $reportBounds[1],
+                    $enrolledIDs
+                )
+                : [];
 
-            if (!$hasAttendance) {
+            if (!$hasAttendance && $permissionStatusMap === []) {
                 // No attendance collected
                 // Calculate display name
                 $subclassName = trim($subclass->subclass_name);
@@ -1779,6 +2008,8 @@ class ManageAttendanceController extends Controller
                     'has_attendance' => false,
                     'present' => 0,
                     'absent' => 0,
+                    'permission' => 0,
+                    'sick' => 0,
                     'present_percentage' => 0,
                     'absent_percentage' => 0,
                     'students' => []
@@ -1897,9 +2128,38 @@ class ManageAttendanceController extends Controller
                 $workingDays = 1; // For date search
             }
 
-            // Calculate absent days for each student
-            $studentsWithStats = $studentsQuery->map(function($student) use ($workingDays, $searchType, $subclass) {
-                $daysAbsent = max(0, $workingDays - $student->days_present);
+            $fingerprintDates = [];
+            if ($reportBounds && $enrolledIDs !== []) {
+                $fingerprintRows = DB::table('student_fingerprint_attendance')
+                    ->whereIn('studentID', $enrolledIDs)
+                    ->whereDate('attendance_date', '>=', $reportBounds[0])
+                    ->whereDate('attendance_date', '<=', $reportBounds[1])
+                    ->get(['studentID', 'attendance_date', 'check_in_time']);
+                foreach ($fingerprintRows as $fingerprintRow) {
+                    $fingerprintDates[(int) $fingerprintRow->studentID][Carbon::parse($fingerprintRow->attendance_date)->toDateString()] = $fingerprintRow->check_in_time;
+                }
+            }
+
+            $permService = app(\App\Services\StudentPermissionAttendanceService::class);
+
+            // Calculate absent days for each student, then move approved permission days out of absent/present
+            $studentsWithStats = $studentsQuery->map(function($student) use ($workingDays, $searchType, $subclass, $permissionStatusMap, $fingerprintDates, $permService, $date) {
+                $studentId = (int) $student->studentID;
+                $present = (int) $student->days_present;
+                $permDates = $permissionStatusMap['student_' . $studentId] ?? [];
+                $sickDays = 0;
+                $permissionDays = 0;
+                foreach ($permDates as $permDate => $permStatus) {
+                    if (isset($fingerprintDates[$studentId][$permDate])) {
+                        $present = max(0, $present - 1);
+                    }
+                    if ($permStatus === 'Sick') {
+                        $sickDays++;
+                    } else {
+                        $permissionDays++;
+                    }
+                }
+                $daysAbsent = max(0, $workingDays - $present - $sickDays - $permissionDays);
                 $result = [
                     'studentID' => $student->studentID,
                     'first_name' => $student->first_name,
@@ -1908,23 +2168,31 @@ class ManageAttendanceController extends Controller
                     'admission_number' => $student->admission_number,
                     'gender' => $student->gender,
                     'subclass_name' => $student->subclass_name ?? $subclass->subclass_name,
-                    'days_present' => $student->days_present,
+                    'enrollment_status' => $student->enrollment_status ?? null,
+                    'days_present' => $present,
                     'days_absent' => $daysAbsent,
                     'days_late' => 0,
-                    'days_excused' => 0
+                    'days_excused' => $permissionDays,
+                    'days_sick' => $sickDays,
                 ];
                 
                 // Add check in/out times for date view
                 if ($searchType == 'date') {
                     $result['check_in_time'] = $student->check_in_time ? Carbon::parse($student->check_in_time)->format('H:i:s') : null;
                     $result['check_out_time'] = $student->check_out_time ? Carbon::parse($student->check_out_time)->format('H:i:s') : null;
+                    $checkIn = $fingerprintDates[$studentId][$date] ?? $student->check_in_time;
+                    $permStatus = $permDates[$date] ?? null;
+                    $result['day_status'] = $permService->resolveFingerprintDayStatus($checkIn, $permStatus);
                 }
                 
                 return $result;
             });
 
+            $totalPresentDays = $studentsWithStats->sum('days_present');
             $totalAbsentDays = $studentsWithStats->sum('days_absent');
-            $totalRecords = $totalPresentDays + $totalAbsentDays;
+            $totalPermissionDays = $studentsWithStats->sum('days_excused');
+            $totalSickDays = $studentsWithStats->sum('days_sick');
+            $totalRecords = $totalPresentDays + $totalAbsentDays + $totalPermissionDays + $totalSickDays;
 
             // Calculate percentages for month and year
             $presentPercentage = 0;
@@ -1950,8 +2218,10 @@ class ManageAttendanceController extends Controller
                 'has_attendance' => true,
                 'present' => $totalPresentDays,
                 'absent' => $totalAbsentDays,
+                'permission' => $totalPermissionDays,
+                'sick' => $totalSickDays,
                 'late' => 0,
-                'excused' => 0,
+                'excused' => $totalPermissionDays,
                 'present_percentage' => $presentPercentage,
                 'absent_percentage' => $absentPercentage,
                 'late_percentage' => 0,
@@ -2045,21 +2315,57 @@ class ManageAttendanceController extends Controller
                 $workingDays = 1; // For date search
             }
 
-            $daysAbsent = max(0, $workingDays - $daysPresent);
+            $fingerprintDetailBounds = $this->reportDateBounds($searchType, $date, $year, $month);
+            $permissionDays = [];
+            if ($fingerprintDetailBounds) {
+                $permissionMap = app(\App\Services\StudentPermissionAttendanceService::class)
+                    ->loadApprovedStatusMap(
+                        (int) $schoolID,
+                        $fingerprintDetailBounds[0],
+                        $fingerprintDetailBounds[1],
+                        [(int) $studentID]
+                    );
+                $permissionDays = $permissionMap['student_' . (int) $studentID] ?? [];
+            }
+
+            $daysAbsent = max(0, $workingDays - $daysPresent - count($permissionDays));
 
             // Format attendance records
-            $formattedRecords = $attendanceRecords->map(function($record) {
+            $formattedRecords = $attendanceRecords->map(function($record) use ($permissionDays) {
+                $recordDate = $record->attendance_date->format('Y-m-d');
+                $permissionStatus = $permissionDays[$recordDate] ?? null;
+                $label = $permissionStatus === 'Sick'
+                    ? 'Sick'
+                    : ($permissionStatus ? 'Permission' : $record->status);
                 return [
                     'id' => $record->id,
-                    'attendance_date' => $record->attendance_date->format('Y-m-d'),
+                    'attendance_date' => $recordDate,
                     'attendance_date_formatted' => $record->attendance_date->format('l, F j, Y'),
                     'check_in_time' => $record->check_in_time ? $record->check_in_time->format('H:i:s') : null,
                     'check_out_time' => $record->check_out_time ? $record->check_out_time->format('H:i:s') : null,
-                    'status' => $record->status,
+                    'status' => $label,
                     'verify_mode' => $record->verify_mode,
                     'device_ip' => $record->device_ip,
                 ];
-            });
+            })->values();
+
+            $recordedDates = $formattedRecords->pluck('attendance_date')->all();
+            foreach ($permissionDays as $permissionDate => $permissionStatus) {
+                if (in_array($permissionDate, $recordedDates, true)) {
+                    continue;
+                }
+                $formattedRecords->push([
+                    'id' => null,
+                    'attendance_date' => $permissionDate,
+                    'attendance_date_formatted' => Carbon::parse($permissionDate)->format('l, F j, Y'),
+                    'check_in_time' => null,
+                    'check_out_time' => null,
+                    'status' => $permissionStatus === 'Sick' ? 'Sick' : 'Permission',
+                    'verify_mode' => $permissionStatus === 'Sick' ? 'Sick' : 'Permission',
+                    'device_ip' => null,
+                ]);
+            }
+            $formattedRecords = $formattedRecords->sortByDesc('attendance_date')->values();
 
             return response()->json([
                 'success' => true,

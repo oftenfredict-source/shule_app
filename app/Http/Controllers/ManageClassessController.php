@@ -3213,6 +3213,7 @@ class ManageClassessController extends Controller
                     $hasHealthIssues = ($student->is_disabled ?? false) || ($student->has_epilepsy ?? false) || ($student->has_allergies ?? false);
 
                     $attendanceStatus = $student->attendance_status ?? null;
+                    $permStatus = null;
                     if ($isWorkingDayForAttendance && $attendanceDateForPrefill) {
                         $permService = app(StudentPermissionAttendanceService::class);
                         $permStatus = $permService->statusForStudentOnDate(
@@ -3224,6 +3225,10 @@ class ManageClassessController extends Controller
                             $attendanceStatus = $permStatus;
                         }
                     }
+                    $permissionLocked = (bool) $permStatus;
+                    $permissionLabel = $permStatus === 'Sick'
+                        ? 'Sick'
+                        : ($permStatus ? 'Permission' : null);
 
                     return [
                         'studentID' => $student->studentID,
@@ -3258,6 +3263,8 @@ class ManageClassessController extends Controller
                         'has_health_issues' => $hasHealthIssues, // For statistics
                         'attendance_status' => $attendanceStatus,
                         'attendance_remark' => $student->attendance_remark ?? null,
+                        'permission_locked' => $permissionLocked,
+                        'permission_label' => $permissionLabel,
                         'enrollmentID' => $enrMeta['enrollmentID'] ?? null,
                         'enrollment_status' => $enrMeta['enrollment_status'] ?? null,
                         'promotion_status' => $enrMeta['promotion_status'] ?? null,

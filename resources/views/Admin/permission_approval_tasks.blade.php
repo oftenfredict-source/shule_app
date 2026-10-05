@@ -70,15 +70,16 @@
     .modal-loading {
         display: none;
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(255, 255, 255, 0.8);
-        z-index: 10;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.9);
+        z-index: 20;
         align-items: center;
         justify-content: center;
         flex-direction: column;
+        border-radius: 4px;
+    }
+    .modal-content.is-ajax-loading {
+        position: relative;
     }
 
     /* Action Circle Style */
@@ -493,18 +494,24 @@
     });
 
     function submitAction(url, $form) {
-        const modalBody = $form.find('.modal-body')[0];
-        const internalLoading = modalBody ? modalBody.querySelector('.modal-loading') : null;
+        const modalContent = $form.closest('.modal-content')[0];
+        const internalLoading = $form.find('.modal-loading')[0];
+        const loadingBar = document.getElementById('approvalLoading');
 
-        if (internalLoading) {
+        if (modalContent) {
+            modalContent.classList.add('is-ajax-loading');
+        }
+        if (internalLoading && modalContent) {
+            modalContent.appendChild(internalLoading);
             internalLoading.style.display = 'flex';
-        } else {
-            const loadingBar = document.getElementById('approvalLoading');
-            if (loadingBar) loadingBar.style.display = 'flex';
+        } else if (loadingBar) {
+            loadingBar.style.display = 'flex';
         }
 
         const $submitBtn = $form.find('button[type="submit"]');
         $submitBtn.prop('disabled', true);
+        $submitBtn.data('prevLabel', $submitBtn.text());
+        $submitBtn.html('<i class="fa fa-spinner fa-spin"></i> Inaendelea...');
 
         $.ajax({
             url: url,
@@ -546,15 +553,17 @@
                 });
             },
             complete: function() {
-                const modalBody = $form.find('.modal-body')[0];
-                const internalLoading = modalBody ? modalBody.querySelector('.modal-loading') : null;
                 if (internalLoading) {
                     internalLoading.style.display = 'none';
-                } else {
-                    const loadingBar = document.getElementById('approvalLoading');
-                    if (loadingBar) loadingBar.style.display = 'none';
+                }
+                if (modalContent) {
+                    modalContent.classList.remove('is-ajax-loading');
+                }
+                if (loadingBar) {
+                    loadingBar.style.display = 'none';
                 }
                 $submitBtn.prop('disabled', false);
+                $submitBtn.text($submitBtn.data('prevLabel') || $submitBtn.text());
                 $('.modal').modal('hide');
             }
         });

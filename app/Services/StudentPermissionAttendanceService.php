@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\Attendance;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -264,6 +265,76 @@ class StudentPermissionAttendanceService
         }
 
         return $stats;
+    }
+
+    /**
+     * Working dates covered by one approved permission, using the school calendar.
+     *
+     * @return array<int, string>
+     */
+    public function datesCoveredByPermission(int $schoolID, object $permission): array
+    {
+        return $this->resolvePermissionWorkingDates($schoolID, $permission, '2000-01-01', '2100-12-31');
+    }
+
+    /**
+     * Write Sick or Excused attendance rows for each working day of an approved permission.
+     */
+    public function syncApprovedPermissionAttendanceRows(object $permission): void
+    {
+        $schoolID = (int) ($permission->schoolID ?? 0);
+        $studentID = (int) ($permission->student_id ?? 0);
+        if ($schoolID < 1 || $studentID < 1) {
+            return;
+        }
+
+        $dates = $this->datesCoveredByPermission($schoolID, $permission);
+        if ($dates === []) {
+            return;
+        }
+
+        $status = $this->mapReasonToAttendanceStatus((string) ($permission->reason_type ?? 'permission'));
+        $remark = $status === 'Sick' ? 'Approved sick leave' : 'Approved permission';
+
+        $enrollment = app(StudentEnrollmentService::class)->currentEnrollment($studentID, $schoolID);
+        $subclassID = $enrollment->subclassID ?? null;
+        $enrollmentID = $enrollment->enrollmentID ?? null;
+        if (! $subclassID) {
+            $subclassID = DB::table('students')->where('studentID', $studentID)->value('subclassID');
+        }
+        if (! $subclassID) {
+            return;
+        }
+
+        foreach ($dates as $date) {
+            $existing = Attendance::where('schoolID', $schoolID)
+                ->where('studentID', $studentID)
+                ->whereDate('attendance_date', $date)
+                ->first();
+
+            if ($existing) {
+                $existing->status = $status;
+                if ($existing->remark === null || $existing->remark === '') {
+                    $existing->remark = $remark;
+                }
+                if (empty($existing->enrollmentID) && $enrollmentID) {
+                    $existing->enrollmentID = $enrollmentID;
+                }
+                $existing->save();
+                continue;
+            }
+
+            Attendance::create([
+                'schoolID' => $schoolID,
+                'subclassID' => $subclassID,
+                'studentID' => $studentID,
+                'enrollmentID' => $enrollmentID,
+                'teacherID' => null,
+                'attendance_date' => $date,
+                'status' => $status,
+                'remark' => $remark,
+            ]);
+        }
     }
 
     public function schoolHasFingerprintAttendanceOnDate(int $schoolID, string $date): bool
