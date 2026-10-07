@@ -10,16 +10,16 @@
         <div class="sx-apply-school-card__meta">
             <h3>{{ $school['schoolName'] }}</h3>
             <p class="sx-apply-school-card__place">{{ $school['schoolType'] }} · {{ $school['region'] }}@if(!empty($school['district'])), {{ $school['district'] }}@endif</p>
-            <div class="sx-apply-school-card__chips" aria-label="School stats">
-                <span><strong>{{ $school['classesCount'] }}</strong> classes</span>
-                <span><strong>{{ $school['subclassesCount'] }}</strong> subclasses</span>
-                <span><strong>{{ $school['activeStudentsCount'] }}</strong> students</span>
+            <div class="sx-apply-school-card__chips" aria-label="{{ __('site.apply_stats') }}">
+                <span><strong>{{ $school['classesCount'] }}</strong> {{ __('site.apply_classes') }}</span>
+                <span><strong>{{ $school['subclassesCount'] }}</strong> {{ __('site.apply_subclasses') }}</span>
+                <span><strong>{{ $school['activeStudentsCount'] }}</strong> {{ __('site.apply_students') }}</span>
             </div>
         </div>
     </div>
 
     <div class="sx-apply-school-card__classes">
-        <h4>Available classes</h4>
+        <h4>{{ __('site.apply_available_classes') }}</h4>
         @php
             $classesList = collect($school['classesWithSpaces']);
             $visibleClasses = $classesList->take(2);
@@ -43,18 +43,18 @@
                 @endforeach
             </div>
             <button type="button" class="sx-apply-view-more-classes" data-target="more-classes-{{ $school['schoolID'] }}">
-                View more classes ({{ $hiddenClasses->count() }})
+                {{ __('site.apply_view_more_classes', ['count' => $hiddenClasses->count()]) }}
             </button>
         @endif
     </div>
 
     <div class="sx-apply-school-card__footer">
         <a href="{{ $school['schoolUrl'] }}" class="sx-apply-btn-outline">
-            <i class="fa fa-eye"></i> View more
+            <i class="fa fa-eye"></i> {{ __('site.apply_view_more') }}
         </a>
         <button type="button" class="sx-apply-btn-outline sx-copy-school-link"
-            data-url="{{ $school['schoolShareUrl'] ?? $school['schoolUrl'] }}" title="Copy application link">
-            <i class="fa fa-link"></i> Copy link
+            data-url="{{ $school['schoolShareUrl'] ?? $school['schoolUrl'] }}" title="{{ __('site.apply_copy_link') }}">
+            <i class="fa fa-link"></i> {{ __('site.apply_copy_link') }}
         </button>
     </div>
 </article>

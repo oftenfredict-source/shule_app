@@ -47,6 +47,7 @@ use App\Http\Controllers\BlackBookController;
 use App\Http\Controllers\StorePortalController;
 use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\GoalManagementController;
+use App\Http\Controllers\SchoolBoardController;
 use App\Http\Controllers\AttendanceSmsController;
 use App\Http\Controllers\FingerprintAttendanceSmsController;
 use App\Http\Controllers\FingerprintAttendanceSetupController;
@@ -245,6 +246,9 @@ Route::post("/contact/verify-otp", [SiteController::class, "contactVerifyOtp"])
 Route::post("/contact", [SiteController::class, "contactSubmit"])
     ->middleware("throttle:3,10")
     ->name("site.contact.submit");
+Route::post("/quick-ask", [SiteController::class, "quickAsk"])
+    ->middleware("throttle:5,10")
+    ->name("site.quick_ask");
 
 Route::get("/register-school", [SiteController::class, "registerSchool"])->name("site.register_school");
 Route::post("/register-school/check-field", [SiteController::class, "registerSchoolCheckField"])
@@ -470,6 +474,10 @@ Route::post("super-admin/schools/update-comprehensive", [
     SuperAdminController::class,
     "updateSchoolComprehensive",
 ])->name("superadmin.schools.update_comprehensive");
+Route::post("super-admin/schools/bulk-sms-enabled", [
+    SuperAdminController::class,
+    "bulkUpdateSmsEnabled",
+])->name("superadmin.schools.bulk_sms_enabled");
 Route::get("super-admin/change-password", [
     SuperAdminController::class,
     "changePasswordForm",
@@ -633,6 +641,31 @@ Route::post("super-admin/system-logs/login-photo-capture", [
 
 // login Routes
 Route::get("login", [Auth::class, "login"])->name("login");
+
+Route::get("student-portal", [\App\Http\Controllers\StudentPortalController::class, "showLogin"])->name("student_portal.login");
+Route::post("student-portal/login", [\App\Http\Controllers\StudentPortalController::class, "login"])->name("student_portal.login.submit");
+Route::get("student-portal/logout", [\App\Http\Controllers\StudentPortalController::class, "logout"])->name("student_portal.logout");
+Route::get("student-portal/home", [\App\Http\Controllers\StudentPortalController::class, "home"])->name("student_portal.home");
+Route::get("student-portal/notes", [\App\Http\Controllers\StudentPortalController::class, "notes"])->name("student_portal.notes");
+Route::get("student-portal/notes/{id}", [\App\Http\Controllers\StudentPortalController::class, "note"])->name("student_portal.note");
+Route::get("student-portal/books", [\App\Http\Controllers\StudentPortalController::class, "books"])->name("student_portal.books");
+Route::get("student-portal/books/{id}", [\App\Http\Controllers\StudentPortalController::class, "book"])->name("student_portal.book");
+Route::get("student-portal/quizzes", [\App\Http\Controllers\StudentPortalController::class, "quizzes"])->name("student_portal.quizzes");
+Route::get("student-portal/quizzes/{id}", [\App\Http\Controllers\StudentPortalController::class, "quiz"])->name("student_portal.quiz");
+Route::post("student-portal/quizzes/{id}", [\App\Http\Controllers\StudentPortalController::class, "submitQuiz"])->name("student_portal.quiz.submit");
+
+Route::get("student-portal-materials", [\App\Http\Controllers\StudentPortalMaterialController::class, "index"])->name("student_portal.materials");
+Route::post("student-portal-materials/notes", [\App\Http\Controllers\StudentPortalMaterialController::class, "storeNote"])->name("student_portal.materials.notes.store");
+Route::post("student-portal-materials/notes/{id}/toggle", [\App\Http\Controllers\StudentPortalMaterialController::class, "toggleNote"])->name("student_portal.materials.notes.toggle");
+Route::delete("student-portal-materials/notes/{id}", [\App\Http\Controllers\StudentPortalMaterialController::class, "deleteNote"])->name("student_portal.materials.notes.delete");
+Route::post("student-portal-materials/books", [\App\Http\Controllers\StudentPortalMaterialController::class, "storeBook"])->name("student_portal.materials.books.store");
+Route::post("student-portal-materials/books/{id}/toggle", [\App\Http\Controllers\StudentPortalMaterialController::class, "toggleBook"])->name("student_portal.materials.books.toggle");
+Route::delete("student-portal-materials/books/{id}", [\App\Http\Controllers\StudentPortalMaterialController::class, "deleteBook"])->name("student_portal.materials.books.delete");
+Route::post("student-portal-materials/quizzes", [\App\Http\Controllers\StudentPortalMaterialController::class, "storeQuiz"])->name("student_portal.materials.quizzes.store");
+Route::post("student-portal-materials/quizzes/{id}/toggle", [\App\Http\Controllers\StudentPortalMaterialController::class, "toggleQuiz"])->name("student_portal.materials.quizzes.toggle");
+Route::delete("student-portal-materials/quizzes/{id}", [\App\Http\Controllers\StudentPortalMaterialController::class, "deleteQuiz"])->name("student_portal.materials.quizzes.delete");
+Route::get("student-portal-materials/results/export", [\App\Http\Controllers\StudentPortalMaterialController::class, "exportResults"])->name("student_portal.materials.results.export");
+Route::get("student-portal-materials/results/export/{quizId}", [\App\Http\Controllers\StudentPortalMaterialController::class, "exportResults"])->name("student_portal.materials.results.export.quiz");
 Route::view("forgot-password", "auth.forgot-password")->name("forgot_password");
 Route::post("auth", [Auth::class, "auth"])->name("auth");
 Route::post("auth/otp/verify", [Auth::class, "verifyOtp"])->name(
@@ -938,10 +971,22 @@ Route::get("watchman/school-visitors/today", [
     WatchmanController::class,
     "todayVisitors",
 ])->name("watchman.school_visitors.today");
+Route::get("watchman/school-visitors/search", [
+    AdminController::class,
+    "searchSchoolVisitors",
+])->name("watchman.school_visitors.search");
 Route::post("watchman/school-visitors/store", [
     WatchmanController::class,
     "storeVisitors",
 ])->name("watchman.school_visitors.store");
+Route::post("watchman/school-visitors/sign-in", [
+    AdminController::class,
+    "signInSchoolVisitor",
+])->name("watchman.school_visitors.sign_in");
+Route::post("watchman/school-visitors/sign-out", [
+    AdminController::class,
+    "signOutSchoolVisitor",
+])->name("watchman.school_visitors.sign_out");
 Route::post("save_teachers", [
     ManageTeachersController::class,
     "save_teachers",
@@ -958,6 +1003,10 @@ Route::delete("delete_teacher/{id}", [
     ManageTeachersController::class,
     "delete_teacher",
 ])->name("delete_teacher");
+Route::post("admin/generate-login-password", [
+    ManageTeachersController::class,
+    "generateLoginPassword",
+])->name("admin.generate_login_password");
 Route::post("send_teacher_to_fingerprint", [
     ManageTeachersController::class,
     "sendTeacherToFingerprint",
@@ -1756,6 +1805,18 @@ Route::get("manage_student_page.js", [
     "manage_student_page_js",
 ])->name("manage_student_page_js");
 
+/* Pending / prospective student registrations (do not affect enrolled counts) */
+Route::prefix("admin/pending-students")->name("admin.pending_students.")->group(function () {
+    Route::get("/", [\App\Http\Controllers\PendingStudentRegistrationController::class, "index"])->name("index");
+    Route::post("/store", [\App\Http\Controllers\PendingStudentRegistrationController::class, "store"])->name("store");
+    Route::post("/update", [\App\Http\Controllers\PendingStudentRegistrationController::class, "update"])->name("update");
+    Route::post("/delete", [\App\Http\Controllers\PendingStudentRegistrationController::class, "delete"])->name("delete");
+    Route::get("/template", [\App\Http\Controllers\PendingStudentRegistrationController::class, "downloadTemplate"])->name("template");
+    Route::post("/import", [\App\Http\Controllers\PendingStudentRegistrationController::class, "import"])->name("import");
+    Route::post("/confirm", [\App\Http\Controllers\PendingStudentRegistrationController::class, "confirm"])->name("confirm");
+    Route::post("/confirm-batch", [\App\Http\Controllers\PendingStudentRegistrationController::class, "confirmBatch"])->name("confirm_batch");
+});
+
 // School Online Admission (Admin configuration + approvals)
 Route::get("online-admission", [
     \App\Http\Controllers\SchoolOnlineAdmissionController::class,
@@ -2243,6 +2304,10 @@ Route::get("teacher/duty-book/report", [
     TeacherDutyController::class,
     "getDailyReport",
 ])->name("teacher.duty_book.report");
+Route::get("duty-book/parent-permissions", [
+    TeacherDutyController::class,
+    "parentPermissions",
+])->name("duty_book.parent_permissions");
 Route::post("teacher/duty-book/save", [
     TeacherDutyController::class,
     "saveDailyReport",
@@ -2749,6 +2814,47 @@ Route::get("admin/school-visitors", [
     AdminController::class,
     "manageSchoolVisitors",
 ])->name("admin.school_visitors");
+
+/* School Board */
+Route::prefix("admin/school-board")->name("admin.school_board.")->group(function () {
+    Route::get("/", [SchoolBoardController::class, "dashboard"])->name("dashboard");
+    Route::get("/members", [SchoolBoardController::class, "members"])->name("members");
+    Route::post("/members/store", [SchoolBoardController::class, "storeMember"])->name("members.store");
+    Route::post("/members/update", [SchoolBoardController::class, "updateMember"])->name("members.update");
+    Route::post("/members/assign-position", [SchoolBoardController::class, "assignMemberPosition"])->name("members.assign_position");
+    Route::post("/members/delete", [SchoolBoardController::class, "deleteMember"])->name("members.delete");
+    Route::post("/positions/store", [SchoolBoardController::class, "storePosition"])->name("positions.store");
+    Route::get("/committees", [SchoolBoardController::class, "committees"])->name("committees");
+    Route::post("/committees/store", [SchoolBoardController::class, "storeCommittee"])->name("committees.store");
+    Route::post("/committees/update", [SchoolBoardController::class, "updateCommittee"])->name("committees.update");
+    Route::post("/committees/delete", [SchoolBoardController::class, "deleteCommittee"])->name("committees.delete");
+    Route::post("/committees/assign-member", [SchoolBoardController::class, "assignCommitteeMember"])->name("committees.assign_member");
+    Route::post("/committees/remove-member", [SchoolBoardController::class, "removeCommitteeMember"])->name("committees.remove_member");
+    Route::get("/meetings", [SchoolBoardController::class, "meetings"])->name("meetings");
+    Route::post("/meetings/store", [SchoolBoardController::class, "storeMeeting"])->name("meetings.store");
+    Route::post("/meetings/update", [SchoolBoardController::class, "updateMeeting"])->name("meetings.update");
+    Route::post("/meetings/delete", [SchoolBoardController::class, "deleteMeeting"])->name("meetings.delete");
+    Route::post("/meetings/attendance", [SchoolBoardController::class, "updateAttendance"])->name("meetings.attendance");
+    Route::get("/minutes", [SchoolBoardController::class, "minutes"])->name("minutes");
+    Route::post("/minutes/store", [SchoolBoardController::class, "storeMinute"])->name("minutes.store");
+    Route::post("/minutes/update", [SchoolBoardController::class, "updateMinute"])->name("minutes.update");
+    Route::post("/minutes/delete", [SchoolBoardController::class, "deleteMinute"])->name("minutes.delete");
+    Route::get("/resolutions", [SchoolBoardController::class, "resolutions"])->name("resolutions");
+    Route::post("/resolutions/store", [SchoolBoardController::class, "storeResolution"])->name("resolutions.store");
+    Route::post("/resolutions/update", [SchoolBoardController::class, "updateResolution"])->name("resolutions.update");
+    Route::post("/resolutions/delete", [SchoolBoardController::class, "deleteResolution"])->name("resolutions.delete");
+    Route::get("/action-items", [SchoolBoardController::class, "actionItems"])->name("action_items");
+    Route::post("/action-items/store", [SchoolBoardController::class, "storeActionItem"])->name("action_items.store");
+    Route::post("/action-items/update", [SchoolBoardController::class, "updateActionItem"])->name("action_items.update");
+    Route::post("/action-items/delete", [SchoolBoardController::class, "deleteActionItem"])->name("action_items.delete");
+    Route::get("/documents", [SchoolBoardController::class, "documents"])->name("documents");
+    Route::post("/documents/store", [SchoolBoardController::class, "storeDocument"])->name("documents.store");
+    Route::post("/documents/update", [SchoolBoardController::class, "updateDocument"])->name("documents.update");
+    Route::post("/documents/delete", [SchoolBoardController::class, "deleteDocument"])->name("documents.delete");
+    Route::get("/documents/download/{documentID}", [SchoolBoardController::class, "downloadDocument"])->name("documents.download");
+    Route::get("/reports", [SchoolBoardController::class, "reports"])->name("reports");
+});
+
 Route::get("admin/school-visitors/today", [
     AdminController::class,
     "todaySchoolVisitors",
@@ -2757,6 +2863,10 @@ Route::get("admin/school-visitors/list", [
     AdminController::class,
     "listSchoolVisitors",
 ])->name("admin.school_visitors.list");
+Route::get("admin/school-visitors/search", [
+    AdminController::class,
+    "searchSchoolVisitors",
+])->name("admin.school_visitors.search");
 Route::post("admin/school-visitors/store", [
     AdminController::class,
     "storeSchoolVisitors",
@@ -2765,6 +2875,14 @@ Route::post("admin/school-visitors/update", [
     AdminController::class,
     "updateSchoolVisitor",
 ])->name("admin.school_visitors.update");
+Route::post("admin/school-visitors/sign-in", [
+    AdminController::class,
+    "signInSchoolVisitor",
+])->name("admin.school_visitors.sign_in");
+Route::post("admin/school-visitors/sign-out", [
+    AdminController::class,
+    "signOutSchoolVisitor",
+])->name("admin.school_visitors.sign_out");
 Route::post("admin/school-visitors/delete", [
     AdminController::class,
     "deleteSchoolVisitor",
@@ -4078,6 +4196,14 @@ Route::get("get_all_staff_sms", [
     SMS_InformationController::class,
     "get_all_staff",
 ])->name("get_all_staff_sms");
+Route::get("get_school_board_sms", [
+    SMS_InformationController::class,
+    "get_school_board_members",
+])->name("get_school_board_sms");
+Route::get("get_pending_parents_sms", [
+    SMS_InformationController::class,
+    "get_pending_registration_parents",
+])->name("get_pending_parents_sms");
 Route::get("get_parent_by_student_sms", [
     SMS_InformationController::class,
     "get_parent_by_student",

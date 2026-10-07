@@ -13,6 +13,8 @@ use App\Models\Attendance;
 use App\Models\School;
 use App\Models\ParentModel;
 use App\Models\OtherStaff;
+use App\Models\SchoolBoardMember;
+use App\Models\PendingStudentRegistration;
 use App\Models\SmsLog;
 use App\Services\SmsService;
 use App\Services\SelectedAcademicYearService;
@@ -268,6 +270,128 @@ class SMS_InformationController extends Controller
     }
 
     /**
+     * Active school board members who have a phone number.
+     */
+    public function get_school_board_members()
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+            }
+
+            $members = SchoolBoardMember::with('position')
+                ->where('schoolID', $schoolID)
+                ->where('status', 'Active')
+                ->whereNotNull('phone')
+                ->where('phone', '!=', '')
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get()
+                ->map(function ($member) {
+                    $position = optional($member->position)->position_name;
+
+                    return [
+                        'id' => $member->memberID,
+                        'phone' => $member->phone,
+                        'display_name' => $member->full_name,
+                        'role_label' => $position ?: 'Board Member',
+                    ];
+                })
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'count' => $members->count(),
+                'recipients' => $members,
+                'role' => 'Board',
+                'recipient_kind' => 'board',
+                'message' => $members->isEmpty()
+                    ? 'No active school board members with a phone number.'
+                    : null,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error getting school board members for SMS: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Parents of students still pending admission (not yet confirmed).
+     * One row per phone, so a parent registering more than one child is listed once.
+     */
+    public function get_pending_registration_parents()
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+            }
+
+            $rows = PendingStudentRegistration::where('schoolID', $schoolID)
+                ->where('status', 'Pending')
+                ->whereNotNull('parent_phone')
+                ->where('parent_phone', '!=', '')
+                ->orderBy('parent_first_name')
+                ->orderBy('first_name')
+                ->get();
+
+            $grouped = [];
+            foreach ($rows as $row) {
+                $phoneKey = preg_replace('/\s+/', '', trim((string) $row->parent_phone));
+                if ($phoneKey === '') {
+                    continue;
+                }
+
+                $child = $row->full_name !== '' ? $row->full_name : 'Student';
+                if (!isset($grouped[$phoneKey])) {
+                    $parentName = trim(implode(' ', array_filter([
+                        $row->parent_first_name,
+                        $row->parent_middle_name,
+                        $row->parent_last_name,
+                    ])));
+                    $grouped[$phoneKey] = [
+                        'id' => $row->pendingID,
+                        'phone' => trim((string) $row->parent_phone),
+                        'parent_name' => $parentName !== '' ? $parentName : 'Parent',
+                        'relationship' => $row->parent_relationship,
+                        'children' => [],
+                    ];
+                }
+
+                if (!in_array($child, $grouped[$phoneKey]['children'], true)) {
+                    $grouped[$phoneKey]['children'][] = $child;
+                }
+            }
+
+            $parents = collect($grouped)->map(function ($item) {
+                $relation = $item['relationship'] ? $item['relationship'] : 'Parent';
+
+                return [
+                    'id' => $item['id'],
+                    'phone' => $item['phone'],
+                    'display_name' => $item['parent_name'] . ' — ' . $relation . ' of ' . implode(', ', $item['children']),
+                    'role_label' => 'Pending Join',
+                ];
+            })->values();
+
+            return response()->json([
+                'success' => true,
+                'count' => $parents->count(),
+                'recipients' => $parents,
+                'role' => 'Pending Join',
+                'recipient_kind' => 'pending_parent',
+                'message' => $parents->isEmpty()
+                    ? 'No parents of pending student registrations with a phone number.'
+                    : null,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error getting pending registration parents for SMS: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Get parent by student (must have Active enrollment for selected year)
      */
     public function get_parent_by_student(Request $request)
@@ -467,7 +591,7 @@ class SMS_InformationController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'message' => 'required|string|min:1',
-                'recipient_type' => 'required|in:all_parents,class_parents,all_parents_teachers,all_teachers,specific_parent,specific_teacher,all_staff,specific_staff'
+                'recipient_type' => 'required|in:all_parents,class_parents,all_parents_teachers,all_teachers,specific_parent,specific_teacher,all_staff,specific_staff,school_board,pending_parents'
             ]);
 
             if ($validator->fails()) {
@@ -672,6 +796,62 @@ class SMS_InformationController extends Controller
                             'phone' => $s->phone_number,
                             'name' => $s->first_name . ' ' . ($s->last_name ?? ''),
                             'id' => $s->id
+                        ];
+                    }
+                    break;
+
+                case 'school_board':
+                    $boardQuery = SchoolBoardMember::with('position')
+                        ->where('schoolID', $schoolID)
+                        ->where('status', 'Active')
+                        ->whereNotNull('phone')
+                        ->where('phone', '!=', '');
+
+                    if (!empty($selectedIds)) {
+                        $boardQuery->whereIn('memberID', array_map('intval', $selectedIds));
+                    }
+
+                    foreach ($boardQuery->get() as $member) {
+                        $position = optional($member->position)->position_name;
+                        $recipients[] = [
+                            'type' => 'board',
+                            'phone' => $member->phone,
+                            'name' => trim($member->full_name . ($position ? ' (' . $position . ')' : '')),
+                            'id' => $member->memberID,
+                        ];
+                    }
+                    break;
+
+                case 'pending_parents':
+                    $pendingQuery = PendingStudentRegistration::where('schoolID', $schoolID)
+                        ->where('status', 'Pending')
+                        ->whereNotNull('parent_phone')
+                        ->where('parent_phone', '!=', '');
+
+                    if (!empty($selectedIds)) {
+                        $pendingQuery->whereIn('pendingID', array_map('intval', $selectedIds));
+                    }
+
+                    $seenPhones = [];
+                    foreach ($pendingQuery->get() as $row) {
+                        $phoneKey = preg_replace('/\s+/', '', trim((string) $row->parent_phone));
+                        if ($phoneKey === '' || isset($seenPhones[$phoneKey])) {
+                            continue;
+                        }
+                        $seenPhones[$phoneKey] = true;
+
+                        $parentName = trim(implode(' ', array_filter([
+                            $row->parent_first_name,
+                            $row->parent_middle_name,
+                            $row->parent_last_name,
+                        ])));
+                        $childName = $row->full_name !== '' ? $row->full_name : 'Student';
+
+                        $recipients[] = [
+                            'type' => 'pending_parent',
+                            'phone' => trim((string) $row->parent_phone),
+                            'name' => ($parentName !== '' ? $parentName : 'Parent') . ' (Parent of ' . $childName . ')',
+                            'id' => $row->pendingID,
                         ];
                     }
                     break;

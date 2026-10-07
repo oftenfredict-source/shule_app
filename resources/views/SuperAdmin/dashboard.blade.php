@@ -1,19 +1,23 @@
 @extends('includes.superadmin_nav')
 
+@section('page_title', 'Super Administrator Dashboard')
+@section('page_subtitle', 'System Control & Management')
+@section('page_breadcrumb', 'Super Admin Dashboard')
+
 @section('content')
 <style>
     .dashboard-hero {
         background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
         border: 1px solid #f0dada;
-        padding: 24px;
-        margin-bottom: 24px;
+        padding: 20px 22px;
+        margin-bottom: 20px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 16px;
     }
     .dashboard-hero .hero-title {
-        font-size: 1.6rem;
+        font-size: 1.25rem;
         font-weight: 800;
         color: #940000;
         margin-bottom: 4px;
@@ -21,7 +25,7 @@
     .dashboard-hero .hero-subtitle {
         color: #666;
         margin-bottom: 0;
-        font-size: 0.95rem;
+        font-size: 0.9rem;
     }
     .dashboard-card {
         border: 1px solid #f0f0f0;
@@ -60,9 +64,115 @@
     }
     /* Ensure no radius */
     .card, .btn, .alert { border-radius: 0 !important; }
+
+    /* Light-mode custom buttons */
+    .btn-primary-custom {
+        background: #940000 !important;
+        border: 1px solid #940000 !important;
+        color: #fff !important;
+    }
+    .btn-primary-custom:hover {
+        background: #a80000 !important;
+        border-color: #a80000 !important;
+        color: #fff !important;
+    }
+    .btn-outline-primary-custom {
+        background: transparent !important;
+        border: 1px solid #940000 !important;
+        color: #940000 !important;
+    }
+    .btn-outline-primary-custom:hover {
+        background: #940000 !important;
+        color: #fff !important;
+    }
+
+    /* Soft dark dashboard */
+    html[data-sx-theme="dark"] .dashboard-hero {
+        background: linear-gradient(135deg, #2a1a1f 0%, #1f1418 100%) !important;
+        border-color: rgba(255, 180, 180, 0.28) !important;
+    }
+    html[data-sx-theme="dark"] .dashboard-hero .hero-title {
+        color: #ffc2c2 !important;
+    }
+    html[data-sx-theme="dark"] .dashboard-hero .hero-subtitle,
+    html[data-sx-theme="dark"] .dashboard-hero .text-muted {
+        color: #e8d6da !important;
+    }
+    html[data-sx-theme="dark"] .dashboard-card,
+    html[data-sx-theme="dark"] .card {
+        background: #1f1418 !important;
+        border-color: rgba(255, 180, 180, 0.22) !important;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3) !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .dashboard-card .card-title,
+    html[data-sx-theme="dark"] .card-header h6,
+    html[data-sx-theme="dark"] .fw-bold {
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] .dashboard-card .card-icon,
+    html[data-sx-theme="dark"] .dashboard-card .card-icon i,
+    html[data-sx-theme="dark"] .text-primary,
+    html[data-sx-theme="dark"] i.text-primary {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .stat-value {
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] .stat-desc,
+    html[data-sx-theme="dark"] .text-muted,
+    html[data-sx-theme="dark"] .smaller {
+        color: #e0cfd3 !important;
+    }
+    html[data-sx-theme="dark"] .card-header,
+    html[data-sx-theme="dark"] .card-header.bg-white,
+    html[data-sx-theme="dark"] .bg-white {
+        background: #2a1a1f !important;
+        border-color: rgba(255, 180, 180, 0.2) !important;
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] .border {
+        border-color: rgba(255, 180, 180, 0.22) !important;
+    }
+    html[data-sx-theme="dark"] .btn-outline-primary-custom,
+    html[data-sx-theme="dark"] .btn-outline-dark,
+    html[data-sx-theme="dark"] a.btn-outline-primary-custom,
+    html[data-sx-theme="dark"] a.btn-outline-dark {
+        background: transparent !important;
+        border: 1px solid rgba(255, 180, 180, 0.55) !important;
+        color: #ffe8eb !important;
+    }
+    html[data-sx-theme="dark"] .btn-outline-primary-custom i,
+    html[data-sx-theme="dark"] .btn-outline-dark i {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .btn-outline-primary-custom:hover,
+    html[data-sx-theme="dark"] .btn-outline-dark:hover,
+    html[data-sx-theme="dark"] a.btn-outline-primary-custom:hover,
+    html[data-sx-theme="dark"] a.btn-outline-dark:hover {
+        background: #940000 !important;
+        border-color: #940000 !important;
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] .btn-dark,
+    html[data-sx-theme="dark"] a.btn-dark {
+        background: #3a242b !important;
+        border-color: rgba(255, 180, 180, 0.35) !important;
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] .btn-primary-custom,
+    html[data-sx-theme="dark"] a.btn-primary-custom {
+        background: #940000 !important;
+        border-color: #940000 !important;
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] hr {
+        border-color: rgba(255, 180, 180, 0.2) !important;
+        opacity: 1;
+    }
 </style>
 
-<div class="container-fluid mt-3">
+<div class="container-fluid px-0 mt-1">
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <i class="bx bx-check-circle me-2"></i> {{ session('success') }}
@@ -74,7 +184,7 @@
         <div>
             <div class="text-muted small fw-bold uppercase" style="letter-spacing: 1px;">{{ \Carbon\Carbon::now()->format('l, d M Y') }}</div>
             <div class="hero-title">Welcome, Super Admin</div>
-            <p class="hero-subtitle">System Overview and Institutional Management Dashboard</p>
+            <p class="hero-subtitle">Quick actions and institutional overview</p>
         </div>
         <div class="hero-actions d-none d-md-flex gap-2">
             <a href="{{ route('superadmin.schools.register') }}" class="btn btn-primary-custom btn-sm py-2 px-3">
@@ -131,7 +241,7 @@
                             <div class="card-title">Total Institutions</div>
                             <div class="stat-value">{{ ($demoSchoolsCount ?? 0) + ($liveSchoolsCount ?? 0) }}</div>
                         </div>
-                        <div class="card-icon" style="color: #444;"><i class="bx bx-building-house"></i></div>
+                        <div class="card-icon"><i class="bx bx-building-house"></i></div>
                     </div>
                     <a href="{{ route('superadmin.schools.index') }}" class="btn btn-sm btn-outline-dark w-100 mt-2">Manage All</a>
                 </div>
@@ -140,7 +250,7 @@
 
         <!-- Quick Actions -->
         <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
-            <div class="card dashboard-card" style="border-left-color: #222; background: #fafafa;">
+            <div class="card dashboard-card">
                 <div class="card-body">
                     <div class="card-title">System Quick Tools</div>
                     <div class="d-grid gap-2">

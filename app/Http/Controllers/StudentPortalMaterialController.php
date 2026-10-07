@@ -1,0 +1,513 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\ClassModel;
+use App\Models\School;
+use App\Models\SchoolSubject;
+use App\Models\Student;
+use App\Models\StudentPortalBook;
+use App\Models\StudentPortalNote;
+use App\Models\StudentPortalQuiz;
+use App\Models\StudentPortalQuizAttempt;
+use App\Models\StudentPortalQuizQuestion;
+use App\Models\Subclass;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
+
+class StudentPortalMaterialController extends Controller
+{
+    public function index()
+    {
+        $userType = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+        if (!in_array($userType, ['Admin', 'Teacher'], true) || !$schoolID) {
+            return redirect()->route('login')->with('error', 'Access denied');
+        }
+
+        $school = School::find($schoolID);
+        $enabled = $school && $school->isStudentPortalEnabled();
+        $classes = $enabled
+            ? ClassModel::where('schoolID', $schoolID)->where('status', 'Active')->orderBy('class_name')->get()
+            : collect();
+        $subclasses = $enabled
+            ? Subclass::whereIn('classID', $classes->pluck('classID'))->orderBy('subclass_name')->get()
+            : collect();
+        $subjects = $enabled
+            ? SchoolSubject::where('schoolID', $schoolID)->where('status', 'Active')->orderBy('subject_name')->get()
+            : collect();
+
+        $notes = $enabled ? StudentPortalNote::where('schoolID', $schoolID)->latest()->get() : collect();
+        $books = $enabled ? StudentPortalBook::where('schoolID', $schoolID)->latest()->get() : collect();
+        $quizzes = $enabled
+            ? StudentPortalQuiz::with(['questions', 'attempts'])->where('schoolID', $schoolID)->latest()->get()
+            : collect();
+
+        $attemptStudentIds = $quizzes->flatMap(fn ($q) => $q->attempts->pluck('studentID'))->unique()->filter();
+        $studentsById = $attemptStudentIds->isNotEmpty()
+            ? Student::where('schoolID', $schoolID)->whereIn('studentID', $attemptStudentIds)->get()->keyBy('studentID')
+            : collect();
+
+        return view('Teacher.student_portal_materials', [
+            'school' => $school,
+            'enabled' => $enabled,
+            'classes' => $classes,
+            'subclasses' => $subclasses,
+            'subjects' => $subjects,
+            'notes' => $notes,
+            'books' => $books,
+            'quizzes' => $quizzes,
+            'studentsById' => $studentsById,
+            'user_type' => $userType,
+            'uploadLimit' => ini_get('upload_max_filesize') ?: '2M',
+            'postLimit' => ini_get('post_max_size') ?: '8M',
+            'stats' => [
+                'notes' => $notes->count(),
+                'books' => $books->count(),
+                'quizzes' => $quizzes->count(),
+                'attempts' => $quizzes->sum(fn ($q) => $q->attempts->count()),
+            ],
+        ]);
+    }
+
+    public function storeNote(Request $request)
+    {
+        [$school] = $this->guard();
+        if ($redirect = $this->rejectBadUpload($request, 'notes')) {
+            return $redirect;
+        }
+        $data = $this->validatePlacement($request);
+        $request->validate([
+            'title' => 'required|string|max:180',
+            'body' => 'nullable|string|max:20000',
+            'external_url' => 'nullable|string|max:500',
+            'file' => 'nullable|file|extensions:pdf,doc,docx,ppt,pptx,xls,xlsx,jpg,jpeg,png,gif,txt,mp4,mp3|max:262144',
+        ]);
+        $externalUrl = $this->normalizeExternalUrl($request->input('external_url'));
+        if ($externalUrl === false) {
+            return back()->with('error', 'Link si sahihi. Tumia URL kamili kama https://youtube.com/...')->withInput()->with('portal_tab', 'notes');
+        }
+        if (!trim((string) $request->input('body')) && !$request->hasFile('file') && !$externalUrl) {
+            return back()->with('error', 'Andika maelezo, weka faili, au ongeza link (mfano YouTube).')->withInput()->with('portal_tab', 'notes');
+        }
+
+        $file = $this->storeFile($request, $school->schoolID);
+        StudentPortalNote::create(array_merge($data, [
+            'schoolID' => $school->schoolID,
+            'teacherID' => Session::get('teacherID'),
+            'title' => $request->title,
+            'body' => $request->body,
+            'file_path' => $file['path'] ?? null,
+            'original_name' => $file['name'] ?? null,
+            'external_url' => $externalUrl,
+            'is_published' => true,
+        ]));
+
+        return back()->with('success', 'Note imehifadhiwa. Wanafunzi wa darasa hilo wataiweza kusoma.')->with('portal_tab', 'notes');
+    }
+
+    public function deleteNote($id)
+    {
+        [$school] = $this->guard();
+        $note = StudentPortalNote::where('schoolID', $school->schoolID)->where('id', $id)->first();
+        if ($note) {
+            $this->deleteStoredFile($note->file_path);
+            $note->delete();
+        }
+
+        return back()->with('success', 'Note imefutwa.')->with('portal_tab', 'notes');
+    }
+
+    public function toggleNote($id)
+    {
+        [$school] = $this->guard();
+        $note = StudentPortalNote::where('schoolID', $school->schoolID)->where('id', $id)->firstOrFail();
+        $note->is_published = !$note->is_published;
+        $note->save();
+
+        return back()->with('success', $note->is_published ? 'Note imechapishwa.' : 'Note imefichwa.')
+            ->with('portal_tab', 'notes');
+    }
+
+    public function storeBook(Request $request)
+    {
+        [$school] = $this->guard();
+        if ($redirect = $this->rejectBadUpload($request, 'files')) {
+            return $redirect;
+        }
+        $data = $this->validatePlacement($request);
+        $request->validate([
+            'title' => 'required|string|max:180',
+            'author' => 'nullable|string|max:160',
+            'description' => 'nullable|string|max:20000',
+            'external_url' => 'nullable|string|max:500',
+            'file' => 'nullable|file|extensions:pdf,doc,docx,ppt,pptx,xls,xlsx,jpg,jpeg,png,gif,txt,mp4,mp3,epub|max:262144',
+        ]);
+        $externalUrl = $this->normalizeExternalUrl($request->input('external_url'));
+        if ($externalUrl === false) {
+            return back()->with('error', 'Link si sahihi. Tumia URL kamili kama https://youtube.com/...')->withInput()->with('portal_tab', 'files');
+        }
+        if (!trim((string) $request->input('description')) && !$request->hasFile('file') && !$externalUrl) {
+            return back()->with('error', 'Andika maelezo, weka faili, au ongeza link (mfano YouTube).')->withInput()->with('portal_tab', 'files');
+        }
+
+        $file = $this->storeFile($request, $school->schoolID);
+        StudentPortalBook::create(array_merge($data, [
+            'schoolID' => $school->schoolID,
+            'teacherID' => Session::get('teacherID'),
+            'title' => $request->title,
+            'author' => $request->author,
+            'description' => $request->description,
+            'file_path' => $file['path'] ?? null,
+            'original_name' => $file['name'] ?? null,
+            'external_url' => $externalUrl,
+            'is_published' => true,
+        ]));
+
+        return back()->with('success', 'Nyenzo imehifadhiwa kwa student portal.')->with('portal_tab', 'files');
+    }
+
+    public function deleteBook($id)
+    {
+        [$school] = $this->guard();
+        $book = StudentPortalBook::where('schoolID', $school->schoolID)->where('id', $id)->first();
+        if ($book) {
+            $this->deleteStoredFile($book->file_path);
+            $book->delete();
+        }
+
+        return back()->with('success', 'Nyenzo imefutwa.')->with('portal_tab', 'files');
+    }
+
+    public function toggleBook($id)
+    {
+        [$school] = $this->guard();
+        $book = StudentPortalBook::where('schoolID', $school->schoolID)->where('id', $id)->firstOrFail();
+        $book->is_published = !$book->is_published;
+        $book->save();
+
+        return back()->with('success', $book->is_published ? 'Nyenzo imechapishwa.' : 'Nyenzo imefichwa.')
+            ->with('portal_tab', 'files');
+    }
+
+    public function storeQuiz(Request $request)
+    {
+        [$school] = $this->guard();
+        $data = $this->validatePlacement($request);
+        $request->validate([
+            'title' => 'required|string|max:180',
+            'instructions' => 'nullable|string|max:5000',
+            'opens_at' => 'nullable|date|required_with:closes_at',
+            'closes_at' => 'nullable|date|required_with:opens_at|after:opens_at',
+            'questions' => 'required|array|min:1|max:40',
+            'questions.*.question_text' => 'required|string|max:1000',
+            'questions.*.option_a' => 'required|string|max:300',
+            'questions.*.option_b' => 'required|string|max:300',
+            'questions.*.option_c' => 'nullable|string|max:300',
+            'questions.*.option_d' => 'nullable|string|max:300',
+            'questions.*.correct_option' => 'required|in:A,B,C,D,a,b,c,d',
+        ]);
+
+        DB::transaction(function () use ($request, $school, $data) {
+            $quiz = StudentPortalQuiz::create(array_merge($data, [
+                'schoolID' => $school->schoolID,
+                'teacherID' => Session::get('teacherID'),
+                'title' => $request->title,
+                'instructions' => $request->instructions,
+                'is_published' => true,
+                'opens_at' => $request->filled('opens_at') ? $request->opens_at : null,
+                'closes_at' => $request->filled('closes_at') ? $request->closes_at : null,
+            ]));
+
+            foreach (array_values($request->input('questions')) as $index => $question) {
+                StudentPortalQuizQuestion::create([
+                    'quiz_id' => $quiz->id,
+                    'question_text' => $question['question_text'],
+                    'option_a' => $question['option_a'],
+                    'option_b' => $question['option_b'],
+                    'option_c' => $question['option_c'] ?? null,
+                    'option_d' => $question['option_d'] ?? null,
+                    'correct_option' => strtoupper($question['correct_option']),
+                    'sort_order' => $index + 1,
+                ]);
+            }
+        });
+
+        $message = $request->filled('opens_at')
+            ? 'Quiz imehifadhiwa. Itafunguka kwa mwanafunzi muda ulioweka, kisha ijifunge yenyewe.'
+            : 'Quiz / mtihani umehifadhiwa. Wanafunzi wanaweza kuufanya kwenye portal.';
+
+        return back()->with('success', $message)
+            ->with('portal_tab', 'quizzes');
+    }
+
+    public function deleteQuiz($id)
+    {
+        [$school] = $this->guard();
+        $quiz = StudentPortalQuiz::where('schoolID', $school->schoolID)->where('id', $id)->first();
+        if ($quiz) {
+            StudentPortalQuizAttempt::where('quiz_id', $quiz->id)->delete();
+            StudentPortalQuizQuestion::where('quiz_id', $quiz->id)->delete();
+            $quiz->delete();
+        }
+
+        return back()->with('success', 'Quiz imefutwa.')->with('portal_tab', 'quizzes');
+    }
+
+    public function toggleQuiz($id)
+    {
+        [$school] = $this->guard();
+        $quiz = StudentPortalQuiz::where('schoolID', $school->schoolID)->where('id', $id)->firstOrFail();
+        $quiz->is_published = !$quiz->is_published;
+        $quiz->save();
+
+        return back()->with('success', $quiz->is_published ? 'Quiz imechapishwa.' : 'Quiz imefichwa.')
+            ->with('portal_tab', 'quizzes');
+    }
+
+    public function exportResults(Request $request, $quizId = null)
+    {
+        [$school] = $this->guard();
+        $format = strtolower((string) $request->query('format', 'xlsx'));
+        if (!in_array($format, ['xlsx', 'csv'], true)) {
+            $format = 'xlsx';
+        }
+
+        $quizzesQuery = StudentPortalQuiz::with(['questions', 'attempts'])
+            ->where('schoolID', $school->schoolID);
+        if ($quizId) {
+            $quizzesQuery->where('id', $quizId);
+        }
+        $quizzes = $quizzesQuery->latest()->get();
+        if ($quizzes->isEmpty()) {
+            return back()->with('error', 'Quiz not found.')->with('portal_tab', 'results');
+        }
+
+        $studentIds = $quizzes->flatMap(fn ($q) => $q->attempts->pluck('studentID'))->unique()->filter();
+        $studentsById = $studentIds->isNotEmpty()
+            ? Student::where('schoolID', $school->schoolID)->whereIn('studentID', $studentIds)->get()->keyBy('studentID')
+            : collect();
+
+        $rows = [[
+            'Quiz',
+            'Student name',
+            'Admission number',
+            'Score',
+            'Total',
+            'Percent',
+            'Submitted at',
+        ]];
+
+        foreach ($quizzes as $quiz) {
+            foreach ($quiz->attempts as $attempt) {
+                $st = $studentsById->get($attempt->studentID);
+                $name = $st
+                    ? trim(($st->first_name ?? '') . ' ' . ($st->middle_name ?? '') . ' ' . ($st->last_name ?? ''))
+                    : 'Student #' . $attempt->studentID;
+                $pct = $attempt->total > 0 ? round(($attempt->score / $attempt->total) * 100, 1) : 0;
+                $rows[] = [
+                    $quiz->title,
+                    $name,
+                    $st->admission_number ?? '',
+                    $attempt->score,
+                    $attempt->total,
+                    $pct,
+                    $attempt->submitted_at ? $attempt->submitted_at->format('Y-m-d H:i') : '',
+                ];
+            }
+        }
+
+        if (count($rows) < 2) {
+            return back()->with('error', 'No results to export yet.')->with('portal_tab', 'results');
+        }
+
+        $stamp = now()->format('Ymd_His');
+        $baseName = $quizId
+            ? 'quiz_results_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $quizzes->first()->title) . '_' . $stamp
+            : 'all_quiz_results_' . $stamp;
+
+        if ($format === 'csv') {
+            $filename = $baseName . '.csv';
+            $callback = function () use ($rows) {
+                $out = fopen('php://output', 'w');
+                fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
+                foreach ($rows as $row) {
+                    fputcsv($out, $row);
+                }
+                fclose($out);
+            };
+
+            return response()->streamDownload($callback, $filename, [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]);
+        }
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Results');
+        $sheet->fromArray($rows, null, 'A1');
+        foreach (range('A', 'G') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
+
+        $filename = $baseName . '.xlsx';
+        $tmp = tempnam(sys_get_temp_dir(), 'lph_');
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($tmp);
+
+        return response()->download($tmp, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
+    private function guard(): array
+    {
+        $userType = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+        if (!in_array($userType, ['Admin', 'Teacher'], true) || !$schoolID) {
+            redirect()->route('login')->with('error', 'Access denied')->throwResponse();
+        }
+
+        $school = School::find($schoolID);
+        if (!$school || !$school->isStudentPortalEnabled()) {
+            redirect()->route('student_portal.materials')->with('error', 'Student portal haijawashwa kwa shule hii.')->throwResponse();
+        }
+
+        return [$school];
+    }
+
+    private function validatePlacement(Request $request): array
+    {
+        $data = $request->validate([
+            'classID' => 'required|integer',
+            'subclassID' => 'nullable|integer',
+            'subjectID' => 'nullable|integer',
+        ]);
+
+        return [
+            'classID' => (int) $data['classID'],
+            'subclassID' => !empty($data['subclassID']) ? (int) $data['subclassID'] : null,
+            'subjectID' => !empty($data['subjectID']) ? (int) $data['subjectID'] : null,
+        ];
+    }
+
+    private function rejectBadUpload(Request $request, string $tab)
+    {
+        // Empty POST when file exceeds post_max_size — PHP drops the body.
+        $contentLength = (int) $request->server('CONTENT_LENGTH', 0);
+        $postMax = $this->iniBytes(ini_get('post_max_size'));
+        if ($contentLength > 0 && empty($request->all()) && empty($_FILES) && $postMax > 0 && $contentLength > $postMax) {
+            return back()->with('error',
+                'Faili ni kubwa sana. Kikomo cha server (post_max_size) ni ' . ini_get('post_max_size') . '. Punguza faili au ongeza kikomo cha PHP.'
+            )->with('portal_tab', $tab);
+        }
+
+        if (!$request->hasFile('file') && $request->file('file') === null) {
+            $err = $_FILES['file']['error'] ?? null;
+            if ($err !== null && (int) $err !== UPLOAD_ERR_NO_FILE) {
+                return back()->with('error', $this->uploadErrorMessage((int) $err))->with('portal_tab', $tab)->withInput();
+            }
+
+            return null;
+        }
+
+        $file = $request->file('file');
+        if ($file && !$file->isValid()) {
+            return back()->with('error', $this->uploadErrorMessage($file->getError()))->with('portal_tab', $tab)->withInput();
+        }
+
+        return null;
+    }
+
+    private function uploadErrorMessage(int $code): string
+    {
+        $uploadMax = ini_get('upload_max_filesize') ?: '2M';
+        $postMax = ini_get('post_max_size') ?: '8M';
+
+        return match ($code) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE =>
+                "Faili ni kubwa sana. Kikomo cha PHP ni {$uploadMax} (post {$postMax}). Tumia faili ndogo au anzisha upya server baada ya kuongeza kikomo.",
+            UPLOAD_ERR_PARTIAL => 'Faili ilipakiwa kwa sehemu tu. Jaribu tena.',
+            UPLOAD_ERR_NO_TMP_DIR => 'Folder ya muda ya upload haipo kwenye server.',
+            UPLOAD_ERR_CANT_WRITE => 'Server imeshindwa kuandika faili disk.',
+            UPLOAD_ERR_EXTENSION => 'Extension ya PHP imezuia upload.',
+            default => "Upload imeshindikana (code {$code}). Kikomo cha server: {$uploadMax}.",
+        };
+    }
+
+    private function iniBytes(?string $value): int
+    {
+        if ($value === null || $value === '') {
+            return 0;
+        }
+        $value = trim($value);
+        $unit = strtolower(substr($value, -1));
+        $num = (float) $value;
+        return (int) match ($unit) {
+            'g' => $num * 1024 * 1024 * 1024,
+            'm' => $num * 1024 * 1024,
+            'k' => $num * 1024,
+            default => $num,
+        };
+    }
+
+    /**
+     * @return string|null|false  normalized URL, null if empty, false if invalid
+     */
+    private function normalizeExternalUrl($raw)
+    {
+        $url = trim((string) $raw);
+        if ($url === '') {
+            return null;
+        }
+        if (!preg_match('#^https?://#i', $url)) {
+            $url = 'https://' . $url;
+        }
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        if (!in_array($scheme, ['http', 'https'], true)) {
+            return false;
+        }
+
+        return $url;
+    }
+
+    private function storeFile(Request $request, $schoolID): array
+    {
+        if (!$request->hasFile('file')) {
+            return [];
+        }
+
+        $file = $request->file('file');
+        if (!$file || !$file->isValid()) {
+            return [];
+        }
+
+        $dir = public_path('uploads/student_portal/' . $schoolID);
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new \RuntimeException('Could not create upload folder: ' . $dir);
+        }
+        $original = $file->getClientOriginalName();
+        $name = time() . '_' . preg_replace('/[^A-Za-z0-9._-]/', '_', $original);
+        $file->move($dir, $name);
+
+        return [
+            'path' => 'uploads/student_portal/' . $schoolID . '/' . $name,
+            'name' => $original,
+        ];
+    }
+
+    private function deleteStoredFile(?string $path): void
+    {
+        if (!$path) {
+            return;
+        }
+        $full = public_path(ltrim(str_replace('\\', '/', $path), '/'));
+        if (is_file($full)) {
+            @unlink($full);
+        }
+    }
+}

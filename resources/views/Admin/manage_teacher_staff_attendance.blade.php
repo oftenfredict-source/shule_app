@@ -169,7 +169,7 @@
             <h2 class="section-header">
                 <i class="bi bi-fingerprint"></i> Teacher and Staff Attendance
             </h2>
-            <p class="text-muted mb-0">Fingerprint attendance kwa walimu na wafanyakazi wengine, sync kutoka ZKTeco device.</p>
+            <p class="text-muted mb-0">Fingerprint attendance for teachers and other staff, synced from the ZKTeco device.</p>
         </div>
         <div class="col-md-4">
             <div class="row g-2">
@@ -252,8 +252,8 @@
             <div id="tsLiveContent">
                 <div id="tsLiveTableArea">
                     <div class="alert alert-info mb-0">
-                        <i class="bi bi-info-circle"></i> Live attendance updates zinapokelewa kutoka Local Agent (school LAN).
-                        Historical sync inafanywa kwenye Local Agent, si hapa.
+                        <i class="bi bi-info-circle"></i> Live attendance updates are received from the Local Agent (school LAN).
+                        Historical sync is handled by the Local Agent, not on this page.
                     </div>
                 </div>
             </div>
@@ -272,7 +272,7 @@
             </div>
             <div id="tsRecordsContent">
                 <div class="alert alert-info mb-0">
-                    <i class="bi bi-info-circle"></i> Bonyeza <strong>Refresh</strong> kuona rekodi zilizohifadhiwa za walimu.
+                    <i class="bi bi-info-circle"></i> Click <strong>Refresh</strong> to load saved teacher and staff attendance records.
                 </div>
             </div>
         </div>
@@ -345,8 +345,8 @@
             <div id="tsReportMeta" class="mb-2"></div>
             <div id="tsReportContent">
                 <div class="alert alert-info mb-0">
-                    <i class="bi bi-info-circle"></i> Chagua filters hapo juu (Day / Month / … + Person Type + <strong>Status</strong>) kisha bonyeza <strong>Generate Report</strong>.
-                    Status: <strong>All</strong>, <strong>Present only</strong>, au <strong>Absent only (Watoro)</strong>: utaona idadi waliopatikana.
+                    <i class="bi bi-info-circle"></i> Choose the filters above (Day / Month / … + Person Type + <strong>Status</strong>), then click <strong>Generate Report</strong>.
+                    Status options: <strong>All</strong>, <strong>Present only</strong>, or <strong>Absent only</strong> — the matching count will be shown.
                 </div>
             </div>
         </div>
@@ -358,12 +358,12 @@
                     <div class="card border-0 shadow-sm">
                         <div class="card-body p-4">
                             <h5 class="text-primary-custom mb-3"><i class="bi bi-clock"></i> Official Working Time</h5>
-                            <p class="text-muted small">Weka muda rasmi wa kuingia na kutoka kazini. Hii inatumika kupima kuchelewa na kuwahi kwenye Report.</p>
+                            <p class="text-muted small">Set the official work start and end times. These are used to calculate late and early arrivals in reports.</p>
                             <div class="alert alert-light border small mb-3">
                                 <strong><i class="bi bi-info-circle"></i> Check-in window:</strong>
-                                Kuanzia masaa 3 kabla ya muda wa kuingia hadi masaa 2 baada ya muda wa kuingia
-                                (mfano 8:00 AM → 5:00 AM-10:00 AM), kidole chochote kinasomwa kama <strong>Sign In</strong> tu,
-                                hata mtu akiweka mara 2 au zaidi. Baada ya dirisha hilo, kidole kinasomwa kama <strong>Sign Out</strong>.
+                                From 3 hours before start time until 2 hours after start time
+                                (e.g. start 8:00 AM → window 5:00 AM–10:00 AM), any fingerprint punch is recorded as <strong>Sign In</strong> only,
+                                even if the person punches more than once. After that window, punches are recorded as <strong>Sign Out</strong>.
                             </div>
                             <div class="form-group">
                                 <label>Work Start Time</label>
@@ -712,8 +712,8 @@
         tsLiveDataTable = null;
         meta = meta || {};
         var msg = meta.deviceFailed
-            ? 'Device haipatikani. Hakuna rekodi za leo kwenye database bado.'
-            : 'Hakuna attendance ya leo bado. Subiri mtu akiweka kidole.';
+            ? 'Device is unavailable. No attendance records for today in the database yet.'
+            : 'No attendance for today yet. Waiting for someone to punch fingerprint.';
         $('#tsLiveTableArea').html(
             '<div class="alert ' + (meta.deviceFailed ? 'alert-warning' : 'alert-info') + ' mb-0">' +
             '<i class="bi bi-info-circle"></i> ' + msg +
@@ -723,14 +723,14 @@
 
     function tsDataTableLanguage() {
         return {
-            search: 'Tafuta:',
-            lengthMenu: 'Onyesha _MENU_',
-            info: 'Inaonyesha _START_ hadi _END_ kati ya _TOTAL_',
-            infoEmpty: 'Hakuna rekodi',
-            infoFiltered: '(kuchujwa kutoka _MAX_)',
-            zeroRecords: 'Hakuna rekodi zinazolingana',
-            emptyTable: 'Hakuna data kwenye jedwali',
-            paginate: { first: 'Kwanza', last: 'Mwisho', next: 'Ijayo', previous: 'Iliyopita' }
+            search: 'Search:',
+            lengthMenu: 'Show _MENU_',
+            info: 'Showing _START_ to _END_ of _TOTAL_',
+            infoEmpty: 'No records',
+            infoFiltered: '(filtered from _MAX_)',
+            zeroRecords: 'No matching records found',
+            emptyTable: 'No data available in table',
+            paginate: { first: 'First', last: 'Last', next: 'Next', previous: 'Previous' }
         };
     }
 
@@ -752,7 +752,7 @@
         return $(selector).DataTable({
             order: [[2, 'asc']],
             pageLength: 25,
-            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Zote']],
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
             autoWidth: false,
             responsive: true,
             language: tsDataTableLanguage(),
@@ -1082,7 +1082,7 @@
             tsReportDataTable = $('#tsReportTable').DataTable({
                 order: [[2, 'asc']],
                 pageLength: 25,
-                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Zote']],
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
                 autoWidth: false,
                 responsive: true,
                 language: tsDataTableLanguage(),
@@ -1103,7 +1103,7 @@
         tsReportDataTable = $('#tsReportTable').DataTable({
             order: [[2, 'asc']],
             pageLength: 25,
-            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Zote']],
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
             autoWidth: false,
             responsive: true,
             language: tsDataTableLanguage(),
@@ -1125,7 +1125,7 @@
         tsReportDetailDataTable = $('#tsReportDetailDailyTable').DataTable({
             order: [[0, 'asc']],
             pageLength: 25,
-            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'Zote']],
+            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
             autoWidth: false,
             responsive: true,
             language: tsDataTableLanguage(),
@@ -1202,7 +1202,7 @@
         html += '</button>';
         html += '<div id="' + panelId + '" class="collapse"><div class="collapse-body"><ul>';
         people.forEach(function (p) {
-            var typeLbl = p.person_type === 'staff' ? 'Staff' : 'Mwalimu';
+            var typeLbl = p.person_type === 'staff' ? 'Staff' : 'Teacher';
             var timeLbl = p.check_in_time ? formatAmPm(p.check_in_time) : '';
             html += '<li>' + escapeHtml(p.name) + ' <span class="text-muted">(' + typeLbl + (timeLbl ? ', ' + timeLbl : '') + ')</span></li>';
         });
@@ -1240,45 +1240,45 @@
 
                 if (res.filter_type === 'day' && res.day_summary) {
                     var ds = res.day_summary;
-                    metaHtml += '<div class="col-md-3"><strong>Tarehe</strong><br><span class="text-primary-custom fw-bold">' + escapeHtml(ds.date_label || ds.date || '') + '</span></div>';
-                    metaHtml += '<div class="col-md-3"><strong>Wamehudhuria</strong><br><span class="text-success fs-4 fw-bold">' + (ds.present_count || 0) + '</span> / ' + (ds.total_people || 0) + '</div>';
-                    metaHtml += '<div class="col-md-3"><strong>Walio Chelewa</strong><br><span class="text-danger fs-4 fw-bold">' + (ds.late_count || 0) + '</span></div>';
-                    metaHtml += '<div class="col-md-3"><strong>Walio Wahi</strong><br><span class="text-info fs-4 fw-bold">' + (ds.early_count || 0) + '</span></div>';
+                    metaHtml += '<div class="col-md-3"><strong>Date</strong><br><span class="text-primary-custom fw-bold">' + escapeHtml(ds.date_label || ds.date || '') + '</span></div>';
+                    metaHtml += '<div class="col-md-3"><strong>Present</strong><br><span class="text-success fs-4 fw-bold">' + (ds.present_count || 0) + '</span> / ' + (ds.total_people || 0) + '</div>';
+                    metaHtml += '<div class="col-md-3"><strong>Late</strong><br><span class="text-danger fs-4 fw-bold">' + (ds.late_count || 0) + '</span></div>';
+                    metaHtml += '<div class="col-md-3"><strong>Early</strong><br><span class="text-info fs-4 fw-bold">' + (ds.early_count || 0) + '</span></div>';
                     metaHtml += '</div><div class="row text-center small g-2 mt-2 pt-2 border-top">';
-                    metaHtml += '<div class="col"><strong>Walikosa</strong><br><span class="text-danger fs-5">' + (ds.absent_count || 0) + '</span></div>';
-                    metaHtml += '<div class="col"><strong>Walio na Ruhusa</strong><br><span style="color:#6f42c1;" class="fs-5">' + (ds.permitted_count || 0) + '</span></div>';
-                    metaHtml += '<div class="col"><strong>Wakati Sahihi</strong><br><span class="text-success fs-5">' + (ds.on_time_count || 0) + '</span></div>';
-                    metaHtml += '<div class="col"><strong>Siku ya Kazi</strong><br>' + (ds.is_working_day ? '<span class="text-success">Ndiyo</span>' : '<span class="text-muted">Hapana</span>') + '</div>';
+                    metaHtml += '<div class="col"><strong>Absent</strong><br><span class="text-danger fs-5">' + (ds.absent_count || 0) + '</span></div>';
+                    metaHtml += '<div class="col"><strong>Permitted</strong><br><span style="color:#6f42c1;" class="fs-5">' + (ds.permitted_count || 0) + '</span></div>';
+                    metaHtml += '<div class="col"><strong>On Time</strong><br><span class="text-success fs-5">' + (ds.on_time_count || 0) + '</span></div>';
+                    metaHtml += '<div class="col"><strong>Working Day</strong><br>' + (ds.is_working_day ? '<span class="text-success">Yes</span>' : '<span class="text-muted">No</span>') + '</div>';
                     metaHtml += '</div>';
                     if ((ds.teachers_present || 0) > 0 || (ds.staff_present || 0) > 0) {
                         metaHtml += '<div class="row text-center small g-2 mt-2 pt-2 border-top">';
-                        metaHtml += '<div class="col"><strong>Walimu Waliopo</strong><br>' + (ds.teachers_present || 0) + '</div>';
-                        metaHtml += '<div class="col"><strong>Staff Waliopo</strong><br>' + (ds.staff_present || 0) + '</div>';
+                        metaHtml += '<div class="col"><strong>Teachers Present</strong><br>' + (ds.teachers_present || 0) + '</div>';
+                        metaHtml += '<div class="col"><strong>Staff Present</strong><br>' + (ds.staff_present || 0) + '</div>';
                         metaHtml += '</div>';
                     }
                     if ((ds.late_people && ds.late_people.length) || (ds.early_people && ds.early_people.length)) {
                         metaHtml += '<div class="ts-people-collapse mt-2 pt-2 border-top text-start small">';
-                        metaHtml += buildTsPeopleCollapsePanel('tsLatePeopleList', '<i class="bi bi-clock-history"></i> Walio Chelewa', ds.late_people || [], 'text-danger');
-                        metaHtml += buildTsPeopleCollapsePanel('tsEarlyPeopleList', '<i class="bi bi-sunrise"></i> Walio Wahi', ds.early_people || [], 'text-info');
+                        metaHtml += buildTsPeopleCollapsePanel('tsLatePeopleList', '<i class="bi bi-clock-history"></i> Late Arrivals', ds.late_people || [], 'text-danger');
+                        metaHtml += buildTsPeopleCollapsePanel('tsEarlyPeopleList', '<i class="bi bi-sunrise"></i> Early Arrivals', ds.early_people || [], 'text-info');
                         metaHtml += '</div>';
                     }
                     metaHtml += '<p class="small text-muted mb-0 mt-2 text-center"><i class="bi bi-info-circle"></i> ' +
-                        '<strong>Present</strong> = ameweka kidole (check-in tu inatosha). ' +
-                        '<strong>Walio Chelewa</strong> = wameingia baada ya muda rasmi. ' +
-                        '<strong>Walio Wahi</strong> = wameingia kabla ya muda rasmi.</p>';
+                        '<strong>Present</strong> = fingerprint punch recorded (check-in is enough). ' +
+                        '<strong>Late</strong> = checked in after official start time. ' +
+                        '<strong>Early</strong> = checked in before official start time.</p>';
                 } else {
                     metaHtml += '<div class="col-md-3"><strong>Working Days (Month)</strong><br><span class="text-primary-custom fs-5">' + res.total_working_days + '</span></div>';
                     if (res.period_incomplete && res.complete_working_days !== undefined) {
-                        metaHtml += '<div class="col-md-3"><strong>Complete W/days</strong><br><span class="fs-5 text-warning">' + res.complete_working_days + '</span><br><small class="text-muted">Siku za kazi zilizopita</small></div>';
+                        metaHtml += '<div class="col-md-3"><strong>Complete W/days</strong><br><span class="fs-5 text-warning">' + res.complete_working_days + '</span><br><small class="text-muted">Past working days only</small></div>';
                     }
                     metaHtml += '<div class="col-md-3"><strong>Official Time</strong><br>' + formatAmPm(res.work_start_time) + ' - ' + formatAmPm(res.work_end_time) + '</div>';
                     metaHtml += '<div class="col-md-3"><strong>Period</strong><br>' + (res.period_incomplete ? '<span class="text-warning">In progress</span>' : 'Complete') + '</div>';
                     metaHtml += '</div>';
                     if (res.period_incomplete) {
                         metaHtml += '<p class="small text-muted mb-0 mt-2 text-center"><i class="bi bi-info-circle"></i> ' +
-                            '<strong>Present</strong> = siku ulizoweka kidole. ' +
-                            '<strong>Permitted</strong> = siku za kazi ulizo na ruksa iliyoidhinishwa. ' +
-                            '<strong>Absent</strong> = siku za kazi zilizopita bila kidole wala ruksa.</p>';
+                            '<strong>Present</strong> = days with a fingerprint punch. ' +
+                            '<strong>Permitted</strong> = working days with an approved leave/permission. ' +
+                            '<strong>Absent</strong> = past working days with no punch and no permission.</p>';
                     }
                 }
                 metaHtml += '</div></div>';
@@ -1289,10 +1289,10 @@
                 var rows = filterTsReportRowsByStatus(allRows, statusFilter, isDayReport);
 
                 if (statusFilter !== 'all') {
-                    var statusLabel = statusFilter === 'Absent' ? 'Absent only (Watoro)' : 'Present only';
+                    var statusLabel = statusFilter === 'Absent' ? 'Absent only' : 'Present only';
                     metaHtml += '<div class="alert alert-light border py-2 px-3 mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">';
                     metaHtml += '<div><strong><i class="bi bi-funnel"></i> Status filter:</strong> ' + statusLabel + '</div>';
-                    metaHtml += '<div><strong>Waliopatikana:</strong> <span class="badge bg-primary-custom" style="background:#940000;font-size:1rem;">' + rows.length + '</span>';
+                    metaHtml += '<div><strong>Matched:</strong> <span class="badge bg-primary-custom" style="background:#940000;font-size:1rem;">' + rows.length + '</span>';
                     metaHtml += ' <span class="text-muted small">/ ' + allRows.length + ' total</span></div>';
                     metaHtml += '</div>';
                 }
@@ -1310,7 +1310,7 @@
                     '<thead><tr>' +
                     '<th>#</th><th>Photo</th><th>Name</th>';
                 if (isDayReport) {
-                    html += '<th>Hali</th><th>Ingia</th><th>Toka</th><th>Walio Chelewa</th><th>Walio Wahi</th>';
+                    html += '<th>Status</th><th>Check In</th><th>Check Out</th><th>Late</th><th>Early</th>';
                 } else {
                     html += '<th>Present</th><th>Permitted</th><th>Absent</th><th>Working Days</th>';
                 }
@@ -1328,12 +1328,12 @@
                     if (isDayReport) {
                         var st = row.day_status || 'Absent';
                         var stLabel = {
-                            'Present': 'Alikuwepo',
-                            'Late': 'Amechelewa',
-                            'Early': 'Amewahi',
-                            'Absent': 'Hayupo',
-                            'Permitted': 'Ruhusa',
-                            'Off Day': 'Sio Siku ya Kazi'
+                            'Present': 'Present',
+                            'Late': 'Late',
+                            'Early': 'Early',
+                            'Absent': 'Absent',
+                            'Permitted': 'Permitted',
+                            'Off Day': 'Off Day'
                         }[st] || st;
                         var badgeClass = 'bg-secondary';
                         if (st === 'Present') badgeClass = 'bg-success';
@@ -1355,8 +1355,8 @@
                         html += '<td>' + statusBadge + '</td>' +
                             '<td>' + (row.check_in_time ? formatAmPm(row.check_in_time) : '-') + '</td>' +
                             '<td>' + (row.check_out_time ? formatAmPm(row.check_out_time) : '-') + '</td>' +
-                            '<td class="text-center">' + (isLate ? '<span class="badge bg-danger">Ndiyo</span>' : '<span class="text-muted">-</span>') + '</td>' +
-                            '<td class="text-center">' + (isEarly ? '<span class="badge bg-info">Ndiyo</span>' : '<span class="text-muted">-</span>') + '</td>';
+                            '<td class="text-center">' + (isLate ? '<span class="badge bg-danger">Yes</span>' : '<span class="text-muted">-</span>') + '</td>' +
+                            '<td class="text-center">' + (isEarly ? '<span class="badge bg-info">Yes</span>' : '<span class="text-muted">-</span>') + '</td>';
                     } else {
                         html += '<td><span class="badge bg-success">' + row.present_days + '</span></td>' +
                             '<td><span class="badge" style="background-color:#6f42c1;">' + (row.permitted_days || 0) + '</span></td>' +
@@ -1437,7 +1437,7 @@
                 html += '</div>';
 
                 if (res.period_incomplete) {
-                    html += '<p class="small text-muted"><i class="bi bi-info-circle"></i> Absent = siku za kazi zilizopita bila rekodi ya kidole kwenye database.</p>';
+                    html += '<p class="small text-muted"><i class="bi bi-info-circle"></i> Absent = past working days with no fingerprint record in the database.</p>';
                 }
 
                 html += '<p class="small text-muted">Official time: <strong>' + formatAmPm(res.work_start_time) + ' - ' + formatAmPm(res.work_end_time) + '</strong></p>';

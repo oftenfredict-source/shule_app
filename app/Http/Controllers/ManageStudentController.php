@@ -1908,79 +1908,19 @@ class ManageStudentController extends Controller
     }
 
     /**
-     * Send SMS using NextSMS API
+     * Send SMS using SmsService (respects per-school sms_enabled).
      */
     private function sendSMS($phoneNumber, $message)
     {
         try {
-            // Clean phone number (remove spaces, dashes, etc.)
-            $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
+            $result = (new \App\Services\SmsService())->sendSms(
+                $phoneNumber,
+                $message,
+                null,
+                session('schoolID')
+            );
 
-            // Ensure phone number starts with 255
-            if (substr($phoneNumber, 0, 3) !== '255') {
-                // If starts with 0, replace with 255
-                if (substr($phoneNumber, 0, 1) === '0') {
-                    $phoneNumber = '255' . substr($phoneNumber, 1);
-                } else {
-                    // If doesn't start with 255, add it
-                    $phoneNumber = '255' . $phoneNumber;
-                }
-            }
-
-            // Validate phone number format (255 + 6/7 + 8 digits = 12 total)
-            if (!preg_match('/^255[67]\d{8}$/', $phoneNumber)) {
-                \Log::warning('Invalid phone number format for SMS: ' . $phoneNumber);
-                return false;
-            }
-
-            // URL encode the message
-            $text = urlencode($message);
-
-            // Determine Sender ID
-            $senderID = 'ShuleXpert'; // Default
-            $schoolID = session('schoolID');
-            if ($schoolID) {
-                $school = \App\Models\School::find($schoolID);
-                if ($school && $school->senderID) {
-                    $senderID = $school->senderID;
-                }
-            }
-
-            // Initialize cURL
-            $curl = curl_init();
-
-            // Build API URL
-            $apiUrl = 'https://messaging-service.co.tz/link/sms/v1/text/single?username=emcatechn&password=Emca@%2312&from=' . urlencode($senderID) . '&to=' . $phoneNumber . '&text=' . $text;
-
-            curl_setopt_array($curl, array(
-                CURLOPT_URL => $apiUrl,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => '',
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 10, // 10 second timeout
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_CUSTOMREQUEST => 'GET',
-            ));
-
-            $response = curl_exec($curl);
-            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-
-            if (curl_errno($curl)) {
-                $error = curl_error($curl);
-                curl_close($curl);
-                \Log::error('SMS cURL Error: ' . $error);
-                return false;
-            }
-
-            curl_close($curl);
-
-            // Log response for debugging
-            \Log::info('SMS sent to ' . $phoneNumber . '. Response: ' . $response . ' (HTTP: ' . $httpCode . ')');
-
-            // Check if SMS was sent successfully (HTTP 200 or 201 typically means success)
-            return ($httpCode >= 200 && $httpCode < 300);
-
+            return !empty($result['success']);
         } catch (\Exception $e) {
             \Log::error('SMS sending exception: ' . $e->getMessage());
             return false;

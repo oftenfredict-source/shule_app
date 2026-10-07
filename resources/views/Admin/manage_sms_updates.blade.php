@@ -426,8 +426,8 @@
                     <div class="row align-items-center">
                         <div class="col-md-6">
                             <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px;">SMS NOTIFICATION SYSTEM</h4>
-                            <p class="text-muted mb-0 small" style="font-weight: 600;">Send notifications to parents, teachers, and staff efficiently.</p>
-                            <p class="text-muted mb-0 small mt-1"><i class="fa fa-info-circle"></i> Parent recipients use <strong>Active enrollments</strong> for the academic year selected in the header.</p>
+                            <p class="text-muted mb-0 small" style="font-weight: 600;">Send notifications to parents, teachers, staff, the school board, and parents registering children.</p>
+                            <p class="text-muted mb-0 small mt-1"><i class="fa fa-info-circle"></i> Parent recipients use <strong>Active enrollments</strong> for the academic year selected in the header. Joining parents come from <strong>Pending Students</strong> who are not yet confirmed.</p>
                         </div>
                         <div class="col-md-6 text-right">
                             <button class="btn shadow-sm text-white" id="toggleActionsBtn" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 25px; transition: all 0.3s ease;">
@@ -477,6 +477,20 @@
                                 <a href="javascript:void(0)" class="text-decoration-none d-block py-4 setting-item" onclick="openDeliveryReport()">
                                     <i class="fa fa-bar-chart fa-2x mb-3 text-secondary"></i>
                                     <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f; letter-spacing: 0.5px;">DELIVERY REPORT</h6>
+                                </a>
+                            </div>
+
+                            <!-- Row 3 -->
+                            <div class="col-md-6 border-right border-top pt-3 mt-3">
+                                <a href="javascript:void(0)" class="text-decoration-none d-block py-4 setting-item" onclick="openSmsModalType('school_board')">
+                                    <i class="fa fa-university fa-2x mb-3" style="color: #6f42c1;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f; letter-spacing: 0.5px;">SEND TO SCHOOL BOARD</h6>
+                                </a>
+                            </div>
+                            <div class="col-md-6 border-top pt-3 mt-3">
+                                <a href="javascript:void(0)" class="text-decoration-none d-block py-4 setting-item" onclick="openSmsModalType('pending_parents')">
+                                    <i class="fa fa-user-plus fa-2x mb-3" style="color: #17a2b8;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f; letter-spacing: 0.5px;">SEND TO JOINING PARENTS</h6>
                                 </a>
                             </div>
                         </div>
@@ -607,6 +621,8 @@
                             <option value="class_parents">Class Parent SMS</option>
                             <option value="all_teachers">Teacher SMS</option>
                             <option value="all_staff">Staff SMS</option>
+                            <option value="school_board">School Board SMS</option>
+                            <option value="pending_parents">Joining Parents SMS</option>
                             <option value="all_parents_teachers">All Users SMS</option>
                             <option value="result">Result SMS</option>
                             <option value="fee">Fee SMS</option>
@@ -737,6 +753,14 @@
                     title = "Send to All Staff"; 
                     fetchRecipients('{{ route("get_all_staff_sms") }}');
                     break;
+                case 'school_board':
+                    title = "Send to School Board";
+                    fetchRecipients('{{ route("get_school_board_sms") }}');
+                    break;
+                case 'pending_parents':
+                    title = "Send to Parents Registering Children";
+                    fetchRecipients('{{ route("get_pending_parents_sms") }}');
+                    break;
                 case 'all_users': 
                     title = "Send to All Users (Parents & Teachers)"; 
                     fetchRecipients('{{ route("get_all_parents_sms") }}', true); 
@@ -763,17 +787,21 @@
                 }
                 if (res.success) {
                     let html = '';
-                    let data = res.parents || res.teachers || res.staff;
-                    let role = res.parents ? 'Parent' : (res.teachers ? 'Teacher' : 'Staff');
+                    let data = res.parents || res.teachers || res.staff || res.recipients;
+                    let role = res.role || (res.parents ? 'Parent' : (res.teachers ? 'Teacher' : 'Staff'));
+                    let kind = res.recipient_kind || role.toLowerCase();
+                    let badge = kind === 'board' ? 'badge-primary' : (kind === 'pending_parent' ? 'badge-info' : 'badge-info');
                     
                     if (data && data.length > 0) {
                         data.forEach(item => {
+                            let rowRole = item.role_label || role;
+                            let rowName = item.display_name || (item.first_name + ' ' + (item.last_name || ''));
                             html += `
                                 <tr class="recipient-row">
-                                    <td><input type="checkbox" class="recipient-checkbox" value="${item.parentID || item.id}" data-type="${role.toLowerCase()}" data-phone="${item.phone || item.phone_number}" data-name="${item.display_name || (item.first_name + ' ' + (item.last_name || ''))}"></td>
-                                    <td>${item.display_name || (item.first_name + ' ' + (item.last_name || ''))}</td>
+                                    <td><input type="checkbox" class="recipient-checkbox" value="${item.parentID || item.id}" data-type="${kind}" data-phone="${item.phone || item.phone_number}" data-name="${rowName}"></td>
+                                    <td>${rowName}</td>
                                     <td>${item.phone || item.phone_number}</td>
-                                    <td><span class="badge badge-info">${role}</span></td>
+                                    <td><span class="badge ${badge}">${rowRole}</span></td>
                                     <td class="text-center status-cell"><i class="fa fa-clock-o text-muted"></i></td>
                                 </tr>
                             `;
@@ -990,6 +1018,8 @@
                         let recipientType = 'all_parents';
                         if (type === 'teacher') recipientType = 'all_teachers';
                         else if (type === 'staff') recipientType = 'all_staff';
+                        else if (type === 'board') recipientType = 'school_board';
+                        else if (type === 'pending_parent') recipientType = 'pending_parents';
 
                         try {
                             const res = await $.ajax({

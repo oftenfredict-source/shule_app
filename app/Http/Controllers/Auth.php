@@ -349,9 +349,12 @@ class Auth extends Controller
             }
         }
 
-        return view('login', [
-            'loginPhotoCaptureEnabled' => SystemSetting::isLoginPhotoCaptureEnabled(),
-        ]);
+        return response()
+            ->view('login', [
+                'loginPhotoCaptureEnabled' => SystemSetting::isLoginPhotoCaptureEnabled(),
+            ])
+            ->header('Cache-Control', 'no-store, private, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 
     /**
@@ -860,7 +863,9 @@ class Auth extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login')
-            ->with('success', 'Logged out successfully.');
+            ->with('success', 'Logged out successfully.')
+            ->header('Cache-Control', 'no-store, private, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 
     public function verifyOtp(Request $request)

@@ -1,0 +1,63 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class SchoolBoardMember extends Model
+{
+    use HasFactory;
+
+    protected $table = 'school_board_members';
+    protected $primaryKey = 'memberID';
+
+    protected $fillable = [
+        'schoolID',
+        'positionID',
+        'first_name',
+        'middle_name',
+        'last_name',
+        'gender',
+        'phone',
+        'email',
+        'occupation',
+        'organization',
+        'national_id',
+        'address',
+        'appointed_date',
+        'term_end_date',
+        'status',
+        'notes',
+    ];
+
+    protected $casts = [
+        'appointed_date' => 'date',
+        'term_end_date' => 'date',
+    ];
+
+    public function position()
+    {
+        return $this->belongsTo(SchoolBoardPosition::class, 'positionID', 'positionID');
+    }
+
+    public function committees()
+    {
+        return $this->belongsToMany(
+            SchoolBoardCommittee::class,
+            'school_board_committee_members',
+            'memberID',
+            'committeeID'
+        )->withPivot(['id', 'committee_role', 'assigned_date', 'schoolID'])
+            ->withTimestamps();
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        return trim(implode(' ', array_filter([
+            $this->first_name,
+            $this->middle_name,
+            $this->last_name,
+        ])));
+    }
+}

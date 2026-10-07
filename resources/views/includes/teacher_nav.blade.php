@@ -298,16 +298,20 @@
     background: #7a0000 !important;
 }
 
-/* Mobile navbar header */
+/* Brand row — same white logo card as Admin (55px, aligns with red #header) */
 .navbar-header {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
     width: 100%;
-    padding: 10px 14px;
-    min-height: 52px;
-    background: #940000;
-    border-bottom: 2px solid rgba(255,255,255,0.15);
+    padding: 0;
+    height: 55px;
+    min-height: 55px;
+    max-height: 55px;
+    background: #ffffff;
+    border-bottom: 1px solid #f0f0f0;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .mobile-brand {
@@ -380,6 +384,244 @@
     display: block;
 }
 
+.admin-sidebar-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 6px 12px;
+    background: #fff;
+    height: 55px;
+    min-height: 55px;
+    max-height: 55px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+.admin-brand-logo {
+    width: 100%;
+    max-width: 150px;
+    height: 42px;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+    background: #fff;
+}
+#left-panel .navbar-header {
+    flex: 0 0 55px !important;
+    height: 55px !important;
+    min-height: 55px !important;
+    max-height: 55px !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+    overflow: hidden !important;
+}
+#left-panel .admin-sidebar-title,
+#left-panel .admin-brand-logo {
+    background: #ffffff !important;
+}
+
+/* Top bar — same red flex header as Admin */
+#header,
+#header.header,
+.right-panel header.header,
+.right-panel #header {
+    background: #940000 !important;
+    border-bottom: none !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18) !important;
+    height: 55px !important;
+    min-height: 55px !important;
+    max-height: 55px !important;
+    padding: 0 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+}
+#header .header-menu {
+    background: transparent !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    width: 100% !important;
+    height: 55px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    float: none !important;
+}
+#header .header-menu > .col-sm-7,
+#header .header-menu > .col-sm-5 {
+    float: none !important;
+    width: auto !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    position: static !important;
+}
+#header .header-menu > .col-sm-7 {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    gap: 8px !important;
+}
+#header .header-menu > .col-sm-5 {
+    flex: 0 0 auto !important;
+    margin-left: auto !important;
+    justify-content: flex-end !important;
+}
+#header .header-left {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+    float: none !important;
+}
+#header .header-left > .dropdown,
+#header .header-left > .header-academic-year {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+}
+#header .menutoggle,
+a#menuToggle.menutoggle,
+.header .menutoggle {
+    background: transparent !important;
+    color: #fff !important;
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 8px 0 0 !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+    float: none !important;
+    position: static !important;
+}
+#header .menutoggle i,
+#header .header-icon-muted,
+#header .btn-secondary,
+#header .dropdown-toggle {
+    color: #fff !important;
+}
+#header .btn-secondary {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 6px 8px !important;
+    height: 36px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+#header .btn-secondary:hover,
+#header .menutoggle:hover {
+    background: rgba(255,255,255,0.12) !important;
+    color: #fff !important;
+}
+#header .user-area.dropdown {
+    display: inline-flex !important;
+    align-items: center !important;
+    margin: 0 !important;
+}
+#header .user-avatar {
+    border: 2px solid rgba(255,255,255,0.7) !important;
+    background: #fff !important;
+    width: 34px !important;
+    height: 34px !important;
+}
+#header .dropdown-menu {
+    border: 1px solid #e0e0e0 !important;
+    background: #fff !important;
+    color: #2f2f2f !important;
+}
+#header .dropdown-menu a,
+#header .dropdown-menu .nav-link,
+#header .dropdown-menu p,
+#header .dropdown-menu span {
+    color: #2f2f2f !important;
+}
+#header .dropdown-menu a:hover,
+#header .dropdown-menu .nav-link:hover {
+    background-color: #f5f5f5 !important;
+    color: #2f2f2f !important;
+}
+#header .sx-theme-toggle {
+    width: 36px !important;
+    height: 36px !important;
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    background: transparent !important;
+    color: #fff !important;
+    border-radius: 0 !important;
+    flex-shrink: 0;
+}
+#header .sx-theme-toggle i { color: #fff !important; }
+#header .sx-theme-toggle:hover {
+    background: rgba(255,255,255,0.12) !important;
+    color: #fff !important;
+}
+#header .header-academic-year { margin-left: 8px !important; }
+#header .header-academic-year .ay-label { color: rgba(255,255,255,0.9) !important; }
+#header .header-academic-year select {
+    height: 32px !important;
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    background: rgba(255,255,255,0.95) !important;
+    color: #333 !important;
+}
+#header .float-right {
+    float: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+html[data-sx-theme="dark"] #left-panel .navbar-header,
+html[data-sx-theme="dark"] #left-panel .admin-sidebar-title,
+html[data-sx-theme="dark"] #left-panel .admin-brand-logo,
+html[data-sx-theme="light"] #left-panel .navbar-header,
+html[data-sx-theme="light"] #left-panel .admin-sidebar-title,
+html[data-sx-theme="light"] #left-panel .admin-brand-logo,
+html[data-sx-theme="dark"] #header .admin-header-brand,
+html[data-sx-theme="dark"] #header .admin-header-brand img {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+}
+#header .admin-header-brand {
+    display: none !important;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    max-width: 140px;
+    padding: 2px 8px;
+    background: #fff;
+    text-decoration: none;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+#header .admin-header-brand img {
+    display: block;
+    height: 36px;
+    width: auto;
+    max-width: 130px;
+    object-fit: contain;
+    background: #fff;
+}
+@media (min-width: 992px) {
+    body.open #header .admin-header-brand {
+        display: inline-flex !important;
+    }
+}
+
 /* Hide mobile brand on desktop (when sidebar is always visible) */
 @media (min-width: 768px) {
     .mobile-brand {
@@ -387,10 +629,12 @@
     }
     .navbar-header {
         justify-content: center;
-        padding: 4px 0;
-        background: transparent;
-        border-bottom: none;
-        min-height: unset;
+        padding: 0 !important;
+        background: #ffffff !important;
+        border-bottom: 1px solid #f0f0f0 !important;
+        height: 55px !important;
+        min-height: 55px !important;
+        max-height: 55px !important;
     }
     .navbar-toggler {
         margin-left: 0;
@@ -502,9 +746,12 @@
     <nav class="navbar navbar-expand-sm navbar-default">
 
         <div class="navbar-header">
-            <a class="mobile-brand" href="{{ route('teachersDashboard') }}">
+            <a class="mobile-brand d-md-none" href="{{ route('teachersDashboard') }}">
                 <i class="fa fa-graduation-cap"></i>
                 ShuleXpert
+            </a>
+            <a href="{{ route('teachersDashboard') }}" class="admin-sidebar-title" style="text-decoration:none;">
+                <img src="{{ asset('images/shuleXpert.jpg') }}" alt="ShuleXpert" class="admin-brand-logo" onerror="this.onerror=null; this.src='{{ asset('images/logo.png') }}';">
             </a>
             {{-- Mobile drawer uses #mobileSidebarToggle only (same as Admin) --}}
             <button class="navbar-toggler d-none" type="button" aria-hidden="true" tabindex="-1">
@@ -649,6 +896,9 @@
                         @endif
 
                         <li><a href="{{ route('teacher.duty_book') }}" class="nav-link"><i class="fa fa-book"></i> Duty Book</a></li>
+                        @if(\App\Models\School::where('schoolID', Session::get('schoolID'))->value('student_portal_enabled'))
+                        <li><a href="{{ route('student_portal.materials') }}" class="nav-link"><i class="fa fa-graduation-cap"></i> Learning Portal</a></li>
+                        @endif
 
                         <li><a href="{{ route('teacher.store_requisitions') }}" class="nav-link"><i class="fa fa-clipboard"></i> Item Requisition</a></li>
                         @php
@@ -1388,6 +1638,9 @@
 
                 <div class="col-sm-7">
                     <a id="menuToggle" class="menutoggle pull-left"><i class="fa fa fa-tasks header-icon-muted"></i></a>
+                    <a href="{{ route('teachersDashboard') }}" class="admin-header-brand" title="ShuleXpert">
+                        <img src="{{ asset('images/shuleXpert.jpg') }}" alt="ShuleXpert" onerror="this.onerror=null; this.src='{{ asset('images/logo.png') }}';">
+                    </a>
                     <div class="header-left">
                         <div class="form-inline"></div>
 
@@ -1456,43 +1709,40 @@
 
                 <div class="col-sm-5">
                     <div class="float-right d-flex align-items-center justify-content-end" style="gap:12px;">
+                    @include('includes.theme_toggle')
                     <div class="user-area dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             @php
-                                // Same photo logic as Teacher/profile.blade.php (and sidebar)
-                                $headerPhotoTeacher = (isset($teacher) && $teacher) ? $teacher : null;
-                                if (
-                                    !$headerPhotoTeacher
-                                    && Session::get('user_type') === 'Teacher'
-                                    && Session::get('teacherID')
-                                ) {
-                                    $headerPhotoTeacher = \App\Models\Teacher::find(Session::get('teacherID'));
-                                }
-                                $defaultHeaderTeacherImg = (($headerPhotoTeacher->gender ?? '') === 'Female')
-                                    ? asset('images/female.png')
-                                    : asset('images/male.png');
-                                $headerImgPath = $defaultHeaderTeacherImg;
-                                if ($headerPhotoTeacher && !empty($headerPhotoTeacher->image)) {
-                                    $rawHeaderImg = ltrim((string) $headerPhotoTeacher->image, '/');
-                                    if (preg_match('#^https?://#i', $rawHeaderImg)) {
-                                        $headerImgPath = $rawHeaderImg;
-                                    } elseif (str_starts_with($rawHeaderImg, 'userImages/')) {
-                                        $headerImgPath = asset($rawHeaderImg);
-                                    } else {
-                                        $headerImgPath = asset('userImages/' . $rawHeaderImg);
-                                    }
-                                    if (!empty($headerPhotoTeacher->updated_at)) {
-                                        $ts = $headerPhotoTeacher->updated_at instanceof \Carbon\Carbon
-                                            ? $headerPhotoTeacher->updated_at->timestamp
-                                            : strtotime((string) $headerPhotoTeacher->updated_at);
-                                        if ($ts) {
-                                            $headerImgPath .= (str_contains($headerImgPath, '?') ? '&' : '?')
-                                                . 'v=' . $ts;
+                                $navSchoolID = Session::get('schoolID');
+                                $navSchool = $navSchoolID ? \App\Models\School::where('schoolID', $navSchoolID)->first() : null;
+                                $navSchoolName = $navSchool ? $navSchool->school_name : 'School';
+                                $navLogo = null;
+                                if ($navSchool && !empty($navSchool->school_logo)) {
+                                    $logoRel = ltrim(str_replace('\\', '/', $navSchool->school_logo), '/');
+                                    $logoCandidates = [
+                                        public_path($logoRel),
+                                        public_path('schoolLogos/' . basename($logoRel)),
+                                        dirname(base_path()) . '/public_html/' . $logoRel,
+                                    ];
+                                    foreach ($logoCandidates as $logoPath) {
+                                        if (@is_file($logoPath)) {
+                                            $navLogo = asset($logoRel);
+                                            break;
                                         }
                                     }
                                 }
                             @endphp
-                            <img class="user-avatar rounded-circle" src="{{ $headerImgPath }}" alt="Profile Image" style="width: 40px; height: 40px; object-fit: cover;" onerror="this.onerror=null;this.src='{{ $defaultHeaderTeacherImg }}';">
+
+                            @if($navLogo)
+                                <img class="user-avatar rounded-circle" src="{{ $navLogo }}" alt="{{ $navSchoolName }}" style="width: 40px; height: 40px; object-fit: contain; background: #fff;" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='inline-flex';">
+                                <span class="user-avatar rounded-circle d-none align-items-center justify-content-center" style="width: 40px; height: 40px; background: #ffffff; border: 2px solid #e0e0e0;">
+                                    <i class="fa fa-graduation-cap" aria-hidden="true" style="color: #940000;"></i>
+                                </span>
+                            @else
+                                <span class="user-avatar rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: #ffffff; border: 2px solid #e0e0e0;">
+                                    <i class="fa fa-graduation-cap" aria-hidden="true" style="color: #940000;"></i>
+                                </span>
+                            @endif
                         </a>
 
                         <div class="user-menu dropdown-menu">

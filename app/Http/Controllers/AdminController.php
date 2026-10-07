@@ -3952,6 +3952,10 @@ class AdminController extends Controller
             );
         }
 
+        if ($blocked = $this->classTeacherViewOnlyResponse($permission)) {
+            return $blocked;
+        }
+
         $chain = DB::table("permission_approval_chains")
             ->where("schoolID", $schoolID)
             ->where("permission_type", "student")
@@ -4064,6 +4068,7 @@ class AdminController extends Controller
                     $currentApprover,
                     $validated["admin_response"],
                 );
+                $this->notifyClassTeacherOfApprovedParentPermission($permission);
             });
         } else {
             DB::table("student_permissions")
@@ -4390,6 +4395,112 @@ class AdminController extends Controller
                 : "Approval Stage");
     }
 
+    /**
+     * Class teacher of a parent-requested student permission may only view it.
+     */
+    private function classTeacherViewOnlyResponse($permission)
+    {
+        if (($permission->requester_type ?? "") !== "parent") {
+            return null;
+        }
+
+        $sessionTeacher = (int) Session::get("teacherID");
+        if (!$sessionTeacher) {
+            return null;
+        }
+
+        $classTeacher = $this->classTeacherForStudent(
+            (int) $permission->student_id,
+            (int) ($permission->schoolID ?? Session::get("schoolID")),
+        );
+
+        if ($classTeacher && (int) $classTeacher->id === $sessionTeacher) {
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" =>
+                        "Class teachers can only view this permission. You cannot approve or reject it.",
+                ],
+                403,
+            );
+        }
+
+        return null;
+    }
+
+    private function classTeacherForStudent(int $studentId, int $schoolId): ?object
+    {
+        $subclassId = null;
+        try {
+            $enrollment = app(\App\Services\StudentEnrollmentService::class)
+                ->currentEnrollment($studentId, $schoolId);
+            $subclassId = $enrollment->subclassID ?? null;
+        } catch (\Throwable $e) {
+            $subclassId = null;
+        }
+
+        if (!$subclassId) {
+            $subclassId = DB::table("students")
+                ->where("studentID", $studentId)
+                ->value("subclassID");
+        }
+
+        if (!$subclassId) {
+            return null;
+        }
+
+        return DB::table("subclasses")
+            ->join("teachers", "subclasses.teacherID", "=", "teachers.id")
+            ->leftJoin("classes", "subclasses.classID", "=", "classes.classID")
+            ->where("subclasses.subclassID", $subclassId)
+            ->where("teachers.schoolID", $schoolId)
+            ->select(
+                "teachers.id",
+                "teachers.first_name",
+                "teachers.last_name",
+                "teachers.phone_number",
+                "classes.class_name",
+                "subclasses.subclass_name",
+            )
+            ->first();
+    }
+
+    private function notifyClassTeacherOfApprovedParentPermission($permission): void
+    {
+        if (($permission->requester_type ?? "") !== "parent") {
+            return;
+        }
+
+        $teacher = $this->classTeacherForStudent(
+            (int) $permission->student_id,
+            (int) $permission->schoolID,
+        );
+        if (!$teacher || empty($teacher->phone_number)) {
+            return;
+        }
+
+        $student = Student::find($permission->student_id);
+        $studentName = $student
+            ? trim(
+                ($student->first_name ?? "") .
+                    " " .
+                    ($student->last_name ?? ""),
+            )
+            : "mwanafunzi";
+        $classLabel = trim(
+            ($teacher->class_name ?? "") . " " . ($teacher->subclass_name ?? ""),
+        );
+        $start = $permission->start_date ?: "-";
+        $end = $permission->end_date ?: "-";
+        $message =
+            "Ruhusa ya mwanafunzi {$studentName}" .
+            ($classLabel !== "" ? " ({$classLabel})" : "") .
+            " imeidhinishwa ({$start} hadi {$end}). " .
+            "Taarifa hii ni ya kuona tu kwenye Duty Book. Huna hatua ya kuchukua.";
+
+        (new SmsService())->sendSms($teacher->phone_number, $message);
+    }
+
     private function notifyStudentPermissionRequester(
         $permission,
         string $status,
@@ -4677,6 +4788,29 @@ class AdminController extends Controller
             ]);
         }
 
+        if (
+            $isStudentPermission &&
+            ($permission->requester_type ?? "") === "parent"
+        ) {
+            $classTeacher = $this->classTeacherForStudent(
+                (int) $permission->student_id,
+                (int) $schoolID,
+            );
+            if ($classTeacher && !empty($classTeacher->phone_number)) {
+                $skipPhone = preg_replace(
+                    "/\s+/",
+                    "",
+                    (string) $classTeacher->phone_number,
+                );
+                $phones = array_values(
+                    array_filter($phones, function ($phone) use ($skipPhone) {
+                        return preg_replace("/\s+/", "", (string) $phone) !==
+                            $skipPhone;
+                    }),
+                );
+            }
+        }
+
         if (!empty($phones)) {
             $smsService = new SmsService();
             $msg = "New permission request pending your approval from {$requesterName}. Please login to ShuleXpert to review.";
@@ -4736,6 +4870,10 @@ class AdminController extends Controller
                         ["success" => false, "message" => "Permission not found"],
                         404,
                     );
+                }
+
+                if ($blocked = $this->classTeacherViewOnlyResponse($permission)) {
+                    return $blocked;
                 }
 
                 DB::table("student_permissions")
@@ -5590,6 +5728,7 @@ class AdminController extends Controller
                 "students.middle_name as student_middle_name",
                 "classes.class_name",
                 "subclasses.subclass_name",
+                "subclasses.teacherID as class_teacher_id",
                 DB::raw("'student' as permission_type"),
             );
 
@@ -5741,17 +5880,21 @@ class AdminController extends Controller
         $contacts = $request->input("contact", []);
         $occupations = $request->input("occupation", []);
         $reasons = $request->input("reason", []);
+        $offices = $request->input("office_visited", []);
         $signatures = $request->input("signature", []);
 
         $today = Carbon::today()->toDateString();
+        $now = now();
         $rows = [];
+        $hasOffice = Schema::hasColumn("school_visitors", "office_visited");
+        $hasSignedIn = Schema::hasColumn("school_visitors", "signed_in_at");
 
         foreach ($names as $index => $name) {
             $trimmed = trim((string) $name);
             if ($trimmed === "") {
                 continue;
             }
-            $rows[] = [
+            $row = [
                 "schoolID" => $schoolID,
                 "visit_date" => $today,
                 "name" => $trimmed,
@@ -5767,9 +5910,18 @@ class AdminController extends Controller
                 "signature" => isset($signatures[$index])
                     ? $signatures[$index]
                     : null,
-                "created_at" => now(),
-                "updated_at" => now(),
+                "created_at" => $now,
+                "updated_at" => $now,
             ];
+            if ($hasOffice) {
+                $row["office_visited"] = isset($offices[$index])
+                    ? trim((string) $offices[$index])
+                    : null;
+            }
+            if ($hasSignedIn) {
+                $row["signed_in_at"] = $now;
+            }
+            $rows[] = $row;
         }
 
         if (empty($rows)) {
@@ -5814,17 +5966,7 @@ class AdminController extends Controller
         return response()->json([
             "success" => true,
             "data" => $visitors->map(function ($visitor) {
-                return [
-                    "visitorID" => $visitor->visitorID,
-                    "visitDate" => $visitor->visit_date
-                        ? $visitor->visit_date->format("Y-m-d")
-                        : null,
-                    "name" => $visitor->name,
-                    "contact" => $visitor->contact,
-                    "occupation" => $visitor->occupation,
-                    "reason" => $visitor->reason,
-                    "signature" => $visitor->signature,
-                ];
+                return $this->formatSchoolVisitorPayload($visitor);
             }),
         ]);
     }
@@ -5866,20 +6008,212 @@ class AdminController extends Controller
         return response()->json([
             "success" => true,
             "data" => $visitors->map(function ($visitor) {
-                return [
-                    "visitorID" => $visitor->visitorID,
-                    "visitDate" => $visitor->visit_date
-                        ? $visitor->visit_date->format("Y-m-d")
-                        : null,
-                    "name" => $visitor->name,
-                    "contact" => $visitor->contact,
-                    "occupation" => $visitor->occupation,
-                    "reason" => $visitor->reason,
-                    "signature" => $visitor->signature,
-                ];
+                return $this->formatSchoolVisitorPayload($visitor);
             }),
             "used" => $usedCount,
         ]);
+    }
+
+    public function signInSchoolVisitor(Request $request)
+    {
+        $user = Session::get("user_type");
+        $schoolID = Session::get("schoolID");
+        if (
+            !$user ||
+            !in_array($user, ["Admin", "Staff", "Teacher", "Watchman"]) ||
+            !$schoolID
+        ) {
+            return response()->json(
+                ["success" => false, "message" => "Unauthorized access"],
+                403,
+            );
+        }
+
+        $validated = $request->validate([
+            "visitorID" => "required|integer",
+            "office_visited" => "nullable|string|max:255",
+        ]);
+
+        $visitor = SchoolVisitor::where("schoolID", $schoolID)
+            ->where("visitorID", $validated["visitorID"])
+            ->firstOrFail();
+
+        if ($visitor->signed_out_at) {
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" =>
+                        "This visit already has sign-in and sign-out. Register a new visit for another day.",
+                ],
+                422,
+            );
+        }
+
+        if ($visitor->signed_in_at && !$visitor->signed_out_at) {
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" => "Visitor is already signed in.",
+                ],
+                422,
+            );
+        }
+
+        $payload = [
+            "signed_in_at" => now(),
+            "signed_out_at" => null,
+        ];
+        if (Schema::hasColumn("school_visitors", "office_visited")) {
+            $office = trim((string) ($validated["office_visited"] ?? ""));
+            if ($office !== "") {
+                $payload["office_visited"] = $office;
+            }
+        }
+
+        $visitor->update($payload);
+
+        return response()->json([
+            "success" => true,
+            "message" => "Visitor signed in successfully.",
+            "data" => $this->formatSchoolVisitorPayload($visitor->fresh()),
+        ]);
+    }
+
+    public function searchSchoolVisitors(Request $request)
+    {
+        $user = Session::get("user_type");
+        $schoolID = Session::get("schoolID");
+        if (
+            !$user ||
+            !in_array($user, ["Admin", "Staff", "Teacher", "Watchman"]) ||
+            !$schoolID
+        ) {
+            return response()->json(
+                ["success" => false, "message" => "Unauthorized access"],
+                403,
+            );
+        }
+
+        $q = trim((string) $request->get("q", ""));
+        if (mb_strlen($q) < 2) {
+            return response()->json([
+                "success" => true,
+                "data" => [],
+            ]);
+        }
+
+        $visitors = SchoolVisitor::where("schoolID", $schoolID)
+            ->where(function ($query) use ($q) {
+                $query
+                    ->where("name", "like", "%" . $q . "%")
+                    ->orWhere("contact", "like", "%" . $q . "%");
+            })
+            ->orderBy("created_at", "desc")
+            ->limit(40)
+            ->get(["name", "contact", "occupation", "office_visited"]);
+
+        $seen = [];
+        $data = [];
+        foreach ($visitors as $visitor) {
+            $key =
+                mb_strtolower(trim((string) $visitor->name)) .
+                "|" .
+                mb_strtolower(trim((string) ($visitor->contact ?? "")));
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $data[] = [
+                "name" => $visitor->name,
+                "contact" => $visitor->contact,
+                "occupation" => $visitor->occupation,
+                "officeVisited" => $visitor->office_visited ?? null,
+            ];
+            if (count($data) >= 10) {
+                break;
+            }
+        }
+
+        return response()->json([
+            "success" => true,
+            "data" => $data,
+        ]);
+    }
+
+    public function signOutSchoolVisitor(Request $request)
+    {
+        $user = Session::get("user_type");
+        $schoolID = Session::get("schoolID");
+        if (
+            !$user ||
+            !in_array($user, ["Admin", "Staff", "Teacher", "Watchman"]) ||
+            !$schoolID
+        ) {
+            return response()->json(
+                ["success" => false, "message" => "Unauthorized access"],
+                403,
+            );
+        }
+
+        $validated = $request->validate([
+            "visitorID" => "required|integer",
+        ]);
+
+        $visitor = SchoolVisitor::where("schoolID", $schoolID)
+            ->where("visitorID", $validated["visitorID"])
+            ->firstOrFail();
+
+        if (!$visitor->signed_in_at) {
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" => "Visitor has not signed in yet.",
+                ],
+                422,
+            );
+        }
+
+        if ($visitor->signed_out_at) {
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" => "Visitor is already signed out.",
+                ],
+                422,
+            );
+        }
+
+        $visitor->update([
+            "signed_out_at" => now(),
+        ]);
+
+        return response()->json([
+            "success" => true,
+            "message" => "Visitor signed out successfully.",
+            "data" => $this->formatSchoolVisitorPayload($visitor->fresh()),
+        ]);
+    }
+
+    protected function formatSchoolVisitorPayload($visitor): array
+    {
+        return [
+            "visitorID" => $visitor->visitorID,
+            "visitDate" => $visitor->visit_date
+                ? $visitor->visit_date->format("Y-m-d")
+                : null,
+            "name" => $visitor->name,
+            "contact" => $visitor->contact,
+            "occupation" => $visitor->occupation,
+            "reason" => $visitor->reason,
+            "officeVisited" => $visitor->office_visited ?? null,
+            "signedInAt" => $visitor->signed_in_at
+                ? $visitor->signed_in_at->format("Y-m-d H:i")
+                : null,
+            "signedOutAt" => $visitor->signed_out_at
+                ? $visitor->signed_out_at->format("Y-m-d H:i")
+                : null,
+            "signature" => $visitor->signature,
+        ];
     }
 
     public function updateSchoolVisitor(Request $request)
@@ -5903,18 +6237,24 @@ class AdminController extends Controller
             "contact" => "nullable|string",
             "occupation" => "nullable|string",
             "reason" => "nullable|string",
+            "office_visited" => "nullable|string|max:255",
         ]);
 
         $visitor = SchoolVisitor::where("schoolID", $schoolID)
             ->where("visitorID", $validated["visitorID"])
             ->firstOrFail();
 
-        $visitor->update([
+        $payload = [
             "name" => $validated["name"],
             "contact" => $validated["contact"],
             "occupation" => $validated["occupation"],
             "reason" => $validated["reason"],
-        ]);
+        ];
+        if (Schema::hasColumn("school_visitors", "office_visited")) {
+            $payload["office_visited"] = $validated["office_visited"] ?? null;
+        }
+
+        $visitor->update($payload);
 
         return response()->json([
             "success" => true,

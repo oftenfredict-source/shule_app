@@ -130,20 +130,28 @@
 }
 
         .admin-sidebar-title {
-            padding: 25px 15px;
-            border-bottom: 1px solid #f0f0f0;
             display: flex;
             align-items: center;
             justify-content: center;
             width: 100%;
+            padding: 6px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            background: #fff;
+            height: 55px;
+            min-height: 55px;
+            max-height: 55px;
+            box-sizing: border-box;
+            overflow: hidden;
         }
 
         .admin-brand-logo {
             width: 100%;
-            max-width: 180px;
-            height: auto;
-            max-height: 100px;
+            max-width: 150px;
+            height: 42px;
             object-fit: contain;
+            object-position: center;
+            display: block;
+            background: #fff;
         }
 
         .admin-brand-block {
@@ -615,27 +623,99 @@
     width: 100% !important;
 }
 
-/* OUTER sidebar scrollbar only */
-#left-panel {
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+aside.left-panel,
+aside#left-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    vertical-align: top;
+    overflow: hidden !important;
     max-height: 100vh !important;
+    height: 100vh !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
 }
 
-#left-panel::-webkit-scrollbar {
+#left-panel > .navbar {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    margin-bottom: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Logo card — pinned, never scrolls away */
+#left-panel .navbar-header {
+    position: relative !important;
+    z-index: 20 !important;
+    flex: 0 0 55px !important;
+    width: 100% !important;
+    height: 55px !important;
+    min-height: 55px !important;
+    max-height: 55px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+    overflow: hidden !important;
+}
+
+#left-panel .admin-sidebar-title {
+    background: #ffffff !important;
+}
+
+#left-panel .admin-brand-logo {
+    background: #ffffff !important;
+}
+
+/* Keep menu visible (Bootstrap .collapse can hide it) and scrollable */
+#left-panel #main-menu,
+#left-panel #main-menu.collapse,
+#left-panel #main-menu.navbar-collapse {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 8px 12px 24px !important;
+    width: 100% !important;
+}
+
+#left-panel #main-menu .nav.navbar-nav,
+#left-panel #main-menu .sidebar-links-container,
+#left-panel #main-menu .sidebar-links-container > ul {
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+#left-panel #main-menu .nav-link {
+    display: block !important;
+    visibility: visible !important;
+}
+
+#left-panel #main-menu::-webkit-scrollbar {
     width: 8px !important;
 }
 
-#left-panel::-webkit-scrollbar-track {
+#left-panel #main-menu::-webkit-scrollbar-track {
     background: #f0f0f0 !important;
 }
 
-#left-panel::-webkit-scrollbar-thumb {
+#left-panel #main-menu::-webkit-scrollbar-thumb {
     background: #cfcfcf !important;
     border-radius: 4px !important;
 }
 
-#left-panel::-webkit-scrollbar-thumb:hover {
+#left-panel #main-menu::-webkit-scrollbar-thumb:hover {
     background: #bdbdbd !important;
 }
 
@@ -704,69 +784,353 @@
     }
 }
 
-/* Header styling */
-#header {
-    background-color: #ffffff !important;
-    border-bottom: 2px solid #e0e0e0 !important;
+/* Header styling — Super Admin style (brand red, flex layout) */
+#header,
+#header.header,
+.right-panel header.header,
+.right-panel #header {
+    background: #940000 !important;
+    border-bottom: none !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18) !important;
+    height: 55px !important;
+    min-height: 55px !important;
+    max-height: 55px !important;
+    padding: 0 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    clear: both !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
 }
 
 #header .header-menu {
-    background-color: #ffffff !important;
+    background: transparent !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    width: 100% !important;
+    height: 55px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    float: none !important;
+}
+
+#header .header-menu > .col-sm-7,
+#header .header-menu > .col-sm-5 {
+    float: none !important;
+    width: auto !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    position: static !important;
+}
+
+#header .header-menu > .col-sm-7 {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    gap: 8px !important;
+}
+
+#header .header-menu > .col-sm-5 {
+    flex: 0 0 auto !important;
+    margin-left: auto !important;
+    justify-content: flex-end !important;
+}
+
+#header .header-left {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+    float: none !important;
+}
+
+#header .header-left > .dropdown,
+#header .header-left > .header-academic-year {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
 }
 
 #header .menutoggle,
 #header .search-trigger,
-#header .btn-secondary {
-    color: #2f2f2f !important;
+#header .btn-secondary,
+#header .header-icon-muted {
+    color: #fff !important;
 }
 
 #header .menutoggle,
-a#menuToggle.menutoggle {
-    background-color: whitesmoke !important;
-    color: #940000 !important;
-    border: 1px solid #e8e8e8 !important;
-    border-radius: 4px !important;
-    padding: 6px 10px !important;
+a#menuToggle.menutoggle,
+.header .menutoggle {
+    background: transparent !important;
+    color: #fff !important;
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 8px 0 0 !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     line-height: 1 !important;
     text-decoration: none !important;
+    float: none !important;
+    position: static !important;
+    cursor: pointer !important;
 }
 
 #header .menutoggle i,
 #header .menutoggle .header-icon-muted,
 a#menuToggle.menutoggle i,
 a#menuToggle.menutoggle .header-icon-muted {
-    color: #940000 !important;
+    color: #fff !important;
     opacity: 1 !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+    margin: 0 !important;
 }
 
 #header .menutoggle:hover,
 a#menuToggle.menutoggle:hover {
-    background-color: #f0f0f0 !important;
-    color: #940000 !important;
+    background: rgba(255,255,255,0.12) !important;
+    color: #fff !important;
+}
+
+#header .btn-secondary {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #fff !important;
+    padding: 6px 8px !important;
+    height: 36px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+#header .btn-secondary:hover,
+#header .btn-secondary:focus,
+#header .btn-secondary:active {
+    background: rgba(255,255,255,0.12) !important;
+    color: #fff !important;
+    box-shadow: none !important;
+}
+
+#header .user-area.dropdown {
+    display: inline-flex !important;
+    align-items: center !important;
+    margin: 0 !important;
 }
 
 #header .user-avatar {
-    border: 2px solid #e0e0e0 !important;
+    border: 2px solid rgba(255,255,255,0.7) !important;
+    background: #fff !important;
+    width: 34px !important;
+    height: 34px !important;
 }
 
 #header .dropdown-toggle {
-    color: #2f2f2f !important;
+    color: #fff !important;
 }
 
 #header .dropdown-menu {
     border: 1px solid #e0e0e0 !important;
-}
-
-#header .dropdown-menu a {
+    background: #fff !important;
     color: #2f2f2f !important;
 }
 
-#header .dropdown-menu a:hover {
+#header .dropdown-menu a,
+#header .dropdown-menu .nav-link,
+#header .dropdown-menu p,
+#header .dropdown-menu span {
+    color: #2f2f2f !important;
+}
+
+#header .dropdown-menu a:hover,
+#header .dropdown-menu .nav-link:hover {
     background-color: #f5f5f5 !important;
     color: #2f2f2f !important;
+}
+
+#header .sx-theme-toggle {
+    width: 36px !important;
+    height: 36px !important;
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    background: transparent !important;
+    color: #fff !important;
+    border-radius: 0 !important;
+    flex-shrink: 0;
+}
+#header .sx-theme-toggle:hover {
+    background: rgba(255,255,255,0.12) !important;
+    color: #fff !important;
+    border-color: rgba(255,255,255,0.55) !important;
+}
+#header .sx-theme-toggle i {
+    color: #fff !important;
+}
+#header .sx-theme-toggle.is-dark {
+    background: rgba(0,0,0,0.2) !important;
+    border-color: rgba(255,255,255,0.45) !important;
+}
+
+#header .header-academic-year {
+    margin-left: 8px !important;
+}
+#header .header-academic-year .ay-label {
+    color: rgba(255,255,255,0.9) !important;
+}
+#header .header-academic-year select {
+    height: 32px !important;
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    background: rgba(255,255,255,0.95) !important;
+    color: #333 !important;
+}
+
+#header .float-right {
+    float: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+/* Logo in dashboard header when sidebar is collapsed */
+#header .admin-header-brand {
+    display: none !important;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    max-width: 140px;
+    padding: 2px 8px;
+    background: #fff;
+    text-decoration: none;
+    flex-shrink: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+#header .admin-header-brand img {
+    display: block;
+    height: 36px;
+    width: auto;
+    max-width: 130px;
+    object-fit: contain;
+    background: #fff;
+}
+@media (min-width: 992px) {
+    body.open #header .admin-header-brand {
+        display: inline-flex !important;
+    }
+}
+
+/* Soft dark — Admin chrome (beats hard-coded white !important rules) */
+html[data-sx-theme="dark"] #left-panel,
+html[data-sx-theme="dark"] #left-panel .navbar,
+html[data-sx-theme="dark"] #left-panel .navbar-default,
+html[data-sx-theme="dark"] #left-panel .main-menu,
+html[data-sx-theme="dark"] #left-panel .navbar-nav,
+html[data-sx-theme="dark"] #left-panel ul,
+html[data-sx-theme="dark"] #left-panel li,
+html[data-sx-theme="dark"] #left-panel .sidebar-links-container {
+    background-color: #1a1d21 !important;
+    background: #1a1d21 !important;
+    color: #c9b4b8 !important;
+    border-color: #2a2e34 !important;
+}
+html[data-sx-theme="dark"] #left-panel {
+    border-right: 1px solid #2a2e34 !important;
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.3) !important;
+}
+/* Logo card stays fully white (dark + light) */
+html[data-sx-theme="dark"] #left-panel .navbar-header,
+html[data-sx-theme="dark"] #left-panel .navbar-header *,
+html[data-sx-theme="dark"] #left-panel .admin-sidebar-title,
+html[data-sx-theme="dark"] #left-panel .admin-brand-logo,
+html[data-sx-theme="light"] #left-panel .navbar-header,
+html[data-sx-theme="light"] #left-panel .admin-sidebar-title,
+html[data-sx-theme="light"] #left-panel .admin-brand-logo,
+html[data-sx-theme="dark"] #header .admin-header-brand,
+html[data-sx-theme="dark"] #header .admin-header-brand img {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    border-bottom-color: #e8e8e8 !important;
+}
+html[data-sx-theme="dark"] #left-panel #main-menu::-webkit-scrollbar-track {
+    background: #15181c !important;
+}
+html[data-sx-theme="dark"] #left-panel #main-menu::-webkit-scrollbar-thumb {
+    background: #3a3f46 !important;
+}
+html[data-sx-theme="dark"] #header,
+html[data-sx-theme="dark"] #header.header,
+html[data-sx-theme="dark"] .right-panel header.header {
+    background: #940000 !important;
+}
+html[data-sx-theme="dark"] #left-panel .nav-link,
+html[data-sx-theme="dark"] #left-panel a.nav-link,
+html[data-sx-theme="dark"] #left-panel li a,
+html[data-sx-theme="dark"] #left-panel .navbar-nav li a,
+html[data-sx-theme="dark"] #left-panel .navbar-nav > li > a,
+html[data-sx-theme="dark"] #left-panel p,
+html[data-sx-theme="dark"] #left-panel .navbar-brand {
+    color: #c9b4b8 !important;
+    background-color: transparent !important;
+}
+html[data-sx-theme="dark"] #left-panel .nav-link i,
+html[data-sx-theme="dark"] #left-panel a.nav-link i,
+html[data-sx-theme="dark"] #left-panel li a i,
+html[data-sx-theme="dark"] #left-panel .fa,
+html[data-sx-theme="dark"] #left-panel [class*="fa-"] {
+    color: #ffb4b4 !important;
+}
+html[data-sx-theme="dark"] #left-panel .nav-link:hover,
+html[data-sx-theme="dark"] #left-panel a.nav-link:hover,
+html[data-sx-theme="dark"] #left-panel li a:hover,
+html[data-sx-theme="dark"] #left-panel .navbar-nav li a:hover,
+html[data-sx-theme="dark"] #left-panel li:hover {
+    background-color: rgba(148, 0, 0, 0.22) !important;
+    color: #ffb4b4 !important;
+}
+html[data-sx-theme="dark"] #left-panel .nav-link.active,
+html[data-sx-theme="dark"] #left-panel a.nav-link.active,
+html[data-sx-theme="dark"] #left-panel li.active > a,
+html[data-sx-theme="dark"] #left-panel .nav-link.menu-active,
+html[data-sx-theme="dark"] #left-panel a.nav-link.menu-active,
+html[data-sx-theme="dark"] #left-panel .dropdown-toggle.menu-active {
+    background-color: rgba(148, 0, 0, 0.28) !important;
+    color: #ffb4b4 !important;
+}
+html[data-sx-theme="dark"] #left-panel .dropdown-nav-item .submenu {
+    background-color: #15181c !important;
+    border-left-color: #2a2e34 !important;
+}
+html[data-sx-theme="dark"] #left-panel .navbar-nav li {
+    border-bottom-color: #2a2e34 !important;
+}
+html[data-sx-theme="dark"] #left-panel::-webkit-scrollbar-track {
+    background: #15181c !important;
+}
+html[data-sx-theme="dark"] #left-panel::-webkit-scrollbar-thumb {
+    background: #3a3f46 !important;
+}
+html[data-sx-theme="dark"] #right-panel,
+html[data-sx-theme="dark"] .right-panel,
+html[data-sx-theme="dark"] body {
+    background-color: #160d10 !important;
+}
+html[data-sx-theme="dark"] .site-footer,
+html[data-sx-theme="dark"] .footer-area {
+    background-color: #0c0709 !important;
+    color: #c9b4b8 !important;
+    border-top-color: rgba(255, 180, 180, 0.18) !important;
 }
 
 /* Brand styling */
@@ -776,16 +1140,20 @@ a#menuToggle.menutoggle:hover {
     font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
 }
 
-/* Mobile navbar header */
+/* Brand row — aligns with red #header (55px), like Super Admin */
 .navbar-header {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
     width: 100%;
-    padding: 10px 14px;
-    min-height: 52px;
-    background: #940000;
-    border-bottom: 2px solid rgba(255,255,255,0.15);
+    padding: 0;
+    height: 55px;
+    min-height: 55px;
+    max-height: 55px;
+    background: #ffffff;
+    border-bottom: 1px solid #f0f0f0;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .mobile-brand {
@@ -865,10 +1233,12 @@ a#menuToggle.menutoggle:hover {
     }
     .navbar-header {
         justify-content: center;
-        padding: 4px 0;
-        background: transparent;
-        border-bottom: none;
-        min-height: unset;
+        padding: 0 !important;
+        background: #ffffff !important;
+        border-bottom: 1px solid #f0f0f0 !important;
+        height: 55px !important;
+        min-height: 55px !important;
+        max-height: 55px !important;
     }
     .navbar-toggler {
         margin-left: 0;
@@ -978,6 +1348,7 @@ a#menuToggle.menutoggle:hover {
                                 <li><a href="{{ route('manageTeachers') }}" class="nav-link"><i class="fa fa-users"></i> Teachers And Staff</a></li>
                                 <li><a href="{{ route('manage_watchman') }}" class="nav-link"><i class="fa fa-shield"></i> Watchman</a></li>
                                 <li><a href="{{ route('manage_student') }}" class="nav-link"><i class="fa fa-user"></i> Students</a></li>
+                                <li><a href="{{ route('admin.pending_students.index') }}" class="nav-link"><i class="fa fa-user-plus"></i> Pending Registrations</a></li>
                                 <li><a href="{{ route('manage_parents') }}" class="nav-link"><i class="fa fa-user"></i> parents/guardians</a></li>
                                 <li><a href="{{ route('manage_sponsors') }}" class="nav-link"><i class="fa fa-handshake-o"></i> Sponsors</a></li>
                                 <li><a href="{{ route('admin.school_visitors') }}" class="nav-link"><i class="fa fa-id-badge"></i> School Visitors</a></li>
@@ -1078,6 +1449,9 @@ a#menuToggle.menutoggle:hover {
                                 <li><a href="{{ route('fingerprint_device_settings') }}" class="nav-link"><i class="fa fa-id-card"></i> Fingerprint</a></li>
                                 <li><a href="{{ route('manage_accomodation') }}" class="nav-link"><i class="fa fa-bed"></i> Hostel</a></li>
                                 <li><a href="{{ route('sms_notification') }}" class="nav-link"><i class="fa fa-bell"></i> SMS Information</a></li>
+                                @if(\App\Models\School::where('schoolID', Session::get('schoolID'))->value('student_portal_enabled'))
+                                <li><a href="{{ route('student_portal.materials') }}" class="nav-link"><i class="fa fa-graduation-cap"></i> Learning Portal</a></li>
+                                @endif
                                 <li><a href="{{ route('admin.printing_unit') }}" class="nav-link"><i class="fa fa-print"></i> Printing Unit</a></li>
                             </ul>
                         </li>
@@ -1311,6 +1685,24 @@ a#menuToggle.menutoggle:hover {
                             </ul>
                         </li>
 
+                        <!-- School Board -->
+                        <li class="dropdown-nav-item">
+                            <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#schoolBoardMenu" aria-expanded="false">
+                                <i class="fa fa-university"></i> School Board <i class="fa fa-chevron-down float-right"></i>
+                            </a>
+                            <ul id="schoolBoardMenu" class="collapse submenu" style="list-style: none; padding-left: 20px; margin: 0;">
+                                <li><a href="{{ route('admin.school_board.dashboard') }}" class="nav-link"><i class="fa fa-dashboard"></i> Board Dashboard</a></li>
+                                <li><a href="{{ route('admin.school_board.members') }}" class="nav-link"><i class="fa fa-users"></i> Board Members</a></li>
+                                <li><a href="{{ route('admin.school_board.committees') }}" class="nav-link"><i class="fa fa-sitemap"></i> Committees</a></li>
+                                <li><a href="{{ route('admin.school_board.meetings') }}" class="nav-link"><i class="fa fa-calendar"></i> Meetings</a></li>
+                                <li><a href="{{ route('admin.school_board.minutes') }}" class="nav-link"><i class="fa fa-file-text-o"></i> Minutes</a></li>
+                                <li><a href="{{ route('admin.school_board.resolutions') }}" class="nav-link"><i class="fa fa-gavel"></i> Resolutions</a></li>
+                                <li><a href="{{ route('admin.school_board.action_items') }}" class="nav-link"><i class="fa fa-check-square-o"></i> Action Items</a></li>
+                                <li><a href="{{ route('admin.school_board.documents') }}" class="nav-link"><i class="fa fa-folder-open-o"></i> Documents</a></li>
+                                <li><a href="{{ route('admin.school_board.reports') }}" class="nav-link"><i class="fa fa-bar-chart"></i> Reports</a></li>
+                            </ul>
+                        </li>
+
                         <!-- Strategic Management (SGPM) -->
                         <li class="dropdown-nav-item">
                             <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#strategicManagement" aria-expanded="false">
@@ -1345,6 +1737,9 @@ a#menuToggle.menutoggle:hover {
 
                 <div class="col-sm-7">
                     <a id="menuToggle" class="menutoggle pull-left"><i class="fa fa fa-tasks header-icon-muted"></i></a>
+                    <a href="{{ route('AdminDashboard') }}" class="admin-header-brand" title="ShuleXpert">
+                        <img src="{{ asset('images/shuleXpert.jpg') }}" alt="ShuleXpert" onerror="this.onerror=null; this.src='{{ asset('images/logo.png') }}';">
+                    </a>
                     <div class="header-left">
                         <div class="form-inline"></div>
 
@@ -1704,6 +2099,7 @@ a#menuToggle.menutoggle:hover {
 
                 <div class="col-sm-5">
                     <div class="float-right d-flex align-items-center justify-content-end" style="gap:12px;">
+                    @include('includes.theme_toggle')
                     <div class="user-area dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             @php

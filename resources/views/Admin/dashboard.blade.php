@@ -99,6 +99,53 @@
         color: var(--text-dark);
     }
 
+    html[data-sx-theme="dark"] {
+        --accent-soft-red: #2a1a1f;
+        --primary-white: #1f1418;
+        --text-dark: #f3e9eb;
+        --text-muted: #c9b4b8;
+        --pale-gradient: linear-gradient(135deg, #2a1a1f 0%, #1f1418 100%);
+    }
+
+    html[data-sx-theme="dark"] body {
+        background-color: #160d10 !important;
+        color: var(--text-dark);
+    }
+
+    html[data-sx-theme="dark"] .welcome-banner {
+        background: var(--pale-gradient) !important;
+        border-color: rgba(255, 180, 180, 0.18) !important;
+        color: var(--text-dark) !important;
+        box-shadow: none;
+    }
+
+    html[data-sx-theme="dark"] .stat-widget {
+        background: #2a1a1f !important;
+    }
+
+    html[data-sx-theme="dark"] .stat-icon {
+        background: #1f1418 !important;
+        color: #ffb4b4 !important;
+        box-shadow: none;
+    }
+
+    html[data-sx-theme="dark"] .pill-item,
+    html[data-sx-theme="dark"] .chart-card,
+    html[data-sx-theme="dark"] .bg-white,
+    html[data-sx-theme="dark"] .p-4.bg-white {
+        background: #1f1418 !important;
+        border-color: rgba(255, 180, 180, 0.18) !important;
+        color: #f3e9eb !important;
+    }
+
+    html[data-sx-theme="dark"] .section-header {
+        color: #ffb4b4 !important;
+    }
+
+    html[data-sx-theme="dark"] .stat-value {
+        color: #ffb4b4 !important;
+    }
+
     .dashboard-container {
         padding: 1.5rem;
     }

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html lang="en" class="no-js">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="no-js" data-sx-theme="light" data-sx-site="public">
 <head>
+    @include('includes.theme_init')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="google-site-verification" content="hhr5zKuMzQymlmmZu5nBjh5tHwlJY_-qEk_7i9Uzo0Q" />
@@ -55,27 +56,34 @@
     <link rel="stylesheet" href="{{ asset('lib/animate/animate.min.css') }}">
     <link rel="stylesheet" href="{{ asset('css/site-base.css') }}?v={{ filemtime(public_path('css/site-base.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/shulexpert-site.css') }}?v={{ filemtime(public_path('css/shulexpert-site.css')) }}">
+    <link rel="stylesheet" href="{{ asset('css/shulexpert-theme.css') }}?v={{ filemtime(public_path('css/shulexpert-theme.css')) }}">
 
     <style>
-        html,body{background:#fff!important}
-        #main-content{background:#fff!important}
+        html[data-sx-theme="light"],
+        html[data-sx-theme="light"] body { background:#fff!important }
+        html[data-sx-theme="light"] #main-content { background:#fff!important }
+        html[data-sx-theme="dark"][data-sx-site="public"],
+        html[data-sx-theme="dark"][data-sx-site="public"] body { background:#160d10!important }
+        html[data-sx-theme="dark"][data-sx-site="public"] #main-content { background:#160d10!important }
     </style>
     @unless(!empty($skipSplash))
     <style>
         #sx-splash{position:fixed;inset:0;z-index:99999;background:#fff!important;display:flex;align-items:center;justify-content:center;transition:opacity .45s ease,visibility .45s ease}
+        html[data-sx-theme="dark"] #sx-splash{background:#000!important}
         #sx-splash.hide{opacity:0;visibility:hidden;pointer-events:none}
         #sx-splash .sx-splash-inner{text-align:center;width:min(280px,82vw);background:transparent!important;border:none!important;box-shadow:none!important;padding:0}
         #sx-splash .sx-splash-logo{display:block!important;width:auto!important;height:auto!important;max-width:140px;max-height:140px;margin:0 auto 28px;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;filter:none!important;-webkit-filter:none!important;animation:none!important;transition:none!important;transform:none!important;object-fit:contain!important}
         #sx-splash .sx-splash-bar{width:100%;height:4px;margin:0 auto 16px;background:rgba(148,0,0,.12);border-radius:999px;overflow:hidden}
         #sx-splash .sx-splash-bar-fill{display:block;height:100%;width:0;background:#940000;border-radius:999px;animation:sxSplashLoad 1.35s ease-out forwards}
         #sx-splash .sx-splash-powered{margin:0;font-size:12px;font-weight:600;color:#666}
+        html[data-sx-theme="dark"] #sx-splash .sx-splash-powered{color:#ddd}
         @keyframes sxSplashLoad{from{width:0}to{width:100%}}
-        body.sx-splash-lock{overflow:hidden;background:#fff!important}
+        body.sx-splash-lock{overflow:hidden}
         body.sx-splash-lock #main-content,
         body.sx-splash-lock #header,
         body.sx-splash-lock .footer-area,
         body.sx-splash-lock #sx-mobile-nav,
-        body.sx-splash-lock #sx-mobile-nav-backdrop{visibility:hidden!important;background:#fff!important}
+        body.sx-splash-lock #sx-mobile-nav-backdrop{visibility:hidden!important}
     </style>
     @endunless
 
@@ -83,7 +91,7 @@
 
     @include('site.partials.schema')
 </head>
-<body class="{{ empty($skipSplash) ? 'sx-splash-lock' : '' }}">
+<body class="sx-public-site{{ empty($skipSplash) ? ' sx-splash-lock' : '' }}">
     @unless(!empty($skipSplash))
         @include('site.partials.splash')
     @endunless
@@ -94,6 +102,7 @@
     </main>
 
     @include('site.partials.footer')
+    @include('site.partials.ask-float')
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -206,5 +215,46 @@
         })();
     </script>
     @stack('scripts')
+    <script>
+        (function () {
+            if (window.__sxSiteLangBound) return;
+            window.__sxSiteLangBound = true;
+            var csrf = document.querySelector('meta[name="csrf-token"]');
+            var token = csrf ? csrf.getAttribute('content') : '';
+
+            function setLocale(locale) {
+                fetch('{{ route('change_language') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ locale: locale })
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data && data.success) {
+                        window.location.reload();
+                        return;
+                    }
+                    alert((data && data.message) ? data.message : 'Failed to change language.');
+                })
+                .catch(function () {
+                    alert('Failed to change language. Please try again.');
+                });
+            }
+
+            document.addEventListener('click', function (e) {
+                var btn = e.target.closest('.sx-lang-btn');
+                if (!btn) return;
+                e.preventDefault();
+                var locale = btn.getAttribute('data-locale');
+                if (!locale || btn.classList.contains('is-active')) return;
+                setLocale(locale);
+            });
+        })();
+    </script>
 </body>
 </html>

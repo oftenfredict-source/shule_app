@@ -1,6 +1,9 @@
 @php($watchmanOnly = $watchmanOnly ?? false)
 @php($todayRoute = $watchmanOnly ? route('watchman.school_visitors.today') : route('admin.school_visitors.today'))
 @php($storeRoute = $watchmanOnly ? route('watchman.school_visitors.store') : route('admin.school_visitors.store'))
+@php($signInRoute = $watchmanOnly ? route('watchman.school_visitors.sign_in') : route('admin.school_visitors.sign_in'))
+@php($signOutRoute = $watchmanOnly ? route('watchman.school_visitors.sign_out') : route('admin.school_visitors.sign_out'))
+@php($searchRoute = $watchmanOnly ? route('watchman.school_visitors.search') : route('admin.school_visitors.search'))
 
 @if(!$watchmanOnly)
 @if($user_type == 'Admin')
@@ -84,6 +87,44 @@
     .watchman-only .table {
         min-width: 720px;
     }
+    .visitor-suggest-wrap {
+        position: relative;
+    }
+    .visitor-suggest-list {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 100%;
+        z-index: 30;
+        background: #fff;
+        border: 1px solid #d0d0d0;
+        max-height: 220px;
+        overflow-y: auto;
+        display: none;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+    }
+    .visitor-suggest-list.show { display: block; }
+    .visitor-suggest-item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: #fff;
+        padding: 8px 10px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        color: #333;
+    }
+    .visitor-suggest-item:hover,
+    .visitor-suggest-item:focus {
+        background: #fff5f5;
+        color: #940000;
+    }
+    .visitor-suggest-item small {
+        display: block;
+        color: #777;
+        font-size: 0.75rem;
+    }
     @media (max-width: 768px) {
         .breadcrumbs {
             padding: 0 12px;
@@ -160,13 +201,15 @@
                                             <th>{{ $watchmanOnly ? 'Simu / Barua pepe' : 'Phone / Email' }}</th>
                                             <th>{{ $watchmanOnly ? 'Kazi / Taasisi' : 'Occupation / Institution' }}</th>
                                             <th>{{ $watchmanOnly ? 'Sababu ya Ziara' : 'Reason for Visit' }}</th>
-                                    <th>{{ $watchmanOnly ? 'Sahihi' : 'Signature' }}</th>
-                                    <th>{{ $watchmanOnly ? 'Kitendo' : 'Action' }}</th>
+                                            <th>{{ $watchmanOnly ? 'Ofisi' : 'Office Visited' }}</th>
+                                            <th>{{ $watchmanOnly ? 'Sahihi' : 'Signature' }}</th>
+                                            <th>{{ $watchmanOnly ? 'Ingia / Toka' : 'Sign In / Out' }}</th>
+                                            <th>{{ $watchmanOnly ? 'Kitendo' : 'Action' }}</th>
                                         </tr>
                                     </thead>
                                     <tbody id="visitorTableBody">
                                         <tr>
-                                    <td colspan="7" class="text-center text-muted">{{ $watchmanOnly ? 'Inapakia...' : 'Loading...' }}</td>
+                                    <td colspan="9" class="text-center text-muted">{{ $watchmanOnly ? 'Inapakia...' : 'Loading...' }}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -224,13 +267,16 @@
                                     <th>Phone / Email</th>
                                     <th>Occupation</th>
                                     <th>Reason</th>
+                                    <th>Office</th>
+                                    <th>Sign In</th>
+                                    <th>Sign Out</th>
                                     <th>Signature</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="visitorListBody">
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted">No data loaded.</td>
+                                    <td colspan="11" class="text-center text-muted">No data loaded.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -272,6 +318,10 @@
                     <div class="form-group mb-2">
                         <label>Reason</label>
                         <input type="text" class="form-control" name="reason" id="editVisitorReason">
+                    </div>
+                    <div class="form-group mb-2">
+                        <label>Office Visited</label>
+                        <input type="text" class="form-control" name="office_visited" id="editVisitorOffice">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -323,13 +373,31 @@
         successTitle: 'Imefanikiwa',
         failedTitle: 'Imeshindikana',
         failedSave: 'Imeshindikana kuhifadhi wageni.',
-        loading: 'Inapakia...'
+        loading: 'Inapakia...',
+        signedIn: 'Ameingia',
+        signedOut: 'Ametoka',
+        signIn: 'Ingia',
+        signOut: 'Toka',
+        officePrompt: 'Ofisi anayotembelea (si lazima)',
+        noOffice: '—',
+        searchHint: 'Andika jina au simu kutafuta mgeni wa awali',
+        completed: 'Imekamilika',
+        noMatch: 'Hakuna mgeni wa awali'
     } : {
         saved: 'Saved',
         successTitle: 'Success',
         failedTitle: 'Failed',
         failedSave: 'Failed to save visitors.',
-        loading: 'Loading...'
+        loading: 'Loading...',
+        signedIn: 'Signed in',
+        signedOut: 'Signed out',
+        signIn: 'Sign In',
+        signOut: 'Sign Out',
+        officePrompt: 'Office being visited (optional)',
+        noOffice: '—',
+        searchHint: 'Type name or phone to search previous visitors',
+        completed: 'Completed',
+        noMatch: 'No previous visitor found'
     };
     const menuLinks = document.querySelectorAll('.visitor-tabs .nav-link');
     const sections = document.querySelectorAll('.visitor-section');
@@ -422,21 +490,150 @@
         const row = document.createElement('tr');
         row.innerHTML = `
             <td><input type="date" class="form-control" value="{{ date('Y-m-d') }}" readonly></td>
-            <td><input type="text" class="form-control" name="name[]"></td>
-            <td><input type="text" class="form-control" name="contact[]" value="255"></td>
-            <td><input type="text" class="form-control" name="occupation[]"></td>
+            <td>
+                <div class="visitor-suggest-wrap">
+                    <input type="text" class="form-control visitor-search-field" name="name[]" data-search-field="name" placeholder="${labels.searchHint}" autocomplete="off">
+                    <div class="visitor-suggest-list" data-suggest-list></div>
+                </div>
+            </td>
+            <td>
+                <div class="visitor-suggest-wrap">
+                    <input type="text" class="form-control visitor-search-field" name="contact[]" value="255" data-search-field="contact" autocomplete="off">
+                    <div class="visitor-suggest-list" data-suggest-list></div>
+                </div>
+            </td>
+            <td><input type="text" class="form-control" name="occupation[]" data-fill="occupation"></td>
             <td><input type="text" class="form-control" name="reason[]"></td>
+            <td><input type="text" class="form-control" name="office_visited[]" data-fill="office" placeholder="${labels.officePrompt}"></td>
             <td>
                 <canvas class="signature-box" data-signature></canvas>
                 <input type="hidden" name="signature[]">
             </td>
+            <td class="text-muted small">—</td>
             <td>
                 <button type="button" class="btn btn-sm btn-danger remove-row">
                     <i class="fa fa-trash"></i>
                 </button>
             </td>
         `;
+        wireVisitorSearch(row);
         return row;
+    }
+
+    function hideSuggestLists(scope) {
+        (scope || document).querySelectorAll('[data-suggest-list]').forEach(list => {
+            list.classList.remove('show');
+            list.innerHTML = '';
+        });
+    }
+
+    function applyVisitorSuggestion(row, item) {
+        if (!row || !item) return;
+        const nameInput = row.querySelector('input[name="name[]"]');
+        const contactInput = row.querySelector('input[name="contact[]"]');
+        const occupationInput = row.querySelector('input[name="occupation[]"]');
+        const officeInput = row.querySelector('input[name="office_visited[]"]');
+        if (nameInput) nameInput.value = item.name || '';
+        if (contactInput) contactInput.value = item.contact || '255';
+        if (occupationInput) occupationInput.value = item.occupation || '';
+        if (officeInput) officeInput.value = item.officeVisited || officeInput.value || '';
+        hideSuggestLists(row);
+    }
+
+    function wireVisitorSearch(row) {
+        let timer = null;
+        let suppressBlurHide = false;
+        row.querySelectorAll('.visitor-search-field').forEach(input => {
+            const wrap = input.closest('.visitor-suggest-wrap');
+            const list = wrap ? wrap.querySelector('[data-suggest-list]') : null;
+            if (!list) return;
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                const q = (input.value || '').trim();
+                if (q.length < 2 || (input.dataset.searchField === 'contact' && q.replace(/\D/g, '').length < 4)) {
+                    hideSuggestLists(row);
+                    return;
+                }
+                timer = setTimeout(() => {
+                    fetch(`{{ $searchRoute }}?q=${encodeURIComponent(q)}`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        list.innerHTML = '';
+                        if (!data.success || !data.data || data.data.length === 0) {
+                            list.innerHTML = `<div class="visitor-suggest-item text-muted">${labels.noMatch}</div>`;
+                            list.classList.add('show');
+                            return;
+                        }
+                        data.data.forEach(item => {
+                            const btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.className = 'visitor-suggest-item';
+                            btn.dataset.name = item.name || '';
+                            btn.dataset.contact = item.contact || '';
+                            btn.dataset.occupation = item.occupation || '';
+                            btn.dataset.office = item.officeVisited || '';
+                            btn.innerHTML = `<strong>${escapeHtml(item.name || '')}</strong><small>${escapeHtml(item.contact || '')}${item.occupation ? ' · ' + escapeHtml(item.occupation) : ''}</small>`;
+                            // mousedown + preventDefault: stop input blur from wiping list before select
+                            btn.addEventListener('mousedown', (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                suppressBlurHide = true;
+                                applyVisitorSuggestion(row, {
+                                    name: btn.dataset.name,
+                                    contact: btn.dataset.contact,
+                                    occupation: btn.dataset.occupation,
+                                    officeVisited: btn.dataset.office
+                                });
+                                setTimeout(() => { suppressBlurHide = false; }, 50);
+                            });
+                            list.appendChild(btn);
+                        });
+                        list.classList.add('show');
+                    })
+                    .catch(() => hideSuggestLists(row));
+                }, 280);
+            });
+
+            input.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (!suppressBlurHide) hideSuggestLists(row);
+                }, 250);
+            });
+        });
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function visitorAttendanceCell(item) {
+        const signedIn = item.signedInAt || '';
+        const signedOut = item.signedOutAt || '';
+        const canSignIn = !signedIn;
+        const canSignOut = !!signedIn && !signedOut;
+        let actions = '';
+        if (canSignIn) {
+            actions += `<button type="button" class="btn btn-sm btn-primary-custom visitor-sign-in" data-visitor-id="${item.visitorID}">${labels.signIn}</button> `;
+        }
+        if (canSignOut) {
+            actions += `<button type="button" class="btn btn-sm btn-warning visitor-sign-out" data-visitor-id="${item.visitorID}">${labels.signOut}</button>`;
+        }
+        if (!canSignIn && !canSignOut) {
+            actions = `<span class="badge bg-secondary">${labels.completed}</span>`;
+        }
+        return `
+            <div class="small mb-1"><strong>${labels.signedIn}:</strong> ${escapeHtml(signedIn || labels.noOffice)}</div>
+            <div class="small mb-1"><strong>${labels.signedOut}:</strong> ${escapeHtml(signedOut || labels.noOffice)}</div>
+            <div>${actions}</div>
+        `;
     }
 
     function renderTodayVisitors(items) {
@@ -450,15 +647,19 @@
         }
         items.forEach(item => {
             const row = document.createElement('tr');
+            row.dataset.visitorId = item.visitorID;
+            row.dataset.office = item.officeVisited || '';
             row.innerHTML = `
-                <td><input type="date" class="form-control" value="${item.visitDate || ''}" readonly></td>
-                <td><input type="text" class="form-control" value="${item.name || ''}" readonly></td>
-                <td><input type="text" class="form-control" value="${item.contact || ''}" readonly></td>
-                <td><input type="text" class="form-control" value="${item.occupation || ''}" readonly></td>
-                <td><input type="text" class="form-control" value="${item.reason || ''}" readonly></td>
+                <td><input type="date" class="form-control" value="${escapeHtml(item.visitDate || '')}" readonly></td>
+                <td><input type="text" class="form-control" value="${escapeHtml(item.name || '')}" readonly></td>
+                <td><input type="text" class="form-control" value="${escapeHtml(item.contact || '')}" readonly></td>
+                <td><input type="text" class="form-control" value="${escapeHtml(item.occupation || '')}" readonly></td>
+                <td><input type="text" class="form-control" value="${escapeHtml(item.reason || '')}" readonly></td>
+                <td><input type="text" class="form-control" value="${escapeHtml(item.officeVisited || '')}" readonly></td>
                 <td>
                     ${item.signature ? `<img src="${item.signature}" alt="Signature" style="max-height:50px;">` : 'N/A'}
                 </td>
+                <td>${visitorAttendanceCell(item)}</td>
                 <td><span class="text-muted">${labels.saved}</span></td>
             `;
             tbody.appendChild(row);
@@ -544,24 +745,59 @@
         const tbody = document.getElementById('visitorListBody');
         tbody.innerHTML = '';
         if (!items || items.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center">No visitors found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" class="text-center">No visitors found.</td></tr>';
             return;
         }
-        tbody.innerHTML = items.map(item => `
-            <tr data-visitor-id="${item.visitorID}">
+        tbody.innerHTML = items.map(item => {
+            const canSignIn = !item.signedInAt;
+            const canSignOut = !!item.signedInAt && !item.signedOutAt;
+            let attendanceBtns = '';
+            if (canSignIn) {
+                attendanceBtns += `<button type="button" class="btn btn-sm btn-primary-custom visitor-sign-in mb-1" data-visitor-id="${item.visitorID}">${labels.signIn}</button> `;
+            }
+            if (canSignOut) {
+                attendanceBtns += `<button type="button" class="btn btn-sm btn-warning visitor-sign-out mb-1" data-visitor-id="${item.visitorID}">${labels.signOut}</button>`;
+            }
+            if (!canSignIn && !canSignOut) {
+                attendanceBtns = `<span class="badge bg-secondary mb-1">${labels.completed}</span><br>`;
+            }
+            return `
+            <tr data-visitor-id="${item.visitorID}"
+                data-name="${escapeHtml(item.name || '')}"
+                data-contact="${escapeHtml(item.contact || '')}"
+                data-occupation="${escapeHtml(item.occupation || '')}"
+                data-reason="${escapeHtml(item.reason || '')}"
+                data-office="${escapeHtml(item.officeVisited || '')}">
                 <td><input type="checkbox" class="visitor-checkbox" value="${item.visitorID}"></td>
-                <td>${item.visitDate || ''}</td>
-                <td>${item.name || ''}</td>
-                <td>${item.contact || ''}</td>
-                <td>${item.occupation || ''}</td>
-                <td>${item.reason || ''}</td>
+                <td>${escapeHtml(item.visitDate || '')}</td>
+                <td>${escapeHtml(item.name || '')}</td>
+                <td>${escapeHtml(item.contact || '')}</td>
+                <td>${escapeHtml(item.occupation || '')}</td>
+                <td>${escapeHtml(item.reason || '')}</td>
+                <td>${escapeHtml(item.officeVisited || labels.noOffice)}</td>
+                <td>${escapeHtml(item.signedInAt || labels.noOffice)}</td>
+                <td>${escapeHtml(item.signedOutAt || labels.noOffice)}</td>
                 <td>${item.signature ? `<img src="${item.signature}" alt="Signature" style="max-height:40px;">` : 'N/A'}</td>
                 <td>
+                    ${attendanceBtns}
                     <button class="btn btn-sm btn-light edit-visitor">Edit</button>
                     <button class="btn btn-sm btn-danger delete-visitor">Delete</button>
                 </td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
+    }
+
+    function postVisitorAttendance(url, payload) {
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+            },
+            body: new URLSearchParams(payload)
+        }).then(res => res.json());
     }
 
     function loadVisitorList() {
@@ -654,13 +890,73 @@
     }
 
     document.addEventListener('click', (e) => {
+        if (e.target.closest('.visitor-sign-in')) {
+            const btn = e.target.closest('.visitor-sign-in');
+            const visitorID = btn.dataset.visitorId;
+            const currentOffice = btn.closest('tr')?.dataset?.office || '';
+            Swal.fire({
+                title: labels.signIn,
+                input: 'text',
+                inputLabel: labels.officePrompt,
+                inputValue: currentOffice === '—' ? '' : currentOffice,
+                showCancelButton: true,
+                confirmButtonColor: '#940000',
+                confirmButtonText: labels.signIn
+            }).then(result => {
+                if (!result.isConfirmed) return;
+                postVisitorAttendance(`{{ $signInRoute }}`, {
+                    visitorID,
+                    office_visited: result.value || ''
+                }).then(data => {
+                    if (data.success) {
+                        Swal.fire({ icon: 'success', title: labels.successTitle, text: data.message, confirmButtonColor: '#940000' });
+                        loadTodayVisitors();
+                        if (!watchmanOnly && document.getElementById('visitorListBody')) loadVisitorList();
+                    } else {
+                        Swal.fire({ icon: 'error', title: labels.failedTitle, text: data.message || labels.failedSave, confirmButtonColor: '#940000' });
+                    }
+                }).catch(() => {
+                    Swal.fire({ icon: 'error', title: labels.failedTitle, text: labels.failedSave, confirmButtonColor: '#940000' });
+                });
+            });
+            return;
+        }
+
+        if (e.target.closest('.visitor-sign-out')) {
+            const btn = e.target.closest('.visitor-sign-out');
+            const visitorID = btn.dataset.visitorId;
+            Swal.fire({
+                icon: 'question',
+                title: labels.signOut + '?',
+                showCancelButton: true,
+                confirmButtonColor: '#940000',
+                confirmButtonText: labels.signOut
+            }).then(result => {
+                if (!result.isConfirmed) return;
+                postVisitorAttendance(`{{ $signOutRoute }}`, { visitorID }).then(data => {
+                    if (data.success) {
+                        Swal.fire({ icon: 'success', title: labels.successTitle, text: data.message, confirmButtonColor: '#940000' });
+                        loadTodayVisitors();
+                        if (!watchmanOnly && document.getElementById('visitorListBody')) loadVisitorList();
+                    } else {
+                        Swal.fire({ icon: 'error', title: labels.failedTitle, text: data.message || labels.failedSave, confirmButtonColor: '#940000' });
+                    }
+                }).catch(() => {
+                    Swal.fire({ icon: 'error', title: labels.failedTitle, text: labels.failedSave, confirmButtonColor: '#940000' });
+                });
+            });
+            return;
+        }
+
         if (e.target.classList.contains('edit-visitor')) {
             const row = e.target.closest('tr');
             document.getElementById('editVisitorID').value = row.dataset.visitorId;
-            document.getElementById('editVisitorName').value = row.children[2].textContent.trim();
-            document.getElementById('editVisitorContact').value = row.children[3].textContent.trim();
-            document.getElementById('editVisitorOccupation').value = row.children[4].textContent.trim();
-            document.getElementById('editVisitorReason').value = row.children[5].textContent.trim();
+            document.getElementById('editVisitorName').value = row.dataset.name || '';
+            document.getElementById('editVisitorContact').value = row.dataset.contact || '';
+            document.getElementById('editVisitorOccupation').value = row.dataset.occupation || '';
+            document.getElementById('editVisitorReason').value = row.dataset.reason || '';
+            const officeField = document.getElementById('editVisitorOffice');
+            if (officeField) officeField.value = row.dataset.office || '';
             openModal('editVisitorModal');
         }
         if (e.target.classList.contains('delete-visitor')) {

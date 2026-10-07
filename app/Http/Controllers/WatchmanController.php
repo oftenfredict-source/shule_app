@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 
@@ -238,6 +239,9 @@ class WatchmanController extends Controller
                     'contact' => $visitor->contact,
                     'occupation' => $visitor->occupation,
                     'reason' => $visitor->reason,
+                    'officeVisited' => $visitor->office_visited ?? null,
+                    'signedInAt' => $visitor->signed_in_at ? $visitor->signed_in_at->format('Y-m-d H:i') : null,
+                    'signedOutAt' => $visitor->signed_out_at ? $visitor->signed_out_at->format('Y-m-d H:i') : null,
                     'signature' => $visitor->signature,
                 ];
             }),
@@ -256,17 +260,21 @@ class WatchmanController extends Controller
         $contacts = $request->input('contact', []);
         $occupations = $request->input('occupation', []);
         $reasons = $request->input('reason', []);
+        $offices = $request->input('office_visited', []);
         $signatures = $request->input('signature', []);
 
         $today = Carbon::today()->toDateString();
+        $now = now();
         $rows = [];
+        $hasOffice = Schema::hasColumn('school_visitors', 'office_visited');
+        $hasSignedIn = Schema::hasColumn('school_visitors', 'signed_in_at');
 
         foreach ($names as $index => $name) {
             $trimmed = trim((string) $name);
             if ($trimmed === '') {
                 continue;
             }
-            $rows[] = [
+            $row = [
                 'schoolID' => $schoolID,
                 'visit_date' => $today,
                 'name' => $trimmed,
@@ -274,9 +282,16 @@ class WatchmanController extends Controller
                 'occupation' => isset($occupations[$index]) ? trim((string) $occupations[$index]) : null,
                 'reason' => isset($reasons[$index]) ? trim((string) $reasons[$index]) : null,
                 'signature' => isset($signatures[$index]) ? $signatures[$index] : null,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
+            if ($hasOffice) {
+                $row['office_visited'] = isset($offices[$index]) ? trim((string) $offices[$index]) : null;
+            }
+            if ($hasSignedIn) {
+                $row['signed_in_at'] = $now;
+            }
+            $rows[] = $row;
         }
 
         if (empty($rows)) {

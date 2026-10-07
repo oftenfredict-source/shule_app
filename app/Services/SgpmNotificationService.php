@@ -34,7 +34,7 @@ class SgpmNotificationService {
         if ($user) {
             $phone = $this->getUserPhone($user);
             if ($phone) {
-                $this->smsService->sendSms($phone, $message);
+                $this->smsService->sendSms($phone, $message, null, $user->schoolID ?? null);
             }
         }
     }
@@ -58,7 +58,7 @@ class SgpmNotificationService {
         // Send SMS to School Phone Number
         $school = School::find($schoolId);
         if ($school && $school->phone) {
-            $this->smsService->sendSms($school->phone, $message);
+            $this->smsService->sendSms($school->phone, $message, null, $schoolId);
         }
     }
 

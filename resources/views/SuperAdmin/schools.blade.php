@@ -1,7 +1,11 @@
 @extends('includes.superadmin_nav')
 
+@section('page_title', 'Registered Schools')
+@section('page_subtitle', 'Full management of institutional data')
+@section('page_breadcrumb', 'Registered Schools')
+
 @section('content')
-<div class="container-fluid mt-3">
+<div class="container-fluid px-0 mt-1">
     <style>
         :root {
             --primary-red: #940000;
@@ -87,6 +91,12 @@
             <p class="text-muted small mb-0">Full management of institutional data</p>
         </div>
         <div class="d-flex flex-wrap" style="gap:8px;">
+            <button type="button" class="btn btn-outline-danger btn-sm" id="btnDisableSmsAll" title="Stop all outbound SMS to clients">
+                <i class="bx bx-message-x me-1"></i> Disable SMS (All)
+            </button>
+            <button type="button" class="btn btn-outline-success btn-sm" id="btnEnableSmsAll" title="Allow outbound SMS for all schools">
+                <i class="bx bx-message-check me-1"></i> Enable SMS (All)
+            </button>
             <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCopyPublicRegLink"
                     data-url="https://test.shulexpert.com/register-school">
                 <i class="bx bx-link me-1"></i> Copy Register Link
@@ -111,6 +121,30 @@
             prompt('Copy this link:', url);
         }
     });
+
+    function bulkSmsToggle(enabled) {
+        var label = enabled ? 'ENABLE SMS for ALL schools?' : 'DISABLE SMS for ALL schools?\n\nNo SMS will be sent to parents/clients until re-enabled.';
+        if (!confirm(label)) return;
+        fetch('{{ route("superadmin.schools.bulk_sms_enabled") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ sms_enabled: enabled })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            alert(data.message || (data.success ? 'Done' : 'Failed'));
+            if (data.success) location.reload();
+        })
+        .catch(function () {
+            alert('Request failed. Please try again.');
+        });
+    }
+    document.getElementById('btnDisableSmsAll')?.addEventListener('click', function () { bulkSmsToggle(false); });
+    document.getElementById('btnEnableSmsAll')?.addEventListener('click', function () { bulkSmsToggle(true); });
     </script>
 
     @if (session('success'))
@@ -130,6 +164,7 @@
                             <th width="60">Logo</th>
                             <th>School Name & Reg No.</th>
                             <th width="120">Students</th>
+                            <th width="100">SMS</th>
                             <th width="80">Actions</th>
                         </tr>
                     </thead>
@@ -144,6 +179,7 @@
                                 $classes = $classesBySchool[$sid] ?? collect();
                                 $subclasses = $subclassesBySchool[$sid] ?? collect();
                                 $placeholderLogo = asset('images/school-placeholder.svg');
+                                $smsOn = $school->isSmsEnabled();
                             @endphp
                             <tr>
                                 <td>{{ $i + 1 }}</td>
@@ -159,6 +195,13 @@
                                     <span class="badge px-2 py-1 text-white" style="background-color: #940000;">
                                         {{ number_format($sCount) }} Students
                                     </span>
+                                </td>
+                                <td class="text-center">
+                                    @if($smsOn)
+                                        <span class="badge bg-success">ON</span>
+                                    @else
+                                        <span class="badge bg-danger">OFF</span>
+                                    @endif
                                 </td>
                                 <td class="text-center">
                                     <div class="dropdown">
@@ -248,6 +291,8 @@
                                     <div class="detail-row"><span class="detail-label">Phone:</span> <span class="detail-value" id="v_phone"></span></div>
                                     <div class="detail-row"><span class="detail-label">Email:</span> <span class="detail-value" id="v_email"></span></div>
                                     <div class="detail-row"><span class="detail-label">Sender ID:</span> <span class="detail-value" id="v_sender"></span></div>
+                                    <div class="detail-row"><span class="detail-label">SMS Sending:</span> <span class="detail-value" id="v_sms_enabled"></span></div>
+                                    <div class="detail-row"><span class="detail-label">Student Portal:</span> <span class="detail-value" id="v_student_portal"></span></div>
                                     <div class="detail-row"><span class="detail-label">2FA Enabled:</span> <span class="detail-value" id="v_2fa"></span></div>
                                     <div class="detail-row"><span class="detail-label">Must Change Default Password:</span> <span class="detail-value" id="v_must_change_password"></span></div>
                                 </div>
@@ -316,11 +361,26 @@
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="fw-bold small">SENDER ID</label>
                                 <input type="text" class="form-control" name="senderID" id="e_sender" maxlength="11">
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
+                                <label class="fw-bold small">SMS SENDING</label>
+                                <select class="form-select" name="sms_enabled" id="e_sms_enabled">
+                                    <option value="1">Enabled (ON)</option>
+                                    <option value="0">Disabled (OFF)</option>
+                                </select>
+                                <small class="text-muted">When OFF, no SMS is sent to parents/clients for this school.</small>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="fw-bold small">STUDENT PORTAL</label>
+                                <select class="form-select" name="student_portal_enabled" id="e_student_portal">
+                                    <option value="0">No</option>
+                                    <option value="1">Yes — students sign in with admission number</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
                                 <label class="fw-bold small">LOGIN ACCESS</label>
                                 <select class="form-select" name="login_status" id="e_login_status">
                                     <option value="1">Grant Access (True)</option>
@@ -458,6 +518,10 @@
             $('#v_phone').text(s.phone || 'N/A');
             $('#v_email').text(s.email || 'N/A');
             $('#v_sender').text(s.senderID || 'N/A');
+            const smsOn = (s.sms_enabled === undefined || s.sms_enabled === null) ? true : !!(s.sms_enabled == 1 || s.sms_enabled === true);
+            $('#v_sms_enabled').html(smsOn ? '<span class="badge bg-success">ENABLED</span>' : '<span class="badge bg-danger">DISABLED</span>');
+            const portalOn = !!(s.student_portal_enabled == 1 || s.student_portal_enabled === true);
+            $('#v_student_portal').html(portalOn ? '<span class="badge bg-success">YES</span>' : '<span class="badge bg-secondary">NO</span>');
             $('#v_2fa').text(s.two_factor_enabled ? 'Yes' : 'No');
             $('#v_must_change_password').text(s.must_change_default_password ? 'Yes' : 'No');
             
@@ -496,6 +560,10 @@
             $('#e_env').val(s.environment);
             $('#e_status').val(s.status);
             $('#e_sender').val(s.senderID);
+            const smsEnabled = (s.sms_enabled === undefined || s.sms_enabled === null) ? 1 : ((s.sms_enabled == 1 || s.sms_enabled === true) ? 1 : 0);
+            $('#e_sms_enabled').val(String(smsEnabled));
+            const portalEnabled = (s.student_portal_enabled == 1 || s.student_portal_enabled === true) ? 1 : 0;
+            $('#e_student_portal').val(String(portalEnabled));
             $('#e_2fa').prop('checked', s.two_factor_enabled == 1);
             $('#e_must_change_password').prop('checked', s.must_change_default_password == 1);
             $('#e_under_org').prop('checked', s.is_under_organization == 1 || s.is_under_organization === true);

@@ -173,8 +173,209 @@ class TeacherDutyController extends Controller
 
         // Fetch school details for dynamic labels
         $school_details = \App\Models\School::find($schoolID);
+        $classTeacherPermissions = $this->approvedParentPermissionsForClassTeacher((int) $schoolID, (int) $teacherID);
+        $isClassTeacher = DB::table('subclasses')->where('teacherID', $teacherID)->exists();
 
-        return view('Teacher.duty_book', compact('duties', 'monthTitle', 'fromDate', 'toDate', 'currentDuty', 'classes', 'reports', 'school_details'));
+        return view('Teacher.duty_book', compact('duties', 'monthTitle', 'fromDate', 'toDate', 'currentDuty', 'classes', 'reports', 'school_details', 'classTeacherPermissions', 'isClassTeacher'));
+    }
+
+    public function parentPermissions(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $userType = Session::get('user_type');
+        $teacherID = Session::get('teacherID');
+        $userID = Session::get('userID') ?: Session::get('id');
+        $date = $request->get('date');
+
+        if (!$schoolID || !$userType) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+        if (!$date) {
+            return response()->json(['success' => false, 'message' => 'Date is required'], 400);
+        }
+
+        $rows = DB::table('student_permissions as sp')
+            ->join('students', 'sp.student_id', '=', 'students.studentID')
+            ->leftJoin('parents', 'students.parentID', '=', 'parents.parentID')
+            ->where('sp.schoolID', $schoolID)
+            ->where('sp.requester_type', 'parent')
+            ->whereDate('sp.start_date', '<=', $date)
+            ->whereDate('sp.end_date', '>=', $date)
+            ->orderBy('students.first_name')
+            ->select(
+                'sp.id',
+                'sp.student_id',
+                'sp.status',
+                'sp.reason_type',
+                'sp.reason_description',
+                'sp.start_date',
+                'sp.end_date',
+                'sp.days_count',
+                'sp.current_approval_order',
+                'students.first_name',
+                'students.last_name',
+                'parents.first_name as parent_first_name',
+                'parents.last_name as parent_last_name'
+            )
+            ->get();
+
+        $items = $rows->map(function ($row) use ($schoolID, $userType, $teacherID, $userID) {
+            $classTeacher = $this->classTeacherRow((int) $row->student_id, (int) $schoolID);
+            $row->class_teacher_id = $classTeacher->id ?? null;
+            $classLabel = trim(($classTeacher->class_name ?? '') . ' ' . ($classTeacher->subclass_name ?? ''));
+
+            return [
+                'id' => $row->id,
+                'student_name' => trim($row->first_name . ' ' . ($row->last_name ?? '')),
+                'parent_name' => trim(($row->parent_first_name ?? '') . ' ' . ($row->parent_last_name ?? '')) ?: 'Parent',
+                'class_name' => $classLabel !== '' ? $classLabel : '—',
+                'reason_type' => $row->reason_type,
+                'reason' => $row->reason_description,
+                'start_date' => $row->start_date,
+                'end_date' => $row->end_date,
+                'days_count' => $row->days_count,
+                'status' => $row->status,
+                'can_act' => $this->viewerCanApproveParentPermission($row, (int) $schoolID, (string) $userType, $teacherID ? (int) $teacherID : null, $userID ? (int) $userID : null),
+            ];
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'permissions' => $items,
+        ]);
+    }
+
+    private function approvedParentPermissionsForClassTeacher(int $schoolID, int $teacherID)
+    {
+        $subclassIds = DB::table('subclasses')
+            ->where('teacherID', $teacherID)
+            ->pluck('subclassID')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (empty($subclassIds)) {
+            return collect();
+        }
+
+        $service = app(StudentEnrollmentService::class);
+        $studentIds = [];
+        foreach ($subclassIds as $subclassId) {
+            $studentIds = array_merge(
+                $studentIds,
+                $service->studentIDsInSubclass($subclassId, $schoolID, 'Active')
+            );
+        }
+        $studentIds = array_values(array_unique(array_map('intval', $studentIds)));
+        if (empty($studentIds)) {
+            return collect();
+        }
+
+        return DB::table('student_permissions as sp')
+            ->join('students', 'sp.student_id', '=', 'students.studentID')
+            ->leftJoin('parents', 'students.parentID', '=', 'parents.parentID')
+            ->where('sp.schoolID', $schoolID)
+            ->where('sp.requester_type', 'parent')
+            ->where('sp.status', 'approved')
+            ->whereIn('sp.student_id', $studentIds)
+            ->whereDate('sp.end_date', '>=', Carbon::today()->subDays(30)->toDateString())
+            ->orderByDesc('sp.start_date')
+            ->select(
+                'sp.id',
+                'sp.reason_type',
+                'sp.start_date',
+                'sp.end_date',
+                'sp.days_count',
+                'sp.status',
+                'students.first_name',
+                'students.last_name',
+                'parents.first_name as parent_first_name',
+                'parents.last_name as parent_last_name'
+            )
+            ->limit(30)
+            ->get();
+    }
+
+    private function classTeacherRow(int $studentId, int $schoolId): ?object
+    {
+        $subclassId = null;
+        try {
+            $enrollment = app(StudentEnrollmentService::class)->currentEnrollment($studentId, $schoolId);
+            $subclassId = $enrollment->subclassID ?? null;
+        } catch (\Throwable $e) {
+            $subclassId = null;
+        }
+
+        if (!$subclassId) {
+            $subclassId = DB::table('students')->where('studentID', $studentId)->value('subclassID');
+        }
+        if (!$subclassId) {
+            return null;
+        }
+
+        return DB::table('subclasses')
+            ->leftJoin('teachers', 'subclasses.teacherID', '=', 'teachers.id')
+            ->leftJoin('classes', 'subclasses.classID', '=', 'classes.classID')
+            ->where('subclasses.subclassID', $subclassId)
+            ->select(
+                'teachers.id',
+                'classes.class_name',
+                'subclasses.subclass_name'
+            )
+            ->first();
+    }
+
+    private function viewerCanApproveParentPermission($permission, int $schoolID, string $userType, ?int $teacherID, ?int $userID): bool
+    {
+        if (($permission->status ?? '') !== 'pending') {
+            return false;
+        }
+        if ($teacherID && (int) ($permission->class_teacher_id ?? 0) === $teacherID) {
+            return false;
+        }
+
+        $order = (int) ($permission->current_approval_order ?? 0);
+        $chains = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', 'student')
+            ->get();
+
+        if ($userType === 'Admin') {
+            $adminStep = $chains->firstWhere('is_admin', 1) ?: $chains->firstWhere('is_admin', true);
+            if ($adminStep) {
+                return (int) $adminStep->approval_order === $order;
+            }
+            $max = (int) ($chains->max('approval_order') ?? 0);
+
+            return $order === 0 || $order > $max;
+        }
+
+        $roleIds = DB::table('role_user')
+            ->where(function ($q) use ($teacherID, $userID) {
+                if ($teacherID) {
+                    $q->orWhere('teacher_id', $teacherID);
+                }
+                if ($userID) {
+                    $q->orWhere('user_id', $userID);
+                }
+            })
+            ->pluck('role_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $professionId = Session::get('profession_id');
+        foreach ($chains as $step) {
+            if ((int) $step->approval_order !== $order) {
+                continue;
+            }
+            if (!empty($step->role_id) && in_array((int) $step->role_id, $roleIds, true)) {
+                return true;
+            }
+            if ($professionId && !empty($step->profession_id) && (int) $step->profession_id === (int) $professionId) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function getDailyReport(Request $request)

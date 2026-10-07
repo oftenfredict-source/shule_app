@@ -197,6 +197,14 @@
 
                                 <div class="col-md-12">
                                     <div class="form-check form-switch mt-2">
+                                        <input class="form-check-input" type="checkbox" id="student_portal_enabled" name="student_portal_enabled" value="1" {{ old('student_portal_enabled') ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-bold small" for="student_portal_enabled">THIS SCHOOL WILL HAVE A STUDENT PORTAL</label>
+                                        <div class="help">Students sign in with their admission number only, to read teacher notes and books and to take quizzes. Leave off if the school will not use it.</div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-12">
+                                    <div class="form-check form-switch mt-2">
                                         <input class="form-check-input" type="checkbox" id="two_factor_enabled" name="two_factor_enabled" value="1" {{ old('two_factor_enabled') ? 'checked' : '' }}>
                                         <label class="form-check-label fw-bold small" for="two_factor_enabled">ENFORCE TWO-FACTOR AUTHENTICATION (2FA)</label>
                                         <div class="help">Highly recommended for production environments. Admins must verify via SMS.</div>

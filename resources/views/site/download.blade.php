@@ -1,16 +1,18 @@
 @extends('layouts.site')
 
 @section('content')
-<section class="banner-area relative about-banner">
+<section class="banner-area relative about-banner sx-download-banner" id="home">
     <div class="overlay overlay-bg"></div>
+    <div class="sx-download-banner__glow sx-download-banner__glow--a" aria-hidden="true"></div>
+    <div class="sx-download-banner__glow sx-download-banner__glow--b" aria-hidden="true"></div>
     <div class="container">
         <div class="row d-flex align-items-center justify-content-center">
-            <div class="about-content col-lg-12">
-                <h1 class="text-white">Download &amp; Apply</h1>
+            <div class="about-content col-lg-12 text-center">
+                <h1 class="text-white">{{ __('site.download_app') }}</h1>
                 <p class="text-white link-nav">
-                    <a href="{{ route('site.home') }}">Home</a>
+                    <a href="{{ route('site.home') }}">{{ __('site.home') }}</a>
                     <span class="lnr lnr-arrow-right"></span>
-                    <a href="{{ route('site.download') }}">Download App</a>
+                    <a href="{{ route('site.download') }}">{{ __('site.download_app') }}</a>
                 </p>
             </div>
         </div>
@@ -70,12 +72,54 @@
                 <a href="{{ route('online_application') }}" class="primary-btn text-uppercase" style="min-width:240px;">
                     <i class="fa fa-pencil-square-o"></i> Start Online Application
                 </a>
-                <p class="small text-muted mt-3 mb-0">Free for parents · Schools on ShuleXpert</p>
+                <p class="small text-muted mt-3 mb-0">Free for parents, Schools on ShuleXpert</p>
             </div>
         </div>
     </div>
 </section>
 @endsection
+
+@push('styles')
+<style>
+.sx-download-banner.about-banner {
+    min-height: 340px !important;
+    padding-top: 168px !important;
+    padding-bottom: 72px !important;
+    position: relative;
+    overflow: hidden;
+}
+.sx-download-banner__glow {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+}
+.sx-download-banner__glow--a {
+    width: 320px; height: 320px;
+    top: -80px; right: -60px;
+    background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
+}
+.sx-download-banner__glow--b {
+    width: 260px; height: 260px;
+    bottom: -100px; left: -40px;
+    background: radial-gradient(circle, rgba(196,58,58,0.35) 0%, transparent 70%);
+}
+.sx-download-banner .container { position: relative; z-index: 2; }
+.sx-download-banner .about-content h1 {
+    font-size: 38px;
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+@media (max-width: 991.98px) {
+    .sx-download-banner.about-banner {
+        min-height: 300px !important;
+        padding-top: 148px !important;
+        padding-bottom: 60px !important;
+    }
+    .sx-download-banner .about-content h1 { font-size: 30px; }
+}
+</style>
+@endpush
 
 @push('schema')
 @php

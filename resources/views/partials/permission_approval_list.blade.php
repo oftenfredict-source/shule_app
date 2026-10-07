@@ -72,6 +72,14 @@
                 $isMyTurn = true;
             }
         }
+
+        $viewOnlyClassTeacher = $isStudentPerm
+            && ($permission->requester_type ?? '') === 'parent'
+            && session('teacherID')
+            && (int) session('teacherID') === (int) ($permission->class_teacher_id ?? 0);
+        if ($viewOnlyClassTeacher) {
+            $isMyTurn = false;
+        }
     @endphp
     <tr>
         <td>
@@ -100,7 +108,9 @@
             <strong>{{ $permission->reason_type }}</strong><br>
             <span class="text-truncate d-inline-block" style="max-width: 150px;">{{ $permission->reason_description }}</span>
             <br>
-            @if(!$isMyTurn)
+            @if($viewOnlyClassTeacher)
+                <span class="badge badge-secondary shadow-sm"><i class="fa fa-eye"></i> View only</span>
+            @elseif(!$isMyTurn)
                 <span class="badge badge-info shadow-sm"><i class="fa fa-hourglass-half"></i> Awaiting Previous Stage</span>
             @else
                 <span class="badge badge-warning shadow-sm"><i class="fa fa-bell"></i> Your Turn</span>
@@ -121,7 +131,7 @@
                     </a>
                     @else
                     <a class="dropdown-item text-muted disabled" href="#" onclick="return false;">
-                        <i class="fa fa-lock"></i> Approval Locked
+                        <i class="fa fa-{{ $viewOnlyClassTeacher ? 'eye' : 'lock' }}"></i> {{ $viewOnlyClassTeacher ? 'View only' : 'Approval Locked' }}
                     </a>
                     @endif
                     <div class="dropdown-divider"></div>

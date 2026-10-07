@@ -53,20 +53,37 @@ class SmsService
      * @param string $phoneNumber Phone number (e.g., 255614863345)
      * @param string $message Message to send
      * @param string|null $senderID Optional sender ID override
+     * @param int|null $schoolID Optional school ID (falls back to session('schoolID'))
      * @return array Response with success status and message
      */
-    public function sendSms($phoneNumber, $message, $senderID = null)
+    public function sendSms($phoneNumber, $message, $senderID = null, $schoolID = null)
     {
         try {
+            $resolvedSchoolID = $schoolID ?: session('schoolID');
+            $school = null;
+
+            if ($resolvedSchoolID) {
+                $school = \App\Models\School::find($resolvedSchoolID);
+                if ($school && !$school->isSmsEnabled()) {
+                    Log::info("SmsService: SMS blocked — disabled for school {$resolvedSchoolID}");
+                    return [
+                        'success' => false,
+                        'message' => 'SMS is disabled for this school.',
+                        'disabled' => true,
+                    ];
+                }
+            }
+
             // Determine Sender ID
             $finalSenderID = $senderID;
 
             if (!$finalSenderID) {
-                $schoolID = session('schoolID');
-                if ($schoolID) {
-                    $school = \App\Models\School::find($schoolID);
-                    if ($school && $school->senderID) {
-                        $finalSenderID = $school->senderID;
+                if ($school && $school->senderID) {
+                    $finalSenderID = $school->senderID;
+                } elseif (!$school && session('schoolID')) {
+                    $fallbackSchool = \App\Models\School::find(session('schoolID'));
+                    if ($fallbackSchool && $fallbackSchool->senderID) {
+                        $finalSenderID = $fallbackSchool->senderID;
                     }
                 }
             }

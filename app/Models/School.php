@@ -40,6 +40,8 @@ class School extends Model
         'two_factor_enabled',
         'must_change_default_password',
         'senderID',
+        'sms_enabled',
+        'student_portal_enabled',
         'login_status',
         'suspension_reason',
     ];
@@ -47,8 +49,28 @@ class School extends Model
     protected $casts = [
         'is_under_organization' => 'boolean',
         'enable_social_media' => 'boolean',
+        'sms_enabled' => 'boolean',
+        'student_portal_enabled' => 'boolean',
         'social_media' => 'array',
     ];
+
+    /**
+     * Whether outbound SMS is allowed for this school.
+     * Defaults to true when the column is missing/null (pre-migration safety).
+     */
+    public function isSmsEnabled(): bool
+    {
+        if ($this->sms_enabled === null) {
+            return true;
+        }
+
+        return (bool) $this->sms_enabled;
+    }
+
+    public function isStudentPortalEnabled(): bool
+    {
+        return (bool) $this->student_portal_enabled;
+    }
 
     public function socialMediaLinks(): array
     {

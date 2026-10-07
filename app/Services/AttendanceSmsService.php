@@ -362,7 +362,7 @@ class AttendanceSmsService
         }
 
         $smsService = new SmsService();
-        $result = $smsService->sendSms($phone, $message);
+        $result = $smsService->sendSms($phone, $message, null, $schoolID);
 
         if ($result['success'] ?? false) {
             AttendanceSmsLog::updateOrCreate(
@@ -962,7 +962,7 @@ class AttendanceSmsService
         }
 
         $smsService = new SmsService();
-        $result = $smsService->sendSms($phone, $message);
+        $result = $smsService->sendSms($phone, $message, null, $schoolID);
 
         if ($result['success'] ?? false) {
             $periodKey = substr(md5($status . '|' . $searchType . '|' . $range['start']->format('Y-m-d') . '|' . $range['end']->format('Y-m-d')), 0, 16);

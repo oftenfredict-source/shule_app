@@ -108,8 +108,9 @@
     #header.header,
     .right-panel header.header,
     header#header.header {
-        border-bottom: 1px solid #d0d0d0 !important;
-        box-shadow: none !important;
+        border-bottom: none !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
+        background: #940000 !important;
     }
     #header .header-left {
         display: flex !important;

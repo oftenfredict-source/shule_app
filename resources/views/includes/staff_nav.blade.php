@@ -673,6 +673,8 @@
                                         @if($hasStudentPermission)
                                             <li><a href="{{ route('manage_student') }}" class="nav-link"><i
                                                         class="fa fa-user"></i> Students</a></li>
+                                            <li><a href="{{ route('admin.pending_students.index') }}" class="nav-link"><i
+                                                        class="fa fa-user-plus"></i> Pending Registrations</a></li>
                                         @endif
                                         @if($hasParentPermission)
                                             <li><a href="{{ route('manage_parents') }}" class="nav-link"><i

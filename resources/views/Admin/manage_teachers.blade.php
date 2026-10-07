@@ -285,28 +285,97 @@
         position: relative;
         display: inline-block;
     }
+    .teachers-table .js-actions-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 12px;
+        border: 1px solid #940000;
+        background: #fff;
+        color: #940000;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+    }
+    .teachers-table .js-actions-toggle::after {
+        content: "";
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid currentColor;
+    }
+    .teachers-table .js-actions-toggle:hover,
+    .actions-dropdown.is-open .js-actions-toggle {
+        background: #940000;
+        color: #fff;
+    }
     .actions-dropdown .actions-menu {
-        position: absolute;
-        top: 100%;
-        right: 0;
-        min-width: 200px;
-        background: #ffffff;
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-        padding: 6px 0;
-        margin: 6px 0 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        min-width: 228px;
+        background: #fff;
+        border: 1px solid #eadfdf;
+        box-shadow: 0 14px 36px rgba(47, 16, 16, 0.18);
+        padding: 6px;
+        margin: 0;
         list-style: none;
         display: none;
-        z-index: 2000;
+        z-index: 4000;
     }
     .actions-dropdown.is-open .actions-menu {
         display: block;
     }
+    .actions-dropdown .actions-menu li {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+    .actions-dropdown .actions-menu .actions-divider {
+        height: 1px;
+        margin: 4px 6px;
+        background: #f0e4e4;
+    }
     .actions-dropdown .actions-menu .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         width: 100%;
-        text-align: left;
+        margin: 0;
+        padding: 8px 10px;
+        border: 0;
+        border-radius: 0;
         background: transparent;
-        border: none;
+        color: #2f2f2f;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.2;
+        text-align: left;
+        text-decoration: none;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+    .actions-dropdown .actions-menu .dropdown-item i {
+        width: 16px;
+        flex: 0 0 16px;
+        text-align: center;
+        color: #940000;
+        font-size: 15px;
+    }
+    .actions-dropdown .actions-menu .dropdown-item:hover,
+    .actions-dropdown .actions-menu .dropdown-item:focus {
+        background: #f8eeee;
+        color: #940000;
+        outline: none;
+    }
+    .actions-dropdown .actions-menu .dropdown-item.text-danger,
+    .actions-dropdown .actions-menu .dropdown-item.text-danger i {
+        color: #b42318;
+    }
+    .actions-dropdown .actions-menu .dropdown-item.text-danger:hover {
+        background: #fff1f0;
     }
 </style>
 
@@ -489,6 +558,16 @@
                                                                         <i class="bi bi-fingerprint"></i> Send to Fingerprint
                                                                     </a>
                                                                 </li>
+                                                                <li>
+                                                                    <button type="button" class="dropdown-item generate-password-btn"
+                                                                        data-kind="teacher"
+                                                                        data-id="{{ $teacher->id }}"
+                                                                        data-name="{{ trim($teacher->first_name.' '.$teacher->last_name) }}"
+                                                                        data-username="{{ $teacher->employee_number }}">
+                                                                        <i class="bi bi-key"></i> Generate Password
+                                                                    </button>
+                                                                </li>
+                                                                <li class="actions-divider" role="separator"></li>
                                                                 <li>
                                                                     <a href="#" class="dropdown-item text-danger delete-teacher-btn"
                                                                        data-teacher-id="{{ $teacher->id }}"
@@ -996,6 +1075,16 @@
                                                                         <i class="bi bi-fingerprint"></i> Send to Fingerprint
                                                                     </button>
                                                                 </li>
+                                                                <li>
+                                                                    <button type="button" class="dropdown-item generate-password-btn"
+                                                                        data-kind="staff"
+                                                                        data-id="{{ $staffMember->id }}"
+                                                                        data-name="{{ trim(($staffMember->first_name ?? '').' '.($staffMember->last_name ?? '')) }}"
+                                                                        data-username="{{ $staffMember->employee_number }}">
+                                                                        <i class="bi bi-key"></i> Generate Password
+                                                                    </button>
+                                                                </li>
+                                                                <li class="actions-divider" role="separator"></li>
                                                                 <li>
                                                                     <button class="dropdown-item text-danger delete-staff-btn" data-staff-id="{{ $staffMember->id }}">
                                                                         <i class="bi bi-trash"></i> Delete
@@ -3166,15 +3255,51 @@
 
         // Tab navigation handled via server-side links.
 
+        function placeActionsMenu($dropdown) {
+            var btn = $dropdown.find('.js-actions-toggle')[0];
+            var menu = $dropdown.find('.actions-menu')[0];
+            if (!btn || !menu) return;
+            var rect = btn.getBoundingClientRect();
+            var width = Math.max(menu.offsetWidth, 228);
+            var height = menu.offsetHeight;
+            var left = rect.right - width;
+            if (left < 8) left = 8;
+            if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
+            var top = rect.bottom + 6;
+            if (top + height > window.innerHeight - 8 && rect.top - height - 6 > 8) {
+                top = rect.top - height - 6;
+            }
+            menu.style.left = left + 'px';
+            menu.style.top = top + 'px';
+        }
+
         $(document).on('click', '.js-actions-toggle', function(e) {
             e.preventDefault();
             e.stopPropagation();
             var $dropdown = $(this).closest('.actions-dropdown');
-            $('.actions-dropdown').not($dropdown).removeClass('is-open');
-            $dropdown.toggleClass('is-open');
+            var willOpen = !$dropdown.hasClass('is-open');
+            $('.actions-dropdown').removeClass('is-open');
+            if (willOpen) {
+                $dropdown.addClass('is-open');
+                placeActionsMenu($dropdown);
+            }
+        });
+
+        $(document).on('click', '.actions-menu', function(e) {
+            e.stopPropagation();
+            if ($(e.target).closest('.dropdown-item').length) {
+                $('.actions-dropdown').removeClass('is-open');
+            }
         });
 
         $(document).on('click', function() {
+            $('.actions-dropdown').removeClass('is-open');
+        });
+
+        $(window).on('scroll resize', function() {
+            $('.actions-dropdown').removeClass('is-open');
+        });
+        $(document).on('scroll', '.table-responsive, .dataTables_scrollBody', function() {
             $('.actions-dropdown').removeClass('is-open');
         });
 
@@ -4009,6 +4134,74 @@
                     $('#viewTeacherModal').modal('show');
                 }
             }
+        });
+
+        // Generate a new login password when someone forgot theirs
+        $(document).on('click', '.generate-password-btn', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var kind = $(this).data('kind');
+            var personId = $(this).data('id');
+            var personName = $(this).data('name') || 'user';
+            var permission = kind === 'staff' ? 'staff_update' : 'teacher_update';
+            $('.actions-dropdown').removeClass('is-open');
+            if (!hasPermission(permission)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Access Denied',
+                    text: 'You are not allowed to generate a password. You need the ' + permission + ' permission.'
+                });
+                return false;
+            }
+            var safeName = $('<div>').text(personName).html();
+            Swal.fire({
+                title: 'Generate new password?',
+                html: 'Password ya <strong>' + safeName + '</strong> itabadilika. Password ya zamani haitaingia tena.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#940000',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Generate'
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                $.ajax({
+                    url: "{{ route('admin.generate_login_password') }}",
+                    type: 'POST',
+                    data: {
+                        _token: $('meta[name="csrf-token"]').attr('content'),
+                        kind: kind,
+                        id: personId
+                    },
+                    success: function(response) {
+                        var username = $('<div>').text(response.username || '').html();
+                        var password = $('<div>').text(response.password || '').html();
+                        var note = $('<div>').text(response.sms_note || '').html();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Password mpya',
+                            html: '<div style="text-align:left;font-size:14px;">' +
+                                '<div style="margin-bottom:8px;"><span style="color:#666;">Username</span><br><strong>' + username + '</strong></div>' +
+                                '<div style="margin-bottom:8px;"><span style="color:#666;">Password</span><br><strong style="font-size:18px;letter-spacing:1px;color:#940000;">' + password + '</strong></div>' +
+                                '<div style="color:#666;">' + note + '</div></div>',
+                            confirmButtonColor: '#940000',
+                            confirmButtonText: 'Copy password',
+                            showCancelButton: true,
+                            cancelButtonText: 'Close'
+                        }).then(function(copyResult) {
+                            if (copyResult.isConfirmed && navigator.clipboard && response.password) {
+                                navigator.clipboard.writeText(response.password);
+                            }
+                        });
+                    },
+                    error: function(xhr) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Imeshindikana',
+                            text: (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message)) || 'Password haikutengenezwa.'
+                        });
+                    }
+                });
+            });
         });
 
         // Delete Teacher

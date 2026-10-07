@@ -39,6 +39,29 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, \Illuminate\Http\Request $request) {
+            if ($e->getStatusCode() !== 419) {
+                return null;
+            }
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSRF token mismatch.',
+                    'csrf_token' => csrf_token(),
+                ], 419);
+            }
+
+            $target = url()->previous();
+            if (!$target || $target === $request->fullUrl()) {
+                $target = route('login');
+            }
+
+            return redirect()->to($target)
+                ->with('error', 'Kikao kimekwisha. Jaribu kuingia tena.')
+                ->header('Cache-Control', 'no-store, private, max-age=0');
+        });
+
         $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, $request) {
             if ($request->ajax() || $request->wantsJson()) {
                 $limit = ini_get('post_max_size') ?: 'server limit';

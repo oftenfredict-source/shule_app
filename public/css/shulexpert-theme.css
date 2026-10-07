@@ -1,6 +1,7 @@
 /* ============================================================
-   ShuleXpert Global Theme — Light (white) / Dark (black)
+   ShuleXpert Global Theme — Light / Soft Dark
    Toggle: data-sx-theme on <html> via includes/theme_toggle
+   Public site uses its own soft dark in shulexpert-site.css
    ============================================================ */
 
 /* ---------- Theme toggle button ---------- */
@@ -27,13 +28,13 @@
 .sx-theme-toggle.is-dark .sx-theme-icon-moon { display: none; }
 .sx-theme-toggle.is-dark .sx-theme-icon-sun { display: inline; }
 .sx-theme-toggle.is-dark {
-    background: #111111;
-    border-color: #444444;
-    color: #ffffff;
+    background: #1f1418;
+    border-color: rgba(255, 180, 180, 0.35);
+    color: #ffb4b4;
 }
 .sx-theme-toggle.is-dark:hover {
-    border-color: #ffffff;
-    color: #ffffff;
+    border-color: #ffb4b4;
+    color: #fff;
 }
 .sx-theme-toggle-item { list-style: none; }
 #header .sx-theme-toggle,
@@ -56,286 +57,534 @@
 }
 
 /* ============================================================
-   LIGHT MODE — pure white surfaces
+   LIGHT MODE — portal shells
    ============================================================ */
 html[data-sx-theme="light"] {
     color-scheme: light;
 }
 
-html[data-sx-theme="light"],
-html[data-sx-theme="light"] body {
+html[data-sx-theme="light"]:not([data-sx-site="public"]),
+html[data-sx-theme="light"]:not([data-sx-site="public"]) body {
     background-color: #ffffff !important;
     color: #222222 !important;
 }
 
-html[data-sx-theme="light"] #main-content,
-html[data-sx-theme="light"] #right-panel,
-html[data-sx-theme="light"] #corp-main-content,
-html[data-sx-theme="light"] .content,
-html[data-sx-theme="light"] .right-panel,
-html[data-sx-theme="light"] .sx-oa-portal-main,
-html[data-sx-theme="light"] section,
-html[data-sx-theme="light"] .card,
-html[data-sx-theme="light"] .panel,
-html[data-sx-theme="light"] .widget,
-html[data-sx-theme="light"] .modal-content,
-html[data-sx-theme="light"] .dropdown-menu,
-html[data-sx-theme="light"] .table,
-html[data-sx-theme="light"] .gray-bg,
-html[data-sx-theme="light"] .section-bg,
-html[data-sx-theme="light"] [class*="widget"],
-html[data-sx-theme="light"] [class*="card"]:not(.card-img-top),
-html[data-sx-theme="light"] [class*="panel"],
-html[data-sx-theme="light"] #left-panel,
-html[data-sx-theme="light"] #corp-sidebar,
-html[data-sx-theme="light"] .footer-area,
-html[data-sx-theme="light"] .footer-corp,
-html[data-sx-theme="light"] .sx-oa-portal-footer {
-    background-color: #ffffff !important;
-    background-image: none !important;
-}
-
-html[data-sx-theme="light"] #header,
-html[data-sx-theme="light"] #corp-header,
-html[data-sx-theme="light"] .sx-site-header .main-menu,
-html[data-sx-theme="light"] .sx-oa-header {
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #main-content,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #right-panel,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #corp-main-content,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .content,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .right-panel,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .sx-oa-portal-main,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .card,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .panel,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .widget,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .modal-content,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .dropdown-menu,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .table,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .gray-bg,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .section-bg,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #left-panel,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #corp-sidebar,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .footer-area,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .footer-corp,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .sx-oa-portal-footer {
     background-color: #ffffff !important;
 }
 
-html[data-sx-theme="light"] .sx-auth-stage {
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #header,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .sx-oa-header {
+    background-color: #ffffff !important;
+}
+
+/* Admin + Super Admin top bars stay brand red (light & dark) */
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #corp-header,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-header,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #header,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #header,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) header#header.header,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) header#header.header {
+    background: #940000 !important;
+    border-bottom: none !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Admin logo card stays white in dark mode */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .admin-sidebar-title,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .admin-brand-logo,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .admin-sidebar-title,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .admin-brand-logo {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+}
+
+/* White icons/controls on red Admin header */
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #header .header-icon-muted,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #header .header-icon-muted,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #header .menutoggle,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #header .menutoggle,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #header .menutoggle i,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #header .menutoggle i,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #header .btn-secondary,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #header .btn-secondary,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #header .dropdown-toggle,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #header .dropdown-toggle,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #header .sx-theme-toggle,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #header .sx-theme-toggle,
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #header .sx-theme-toggle i,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #header .sx-theme-toggle i {
+    color: #ffffff !important;
+}
+
+html[data-sx-theme="light"]:not([data-sx-site="public"]) #header .sx-theme-toggle,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #header .sx-theme-toggle {
+    background: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    border-radius: 0 !important;
+}
+
+html[data-sx-theme="light"]:not([data-sx-site="public"]) .sx-auth-stage {
     background: #ffffff !important;
 }
 
 /* ============================================================
-   DARK MODE — black surfaces, white text everywhere
+   DARK MODE — soft premium portal (not pure black)
    ============================================================ */
 html[data-sx-theme="dark"] {
     color-scheme: dark;
 }
 
-html[data-sx-theme="dark"],
-html[data-sx-theme="dark"] body {
-    background-color: #000000 !important;
-    color: #ffffff !important;
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) {
+    --sx-portal-bg: #160d10;
+    --sx-portal-surface: #1f1418;
+    --sx-portal-elevated: #2a1a1f;
+    --sx-portal-border: rgba(255, 180, 180, 0.18);
+    --sx-portal-text: #f3e9eb;
+    --sx-portal-muted: #c9b4b8;
+    --sx-portal-accent: #ffb4b4;
+    --sx-portal-brand: #c43a3a;
 }
 
-html[data-sx-theme="dark"] div,
-html[data-sx-theme="dark"] section,
-html[data-sx-theme="dark"] main,
-html[data-sx-theme="dark"] aside,
-html[data-sx-theme="dark"] header,
-html[data-sx-theme="dark"] footer,
-html[data-sx-theme="dark"] article,
-html[data-sx-theme="dark"] nav,
-html[data-sx-theme="dark"] form,
-html[data-sx-theme="dark"] fieldset,
-html[data-sx-theme="dark"] ul,
-html[data-sx-theme="dark"] ol,
-html[data-sx-theme="dark"] li,
-html[data-sx-theme="dark"] dl,
-html[data-sx-theme="dark"] dt,
-html[data-sx-theme="dark"] dd,
-html[data-sx-theme="dark"] .card,
-html[data-sx-theme="dark"] .card-header,
-html[data-sx-theme="dark"] .card-body,
-html[data-sx-theme="dark"] .card-footer,
-html[data-sx-theme="dark"] .panel,
-html[data-sx-theme="dark"] .panel-body,
-html[data-sx-theme="dark"] .panel-heading,
-html[data-sx-theme="dark"] .widget,
-html[data-sx-theme="dark"] .widget-content,
-html[data-sx-theme="dark"] .modal-content,
-html[data-sx-theme="dark"] .modal-header,
-html[data-sx-theme="dark"] .modal-body,
-html[data-sx-theme="dark"] .modal-footer,
-html[data-sx-theme="dark"] .dropdown-menu,
-html[data-sx-theme="dark"] .list-group-item,
-html[data-sx-theme="dark"] .table,
-html[data-sx-theme="dark"] .table td,
-html[data-sx-theme="dark"] .table th,
-html[data-sx-theme="dark"] .content,
-html[data-sx-theme="dark"] #main-content,
-html[data-sx-theme="dark"] #right-panel,
-html[data-sx-theme="dark"] #left-panel,
-html[data-sx-theme="dark"] #corp-main-content,
-html[data-sx-theme="dark"] #corp-sidebar,
-html[data-sx-theme="dark"] #corp-header,
-html[data-sx-theme="dark"] #header,
-html[data-sx-theme="dark"] .right-panel,
-html[data-sx-theme="dark"] .left-panel,
-html[data-sx-theme="dark"] .gray-bg,
-html[data-sx-theme="dark"] .section-bg,
-html[data-sx-theme="dark"] .bg-white,
-html[data-sx-theme="dark"] .bg-light,
-html[data-sx-theme="dark"] [class*="bg-"],
-html[data-sx-theme="dark"] [class*="widget"],
-html[data-sx-theme="dark"] [class*="card"],
-html[data-sx-theme="dark"] [class*="panel"],
-html[data-sx-theme="dark"] .sx-oa-portal-main,
-html[data-sx-theme="dark"] .sx-oa-portal-footer,
-html[data-sx-theme="dark"] .sx-oa-header,
-html[data-sx-theme="dark"] .footer-area,
-html[data-sx-theme="dark"] .footer-corp,
-html[data-sx-theme="dark"] .sx-auth-stage,
-html[data-sx-theme="dark"] .sx-auth-panel,
-html[data-sx-theme="dark"] .sx-auth-form-wrap,
-html[data-sx-theme="dark"] .sx-site-header,
-html[data-sx-theme="dark"] .sx-site-header .header-top,
-html[data-sx-theme="dark"] .sx-site-header .main-menu,
-html[data-sx-theme="dark"] .sx-mega-panel,
-html[data-sx-theme="dark"] .sx-mobile-nav,
-html[data-sx-theme="dark"] .alert,
-html[data-sx-theme="dark"] .well,
-html[data-sx-theme="dark"] .jumbotron,
-html[data-sx-theme="dark"] .popover,
-html[data-sx-theme="dark"] .tooltip-inner,
-html[data-sx-theme="dark"] .swal2-popup,
-html[data-sx-theme="dark"] .select2-container--default .select2-selection--single,
-html[data-sx-theme="dark"] .select2-dropdown,
-html[data-sx-theme="dark"] .dataTables_wrapper,
-html[data-sx-theme="dark"] .dt-container {
-    background-color: #000000 !important;
+html[data-sx-theme="dark"]:not([data-sx-site="public"]),
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) body {
+    background-color: var(--sx-portal-bg) !important;
+    color: var(--sx-portal-text) !important;
+}
+
+/* Page shells */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #main-content,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #right-panel,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-main-content,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .content,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .right-panel,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-oa-portal-main,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .gray-bg,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .section-bg {
+    background-color: var(--sx-portal-bg) !important;
+    color: var(--sx-portal-text) !important;
+}
+
+/* Header / sidebar */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-oa-header {
+    background: linear-gradient(135deg, #1f1418 0%, #160d10 100%) !important;
+    border-bottom-color: #940000 !important;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.35) !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-sidebar {
+    background: #1a1d21 !important;
+    border-right-color: #2a2e34 !important;
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Admin sidebar children — override hard-coded white */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel .navbar,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel .navbar-default,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel .main-menu,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel .navbar-nav,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel ul,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel li,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel .sidebar-links-container {
+    background-color: #1a1d21 !important;
+    background: #1a1d21 !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel .navbar-header,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel .admin-sidebar-title,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel .admin-brand-logo {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .welcome-banner,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .stat-widget,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .pill-item,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .chart-card {
+    background: var(--sx-portal-surface) !important;
+    border-color: var(--sx-portal-border) !important;
+    color: var(--sx-portal-text) !important;
     background-image: none !important;
-    border-color: #333333 !important;
 }
 
-html[data-sx-theme="dark"] *,
-html[data-sx-theme="dark"] *::before,
-html[data-sx-theme="dark"] *::after {
-    color: #ffffff !important;
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .alert-info,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .alert-warning {
+    border-color: var(--sx-portal-border) !important;
 }
 
-html[data-sx-theme="dark"] a,
-html[data-sx-theme="dark"] a:visited,
-html[data-sx-theme="dark"] a:hover,
-html[data-sx-theme="dark"] a:active,
-html[data-sx-theme="dark"] label,
-html[data-sx-theme="dark"] span,
-html[data-sx-theme="dark"] p,
-html[data-sx-theme="dark"] h1,
-html[data-sx-theme="dark"] h2,
-html[data-sx-theme="dark"] h3,
-html[data-sx-theme="dark"] h4,
-html[data-sx-theme="dark"] h5,
-html[data-sx-theme="dark"] h6,
-html[data-sx-theme="dark"] small,
-html[data-sx-theme="dark"] strong,
-html[data-sx-theme="dark"] em,
-html[data-sx-theme="dark"] th,
-html[data-sx-theme="dark"] td,
-html[data-sx-theme="dark"] li,
-html[data-sx-theme="dark"] .text-muted,
-html[data-sx-theme="dark"] .text-secondary,
-html[data-sx-theme="dark"] .text-dark,
-html[data-sx-theme="dark"] .text-body,
-html[data-sx-theme="dark"] [class*="text-"] {
-    color: #ffffff !important;
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .footer-corp,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .footer-area,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-oa-portal-footer {
+    background: #0c0709 !important;
+    border-top-color: var(--sx-portal-border) !important;
+    color: var(--sx-portal-muted) !important;
 }
 
-html[data-sx-theme="dark"] input,
-html[data-sx-theme="dark"] textarea,
-html[data-sx-theme="dark"] select,
-html[data-sx-theme="dark"] .form-control,
-html[data-sx-theme="dark"] .custom-select,
-html[data-sx-theme="dark"] .form-select {
-    background-color: #111111 !important;
-    color: #ffffff !important;
-    border-color: #444444 !important;
+/* Cards / panels / surfaces */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .card,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .card-header,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .card-body,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .card-footer,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .panel,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .panel-body,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .panel-heading,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .widget,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .widget-content,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .modal-content,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .modal-header,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .modal-body,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .modal-footer,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .dropdown-menu,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .list-group-item,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .swal2-popup,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .dataTables_wrapper,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .dt-container,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .bg-white,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .bg-light {
+    background-color: var(--sx-portal-surface) !important;
+    background-image: none !important;
+    border-color: var(--sx-portal-border) !important;
+    color: var(--sx-portal-text) !important;
 }
 
-html[data-sx-theme="dark"] input::placeholder,
-html[data-sx-theme="dark"] textarea::placeholder {
-    color: #aaaaaa !important;
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--sx-portal-text);
+    --bs-table-border-color: var(--sx-portal-border);
+    color: var(--sx-portal-text) !important;
+    border-color: var(--sx-portal-border) !important;
 }
-
-html[data-sx-theme="dark"] .table-striped tbody tr:nth-of-type(odd),
-html[data-sx-theme="dark"] .table-striped tbody tr:nth-of-type(even) {
-    background-color: #000000 !important;
-}
-
-html[data-sx-theme="dark"] .table-hover tbody tr:hover {
-    background-color: #111111 !important;
-}
-
-html[data-sx-theme="dark"] hr {
-    border-color: #333333 !important;
-}
-
-html[data-sx-theme="dark"] img,
-html[data-sx-theme="dark"] video,
-html[data-sx-theme="dark"] canvas,
-html[data-sx-theme="dark"] svg,
-html[data-sx-theme="dark"] picture {
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table td,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table th {
+    border-color: var(--sx-portal-border) !important;
+    color: var(--sx-portal-text) !important;
     background-color: transparent !important;
 }
 
-html[data-sx-theme="dark"] .btn-primary,
-html[data-sx-theme="dark"] .primary-btn,
-html[data-sx-theme="dark"] .btn-danger,
-html[data-sx-theme="dark"] .btn-success,
-html[data-sx-theme="dark"] .btn-warning,
-html[data-sx-theme="dark"] .btn-info,
-html[data-sx-theme="dark"] .btn-secondary,
-html[data-sx-theme="dark"] .btn,
-html[data-sx-theme="dark"] button:not(.sx-theme-toggle) {
-    background-color: #111111 !important;
-    border-color: #555555 !important;
-    color: #ffffff !important;
+/* Readable text — do NOT force every * to white */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) p,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) label,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) span,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) li,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) td,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) th,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) small,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .text-muted,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .text-secondary,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .text-body,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .text-dark {
+    color: var(--sx-portal-muted) !important;
 }
 
-html[data-sx-theme="dark"] #sx-splash {
-    background: #000000 !important;
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) h1,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) h2,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) h3,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) h4,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) h5,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) h6,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) strong,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .fw-bold,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .card-title {
+    color: #fff !important;
 }
 
-html[data-sx-theme="dark"] #sx-splash .sx-splash-powered {
-    color: #ffffff !important;
+/* Keep brand red accents */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .text-primary,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) a.text-primary {
+    color: var(--sx-portal-accent) !important;
 }
 
-html[data-sx-theme="dark"] .sx-theme-toggle {
-    background: #111111 !important;
-    border-color: #555555 !important;
-    color: #ffffff !important;
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) a:not(.btn):not(.badge):not(.page-link):not(.sidebar-link):not(.nav-link) {
+    color: var(--sx-portal-accent);
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) a:not(.btn):not(.badge):not(.page-link):hover {
+    color: #ffcfcf;
 }
 
-/* Site header nav in dark mode */
-html[data-sx-theme="dark"] .sx-site-header .nav-menu a,
-html[data-sx-theme="dark"] #logo .sx-brand-text,
-html[data-sx-theme="dark"] #logo .sx-brand-sub {
-    color: #ffffff !important;
+/* Forms */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) textarea,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) select,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .form-control,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .form-select,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .custom-select {
+    background-color: var(--sx-portal-elevated) !important;
+    color: var(--sx-portal-text) !important;
+    border-color: var(--sx-portal-border) !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) input::placeholder,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) textarea::placeholder {
+    color: var(--sx-portal-muted) !important;
 }
 
-/* Admin sidebar links */
-html[data-sx-theme="dark"] #left-panel .nav-link,
-html[data-sx-theme="dark"] #left-panel a,
-html[data-sx-theme="dark"] #corp-sidebar a,
-html[data-sx-theme="dark"] #corp-sidebar .menu-link {
-    color: #ffffff !important;
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table-hover tbody tr:hover {
+    background-color: rgba(255, 180, 180, 0.08) !important;
 }
 
-/* Corp portal */
-html[data-sx-theme="dark"] #corp-header-logo .corp-logo-title,
-html[data-sx-theme="dark"] #corp-header-logo .corp-logo-sub,
-html[data-sx-theme="dark"] .corp-login-label,
-html[data-sx-theme="dark"] .corp-login-name {
-    color: #ffffff !important;
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) hr {
+    border-color: var(--sx-portal-border) !important;
+    opacity: 1;
 }
 
-/* DataTables / pagination */
-html[data-sx-theme="dark"] .page-link,
-html[data-sx-theme="dark"] .paginate_button {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    border-color: #333333 !important;
+/* Brand primary buttons stay red */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-primary,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-primary-custom,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .primary-btn,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .badge-primary,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .bg-primary {
+    background-color: #940000 !important;
+    border-color: #940000 !important;
+    color: #fff !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-primary:hover,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-primary-custom:hover {
+    background-color: #a80000 !important;
+    border-color: #a80000 !important;
+    color: #fff !important;
 }
 
-html[data-sx-theme="dark"] .page-item.active .page-link {
-    background-color: #222222 !important;
-    color: #ffffff !important;
+/* Outline / secondary buttons */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-outline-primary,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-outline-secondary,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-outline-dark,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-outline-primary-custom,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-light,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-secondary,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) a.btn-outline-dark,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) a.btn-outline-primary-custom {
+    background: transparent !important;
+    border-color: rgba(255, 180, 180, 0.5) !important;
+    color: #ffe8eb !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-outline-primary:hover,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-outline-secondary:hover,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-outline-dark:hover,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-outline-primary-custom:hover,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) a.btn-outline-dark:hover,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) a.btn-outline-primary-custom:hover {
+    background: #940000 !important;
+    border-color: #940000 !important;
+    color: #fff !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .btn-dark,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) a.btn-dark {
+    background: #3a242b !important;
+    border-color: rgba(255, 180, 180, 0.35) !important;
+    color: #fff !important;
 }
 
-/* SweetAlert2 */
-html[data-sx-theme="dark"] .swal2-title,
-html[data-sx-theme="dark"] .swal2-content,
-html[data-sx-theme="dark"] .swal2-html-container {
+/* Status badges keep semantic colors */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .badge.bg-danger,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .bg-danger {
+    background-color: #b91c1c !important;
+    color: #fff !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .badge.bg-success,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .bg-success,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .alert-success {
+    background-color: #166534 !important;
+    color: #dcfce7 !important;
+    border-color: #15803d !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .alert-danger {
+    background-color: #3f1212 !important;
+    color: #fecaca !important;
+    border-color: #991b1b !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .alert-warning {
+    background-color: #3b2a0a !important;
+    color: #fde68a !important;
+    border-color: #a16207 !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .alert-info {
+    background-color: #0c2a3a !important;
+    color: #bae6fd !important;
+    border-color: #0369a1 !important;
+}
+
+/* Sidebar links */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-sidebar .sidebar-link,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-sidebar a,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel .nav-link,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel a {
+    color: var(--sx-portal-muted) !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-sidebar .sidebar-link:hover,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-sidebar .sidebar-link.active {
+    background: rgba(148, 0, 0, 0.22) !important;
+    color: #ffb4b4 !important;
+    border-left-color: #940000 !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-sidebar .sidebar-group-title {
+    color: #ffb4b4 !important;
+    opacity: 0.9;
+}
+
+/* Corp brand text — soft red accent, not washed white */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-header-logo .corp-logo-title {
     color: #ffffff !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-header-logo .corp-logo-sub,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .corp-login-label {
+    color: #ffcfcf !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .corp-login-name {
+    color: #ffffff !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-header-logo .corp-logo-mark,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-header-logo .corp-logo-mark img {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+}
+
+/* Pagination */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .page-link,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .paginate_button {
+    background-color: var(--sx-portal-elevated) !important;
+    color: var(--sx-portal-text) !important;
+    border-color: var(--sx-portal-border) !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .page-item.active .page-link {
+    background-color: #940000 !important;
+    border-color: #940000 !important;
+    color: #fff !important;
+}
+
+/* SweetAlert */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .swal2-title,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .swal2-html-container {
+    color: var(--sx-portal-text) !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #sx-splash {
+    background: var(--sx-portal-bg) !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) #sx-splash .sx-splash-powered {
+    color: var(--sx-portal-muted) !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-theme-toggle {
+    background: var(--sx-portal-elevated) !important;
+    border-color: rgba(255, 180, 180, 0.35) !important;
+    color: #ffb4b4 !important;
+}
+
+/* Auth panels */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-auth-stage,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-auth-panel,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-auth-form-wrap {
+    background: var(--sx-portal-surface) !important;
+    border-color: var(--sx-portal-border) !important;
+    color: var(--sx-portal-text) !important;
+}
+
+/* Bootstrap table-light — was white bg + light text in dark mode */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table-light,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table-light > :not(caption) > * > *,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) thead.table-light th,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table > thead.table-light > tr > th,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table > thead > tr > th.table-light {
+    --bs-table-bg: var(--sx-portal-elevated) !important;
+    --bs-table-color: #f5ecee !important;
+    --bs-table-border-color: var(--sx-portal-border) !important;
+    background-color: var(--sx-portal-elevated) !important;
+    color: #f5ecee !important;
+    border-color: var(--sx-portal-border) !important;
+}
+
+/* School Board module — hard-coded light surfaces */
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .member-stat,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .filter-bar,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .committee-card,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .upcoming-box {
+    background: var(--sx-portal-surface) !important;
+    border-color: var(--sx-portal-border) !important;
+    color: var(--sx-portal-text) !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .member-stat .label,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .member-stat .sub,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .empty-note,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .meeting-meta,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .lock-note,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .minute-preview,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .doc-preview,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .item-preview,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .res-preview,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .meeting-agenda {
+    color: var(--sx-portal-muted) !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .member-stat .value {
+    color: #ffb4b4 !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .report-section h5,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .committee-card-header h5 {
+    color: #ffb4b4 !important;
+    border-bottom-color: var(--sx-portal-border) !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .sx-board-nav a {
+    background: var(--sx-portal-elevated) !important;
+    border-color: var(--sx-portal-border) !important;
+    color: var(--sx-portal-text) !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .sx-board-nav a:hover {
+    border-color: #ffb4b4 !important;
+    color: #ffb4b4 !important;
+}
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .sx-board-nav a.active {
+    background: #940000 !important;
+    border-color: #940000 !important;
+    color: #fff !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .filter-bar label {
+    color: var(--sx-portal-muted) !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .attendees-checkboxes,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .badge-cat,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .badge-position,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .badge-role:not(.chair) {
+    background: var(--sx-portal-elevated) !important;
+    border-color: var(--sx-portal-border) !important;
+    color: #ffb4b4 !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .table thead.bg-primary-custom th,
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .bg-primary-custom {
+    background: #940000 !important;
+    color: #fff !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .overdue-row {
+    background: rgba(148, 0, 0, 0.22) !important;
+}
+
+html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .upcoming-box h6 {
+    color: #ffc978 !important;
 }

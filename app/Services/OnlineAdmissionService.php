@@ -315,7 +315,7 @@ class OnlineAdmissionService
                 . ($class ? ' (' . $class->class_name . ')' : '')
                 . '. Review in Online Admission. Login: ' . $loginUrl;
 
-            (new SmsService())->sendSms($school->phone, $message, $school->senderID ?? null);
+            (new SmsService())->sendSms($school->phone, $message, $school->senderID ?? null, $school->schoolID ?? null);
         } catch (\Throwable $e) {
             Log::warning('Online admission school notify SMS failed: ' . $e->getMessage());
         }
@@ -517,7 +517,7 @@ class OnlineAdmissionService
                 . '. Admission No: ' . $student->admission_number
                 . '. Please visit the school for enrollment.';
 
-            $sms->sendSms($parent->phone, $message, $school->senderID ?? null);
+            $sms->sendSms($parent->phone, $message, $school->senderID ?? null, $school->schoolID ?? null);
         } catch (\Throwable $e) {
             Log::warning('Online admission confirm SMS failed: ' . $e->getMessage());
         }

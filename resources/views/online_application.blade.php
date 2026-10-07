@@ -13,17 +13,20 @@
 @extends('layouts.site')
 
 @section('content')
-<section class="banner-area relative about-banner sx-apply-banner">
+<section class="banner-area relative about-banner sx-apply-banner" id="home">
     <div class="overlay overlay-bg"></div>
+    <div class="sx-apply-banner__glow sx-apply-banner__glow--a" aria-hidden="true"></div>
+    <div class="sx-apply-banner__glow sx-apply-banner__glow--b" aria-hidden="true"></div>
     <div class="container">
         <div class="row d-flex align-items-center justify-content-center">
-            <div class="about-content col-lg-12">
-                <h1 class="text-white">Online Application</h1>
+            <div class="about-content col-lg-12 text-center">
+                <h1 class="text-white">{{ __('site.online_application') }}</h1>
                 <p class="text-white link-nav">
-                    <a href="{{ route('site.home') }}">Home</a>
+                    <a href="{{ route('site.home') }}">{{ __('site.home') }}</a>
                     <span class="lnr lnr-arrow-right"></span>
-                    <a href="{{ route('online_application') }}">Online Application</a>
+                    <a href="{{ route('online_application') }}">{{ __('site.online_application') }}</a>
                 </p>
+                <p class="sx-apply-lead text-white">{{ __('site.apply_banner_lead') }}</p>
             </div>
         </div>
     </div>
@@ -32,26 +35,22 @@
 <section class="sx-apply-page section-gap">
     <div class="container">
         <div class="sx-apply-hero text-center">
-            <h2>Online school application in Tanzania</h2>
-            <p class="sx-apply-intro">
-                Search participating primary and secondary schools, check available class spaces for student admission,
-                and submit your application online, free for parents and guardians. Powered by
-                <strong>EmCa Techonology</strong>.
-            </p>
+            <h2>{{ __('site.apply_heading') }}</h2>
+            <p class="sx-apply-intro">{!! __('site.apply_intro') !!}</p>
         </div>
 
         <div class="sx-apply-auth-cta">
             @auth('online_application')
                 <div class="sx-apply-auth-cta__logged">
-                    <span>Logged in as <strong>{{ auth('online_application')->user()->first_name }}</strong></span>
-                    <a href="{{ route('online_application.portal.dashboard') }}" class="primary-btn text-uppercase">My Dashboard</a>
+                    <span>{{ __('site.apply_logged_in') }} <strong>{{ auth('online_application')->user()->first_name }}</strong></span>
+                    <a href="{{ route('online_application.portal.dashboard') }}" class="primary-btn text-uppercase">{{ __('site.apply_dashboard') }}</a>
                 </div>
             @else
                 <a href="{{ route('online_application.auth.register') }}" class="primary-btn text-uppercase">
-                    <i class="fa fa-user-plus"></i> Create account to apply
+                    <i class="fa fa-user-plus"></i> {{ __('site.apply_create_account') }}
                 </a>
                 <a href="{{ route('online_application.auth.login') }}" class="sx-apply-btn-outline">
-                    <i class="fa fa-sign-in"></i> Login to apply online
+                    <i class="fa fa-sign-in"></i> {{ __('site.apply_login') }}
                 </a>
             @endauth
         </div>
@@ -71,20 +70,20 @@
                 <div class="sx-apply-search__field">
                     <i class="fa fa-search"></i>
                     <input type="text" name="search" class="form-control"
-                        placeholder="Search by school name, region, or district..."
+                        placeholder="{{ __('site.apply_search_placeholder') }}"
                         value="{{ $search }}">
                 </div>
-                <button type="submit" class="primary-btn text-uppercase">Search</button>
+                <button type="submit" class="primary-btn text-uppercase">{{ __('site.apply_search') }}</button>
                 @if($search)
-                    <a href="{{ route('online_application') }}" class="sx-apply-search__clear">Clear</a>
+                    <a href="{{ route('online_application') }}" class="sx-apply-search__clear">{{ __('site.apply_clear') }}</a>
                 @endif
             </form>
-            <div class="sx-apply-view-toggle" role="group" aria-label="School layout">
-                <button type="button" class="sx-apply-view-toggle__btn" data-oa-view="list" title="List view" aria-pressed="false">
-                    <i class="fa fa-list" aria-hidden="true"></i><span>List</span>
+            <div class="sx-apply-view-toggle" role="group" aria-label="{{ __('site.apply_layout') }}">
+                <button type="button" class="sx-apply-view-toggle__btn" data-oa-view="list" title="{{ __('site.apply_list') }}" aria-pressed="false">
+                    <i class="fa fa-list" aria-hidden="true"></i><span>{{ __('site.apply_list') }}</span>
                 </button>
-                <button type="button" class="sx-apply-view-toggle__btn" data-oa-view="grid" title="Grid view" aria-pressed="false">
-                    <i class="fa fa-th-large" aria-hidden="true"></i><span>Grid</span>
+                <button type="button" class="sx-apply-view-toggle__btn" data-oa-view="grid" title="{{ __('site.apply_grid') }}" aria-pressed="false">
+                    <i class="fa fa-th-large" aria-hidden="true"></i><span>{{ __('site.apply_grid') }}</span>
                 </button>
             </div>
         </div>
@@ -104,8 +103,8 @@
                 <div class="col-12">
                     <div class="sx-apply-empty">
                         <i class="fa fa-info-circle"></i>
-                        <h5>No schools with available spaces found</h5>
-                        <p>Please try a different search or check back later.</p>
+                        <h5>{{ __('site.apply_empty_title') }}</h5>
+                        <p>{{ __('site.apply_empty_desc') }}</p>
                     </div>
                 </div>
             @endif
@@ -115,7 +114,7 @@
             <div class="spinner-border text-danger" role="status" id="oaLoadSpinner" style="display:none;">
                 <span class="sr-only">Loading...</span>
             </div>
-            <p class="text-muted mb-0 mt-2" id="oaLoadHint">Scroll down to load more schools</p>
+            <p class="text-muted mb-0 mt-2" id="oaLoadHint">{{ __('site.apply_load_more') }}</p>
         </div>
     </div>
 </section>

@@ -1057,6 +1057,100 @@ class ManageTeachersController extends Controller
     }
 
     /**
+     * New login password for a teacher or staff member who forgot theirs.
+     */
+    public function generateLoginPassword(Request $request)
+    {
+        $kind = (string) $request->input('kind');
+        $id = (int) $request->input('id');
+        $schoolID = Session::get('schoolID');
+
+        if (!$schoolID) {
+            return response()->json(['error' => 'School haijapatikana kwenye session.'], 422);
+        }
+
+        if ($kind === 'teacher') {
+            if (!$this->checkPermission('teacher_update')) {
+                return response()->json(['error' => 'Huna ruhusa ya kubadili password ya mwalimu.'], 403);
+            }
+            $person = Teacher::where('id', $id)->where('schoolID', $schoolID)->first();
+            $userType = 'Teacher';
+        } elseif ($kind === 'staff') {
+            if (!$this->checkPermission('staff_update')) {
+                return response()->json(['error' => 'Huna ruhusa ya kubadili password ya staff.'], 403);
+            }
+            $person = OtherStaff::where('id', $id)->where('schoolID', $schoolID)->first();
+            $userType = 'Staff';
+        } else {
+            return response()->json(['error' => 'Aina ya akaunti haijulikani.'], 422);
+        }
+
+        if (!$person) {
+            return response()->json(['error' => 'Akaunti haijapatikana kwenye shule hii.'], 404);
+        }
+
+        $user = User::query()
+            ->where('user_type', $userType)
+            ->where(function ($query) use ($person) {
+                $query->where('name', $person->employee_number);
+                if (!empty($person->email)) {
+                    $query->orWhere('email', $person->email);
+                }
+            })
+            ->first();
+
+        if (!$user) {
+            return response()->json(['error' => 'Akaunti ya kuingia haijapatikana.'], 404);
+        }
+
+        $plainPassword = $this->makeReadablePassword();
+        $user->password = $plainPassword;
+        $user->save();
+
+        $smsSent = false;
+        $smsNote = 'SMS haijatumwa. Mpe password hii mwenyewe.';
+        if (!empty($person->phone_number)) {
+            try {
+                $school = School::find($schoolID);
+                $schoolName = $school->school_name ?? 'ShuleXpert';
+                $prefix = ($school && $school->senderID) ? '' : "{$schoolName}. ";
+                $message = "{$prefix}Password mpya ya ShuleXpert: {$plainPassword}. Username: {$person->employee_number}. Ingia kisha ubadilishe.";
+                $smsResult = (new SmsService())->sendSms($person->phone_number, $message, null, (int) $schoolID);
+                $smsSent = (bool) ($smsResult['success'] ?? false);
+                $smsNote = $smsSent
+                    ? 'Password imetumwa kwa SMS pia.'
+                    : ($smsResult['message'] ?? 'SMS haijatumwa. Nakili password hii.');
+            } catch (\Throwable $e) {
+                $smsNote = 'SMS haijatumwa. Nakili password hii.';
+            }
+        } else {
+            $smsNote = 'Hana namba ya simu. Mpe password hii mwenyewe.';
+        }
+
+        return response()->json([
+            'success' => true,
+            'username' => $person->employee_number,
+            'password' => $plainPassword,
+            'sms_sent' => $smsSent,
+            'sms_note' => $smsNote,
+        ]);
+    }
+
+    private function makeReadablePassword(): string
+    {
+        $letters = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz';
+        $digits = '23456789';
+        $password = '';
+        for ($i = 0; $i < 6; $i++) {
+            $password .= $letters[random_int(0, strlen($letters) - 1)];
+        }
+        $password .= $digits[random_int(0, strlen($digits) - 1)];
+        $password .= $digits[random_int(0, strlen($digits) - 1)];
+
+        return $password;
+    }
+
+    /**
      * Delete a teacher (and linked login user / role assignments).
      */
     public function delete_teacher($id)

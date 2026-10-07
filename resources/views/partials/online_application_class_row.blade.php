@@ -2,9 +2,9 @@
     <div>
         <strong>{{ $class['className'] }}</strong>
         @if($class['hasSpaces'])
-            <small>{{ $class['availableSpaces'] }} space(s) available</small>
+            <small>{{ __('site.apply_spaces_available', ['count' => $class['availableSpaces']]) }}</small>
         @else
-            <small class="text-danger">No space for application</small>
+            <small class="text-danger">{{ __('site.apply_no_space') }}</small>
         @endif
     </div>
     @if($class['hasSpaces'] && !empty($class['applyUrl']))
@@ -19,7 +19,7 @@
             }
         @endphp
         <a href="{{ $applyHref }}" class="sx-apply-btn-sm">
-            {{ $needsLogin ? 'Login to Apply' : 'Apply' }}
+            {{ $needsLogin ? __('site.apply_login_to_apply') : __('site.apply_now') }}
         </a>
     @endif
 </div>

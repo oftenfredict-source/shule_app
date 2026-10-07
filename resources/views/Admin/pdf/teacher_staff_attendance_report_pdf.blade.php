@@ -99,12 +99,12 @@
             }
         }
         $dayStatusLabels = [
-            'Present' => 'Alikuwepo',
-            'Late' => 'Amechelewa',
-            'Early' => 'Amewahi',
-            'Absent' => 'Hayupo',
-            'Permitted' => 'Ruhusa',
-            'Off Day' => 'Sio Siku ya Kazi',
+            'Present' => 'Present',
+            'Late' => 'Late',
+            'Early' => 'Early',
+            'Absent' => 'Absent',
+            'Permitted' => 'Permitted',
+            'Off Day' => 'Off Day',
         ];
     @endphp
 
@@ -142,42 +142,42 @@
             <tr>
                 <td>
                     <div class="stat-val">{{ $daySummary['date_label'] ?? ($daySummary['date'] ?? '') }}</div>
-                    <div class="stat-label">Tarehe</div>
+                    <div class="stat-label">Date</div>
                 </td>
                 <td>
                     <div class="stat-val day-stat-success">{{ $daySummary['present_count'] ?? 0 }} / {{ $daySummary['total_people'] ?? 0 }}</div>
-                    <div class="stat-label">Wamehudhuria</div>
+                    <div class="stat-label">Present</div>
                 </td>
                 <td>
                     <div class="stat-val day-stat-danger">{{ $daySummary['late_count'] ?? 0 }}</div>
-                    <div class="stat-label">Walio Chelewa</div>
+                    <div class="stat-label">Late</div>
                 </td>
                 <td>
                     <div class="stat-val day-stat-info">{{ $daySummary['early_count'] ?? 0 }}</div>
-                    <div class="stat-label">Walio Wahi</div>
+                    <div class="stat-label">Early</div>
                 </td>
             </tr>
             <tr>
                 <td>
                     <div class="stat-val day-stat-danger">{{ $daySummary['absent_count'] ?? 0 }}</div>
-                    <div class="stat-label">Walikosa</div>
+                    <div class="stat-label">Absent</div>
                 </td>
                 <td>
                     <div class="stat-val day-stat-purple">{{ $daySummary['permitted_count'] ?? 0 }}</div>
-                    <div class="stat-label">Walio na Ruhusa</div>
+                    <div class="stat-label">Permitted</div>
                 </td>
                 <td>
                     <div class="stat-val day-stat-success">{{ $daySummary['on_time_count'] ?? 0 }}</div>
-                    <div class="stat-label">Wakati Sahihi</div>
+                    <div class="stat-label">On Time</div>
                 </td>
                 <td>
-                    <div class="stat-val">{{ !empty($daySummary['is_working_day']) ? 'Ndiyo' : 'Hapana' }}</div>
-                    <div class="stat-label">Siku ya Kazi</div>
+                    <div class="stat-val">{{ !empty($daySummary['is_working_day']) ? 'Yes' : 'No' }}</div>
+                    <div class="stat-label">Working Day</div>
                 </td>
             </tr>
         </table>
         <p style="font-size:9px; color:#666; margin-top:8px; margin-bottom:0;">
-            Present = ameweka kidole (check-in tu inatosha). Walio Chelewa = wameingia baada ya muda rasmi. Walio Wahi = wameingia kabla ya muda rasmi.
+            Present = fingerprint punch recorded (check-in is enough). Late = checked in after official start time. Early = checked in before official start time.
         </p>
         @else
         <table class="stats-grid">
@@ -216,11 +216,11 @@
                 <th style="width: 30px;">#</th>
                 <th>Name</th>
                 @if($isDayReport)
-                <th class="center">Hali</th>
-                <th class="center">Ingia</th>
-                <th class="center">Toka</th>
-                <th class="center">Walio Chelewa</th>
-                <th class="center">Walio Wahi</th>
+                <th class="center">Status</th>
+                <th class="center">Check In</th>
+                <th class="center">Check Out</th>
+                <th class="center">Late</th>
+                <th class="center">Early</th>
                 @else
                 <th class="center">Present</th>
                 <th class="center">Permitted</th>
@@ -254,8 +254,8 @@
                 <td class="center">{{ $statusLabel }}</td>
                 <td class="center">{{ !empty($row['check_in_time']) ? formatTsPdfTimeAmPm($row['check_in_time']) : '-' }}</td>
                 <td class="center">{{ !empty($row['check_out_time']) ? formatTsPdfTimeAmPm($row['check_out_time']) : '-' }}</td>
-                <td class="center">{{ $isLate ? 'Ndiyo' : '-' }}</td>
-                <td class="center">{{ $isEarly ? 'Ndiyo' : '-' }}</td>
+                <td class="center">{{ $isLate ? 'Yes' : '-' }}</td>
+                <td class="center">{{ $isEarly ? 'Yes' : '-' }}</td>
                 @else
                 <td class="center">{{ $row['present_days'] }}</td>
                 <td class="center">{{ $row['permitted_days'] ?? 0 }}</td>

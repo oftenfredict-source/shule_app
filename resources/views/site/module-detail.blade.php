@@ -1,19 +1,24 @@
 @extends('layouts.site')
 
 @section('content')
-<section class="banner-area relative about-banner">
+<section class="banner-area relative about-banner sx-module-detail-banner" id="home">
     <div class="overlay overlay-bg"></div>
+    <div class="sx-module-detail-banner__glow sx-module-detail-banner__glow--a" aria-hidden="true"></div>
+    <div class="sx-module-detail-banner__glow sx-module-detail-banner__glow--b" aria-hidden="true"></div>
     <div class="container">
         <div class="row d-flex align-items-center justify-content-center">
-            <div class="about-content col-lg-12">
+            <div class="about-content col-lg-12 text-center">
                 <h1 class="text-white">{{ $module['title'] }}</h1>
                 <p class="text-white link-nav">
-                    <a href="{{ route('site.home') }}">Home</a>
+                    <a href="{{ route('site.home') }}">{{ __('site.home') }}</a>
                     <span class="lnr lnr-arrow-right"></span>
-                    <a href="{{ route('site.modules') }}">Modules</a>
+                    <a href="{{ route('site.modules') }}">{{ __('site.modules') }}</a>
                     <span class="lnr lnr-arrow-right"></span>
                     <a href="{{ route('site.module', $module['slug']) }}">{{ $module['title'] }}</a>
                 </p>
+                @if(!empty($module['short']))
+                    <p class="sx-module-detail-lead text-white">{{ $module['short'] }}</p>
+                @endif
             </div>
         </div>
     </div>
@@ -65,7 +70,7 @@
                     </div>
                     <div class="mb-20">
                         <h4 style="font-size:16px;color:#940000;font-weight:700;">What are the key capabilities?</h4>
-                        <p style="font-size:14px;line-height:1.7;color:#444;">{{ implode(' · ', $module['points'] ?? []) }}</p>
+                        <p style="font-size:14px;line-height:1.7;color:#444;">{{ implode(', ', $module['points'] ?? []) }}</p>
                     </div>
                     @if(($module['slug'] ?? '') === 'lesson-plans')
                         <div class="mb-20">
@@ -142,6 +147,55 @@
     </div>
 </section>
 @endsection
+
+@push('styles')
+<style>
+.sx-module-detail-banner.about-banner {
+    min-height: 340px !important;
+    padding-top: 168px !important;
+    padding-bottom: 72px !important;
+    position: relative;
+    overflow: hidden;
+}
+.sx-module-detail-banner__glow {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+}
+.sx-module-detail-banner__glow--a {
+    width: 320px; height: 320px;
+    top: -80px; right: -60px;
+    background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
+}
+.sx-module-detail-banner__glow--b {
+    width: 260px; height: 260px;
+    bottom: -100px; left: -40px;
+    background: radial-gradient(circle, rgba(196,58,58,0.35) 0%, transparent 70%);
+}
+.sx-module-detail-banner .container { position: relative; z-index: 2; }
+.sx-module-detail-banner .about-content h1 {
+    font-size: 36px;
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+.sx-module-detail-lead {
+    max-width: 640px;
+    margin: 14px auto 0;
+    opacity: .92;
+    font-size: 15px;
+    line-height: 1.7;
+}
+@media (max-width: 991.98px) {
+    .sx-module-detail-banner.about-banner {
+        min-height: 300px !important;
+        padding-top: 148px !important;
+        padding-bottom: 60px !important;
+    }
+    .sx-module-detail-banner .about-content h1 { font-size: 28px; }
+}
+</style>
+@endpush
 
 @push('schema')
 @php

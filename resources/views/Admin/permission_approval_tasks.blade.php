@@ -262,6 +262,10 @@
                             } else {
                                 $requesterInfo = ucfirst($permission->requester_type ?? 'Unknown');
                             }
+                            $viewOnlyClassTeacher = $isStudentPerm
+                                && ($permission->requester_type ?? '') === 'parent'
+                                && session('teacherID')
+                                && (int) session('teacherID') === (int) ($permission->class_teacher_id ?? 0);
                         @endphp
                         <div class="col-md-6 col-lg-4 mb-3">
                             <div class="card h-100 shadow-sm border-0" style="border-left: 5px solid #940000 !important; background: #fff;">
@@ -276,6 +280,7 @@
                                                 <i class="bx bx-cog"></i>
                                             </button>
                                             <div class="dropdown-menu dropdown-menu-right shadow border">
+                                                @unless($viewOnlyClassTeacher)
                                                 <a class="dropdown-item text-success" href="#" onclick="openApprovalModal({{ $permission->permissionID }}, {{ $isStudentPerm ? 'true' : 'false' }}); return false;">
                                                     <i class="fa fa-check-circle"></i> Approve
                                                 </a>
@@ -283,6 +288,10 @@
                                                     <i class="fa fa-times-circle"></i> Reject
                                                 </a>
                                                 <div class="dropdown-divider"></div>
+                                                @else
+                                                <span class="dropdown-item text-muted"><i class="fa fa-eye"></i> View only</span>
+                                                <div class="dropdown-divider"></div>
+                                                @endunless
                                                 <a class="dropdown-item" href="#" onclick="viewPermissionProgress({{ $permission->permissionID }}, {{ $isStudentPerm ? 'true' : 'false' }}); return false;">
                                                     <i class="fa fa-project-diagram"></i> View Progress
                                                 </a>

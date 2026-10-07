@@ -73,17 +73,38 @@
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
-    padding: 10px 0 !important;
+    padding: 0 !important;
     width: 100% !important;
+    height: 55px !important;
+    min-height: 55px !important;
+    max-height: 55px !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+  }
+
+  body.open #left-panel .admin-sidebar-title {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 55px !important;
+    padding: 6px 4px !important;
+    background: #ffffff !important;
+    overflow: hidden !important;
   }
 
   body.open #left-panel .admin-brand-logo,
   body.open #left-panel .navbar-header img {
-    width: 40px !important;
-    height: 40px !important;
-    object-fit: cover !important;
+    width: 42px !important;
+    height: 42px !important;
+    max-width: 42px !important;
+    max-height: 42px !important;
+    object-fit: contain !important;
     margin: 0 auto !important;
     display: block !important;
+    background: #ffffff !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 
   body.open #left-panel .sidebar-profile {
@@ -209,21 +230,43 @@
   }
   } /* end desktop collapsed sidebar */
 
-  /* Sidebar toggle button (desktop header), keep visible, original theme margins OK on desktop */
+  /* Sticky top header inside content area */
+  .right-panel header.header,
+  .right-panel #header,
+  header#header.header,
+  #header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1020 !important;
+    background: #940000 !important;
+    height: 55px !important;
+    min-height: 55px !important;
+    max-height: 55px !important;
+    padding: 0 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-shrink: 0;
+  }
+
+  /* Red header controls (match Super Admin) */
   #header .menutoggle,
   a#menuToggle.menutoggle,
   .header .menutoggle {
-    background-color: whitesmoke !important;
-    color: #940000 !important;
-    border: 1px solid #e8e8e8 !important;
-    border-radius: 4px !important;
-    padding: 6px 10px !important;
+    background: transparent !important;
+    color: #fff !important;
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 8px 0 0 !important;
+    width: 36px !important;
+    height: 36px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     line-height: 1 !important;
     text-decoration: none !important;
     cursor: pointer !important;
+    float: none !important;
   }
 
   #header .menutoggle i,
@@ -231,15 +274,15 @@
   a#menuToggle.menutoggle i,
   a#menuToggle.menutoggle .header-icon-muted,
   .header .menutoggle i {
-    color: #940000 !important;
+    color: #fff !important;
     opacity: 1 !important;
   }
 
   #header .menutoggle:hover,
   a#menuToggle.menutoggle:hover,
   .header .menutoggle:hover {
-    background-color: #f0f0f0 !important;
-    color: #940000 !important;
+    background: rgba(255,255,255,0.12) !important;
+    color: #fff !important;
   }
 
   /* Mobile app bar (ShuleXpert + 3 dots), matches teachers mobile header */
@@ -249,18 +292,6 @@
 
   .header-mobile-divider {
     display: none;
-  }
-
-  /* Sticky top header inside content area */
-  .right-panel header.header,
-  .right-panel #header,
-  header#header.header,
-  #header {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 1020 !important;
-    background-color: #ffffff !important;
-    flex-shrink: 0;
   }
 
   /* Footer: bottom of page, no red border */
@@ -547,8 +578,9 @@
 
     #header.header,
     .right-panel header.header {
-      border-bottom: 1px solid #d0d0d0 !important;
-      box-shadow: none !important;
+      border-bottom: none !important;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18) !important;
+      background: #940000 !important;
     }
 
     #header .header-left {
@@ -649,17 +681,20 @@
       max-width: min(300px, 86vw) !important;
     }
 
-    /* Logo, original size (not tiny square rail) */
+    /* Logo row — match Super Admin brand height */
     #left-panel .navbar-header,
     body.mobile-drawer-open #left-panel .navbar-header {
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
       width: 100% !important;
-      padding: 16px 14px 12px !important;
-      background: transparent !important;
+      padding: 0 !important;
+      background: #ffffff !important;
       border-bottom: 1px solid #eeeeee !important;
-      min-height: unset !important;
+      height: 55px !important;
+      min-height: 55px !important;
+      max-height: 55px !important;
+      overflow: hidden !important;
     }
 
     #left-panel .admin-sidebar-title,
@@ -669,6 +704,12 @@
       justify-content: center !important;
       text-align: center !important;
       width: 100% !important;
+      height: 55px !important;
+      min-height: 55px !important;
+      max-height: 55px !important;
+      padding: 6px 12px !important;
+      background: #ffffff !important;
+      overflow: hidden !important;
     }
 
     #left-panel .admin-brand-logo,
@@ -679,11 +720,12 @@
       visibility: visible !important;
       opacity: 1 !important;
       width: 100% !important;
-      max-width: 180px !important;
-      height: auto !important;
-      max-height: 100px !important;
+      max-width: 150px !important;
+      height: 42px !important;
+      max-height: 42px !important;
       object-fit: contain !important;
       margin: 0 auto !important;
+      background: #ffffff !important;
     }
 
     #left-panel .navbar-header > .mobile-brand,

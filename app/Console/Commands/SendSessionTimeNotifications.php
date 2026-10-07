@@ -106,7 +106,7 @@ class SendSessionTimeNotifications extends Command
                     
                     // Send SMS
                     try {
-                        $result = $this->smsService->sendSms($teacher->phone_number, $message);
+                        $result = $this->smsService->sendSms($teacher->phone_number, $message, null, $definition->schoolID);
                         
                         if ($result['success']) {
                             // Mark as sent in cache (expires at end of day)

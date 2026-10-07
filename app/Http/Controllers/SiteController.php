@@ -26,7 +26,7 @@ class SiteController extends Controller
      */
     public static function modules(): array
     {
-        return [
+        $modules = [
             'student-management' => [
                 'slug' => 'student-management',
                 'title' => 'Student Management',
@@ -603,6 +603,20 @@ class SiteController extends Controller
                 'keywords' => 'school incident reporting, teacher suggestions system, staff feedback school',
             ],
         ];
+
+        foreach ($modules as $slug => &$module) {
+            $titleKey = 'modules.'.$slug.'.title';
+            $shortKey = 'modules.'.$slug.'.short';
+            if (\Illuminate\Support\Facades\Lang::has($titleKey)) {
+                $module['title'] = __($titleKey);
+            }
+            if (\Illuminate\Support\Facades\Lang::has($shortKey)) {
+                $module['short'] = __($shortKey);
+            }
+        }
+        unset($module);
+
+        return $modules;
     }
 
     /**
@@ -1734,5 +1748,66 @@ class SiteController extends Controller
         session()->forget(['contact_otp', 'contact_otp_verified']);
 
         return back()->with('success', 'Thank you! Your message has been received. We will contact you soon.');
+    }
+
+    /**
+     * Lightweight floating "Ask us" popup on the public site.
+     * Saves into the same customer_requests queue used by Contact.
+     */
+    public function quickAsk(Request $request)
+    {
+        // Honeypot — bots fill this, humans never see it
+        if (filled($request->input('website'))) {
+            return response()->json(['success' => true, 'message' => 'OK']);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:120',
+            'phone' => 'required|string|max:30',
+            'email' => 'nullable|email|max:160',
+            'message' => 'required|string|max:2000',
+        ]);
+
+        $phone = $this->normalizeContactPhone($validated['phone']);
+        if (!$phone) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Enter a valid Tanzania mobile number starting with 255 (e.g. 2557XXXXXXXX).',
+                'errors' => ['phone' => ['Enter a valid Tanzania mobile number starting with 255.']],
+            ], 422);
+        }
+
+        $ipKey = 'quick-ask:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($ipKey, 5)) {
+            $seconds = RateLimiter::availableIn($ipKey);
+
+            return response()->json([
+                'success' => false,
+                'message' => "Too many questions. Try again in {$seconds} seconds.",
+            ], 429);
+        }
+        RateLimiter::hit($ipKey, 600);
+
+        $email = trim((string) ($validated['email'] ?? ''));
+        if ($email === '') {
+            $email = 'ask+' . $phone . '@shulexpert.local';
+        }
+
+        \App\Models\CustomerRequest::create([
+            'name' => $validated['name'],
+            'email' => $email,
+            'phone' => $phone,
+            'subject' => 'Quick Ask (website float)',
+            'message' => $validated['message'],
+        ]);
+
+        if (!str_ends_with($email, '@shulexpert.local')) {
+            \App\Models\WebVisitor::rememberVisitorEmail($email, $request->ip());
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Thank you! We received your question and will reply soon.',
+        ]);
     }
 }

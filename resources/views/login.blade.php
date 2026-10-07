@@ -27,6 +27,7 @@
                     <div class="sx-auth-form-wrap">
                         <h3><i class="fa fa-lock" style="margin-right:8px;"></i>School Member Login</h3>
                         <p class="sx-auth-sub">Enter your username and password to continue.</p>
+                        <p class="sx-auth-sub"><a href="{{ route('student_portal.login') }}">Student portal — sign in with admission number</a></p>
 
                         <div id="loginAlert"></div>
                         @if (session('success'))
@@ -230,14 +231,33 @@
         verifying = true;
         setStatus('Verifying OTP...', 'text-primary');
         try {
-            const res = await fetch('{{ route('auth.otp.verify') }}', {
+            let res = await fetch('{{ route('auth.otp.verify') }}', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
                 body: JSON.stringify({ otp: code, otp_token: otpToken.value })
             });
+            if (res.status === 419) {
+                const fresh = await refreshCsrf();
+                if (fresh) {
+                    res = await fetch('{{ route('auth.otp.verify') }}', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': fresh
+                        },
+                        body: JSON.stringify({ otp: code, otp_token: otpToken.value })
+                    });
+                }
+            }
             const data = await res.json();
             if (data && data.success) {
                 setStatus('Correct OTP. Please wait login..', 'text-success');
@@ -310,6 +330,53 @@
         setTimeout(initCamera, 500);
     }
 
+    function applyCsrf(token) {
+        if (!token) return;
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) meta.setAttribute('content', token);
+        const input = form.querySelector('input[name="_token"]');
+        if (input) input.value = token;
+    }
+
+    async function refreshCsrf() {
+        try {
+            const page = await fetch('{{ route('login') }}', {
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: { 'Accept': 'text/html' }
+            });
+            const html = await page.text();
+            const match = html.match(/name="_token"\s+value="([^"]+)"/);
+            if (match) {
+                applyCsrf(match[1]);
+                return match[1];
+            }
+        } catch (err) {}
+        return '';
+    }
+
+    async function postAuth(fd, retried) {
+        const res = await fetch(form.action, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': fd.get('_token') || ''
+            },
+            body: fd
+        });
+        if (res.status === 419 && !retried) {
+            const fresh = await refreshCsrf();
+            if (!fresh) {
+                const body = await res.clone().json().catch(() => null);
+                if (body && body.csrf_token) applyCsrf(body.csrf_token);
+            }
+            return postAuth(new FormData(form), true);
+        }
+        return res;
+    }
+
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         if (!gpsResolved) await new Promise(r => setTimeout(r, 1200));
@@ -343,12 +410,12 @@
         }
 
         try {
-            const res = await fetch(form.action, {
-                method: 'POST',
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-                body: fd
-            });
+            const res = await postAuth(fd, false);
             const data = await res.json().catch(() => null);
+            if (res.status === 419) {
+                showLoginError('Kikao kimekwisha. Pakia upya ukurasa kisha ujaribu tena.');
+                return;
+            }
             if (data && data.requires_otp && data.otp_token) {
                 showOtp(data.otp_token, data.masked_phone || '', data.expires_in || 600);
                 return;
@@ -411,14 +478,33 @@
             if (!otpToken.value) return;
             setStatus('Resending OTP...', 'text-primary');
             try {
-                const res = await fetch('{{ route('auth.otp.resend') }}', {
+                let res = await fetch('{{ route('auth.otp.resend') }}', {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                     },
                     body: JSON.stringify({ otp_token: otpToken.value })
                 });
+                if (res.status === 419) {
+                    const fresh = await refreshCsrf();
+                    if (fresh) {
+                        res = await fetch('{{ route('auth.otp.resend') }}', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': fresh
+                            },
+                            body: JSON.stringify({ otp_token: otpToken.value })
+                        });
+                    }
+                }
                 const data = await res.json();
                 if (data && data.success) {
                     const masked = data.masked_phone || otpMaskedPhone.value || '';

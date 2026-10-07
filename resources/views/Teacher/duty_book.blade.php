@@ -36,6 +36,51 @@
                     </nav>
                 </div>
             </div>
+
+            @if(!empty($isClassTeacher))
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-0 shadow-sm" style="border-left: 4px solid #17a2b8 !important;">
+                        <div class="card-header bg-white">
+                            <h6 class="mb-0 font-weight-bold" style="color: #17a2b8;">
+                                <i class="fa fa-eye mr-1"></i> Ruhusa za darasa lako (kuona tu)
+                            </h6>
+                            <small class="text-muted">Baada ya ruhusa ya mzazi kuidhinishwa, unaiona hapa. Huna kitufe cha kuidhinisha wala kukataa.</small>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th>Mwanafunzi</th>
+                                            <th>Mzazi</th>
+                                            <th>Aina</th>
+                                            <th>Tarehe</th>
+                                            <th>Hali</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($classTeacherPermissions as $perm)
+                                            <tr>
+                                                <td>{{ trim($perm->first_name . ' ' . ($perm->last_name ?? '')) }}</td>
+                                                <td>{{ trim(($perm->parent_first_name ?? '') . ' ' . ($perm->parent_last_name ?? '')) ?: 'Mzazi' }}</td>
+                                                <td>{{ ucfirst($perm->reason_type) }}</td>
+                                                <td>{{ $perm->start_date }} - {{ $perm->end_date }}</td>
+                                                <td><span class="badge badge-success">Approved</span></td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted py-3">Bado hakuna ruhusa iliyoidhinishwa ya wanafunzi wa darasa lako.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
         @if($currentDuty)
         <div class="alert alert-success shadow-sm mb-4" style="border-left: 5px solid #28a745;">
             <div class="d-flex align-items-center">

@@ -55,6 +55,7 @@ class ConfigurationController extends Controller
         'status' => 'required|in:Active,Inactive',
         'environment' => 'nullable|in:Demo,Live',
         'two_factor_enabled' => 'nullable|boolean',
+        'student_portal_enabled' => 'nullable|boolean',
         'senderID' => 'nullable|string|max:20',
         'login_status' => 'nullable|boolean',
         'suspension_reason' => 'nullable|string|max:1000',
@@ -65,6 +66,7 @@ class ConfigurationController extends Controller
     }
 
     $validated['two_factor_enabled'] = (bool)($request->input('two_factor_enabled', false));
+    $validated['student_portal_enabled'] = $request->boolean('student_portal_enabled');
     $validated['is_under_organization'] = (bool)($request->input('is_under_organization', false));
     if (!$validated['is_under_organization']) {
         $validated['organization_name'] = null;

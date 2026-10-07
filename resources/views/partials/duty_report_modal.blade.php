@@ -215,6 +215,34 @@
                         </div>
                     </div>
 
+                    <div class="card shadow-sm border-0 mb-4" id="dutyParentPermissionsCard">
+                        <div class="card-header bg-white py-3">
+                            <h6 class="mb-0 font-weight-bold" style="color: #940000;">
+                                <i class="fa fa-file-text-o mr-2"></i> STUDENT PERMISSIONS FROM PARENTS
+                            </h6>
+                            <small class="text-muted">Ruhusa ya mwanafunzi iliyoombwa na mzazi kwa tarehe hii. Mwalimu wa darasa anaona tu, hana hatua.</small>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Parent</th>
+                                            <th>Class</th>
+                                            <th>Permission</th>
+                                            <th>Status</th>
+                                            <th class="text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dutyParentPermissionsBody">
+                                        <tr><td colspan="6" class="text-center text-muted py-3">Open a duty day to load parent permissions.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Admin Feedback Section (Simplified for Auto-Sign) -->
                     <div class="card shadow-sm border-0 border-top border-warning overflow-hidden" id="adminFeedbackSection" style="display: none; border-top-width: 5px !important;">
                         <div class="card-header bg-white py-3">
@@ -277,3 +305,91 @@
         </div>
     </div>
 </div>
+<script>
+(function ($) {
+    function dutyPermEscape(value) {
+        return $('<div>').text(value == null ? '' : value).html();
+    }
+
+    window.loadDutyParentPermissions = function (date) {
+        if (!date) {
+            return;
+        }
+        $('#dutyParentPermissionsBody').html('<tr><td colspan="6" class="text-center py-3"><i class="fa fa-spinner fa-spin"></i></td></tr>');
+        $.get('{{ route("duty_book.parent_permissions") }}', { date: date }, function (res) {
+            var rows = (res && res.permissions) ? res.permissions : [];
+            if (!rows.length) {
+                $('#dutyParentPermissionsBody').html('<tr><td colspan="6" class="text-center text-muted py-3">Hakuna ruhusa ya mzazi kwa tarehe hii.</td></tr>');
+                return;
+            }
+            var html = '';
+            rows.forEach(function (item) {
+                var badge = item.status === 'approved'
+                    ? '<span class="badge badge-success">Approved</span>'
+                    : (item.status === 'rejected'
+                        ? '<span class="badge badge-danger">Rejected</span>'
+                        : '<span class="badge badge-warning">Pending</span>');
+                var action = '<span class="text-muted small">View only</span>';
+                if (item.can_act) {
+                    action = '<button type="button" class="btn btn-sm btn-success duty-perm-approve" data-id="' + item.id + '">Approve</button> '
+                        + '<button type="button" class="btn btn-sm btn-outline-danger duty-perm-reject" data-id="' + item.id + '">Reject</button>';
+                }
+                html += '<tr>'
+                    + '<td>' + dutyPermEscape(item.student_name) + '</td>'
+                    + '<td>' + dutyPermEscape(item.parent_name) + '</td>'
+                    + '<td>' + dutyPermEscape(item.class_name) + '</td>'
+                    + '<td>' + dutyPermEscape(item.reason_type) + '<br><small class="text-muted">' + dutyPermEscape(item.start_date) + ' - ' + dutyPermEscape(item.end_date) + '</small></td>'
+                    + '<td>' + badge + '</td>'
+                    + '<td class="text-right">' + action + '</td>'
+                    + '</tr>';
+            });
+            $('#dutyParentPermissionsBody').html(html);
+        }).fail(function () {
+            $('#dutyParentPermissionsBody').html('<tr><td colspan="6" class="text-center text-danger py-3">Imeshindwa kupakia ruhusa.</td></tr>');
+        });
+    };
+
+    $('#dutyReportModal').on('shown.bs.modal', function () {
+        window.loadDutyParentPermissions($('#report_date').val());
+    });
+
+    function sendDutyPermission(url, id, title) {
+        Swal.fire({
+            title: title,
+            input: 'textarea',
+            inputPlaceholder: 'Andika maoni',
+            showCancelButton: true,
+            confirmButtonColor: '#940000',
+            confirmButtonText: 'Tuma',
+            inputValidator: function (value) {
+                if (!value || value.trim().length < 2) {
+                    return 'Andika maoni';
+                }
+            }
+        }).then(function (result) {
+            if (!result.isConfirmed) {
+                return;
+            }
+            $.post(url, {
+                _token: $('#dailyDutyForm input[name="_token"]').val(),
+                permissionID: id,
+                admin_response: result.value,
+                is_student_permission: 1
+            }).done(function (res) {
+                Swal.fire('Imefanikiwa', (res && res.message) ? res.message : 'Imekamilika', 'success');
+                window.loadDutyParentPermissions($('#report_date').val());
+            }).fail(function (xhr) {
+                var message = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Imeshindwa.';
+                Swal.fire('Hitilafu', message, 'error');
+            });
+        });
+    }
+
+    $(document).on('click', '.duty-perm-approve', function () {
+        sendDutyPermission('{{ route("admin.permissions.approve") }}', $(this).data('id'), 'Kubali ruhusa');
+    });
+    $(document).on('click', '.duty-perm-reject', function () {
+        sendDutyPermission('{{ route("admin.permissions.reject") }}', $(this).data('id'), 'Kataa ruhusa');
+    });
+})(jQuery);
+</script>

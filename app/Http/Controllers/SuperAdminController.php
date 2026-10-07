@@ -382,6 +382,8 @@ class SuperAdminController extends Controller
             'two_factor_enabled' => 'nullable|boolean',
             'must_change_default_password' => 'nullable|boolean',
             'senderID' => 'nullable|string|max:20',
+            'sms_enabled' => 'nullable|boolean',
+            'student_portal_enabled' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -403,6 +405,10 @@ class SuperAdminController extends Controller
         $school->two_factor_enabled = (bool)($request->input('two_factor_enabled', false));
         $school->must_change_default_password = (bool)($request->input('must_change_default_password', false));
         $school->senderID = $request->senderID;
+        $school->sms_enabled = $request->boolean('sms_enabled', true);
+        if ($request->exists('student_portal_enabled')) {
+            $school->student_portal_enabled = $request->boolean('student_portal_enabled');
+        }
         $school->save();
 
         return response()->json([
@@ -415,6 +421,8 @@ class SuperAdminController extends Controller
                 'two_factor_enabled' => (bool)$school->two_factor_enabled,
                 'must_change_default_password' => (bool)$school->must_change_default_password,
                 'senderID' => $school->senderID,
+                'sms_enabled' => (bool)$school->sms_enabled,
+                'student_portal_enabled' => (bool)$school->student_portal_enabled,
             ]
         ]);
     }
@@ -1312,6 +1320,8 @@ class SuperAdminController extends Controller
             'environment' => 'nullable|in:Demo,Live',
             'status' => 'required|in:Active,Inactive',
             'senderID' => 'nullable|string|max:20',
+            'sms_enabled' => 'nullable|boolean',
+            'student_portal_enabled' => 'nullable|boolean',
             'login_status' => 'nullable|in:0,1',
             'suspension_reason' => 'nullable|string|max:1000',
             'school_logo' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
@@ -1363,6 +1373,10 @@ class SuperAdminController extends Controller
                 ? \App\Support\SchoolSocialMedia::normalize($request->input('social_media', []))
                 : null;
             $school->senderID = $request->senderID;
+            $school->sms_enabled = $request->boolean('sms_enabled', true);
+        if ($request->exists('student_portal_enabled')) {
+            $school->student_portal_enabled = $request->boolean('student_portal_enabled');
+        }
             $school->login_status = $loginStatus;
             $school->suspension_reason = $loginStatus === 0 ? $request->suspension_reason : null;
 
@@ -1417,6 +1431,40 @@ class SuperAdminController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Bulk enable/disable outbound SMS for all schools (implementation / ops control).
+     */
+    public function bulkUpdateSmsEnabled(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'sms_enabled' => 'required|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $enabled = $request->boolean('sms_enabled');
+        $updated = School::query()->update(['sms_enabled' => $enabled]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $enabled
+                ? "SMS enabled for {$updated} school(s)."
+                : "SMS disabled for {$updated} school(s). No client SMS will be sent.",
+            'updated' => $updated,
+            'sms_enabled' => $enabled,
+        ]);
+    }
+
     public function users()
     {
         if ($resp = $this->ensureSuperAdmin()) return $resp;
@@ -2500,7 +2548,7 @@ class SuperAdminController extends Controller
         }
 
         try {
-            (new SmsService())->sendSms($school->phone, $msg, $school->senderID);
+            (new SmsService())->sendSms($school->phone, $msg, $school->senderID, $school->schoolID);
         } catch (\Throwable $e) {
             Log::warning('Failed to SMS school about bank account decision', [
                 'accountID' => $account->accountID,

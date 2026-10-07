@@ -1,47 +1,52 @@
 @extends('layouts.site')
 
 @section('content')
-<section class="banner-area relative about-banner">
+<section class="banner-area relative about-banner sx-reg-banner" id="home">
     <div class="overlay overlay-bg"></div>
+    <div class="sx-reg-banner__glow sx-reg-banner__glow--a" aria-hidden="true"></div>
+    <div class="sx-reg-banner__glow sx-reg-banner__glow--b" aria-hidden="true"></div>
     <div class="container">
         <div class="row d-flex align-items-center justify-content-center">
-            <div class="about-content col-lg-12">
-                <h1 class="text-white">Register Your School</h1>
+            <div class="about-content col-lg-12 text-center">
+                <h1 class="text-white">{{ __('site.register_school') }}</h1>
                 <p class="text-white link-nav">
-                    <a href="{{ route('site.home') }}">Home</a>
+                    <a href="{{ route('site.home') }}">{{ __('site.home') }}</a>
                     <span class="lnr lnr-arrow-right"></span>
-                    <a href="{{ route('site.register_school') }}">Register School</a>
+                    <a href="{{ route('site.register_school') }}">{{ __('site.register_school') }}</a>
+                </p>
+                <p class="sx-reg-lead text-white">
+                    Apply to join ShuleXpert. Your application stays pending until our team verifies it.
                 </p>
             </div>
         </div>
     </div>
 </section>
 
-<section class="section-gap" style="padding-top:40px;padding-bottom:60px;">
+<section class="section-gap sx-reg-page">
     <div class="container">
         @if(session('success'))
-            <div class="alert alert-success" style="border-radius:0;border-left:4px solid #1a7f37;">
+            <div class="alert alert-success sx-reg-alert">
                 {{ session('success') }}
             </div>
         @endif
 
         <div class="row justify-content-center">
             <div class="col-lg-10">
-                <div class="mb-4" style="border:1px solid #e5e5e5;padding:16px 18px;background:#fff;">
-                    <h4 style="color:#940000;font-weight:700;margin-bottom:8px;">School Registration | ShuleXpert</h4>
-                    <p class="mb-2" style="color:#555;">
+                <div class="mb-4 sx-reg-intro">
+                    <h4>School Registration | ShuleXpert</h4>
+                    <p class="mb-2">
                         Fill in this form to apply to join ShuleXpert. After submission, your application will remain
                         <strong>Pending</strong> until our team verifies it. <strong>You will not receive login credentials</strong>
                         until after verification.
                     </p>
-                    <p class="mb-0 small text-muted">Steps: 1) Fill in your details, 2) Submit Registration, 3) Verify phone with OTP, 4) Application is saved</p>
+                    <p class="mb-0 small sx-reg-muted">Steps: 1) Fill in your details, 2) Submit Registration, 3) Verify phone with OTP, 4) Application is saved</p>
                 </div>
 
-                <form id="schoolRegForm" method="POST" action="{{ route('site.register_school.submit') }}" style="border:1px solid #e5e5e5;padding:24px;background:#fff;">
+                <form id="schoolRegForm" class="sx-reg-form" method="POST" action="{{ route('site.register_school.submit') }}">
                     @csrf
                     <input type="hidden" name="otp_token" id="otp_token" value="">
 
-                    <h6 style="color:#940000;font-weight:700;border-bottom:1px solid #eee;padding-bottom:8px;margin-bottom:18px;">Basic Information</h6>
+                    <h6 class="sx-reg-section-title">Basic Information</h6>
                     <div class="row">
                         <div class="col-md-6 form-group mb-3">
                             <label class="font-weight-bold">School Name <span class="text-danger">*</span></label>
@@ -51,7 +56,7 @@
                         <div class="col-md-3 form-group mb-3">
                             <label class="font-weight-bold">Registration No.</label>
                             <input type="text" name="registration_number" id="registration_number" class="form-control" value="{{ old('registration_number') }}" placeholder="e.g. S927/123" autocomplete="off">
-                            <small id="registration_numberFeedback" class="d-block mt-1" style="min-height:18px;"></small>
+                            <small id="registration_numberFeedback" class="d-block mt-1 sx-reg-feedback"></small>
                             @error('registration_number')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-3 form-group mb-3">
@@ -91,14 +96,14 @@
                         </div>
                     </div>
 
-                    <h6 style="color:#940000;font-weight:700;border-bottom:1px solid #eee;padding-bottom:8px;margin:24px 0 18px;">Location & Contact</h6>
+                    <h6 class="sx-reg-section-title sx-reg-section-title--spaced">Location & Contact</h6>
                     <div class="row">
                         <div class="col-md-4 form-group mb-3">
                             <label class="font-weight-bold">Region <span class="text-danger">*</span></label>
                             <select name="region" id="region" class="form-control" required data-old="{{ old('region') }}">
                                 <option value="">Select region</option>
                             </select>
-                            <small id="regionLoadHint" class="text-muted d-block mt-1">Loading regions...</small>
+                            <small id="regionLoadHint" class="sx-reg-muted d-block mt-1">Loading regions...</small>
                             @error('region')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-4 form-group mb-3">
@@ -118,13 +123,13 @@
                         <div class="col-md-6 form-group mb-3">
                             <label class="font-weight-bold">Email</label>
                             <input type="email" name="email" id="email" class="form-control" value="{{ old('email') }}" autocomplete="email">
-                            <small id="emailFeedback" class="d-block mt-1" style="min-height:18px;"></small>
+                            <small id="emailFeedback" class="d-block mt-1 sx-reg-feedback"></small>
                             @error('email')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-6 form-group mb-3">
                             <label class="font-weight-bold">Phone <span class="text-danger">*</span></label>
                             <input type="text" name="phone" id="phone" class="form-control" value="{{ old('phone', '255') }}" required placeholder="2557XXXXXXXX" maxlength="12" autocomplete="tel">
-                            <small id="phoneFeedback" class="d-block mt-1" style="min-height:18px;"></small>
+                            <small id="phoneFeedback" class="d-block mt-1 sx-reg-feedback"></small>
                             @error('phone')<small class="text-danger d-block">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-12 form-group mb-3">
@@ -138,20 +143,20 @@
                     </div>
 
                     {{-- OTP step: shown after Submit, before save --}}
-                    <div id="otpStep" style="display:none;margin:18px 0;padding:16px;border:1px solid #e0cdcd;background:#fffaf9;">
-                        <h6 style="color:#940000;font-weight:700;margin-bottom:8px;">Verify phone with OTP</h6>
-                        <p class="mb-2 small" id="otpIntro" style="color:#555;">We have sent an OTP to your phone. Enter the code to complete registration.</p>
-                        <div class="d-flex flex-wrap" style="gap:8px;max-width:420px;">
+                    <div id="otpStep" class="sx-reg-otp" style="display:none;">
+                        <h6 class="sx-reg-otp__title">Verify phone with OTP</h6>
+                        <p class="mb-2 small" id="otpIntro">We have sent an OTP to your phone. Enter the code to complete registration.</p>
+                        <div class="d-flex flex-wrap sx-reg-otp__row">
                             <input type="text" id="otpInput" class="form-control" placeholder="Enter 6-digit OTP" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
-                            <button type="button" class="btn btn-dark" id="btnVerifyOtp" style="border-radius:0;white-space:nowrap;">Verify & Save</button>
-                            <button type="button" class="btn btn-outline-secondary" id="btnResendOtp" style="border-radius:0;white-space:nowrap;">Resend OTP</button>
+                            <button type="button" class="btn btn-dark sx-reg-btn-secondary" id="btnVerifyOtp">Verify & Save</button>
+                            <button type="button" class="btn btn-outline-secondary sx-reg-btn-ghost" id="btnResendOtp">Resend OTP</button>
                         </div>
-                        <small id="otpStatus" class="d-block mt-2" style="color:#666;"></small>
+                        <small id="otpStatus" class="d-block mt-2 sx-reg-muted"></small>
                     </div>
 
-                    <div class="d-flex flex-wrap align-items-center justify-content-between mt-3" style="gap:12px;">
-                        <small class="text-muted" id="verifyHint">Fill in the form, then click Submit Registration. An OTP will be sent to your phone.</small>
-                        <button type="submit" class="btn btn-lg" id="btnSubmit" style="background:#940000;color:#fff;border-radius:0;font-weight:700;">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between mt-3 sx-reg-actions">
+                        <small class="sx-reg-muted" id="verifyHint">Fill in the form, then click Submit Registration. An OTP will be sent to your phone.</small>
+                        <button type="submit" class="btn btn-lg sx-reg-submit" id="btnSubmit">
                             Submit Registration
                         </button>
                     </div>
@@ -633,3 +638,192 @@
 })();
 </script>
 @endsection
+
+@push('styles')
+<style>
+.sx-reg-banner.about-banner {
+    min-height: 340px !important;
+    padding-top: 168px !important;
+    padding-bottom: 72px !important;
+    position: relative;
+    overflow: hidden;
+}
+.sx-reg-banner__glow {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+}
+.sx-reg-banner__glow--a {
+    width: 320px; height: 320px;
+    top: -80px; right: -60px;
+    background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
+}
+.sx-reg-banner__glow--b {
+    width: 260px; height: 260px;
+    bottom: -100px; left: -40px;
+    background: radial-gradient(circle, rgba(196,58,58,0.35) 0%, transparent 70%);
+}
+.sx-reg-banner .container { position: relative; z-index: 2; }
+.sx-reg-banner .about-content h1 {
+    font-size: 38px;
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+.sx-reg-lead {
+    max-width: 620px;
+    margin: 14px auto 0;
+    opacity: .92;
+    font-size: 15px;
+    line-height: 1.7;
+}
+.sx-reg-page {
+    padding-top: 40px !important;
+    padding-bottom: 60px !important;
+}
+.sx-reg-alert {
+    border-radius: 0;
+    border-left: 4px solid #1a7f37;
+}
+.sx-reg-intro,
+.sx-reg-form {
+    border: 1px solid #e5e5e5;
+    background: #fff;
+}
+.sx-reg-intro {
+    padding: 16px 18px;
+}
+.sx-reg-intro h4 {
+    color: #940000;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.sx-reg-intro p {
+    color: #555;
+}
+.sx-reg-intro strong { color: #222; }
+.sx-reg-muted,
+.sx-reg-intro .sx-reg-muted {
+    color: #777 !important;
+}
+.sx-reg-form {
+    padding: 24px;
+}
+.sx-reg-section-title {
+    color: #940000;
+    font-weight: 700;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+    margin-bottom: 18px;
+}
+.sx-reg-section-title--spaced {
+    margin: 24px 0 18px;
+}
+.sx-reg-form label {
+    color: #333;
+}
+.sx-reg-feedback { min-height: 18px; }
+.sx-reg-otp {
+    margin: 18px 0;
+    padding: 16px;
+    border: 1px solid #e0cdcd;
+    background: #fffaf9;
+}
+.sx-reg-otp__title {
+    color: #940000;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.sx-reg-otp p { color: #555; }
+.sx-reg-otp__row {
+    gap: 8px;
+    max-width: 420px;
+}
+.sx-reg-btn-secondary,
+.sx-reg-btn-ghost {
+    border-radius: 0 !important;
+    white-space: nowrap;
+}
+.sx-reg-actions { gap: 12px; }
+.sx-reg-submit {
+    background: #940000 !important;
+    color: #fff !important;
+    border-radius: 0 !important;
+    font-weight: 700 !important;
+    border: none !important;
+}
+
+html[data-sx-theme="dark"] .sx-reg-intro,
+html[data-sx-theme="dark"] .sx-reg-form {
+    background: #1f1418 !important;
+    border-color: rgba(255,180,180,0.2) !important;
+    color: #f3e9eb !important;
+}
+html[data-sx-theme="dark"] .sx-reg-intro h4,
+html[data-sx-theme="dark"] .sx-reg-section-title,
+html[data-sx-theme="dark"] .sx-reg-otp__title {
+    color: #ffb4b4 !important;
+}
+html[data-sx-theme="dark"] .sx-reg-section-title {
+    border-bottom-color: rgba(255,180,180,0.18) !important;
+}
+html[data-sx-theme="dark"] .sx-reg-intro p,
+html[data-sx-theme="dark"] .sx-reg-otp p,
+html[data-sx-theme="dark"] .sx-reg-form label,
+html[data-sx-theme="dark"] .sx-reg-muted,
+html[data-sx-theme="dark"] .sx-reg-intro .sx-reg-muted,
+html[data-sx-theme="dark"] #verifyHint,
+html[data-sx-theme="dark"] #otpStatus,
+html[data-sx-theme="dark"] #regionLoadHint {
+    color: #f3e9eb !important;
+}
+html[data-sx-theme="dark"] .sx-reg-form label {
+    color: #fff !important;
+}
+html[data-sx-theme="dark"] .sx-reg-intro strong,
+html[data-sx-theme="dark"] .sx-reg-form strong {
+    color: #fff !important;
+}
+html[data-sx-theme="dark"] .sx-reg-form .form-control,
+html[data-sx-theme="dark"] .sx-reg-otp .form-control {
+    background: #2a1a1f !important;
+    border-color: rgba(255,180,180,0.22) !important;
+    color: #fff !important;
+}
+html[data-sx-theme="dark"] .sx-reg-form .form-control:disabled,
+html[data-sx-theme="dark"] .sx-reg-form select:disabled {
+    background: #1a1014 !important;
+    color: #c9b4b8 !important;
+}
+html[data-sx-theme="dark"] .sx-reg-form .form-control::placeholder {
+    color: #c9b4b8 !important;
+}
+html[data-sx-theme="dark"] .sx-reg-otp {
+    background: #2a171c !important;
+    border-color: rgba(255,180,180,0.28) !important;
+}
+html[data-sx-theme="dark"] .sx-reg-btn-ghost {
+    color: #ffd6d6 !important;
+    border-color: rgba(255,180,180,0.4) !important;
+    background: transparent !important;
+}
+html[data-sx-theme="dark"] .sx-reg-btn-secondary {
+    background: #3a242b !important;
+    border-color: rgba(255,180,180,0.3) !important;
+    color: #fff !important;
+}
+html[data-sx-theme="dark"] .sx-reg-alert {
+    background: #1a2e22 !important;
+    color: #d4edda !important;
+    border-color: #1a7f37 !important;
+}
+@media (max-width: 991.98px) {
+    .sx-reg-banner.about-banner {
+        min-height: 300px !important;
+        padding-top: 148px !important;
+        padding-bottom: 60px !important;
+    }
+    .sx-reg-banner .about-content h1 { font-size: 30px; }
+}
+</style>
+@endpush

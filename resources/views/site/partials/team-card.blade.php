@@ -12,7 +12,7 @@
             <div class="sx-team-card__frame">
                 <div class="sx-team-card__ring" aria-hidden="true"></div>
                 <div class="sx-team-card__photo">
-                    <img src="{{ asset($member['image']) }}" alt="{{ $member['name'] }}, {{ $member['role'] }} · EmCa Techonology" loading="lazy" itemprop="image">
+                    <img src="{{ asset($member['image']) }}" alt="{{ $member['name'] }}, {{ $member['role'] }}, EmCa Techonology" loading="lazy" itemprop="image">
                 </div>
             </div>
             <div class="sx-team-card__body">

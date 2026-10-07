@@ -20,9 +20,9 @@
     <div class="sx-member-hero__glow sx-member-hero__glow--b" aria-hidden="true"></div>
     <div class="container">
         <nav class="sx-member-crumb" aria-label="Breadcrumb">
-            <a href="{{ route('site.home') }}">Home</a>
+            <a href="{{ route('site.home') }}">{{ __('site.home') }}</a>
             <span>/</span>
-            <a href="{{ route('site.team') }}">Team</a>
+            <a href="{{ route('site.team') }}">{{ __('site.team') }}</a>
             <span>/</span>
             <span>{{ $name }}</span>
         </nav>
@@ -36,7 +36,6 @@
             </div>
 
             <div class="sx-member-hero__copy">
-                <p class="sx-member-eyebrow">EmCa Techonology · ShuleXpert</p>
                 <h1>{{ $name }}</h1>
                 <p class="sx-member-role">{{ $role }}</p>
                 <p class="sx-member-tagline">{{ $member['tagline'] }}</p>

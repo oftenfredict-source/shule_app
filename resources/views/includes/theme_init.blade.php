@@ -1,6 +1,10 @@
 <script>
 (function () {
-    try { localStorage.removeItem('sx-theme'); } catch (e) {}
-    document.documentElement.setAttribute('data-sx-theme', 'light');
+    var theme = 'light';
+    try {
+        var saved = localStorage.getItem('sx-theme');
+        if (saved === 'dark' || saved === 'light') theme = saved;
+    } catch (e) {}
+    document.documentElement.setAttribute('data-sx-theme', theme);
 })();
 </script>

@@ -19,10 +19,15 @@ class SchoolVisitor extends Model
         'contact',
         'occupation',
         'reason',
+        'office_visited',
         'signature',
+        'signed_in_at',
+        'signed_out_at',
     ];
 
     protected $casts = [
         'visit_date' => 'date',
+        'signed_in_at' => 'datetime',
+        'signed_out_at' => 'datetime',
     ];
 }
