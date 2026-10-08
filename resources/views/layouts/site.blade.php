@@ -65,6 +65,14 @@
         html[data-sx-theme="dark"][data-sx-site="public"],
         html[data-sx-theme="dark"][data-sx-site="public"] body { background:#160d10!important }
         html[data-sx-theme="dark"][data-sx-site="public"] #main-content { background:#160d10!important }
+        /* Critical header prefs — keeps EN/SW styled even if CSS file is stale/cached */
+        .sx-header-top-tools{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+        .sx-header-top-link{color:#fff!important;font-size:13px}
+        .sx-site-prefs{display:inline-flex;align-items:center;gap:8px}
+        .sx-lang-switch{display:inline-flex;border:1px solid rgba(255,255,255,.35);overflow:hidden;background:rgba(0,0,0,.15)}
+        .sx-lang-btn{border:0;background:transparent;color:#fff;font-size:11px;font-weight:800;letter-spacing:.04em;padding:6px 10px;cursor:pointer;line-height:1;min-width:36px}
+        .sx-lang-btn.is-active{background:#fff;color:#940000}
+        .sx-site-header .header-top .sx-theme-toggle{width:32px;height:32px;border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:#fff}
     </style>
     @unless(!empty($skipSplash))
     <style>
