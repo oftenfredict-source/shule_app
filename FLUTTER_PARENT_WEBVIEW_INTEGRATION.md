@@ -1,4 +1,4 @@
-# Flutter Mobile App — Parent Portal WebView Integration
+# Flutter Mobile App - Parent Portal WebView Integration
 
 ## Muhtasari (Kiswahili)
 
@@ -6,9 +6,9 @@ Hati hii inaelezea jinsi **Flutter Mobile App** inavyoweza kuonyesha **interface
 
 ### Mfumo wa kufanya kazi
 
-1. Mzazi analogin kwenye App kwa `POST /api/login` (hiari — kwa data za JSON/native screens).
-2. App inaita `POST /api/mobile/web-session` kwa username/password **ile ile** — server inaunda **web session** (cookie) kama login ya kawaida ya browser.
-3. App inafungua **WebView** na ku-load URL iliyorudishwa (`web_url`) — mzazi anaona dashboard, mahudhurio, matokeo, malipo, nk. **sawa na browser**.
+1. Mzazi analogin kwenye App kwa `POST /api/login` (hiari - kwa data za JSON/native screens).
+2. App inaita `POST /api/mobile/web-session` kwa username/password **ile ile** - server inaunda **web session** (cookie) kama login ya kawaida ya browser.
+3. App inafungua **WebView** na ku-load URL iliyorudishwa (`web_url`) - mzazi anaona dashboard, mahudhurio, matokeo, malipo, nk. **sawa na browser**.
 
 > **Muhimu:** Portal ya mzazi (`/parentDashboard`, `/parentAttendance`, nk.) inategemea **session cookie**, si API headers pekee. Endpoint ya `web-session` ndiyo daraja kati ya App na blades za web.
 
@@ -47,7 +47,7 @@ sequenceDiagram
 
 ---
 
-## Hatua 1 — Login API (Hiari)
+## Hatua 1 - Login API (Hiari)
 
 Kwa skrini za native (JSON) tumia login iliyopo:
 
@@ -96,7 +96,7 @@ Hifadhi `parentID`, `schoolID`, `user_type` kwa API nyingine (malipo, matokeo, n
 
 ---
 
-## Hatua 2 — Unda Web Session (Lazima kwa WebView)
+## Hatua 2 - Unda Web Session (Lazima kwa WebView)
 
 **Endpoint:** `POST /api/mobile/web-session`
 
@@ -155,11 +155,11 @@ Accept: application/json
   "expires_in": 600
 }
 ```
-Katika hali hii session haijaundwa — mzazi hawezi kupata OTP hapa; tumia login ya wavuti kwa OTP kwanza, au zima OTP kwa shule husika.
+Katika hali hii session haijaundwa - mzazi hawezi kupata OTP hapa; tumia login ya wavuti kwa OTP kwanza, au zima OTP kwa shule husika.
 
 ---
 
-## Hatua 3 — Fungua WebView
+## Hatua 3 - Fungua WebView
 
 Baada ya `web-session`, load `web_url` kwenye WebView. **Lazima** cookie za session (`laravel_session` / `XSRF-TOKEN`) zisafirishwe kutoka HTTP client hadi WebView.
 
@@ -205,7 +205,7 @@ class ParentPortalService {
     _dio.interceptors.add(CookieManager(_cookieJar));
   }
 
-  /// Login API — data za JSON (hiari)
+  /// Login API - data za JSON (hiari)
   Future<Map<String, dynamic>> apiLogin(String username, String password) async {
     final res = await _dio.post('/login', data: {
       'username': username,
@@ -214,7 +214,7 @@ class ParentPortalService {
     return Map<String, dynamic>.from(res.data as Map);
   }
 
-  /// Unda web session — lazima kabla ya WebView
+  /// Unda web session - lazima kabla ya WebView
   Future<Map<String, dynamic>> createWebSession(
     String username,
     String password,
@@ -258,7 +258,7 @@ class _ParentWebViewScreenState extends State<ParentWebViewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ShuleXpert — Mzazi')),
+      appBar: AppBar(title: const Text('ShuleXpert - Mzazi')),
       body: WebViewWidget(controller: _controller),
     );
   }
@@ -278,7 +278,7 @@ Future<void> openParentPortal(BuildContext context) async {
     throw Exception(loginData['message'] ?? 'Login imeshindwa');
   }
 
-  // 2) Web session — cookie inaundwa hapa
+  // 2) Web session - cookie inaundwa hapa
   final session = await service.createWebSession(username, password);
   if (session['success'] != true) {
     throw Exception(session['message'] ?? 'Web session imeshindwa');
@@ -322,7 +322,7 @@ if (Platform.isAndroid) {
 
 **Njia rahisi:** Tumia `dio` + `PersistCookieJar`, kisha `WebView` yenye `webview_flutter` inayoshiriki process cookies kwenye Android (kwa kawaida inafanya kazi ikiwa `web-session` na WebView zina domain sawa).
 
-**Njia bora zaidi:** Baada ya `createWebSession`, load `web_url` moja kwa moja — `dio` na `WebView` zinaweza kuhitaji sync ya cookies manually kwenye baadhi ya vifaa. Jaribu kwanza load moja kwa moja; ikiwa inarudisha login, sync cookies kama hapo juu.
+**Njia bora zaidi:** Baada ya `createWebSession`, load `web_url` moja kwa moja - `dio` na `WebView` zinaweza kuhitaji sync ya cookies manually kwenye baadhi ya vifaa. Jaribu kwanza load moja kwa moja; ikiwa inarudisha login, sync cookies kama hapo juu.
 
 ---
 
@@ -330,7 +330,7 @@ if (Platform.isAndroid) {
 
 | Ukurasa | URL (mfano) | Maelezo |
 |---------|-------------|---------|
-| Dashboard | `/parentDashboard` | Nyumbani — takwimu, watoto |
+| Dashboard | `/parentDashboard` | Nyumbani - takwimu, watoto |
 | Matokeo | `/parentResults` | Matokeo ya mitihani |
 | Mahudhurio (Mfumo) | `/parentAttendance` | Kalenda ya mahudhurio ya mfumo |
 | Mahudhurio (Vidole) | `/parentFingerprintAttendance` | Kalenda ya fingerprint |
@@ -380,10 +380,10 @@ GET/POST http://192.168.1.162:8003/logout
 
 ## Usalama
 
-1. **HTTPS** — production lazima `https://`.
-2. **Usihifadhi password** — tumia `flutter_secure_storage` kwa session/cookies tu.
-3. **Certificate pinning** — inapendekezwa production.
-4. **WebView** — zuia URLs nje ya domain yako:
+1. **HTTPS** - production lazima `https://`.
+2. **Usihifadhi password** - tumia `flutter_secure_storage` kwa session/cookies tu.
+3. **Certificate pinning** - inapendekezwa production.
+4. **WebView** - zuia URLs nje ya domain yako:
 ```dart
 onNavigationRequest: (req) {
   if (!req.url.startsWith(ShuleXpertConfig.baseWeb)) {
@@ -399,11 +399,11 @@ onNavigationRequest: (req) {
 
 | Tatizo | Suluhisho |
 |--------|-----------|
-| WebView inaonyesha ukurasa wa login | Cookies hazijasafirishwa — rejea sehemu ya Cookie sync |
+| WebView inaonyesha ukurasa wa login | Cookies hazijasafirishwa - rejea sehemu ya Cookie sync |
 | `Connection refused` kwenye simu | Tumia IP halisi (`192.168.x.x`), si `localhost` |
 | Emulator haiwezi kuunganisha | Android: `10.0.2.2`; iOS: `127.0.0.1` au IP ya Mac |
-| `requires_otp: true` | Shule ina 2FA — mzazi hawezi; Admin/Teacher wanahitaji OTP |
-| Mahudhurio vidole kimefifia | Darasa halijaruhusiwa na Super Admin — `parent-fingerprint-portal` |
+| `requires_otp: true` | Shule ina 2FA - mzazi hawezi; Admin/Teacher wanahitaji OTP |
+| Mahudhurio vidole kimefifia | Darasa halijaruhusiwa na Super Admin - `parent-fingerprint-portal` |
 | Picha za watoto hazionekani | Hakikisha `baseWeb` inafikika kutoka simu kwa `userImages/` |
 
 ---
@@ -437,8 +437,8 @@ curl -b cookies.txt "http://192.168.1.162:8003/parentDashboard"
 | Matokeo | `GET /api/parent/results` | `/parentResults` |
 | Malipo | `GET /api/parent/payments` | `/parentPayments` |
 | Ada | `GET /api/parent/fees-summary` | `/parentFeesSummary` |
-| Mahudhurio | — (tumia WebView) | `/parentAttendance` |
-| Fingerprint | — (tumia WebView) | `/parentFingerprintAttendance` |
+| Mahudhurio | - (tumia WebView) | `/parentAttendance` |
+| Fingerprint | - (tumia WebView) | `/parentFingerprintAttendance` |
 
 **Mapendekezo:** Tumia **API** kwa data ndogo/native widgets; tumia **WebView** kwa kurasa zenye UI kamili (mahudhurio kalenda, ruhusa, nk.).
 

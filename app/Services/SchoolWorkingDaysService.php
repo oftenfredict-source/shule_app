@@ -9,7 +9,7 @@ use Carbon\Carbon;
 class SchoolWorkingDaysService
 {
     /**
-     * Working days in range — same rules as admin calendar:
+     * Working days in range - same rules as admin calendar:
      * exclude weekends, school holidays, Tanzania public holidays, non-working events.
      */
     public function getWorkingDaysCount(int $schoolID, Carbon $startDate, Carbon $endDate): int

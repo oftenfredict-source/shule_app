@@ -29,12 +29,49 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 
-    <script src="{{ asset('vendors/jquery/dist/jquery.js') }}"></script>
+    <script src="{{ asset('vendors/jquery/dist/jquery.js') }}" onerror="this.onerror=null;this.src='https://code.jquery.com/jquery-3.6.4.min.js';"></script>
     <script>
-        if (!window.jQuery) {
-            document.write('<script src="https://code.jquery.com/jquery-3.6.4.min.js"><\/script>');
-        }
-        window.$ = window.jQuery;
+        (function bindJqueryAlias() {
+            function lockDollarToJquery() {
+                if (typeof window.jQuery !== 'function') {
+                    return false;
+                }
+                try {
+                    Object.defineProperty(window, '$', {
+                        configurable: true,
+                        enumerable: true,
+                        get: function () { return window.jQuery; },
+                        set: function (value) {
+                            if (typeof value === 'function' && value.fn) {
+                                window.jQuery = value;
+                            }
+                        }
+                    });
+                } catch (e) {
+                    window.$ = window.jQuery;
+                }
+                return true;
+            }
+
+            if (lockDollarToJquery()) {
+                return;
+            }
+
+            // Local asset may still be loading after onerror CDN swap
+            var tries = 0;
+            var timer = setInterval(function () {
+                tries += 1;
+                if (lockDollarToJquery()) {
+                    clearInterval(timer);
+                } else if (tries > 40) {
+                    clearInterval(timer);
+                    var s = document.createElement('script');
+                    s.src = 'https://code.jquery.com/jquery-3.6.4.min.js';
+                    s.onload = function () { lockDollarToJquery(); };
+                    document.head.appendChild(s);
+                }
+            }, 50);
+        })();
     </script>
 
     <style>
@@ -645,7 +682,7 @@ aside#left-panel {
     overflow: hidden !important;
 }
 
-/* Logo card — pinned, never scrolls away */
+/* Logo card - pinned, never scrolls away */
 #left-panel .navbar-header {
     position: relative !important;
     z-index: 20 !important;
@@ -784,7 +821,7 @@ aside#left-panel {
     }
 }
 
-/* Header styling — Super Admin style (brand red, flex layout) */
+/* Header styling - Super Admin style (brand red, flex layout) */
 #header,
 #header.header,
 .right-panel header.header,
@@ -1031,7 +1068,7 @@ a#menuToggle.menutoggle:hover {
     }
 }
 
-/* Soft dark — Admin chrome (beats hard-coded white !important rules) */
+/* Soft dark - Admin chrome (beats hard-coded white !important rules) */
 html[data-sx-theme="dark"] #left-panel,
 html[data-sx-theme="dark"] #left-panel .navbar,
 html[data-sx-theme="dark"] #left-panel .navbar-default,
@@ -1140,7 +1177,7 @@ html[data-sx-theme="dark"] .footer-area {
     font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
 }
 
-/* Brand row — aligns with red #header (55px), like Super Admin */
+/* Brand row - aligns with red #header (55px), like Super Admin */
 .navbar-header {
     display: flex;
     align-items: center;
@@ -3086,19 +3123,29 @@ function loadScriptOnce(src, onLoad) {
 }
 
 function ensureJqueryAndBootstrap(callback) {
+    function bindAliasAndContinue() {
+        if (typeof window.jQuery === 'function') {
+            window.$ = window.jQuery;
+        }
+        if (typeof callback === 'function') {
+            callback();
+        }
+    }
+
     if (window.jQuery) {
         // If jQuery exists but Bootstrap collapse doesn't, just load Bootstrap
         if (typeof window.jQuery.fn.collapse !== 'function') {
-            loadScriptOnce('https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js', callback);
+            loadScriptOnce('https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js', bindAliasAndContinue);
         } else {
-            callback();
+            bindAliasAndContinue();
         }
         return;
     }
 
     // Fallback if no jQuery at all
     loadScriptOnce('https://code.jquery.com/jquery-3.6.0.min.js', function() {
-        loadScriptOnce('https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js', callback);
+        window.$ = window.jQuery;
+        loadScriptOnce('https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js', bindAliasAndContinue);
     });
 }
 

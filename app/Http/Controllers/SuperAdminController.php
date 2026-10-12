@@ -205,7 +205,7 @@ class SuperAdminController extends Controller
     }
 
     /**
-     * Public school registration requests (landing form) — pending / ready / rejected.
+     * Public school registration requests (landing form) - pending / ready / rejected.
      * Verify → ready only; does NOT create login credentials.
      */
     public function schoolRegistrationRequests(Request $request)
@@ -290,7 +290,7 @@ class SuperAdminController extends Controller
 
         return back()->with(
             'success',
-            'School request marked Ready. No login credentials were created — register the school manually when ready to onboard.'
+            'School request marked Ready. No login credentials were created - register the school manually when ready to onboard.'
         );
     }
 
@@ -2458,7 +2458,7 @@ class SuperAdminController extends Controller
                     'rejection_reason' => $acc->rejection_reason,
                     'otp_verified_at' => optional($acc->otp_verified_at)->format('Y-m-d H:i'),
                     'reviewed_at' => optional($acc->reviewed_at)->format('Y-m-d H:i'),
-                    'bank_name' => $acc->bank->bank_name ?? '—',
+                    'bank_name' => $acc->bank->bank_name ?? '-',
                     'bank_code' => $acc->bank->bank_code ?? '',
                     'display_label' => $acc->displayLabel(),
                 ];
@@ -2582,8 +2582,8 @@ class SuperAdminController extends Controller
         $lang = strtolower($lang) === 'sw' ? 'sw' : 'en';
 
         $titles = [
-            'en' => 'Payment Integration Modality Proposal — National Bank of Commerce (NBC)',
-            'sw' => 'Pendekezo la Modality ya Uunganishaji wa Malipo — National Bank of Commerce (NBC)',
+            'en' => 'Payment Integration Modality Proposal - National Bank of Commerce (NBC)',
+            'sw' => 'Pendekezo la Modality ya Uunganishaji wa Malipo - National Bank of Commerce (NBC)',
         ];
 
         $views = [
@@ -2606,7 +2606,7 @@ class SuperAdminController extends Controller
 
         try {
             $pdf = PDF::loadView($views[$lang], $data);
-            // NOTE: do not call setOptions() here — it resets DomPDF font metrics and
+            // NOTE: do not call setOptions() here - it resets DomPDF font metrics and
             // breaks the registered Century Gothic font (logo is embedded as base64).
             CenturyGothicPdfFont::ensureRegistered($pdf->getDomPDF());
             $pdf->setPaper('A4', 'portrait');

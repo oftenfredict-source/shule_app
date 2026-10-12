@@ -153,7 +153,7 @@
                                 <td class="small text-nowrap">
                                     {{ $meeting->meeting_date->format('d M Y') }}
                                     @if($start)
-                                        <br>{{ $start }}@if($end) – {{ $end }}@endif
+                                        <br>{{ $start }}@if($end) - {{ $end }}@endif
                                     @endif
                                 </td>
                                 <td>
@@ -164,8 +164,8 @@
                                         </span>
                                     @endif
                                 </td>
-                                <td>{{ $meeting->venue ?: '—' }}</td>
-                                <td>{{ optional($meeting->chair)->full_name ?: '—' }}</td>
+                                <td>{{ $meeting->venue ?: '-' }}</td>
+                                <td>{{ optional($meeting->chair)->full_name ?: '-' }}</td>
                                 <td class="attendee-list">
                                     @if($meeting->attendees->isEmpty())
                                         <span class="text-muted">None</span>
@@ -269,7 +269,7 @@
                         <div class="col-md-8 mb-3" id="committeeWrap" style="display:none;">
                             <label class="form-label">Committee <span class="text-danger">*</span></label>
                             <select class="form-control" name="committeeID" id="committeeID">
-                                <option value="">— Select committee —</option>
+                                <option value="">- Select committee -</option>
                                 @foreach($committees as $c)
                                     <option value="{{ $c->committeeID }}">{{ $c->committee_name }}</option>
                                 @endforeach
@@ -294,7 +294,7 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Chairperson</label>
                             <select class="form-control" name="chair_memberID" id="chair_memberID">
-                                <option value="">— Select —</option>
+                                <option value="">- Select -</option>
                                 @foreach($boardMembers as $bm)
                                     <option value="{{ $bm->memberID }}">{{ $bm->full_name }}</option>
                                 @endforeach

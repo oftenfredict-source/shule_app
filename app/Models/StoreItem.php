@@ -33,7 +33,7 @@ class StoreItem extends Model
         return $this->belongsTo(StoreMeasurementType::class, 'measurement_typeID', 'measurement_typeID');
     }
 
-    /** @deprecated Use units() — kept for legacy single-unit reference */
+    /** @deprecated Use units() - kept for legacy single-unit reference */
     public function unit()
     {
         return $this->belongsTo(StoreUnitOfMeasure::class, 'unitID', 'unitID');

@@ -27,7 +27,7 @@
                     <div class="sx-auth-form-wrap">
                         <h3><i class="fa fa-lock" style="margin-right:8px;"></i>School Member Login</h3>
                         <p class="sx-auth-sub">Enter your username and password to continue.</p>
-                        <p class="sx-auth-sub"><a href="{{ route('student_portal.login') }}">Student portal — sign in with admission number</a></p>
+                        <p class="sx-auth-sub"><a href="{{ route('student_portal.login') }}">Student portal - sign in with admission number</a></p>
 
                         <div id="loginAlert"></div>
                         @if (session('success'))

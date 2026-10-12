@@ -714,7 +714,7 @@ class ParentsContoller extends Controller
                 ->toArray();
         }
 
-        // Academic years (O/A) — wizard filters by student level after student is chosen
+        // Academic years (O/A) - wizard filters by student level after student is chosen
         $ayContext = $this->parentAcademicYearContext((int) $schoolID);
         $academicYears = $ayContext['options'];
         $academicYearLabel = $ayContext['label'];
@@ -735,7 +735,7 @@ class ParentsContoller extends Controller
             } elseif ($isSecondaryDual || $ayMode === 'secondary_o_only') {
                 $levelLabel = ($isA ? 'A Level' : 'O Level') . ($className ? ' · ' . $className : '');
             } else {
-                $levelLabel = $className ?: '—';
+                $levelLabel = $className ?: '-';
             }
             $student->setAttribute('level_label', $levelLabel);
             return $student;
@@ -4670,7 +4670,7 @@ class ParentsContoller extends Controller
     }
 
     /**
-     * Academic years for parent results wizard — same source as header selector.
+     * Academic years for parent results wizard - same source as header selector.
      */
     private function parentAcademicYearContext(int $schoolID): array
     {
@@ -4866,16 +4866,16 @@ class ParentsContoller extends Controller
                     'created_at_raw' => optional($n->created_at)->timestamp ?? 0,
                     'title' => 'Home Package',
                     'message' => 'Kifurushi kipya cha masomo ya nyumbani'
-                        . ($subject ? ' — ' . $subject : '')
+                        . ($subject ? ' - ' . $subject : '')
                         . ($holiday ? ' (' . $holiday . ')' : ''),
                     'icon' => 'bx-home-smile',
                     'url' => route('parentHomePackages'),
-                    'holiday_name' => $holiday ?: '—',
+                    'holiday_name' => $holiday ?: '-',
                     'original_filename' => $p->original_filename ?? null,
                     'file_kind' => $fileKind,
                     'view_url' => $p ? route('home_packages.view', $p->home_packageID) : null,
                     'download_url' => $p ? route('home_packages.download', $p->home_packageID) : null,
-                    'level_label' => $p ? $p->levelLabel() : '—',
+                    'level_label' => $p ? $p->levelLabel() : '-',
                 ];
             });
 

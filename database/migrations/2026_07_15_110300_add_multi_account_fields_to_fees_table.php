@@ -66,7 +66,7 @@ return new class extends Migration
         }
 
         // Prefer DB FK when types match. On some MariaDB hosts errno 150 persists
-        // even with matching bigint unsigned — fall back to a plain index so migrate can finish.
+        // even with matching bigint unsigned - fall back to a plain index so migrate can finish.
         $fkAdded = false;
         if (
             Schema::hasTable('school_bank_accounts')
@@ -92,7 +92,7 @@ return new class extends Migration
                     });
                     $fkAdded = true;
                 } catch (\Throwable $e) {
-                    // MariaDB errno 150 — continue without FK; Eloquent still works.
+                    // MariaDB errno 150 - continue without FK; Eloquent still works.
                     $fkAdded = false;
                 }
             }

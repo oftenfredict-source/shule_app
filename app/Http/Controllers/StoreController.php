@@ -78,7 +78,7 @@ class StoreController extends Controller
         $buildLines = null;
         $buildLines = function ($spec, $depth = 0) use (&$buildLines, $allSpecs) {
             $lines = [];
-            $pad = str_repeat('— ', $depth);
+            $pad = str_repeat('- ', $depth);
             if ($spec->has_sub_package) {
                 $child = $allSpecs->first(fn ($c) => (int) $c->parent_specID === (int) $spec->specID);
                 $childName = $child?->package?->package_name ?? 'sub-package';
@@ -262,7 +262,7 @@ class StoreController extends Controller
             'quantity' => (int) $entry->quantity,
             'requisition_status' => $entry->requisition_status,
             'store_method' => $entry->store_method,
-            'created_at' => $entry->created_at ? $entry->created_at->format('d M Y, H:i') : '—',
+            'created_at' => $entry->created_at ? $entry->created_at->format('d M Y, H:i') : '-',
             'in_stock_labels' => $inStockLabels,
             'issued_labels' => $issuedLabels,
             'stock_units' => $entry->stockUnits->map(function ($u) use ($entry) {
@@ -287,28 +287,28 @@ class StoreController extends Controller
         $isOverdue = false;
         $returnStatusText = "Can't Return";
         $returnStatusHtml = '<span class="store-badge-pill store-badge-return-no">Can\'t Return</span>';
-        $expectedReturnHtml = '<span class="text-muted">—</span>';
-        $expectedReturnText = '—';
+        $expectedReturnHtml = '<span class="text-muted">-</span>';
+        $expectedReturnText = '-';
 
         if ($req->requisition_status === 'can_return') {
             if ($req->status === 'returned') {
                 $condition = $req->return_condition === 'bad' ? 'damaged' : $req->return_condition;
                 if ($condition === 'damaged') {
-                    $returnStatusText = 'Returned — Damaged';
-                    $returnStatusHtml = '<span class="store-badge-pill store-badge-defective">Returned — Damaged</span>';
+                    $returnStatusText = 'Returned - Damaged';
+                    $returnStatusHtml = '<span class="store-badge-pill store-badge-defective">Returned - Damaged</span>';
                 } elseif ($condition === 'lost') {
-                    $returnStatusText = 'Returned — Lost';
-                    $returnStatusHtml = '<span class="store-badge-pill store-badge-overdue">Returned — Lost</span>';
+                    $returnStatusText = 'Returned - Lost';
+                    $returnStatusHtml = '<span class="store-badge-pill store-badge-overdue">Returned - Lost</span>';
                 } else {
-                    $returnStatusText = 'Returned — Good';
-                    $returnStatusHtml = '<span class="store-badge-pill store-badge-return-yes">Returned — Good</span>';
+                    $returnStatusText = 'Returned - Good';
+                    $returnStatusHtml = '<span class="store-badge-pill store-badge-return-yes">Returned - Good</span>';
                 }
             } else {
                 $isOverdue = $req->expected_return_date && $req->expected_return_date->isPast();
-                $returnStatusText = $isOverdue ? 'Not Returned — Overdue' : 'Not Returned — Pending';
+                $returnStatusText = $isOverdue ? 'Not Returned - Overdue' : 'Not Returned - Pending';
                 $returnStatusHtml = $isOverdue
-                    ? '<span class="store-badge-pill store-badge-overdue">Not Returned — Overdue</span>'
-                    : '<span class="store-badge-pill store-badge-pending">Not Returned — Pending</span>';
+                    ? '<span class="store-badge-pill store-badge-overdue">Not Returned - Overdue</span>'
+                    : '<span class="store-badge-pill store-badge-pending">Not Returned - Pending</span>';
             }
             if ($req->expected_return_date) {
                 $expectedReturnText = $req->expected_return_date->format('d M Y');
@@ -327,7 +327,7 @@ class StoreController extends Controller
             'item_name' => $req->item->item_name ?? '-',
             'label' => $req->label,
             'package_unit_display' => $req->package_unit_display ?? '-',
-            'take_display' => $req->take_display ?: ($req->package_unit_display ?? '—'),
+            'take_display' => $req->take_display ?: ($req->package_unit_display ?? '-'),
             'quantity_taken' => (float) ($req->quantity_taken ?: 1),
             'quantity_returned' => $req->quantity_returned !== null ? (float) $req->quantity_returned : null,
             'requisition_status' => $req->requisition_status,
@@ -337,8 +337,8 @@ class StoreController extends Controller
             'bad_description' => $req->bad_description,
             'issued_by' => $req->issued_by,
             'notes' => $req->notes,
-            'issued_at' => $req->issued_at ? $req->issued_at->format('d M Y, H:i') : '—',
-            'returned_at' => $req->returned_at ? $req->returned_at->format('d M Y') : '—',
+            'issued_at' => $req->issued_at ? $req->issued_at->format('d M Y, H:i') : '-',
+            'returned_at' => $req->returned_at ? $req->returned_at->format('d M Y') : '-',
             'expected_return_date' => $expectedReturnText,
             'return_status_text' => $returnStatusText,
             'return_status_html' => $returnStatusHtml,
@@ -371,17 +371,17 @@ class StoreController extends Controller
         $resolveMethodLabel = match ($inc->resolve_method) {
             'cash' => 'Cash' . ($inc->payment_amount !== null ? ' (' . number_format((float) $inc->payment_amount, 2) . ')' : ''),
             'replace_new' => 'Replace New',
-            default => '—',
+            default => '-',
         };
 
         return [
             'incidentID' => (int) $inc->incidentID,
             'incident_type' => $inc->incident_type,
             'stock_unitID' => (int) $inc->stock_unitID,
-            'item_name' => $inc->item->item_name ?? '—',
+            'item_name' => $inc->item->item_name ?? '-',
             'label' => $inc->label,
-            'package_unit_display' => $inc->package_unit_display ?? '—',
-            'take_display' => $inc->take_display ?: ($inc->package_unit_display ?? '—'),
+            'package_unit_display' => $inc->package_unit_display ?? '-',
+            'take_display' => $inc->take_display ?: ($inc->package_unit_display ?? '-'),
             'quantity_affected' => (float) ($inc->quantity_affected ?: 1),
             'responsible_type' => $inc->responsible_type,
             'responsible_type_label' => $responsibleTypeLabel,
@@ -394,11 +394,11 @@ class StoreController extends Controller
             'resolve_status' => $inc->resolve_status,
             'resolve_method' => $inc->resolve_method,
             'resolve_method_label' => $resolveMethodLabel,
-            'resolved_at' => $inc->resolved_at ? $inc->resolved_at->format('d M Y, H:i') : '—',
+            'resolved_at' => $inc->resolved_at ? $inc->resolved_at->format('d M Y, H:i') : '-',
             'resolved_by' => $inc->resolved_by,
             'recorded_by' => $inc->recorded_by,
             'notes' => $inc->notes,
-            'recorded_at' => $inc->created_at ? $inc->created_at->format('d M Y, H:i') : '—',
+            'recorded_at' => $inc->created_at ? $inc->created_at->format('d M Y, H:i') : '-',
             'payment_status_html' => $paymentHtml,
             'resolve_status_html' => $resolveHtml,
             'status_html' => $paymentHtml . ' ' . $resolveHtml,
@@ -578,7 +578,7 @@ class StoreController extends Controller
 
     /**
      * Every package level in every chain can be stocked separately
-     * (e.g. Set, Carton, Box — or Roboter and its own sub-levels).
+     * (e.g. Set, Carton, Box - or Roboter and its own sub-levels).
      */
     private function flattenStockablePackages(array $trees): array
     {
@@ -1135,7 +1135,7 @@ class StoreController extends Controller
                     'level' => 'sub_package',
                     'packageID' => $childStockable['packageID'],
                     'specID' => $childStockable['specID'],
-                    'label' => $firstSubName . ' ' . $i . ' — ' . $childName,
+                    'label' => $firstSubName . ' ' . $i . ' - ' . $childName,
                     'detail' => 'Max ' . $childCapacityInParent . ' ' . $childName . '(s) in this ' . $firstSubName
                         . ' · each = ' . $this->formatQty($itemsPerChild) . ' ' . $leafUnitName,
                     'items_each' => $itemsPerChild,
@@ -1151,7 +1151,7 @@ class StoreController extends Controller
             $unit = [
                 'index' => $partialIndex,
                 'key' => 'hier_partial_' . $firstSubStockable['specID'] . '_' . $partialIndex,
-                'label' => $firstSubName . ' ' . $partialIndex . ' (partial — ' . $this->formatQty($remainder) . ' ' . $leafUnitName . ' left)',
+                'label' => $firstSubName . ' ' . $partialIndex . ' (partial - ' . $this->formatQty($remainder) . ' ' . $leafUnitName . ' left)',
                 'is_partial' => true,
                 'can_take_full' => false,
                 'full_take' => null,
@@ -1186,7 +1186,7 @@ class StoreController extends Controller
                         'level' => 'sub_package',
                         'packageID' => $childStockable['packageID'],
                         'specID' => $childStockable['specID'],
-                        'label' => $firstSubName . ' ' . $partialIndex . ' (partial) — ' . $childName,
+                        'label' => $firstSubName . ' ' . $partialIndex . ' (partial) - ' . $childName,
                         'detail' => 'Max ' . $maxChildQty . ' ' . $childName . '(s) available in partial ' . $firstSubName
                             . ' · each = ' . $this->formatQty($itemsPerChild) . ' ' . $leafUnitName,
                         'items_each' => $itemsPerChild,
@@ -1209,7 +1209,7 @@ class StoreController extends Controller
                         'level' => 'item',
                         'packageID' => null,
                         'specID' => null,
-                        'label' => $firstSubName . ' ' . $partialIndex . ' — loose ' . $leafUnitName,
+                        'label' => $firstSubName . ' ' . $partialIndex . ' - loose ' . $leafUnitName,
                         'detail' => 'Max ' . $maxLoose . ' ' . $leafUnitName . '(s) in partial ' . $firstSubName,
                         'items_each' => 1,
                         'max_qty' => $maxLoose,
@@ -1294,7 +1294,7 @@ class StoreController extends Controller
     private function formatPackageTreeLines(array $node, int $depth = 0): array
     {
         $lines = [];
-        $indent = str_repeat('— ', $depth);
+        $indent = str_repeat('- ', $depth);
         if ($node['has_sub_package'] && !empty($node['children'][0])) {
             $child = $node['children'][0];
             $lines[] = $indent . $node['package_name'] . ' has ' . $this->formatQty($child['quantity']) . ' ' . $child['package_name'];
@@ -1877,14 +1877,14 @@ class StoreController extends Controller
 
                 return [
                     'requisitionID' => (int) $req->requisitionID,
-                    'item_name' => $req->item->item_name ?? '—',
+                    'item_name' => $req->item->item_name ?? '-',
                     'recipient_name' => $req->recipient_name,
                     'recipient_type' => $req->recipient_type,
                     'label' => $req->label,
                     'take_display' => $req->take_display,
                     'status' => $req->status,
                     'requisition_status' => $req->requisition_status,
-                    'issued_at' => $req->issued_at ? $req->issued_at->format('d M Y') : '—',
+                    'issued_at' => $req->issued_at ? $req->issued_at->format('d M Y') : '-',
                     'is_overdue' => $isOverdue,
                 ];
             })
@@ -1894,12 +1894,12 @@ class StoreController extends Controller
         $overdueList = $overdueReturns->take(6)->map(function ($req) {
             return [
                 'requisitionID' => (int) $req->requisitionID,
-                'item_name' => $req->item->item_name ?? '—',
+                'item_name' => $req->item->item_name ?? '-',
                 'recipient_name' => $req->recipient_name,
                 'label' => $req->label,
                 'expected_return_date' => $req->expected_return_date
                     ? $req->expected_return_date->format('d M Y')
-                    : '—',
+                    : '-',
                 'days_overdue' => $req->expected_return_date
                     ? (int) now()->diffInDays($req->expected_return_date)
                     : 0,
@@ -1957,7 +1957,7 @@ class StoreController extends Controller
             ->pluck('item_name', 'itemID');
 
         $topIssued = $topIssuedItems->map(fn ($row) => [
-            'item_name' => $itemNames[$row->itemID] ?? '—',
+            'item_name' => $itemNames[$row->itemID] ?? '-',
             'issue_count' => (int) $row->issue_count,
         ])->values()->all();
 
@@ -1998,7 +1998,7 @@ class StoreController extends Controller
     }
 
     /**
-     * Per-item inventory rows for dashboard/PDF — package type, sub-packages, in store vs issued.
+     * Per-item inventory rows for dashboard/PDF - package type, sub-packages, in store vs issued.
      */
     private function buildDashboardInventoryDetail(int $schoolID, ?array $scopedItemIds = null): array
     {
@@ -2028,14 +2028,14 @@ class StoreController extends Controller
             }
 
             $hasPackages = (bool) $item->has_packages;
-            $packageDisplay = '—';
+            $packageDisplay = '-';
             $hasSubPack = 'No';
-            $packageStructure = '—';
+            $packageStructure = '-';
 
             if ($hasPackages) {
                 $itemUi = $this->formatItemUi($item);
                 $lines = $itemUi['package_lines'] ?? [];
-                $packageStructure = !empty($lines) ? implode(' · ', $lines) : '—';
+                $packageStructure = !empty($lines) ? implode(' · ', $lines) : '-';
 
                 $roots = $item->packageSpecs->filter(fn ($s) => $s->parent_specID === null);
                 $hasSubPack = $roots->contains(fn ($s) => $s->has_sub_package) ? 'Yes' : 'No';
@@ -2078,7 +2078,7 @@ class StoreController extends Controller
 
             $rows[] = [
                 'item_name' => $item->item_name,
-                'category_name' => $item->category->category_name ?? '—',
+                'category_name' => $item->category->category_name ?? '-',
                 'store_type' => $hasPackages ? 'Package' : 'Unit',
                 'package_display' => $packageDisplay,
                 'has_sub_package' => $hasSubPack,
@@ -2120,7 +2120,7 @@ class StoreController extends Controller
 
         $statusHtml = match ($req->status) {
             'requested' => $isNew
-                ? '<span class="store-badge-pill store-badge-new-request">Requested — New</span>'
+                ? '<span class="store-badge-pill store-badge-new-request">Requested - New</span>'
                 : '<span class="store-badge-pill store-badge-pending">Requested</span>',
             'approved' => '<span class="store-badge-pill store-badge-return-yes">Approved</span>',
             'rejected' => '<span class="store-badge-pill store-badge-return-no">Rejected</span>',
@@ -2145,7 +2145,7 @@ class StoreController extends Controller
             'expected_return_date' => $req->expected_return_date
                 ? $req->expected_return_date->format('d M Y')
                 : null,
-            'requested_at' => $req->requested_at ? $req->requested_at->format('d M Y, H:i') : '—',
+            'requested_at' => $req->requested_at ? $req->requested_at->format('d M Y, H:i') : '-',
             'requested_by' => $req->requested_by,
             'reviewed_at' => $req->reviewed_at ? $req->reviewed_at->format('d M Y, H:i') : null,
             'reviewed_by' => $req->reviewed_by,
@@ -2180,7 +2180,7 @@ class StoreController extends Controller
             'privileges' => $privileges,
             'privileges_summary' => implode(', ', $enabled) ?: 'No privileges',
             'granted_by' => $actor->granted_by,
-            'created_at' => $actor->created_at ? $actor->created_at->format('d M Y, H:i') : '—',
+            'created_at' => $actor->created_at ? $actor->created_at->format('d M Y, H:i') : '-',
         ];
     }
 
@@ -2674,7 +2674,7 @@ class StoreController extends Controller
             ->exists();
 
         if ($inUse) {
-            return $this->jsonError('Cannot delete category — it is used by store items.', 422);
+            return $this->jsonError('Cannot delete category - it is used by store items.', 422);
         }
 
         $category->status = 'Deleted';
@@ -2774,7 +2774,7 @@ class StoreController extends Controller
             ->exists();
 
         if ($inUse) {
-            return $this->jsonError('Cannot delete — measurement type is used by store items.', 422);
+            return $this->jsonError('Cannot delete - measurement type is used by store items.', 422);
         }
 
         $type->status = 'Deleted';
@@ -2918,7 +2918,7 @@ class StoreController extends Controller
         }
 
         if ($inUse) {
-            return $this->jsonError('Cannot delete — unit is used by store items.', 422);
+            return $this->jsonError('Cannot delete - unit is used by store items.', 422);
         }
 
         $typeID = (int) $unit->measurement_typeID;
@@ -3378,7 +3378,7 @@ class StoreController extends Controller
 
         $inUse = StoreItemPackageSpec::where('packageID', $packageID)->exists();
         if ($inUse) {
-            return $this->jsonError('Cannot delete — package is used by store items.', 422);
+            return $this->jsonError('Cannot delete - package is used by store items.', 422);
         }
 
         $package->status = 'Deleted';
@@ -3593,7 +3593,7 @@ class StoreController extends Controller
 
             $leafUnitID = $selected['leaf_unitID'] ?? null;
             if (!$leafUnitID) {
-                throw new \InvalidArgumentException('Package chain is incomplete — last package needs a unit of measure.');
+                throw new \InvalidArgumentException('Package chain is incomplete - last package needs a unit of measure.');
             }
 
             if ((int) $payload['unitID'] !== (int) $leafUnitID) {
@@ -3666,7 +3666,7 @@ class StoreController extends Controller
             fn ($u) => (float) $u->remaining_items < (float) $u->initial_items
         );
         if ($touched) {
-            return $this->jsonError('Cannot delete — some content has already been issued from this stock entry.', 422);
+            return $this->jsonError('Cannot delete - some content has already been issued from this stock entry.', 422);
         }
 
         $removedUnitIds = $entry->stockUnits->pluck('stock_unitID')->map(fn ($id) => (int) $id)->values()->all();
@@ -4095,13 +4095,13 @@ class StoreController extends Controller
 
         $items = [];
         foreach ($inStockUnits->groupBy('itemID') as $itemID => $itemUnits) {
-            $itemName = $itemUnits->first()->item->item_name ?? '—';
+            $itemName = $itemUnits->first()->item->item_name ?? '-';
             $rows = [];
 
             foreach ($itemUnits->where('store_method', 'unit')->groupBy('unitID') as $group) {
                 $rows[] = [
                     'row_type' => 'unit',
-                    'unit_name' => $group->first()->unit->unit_name ?? '—',
+                    'unit_name' => $group->first()->unit->unit_name ?? '-',
                     'quantity' => $group->count(),
                     'package_display' => null,
                     'package_quantity' => null,
@@ -4212,7 +4212,7 @@ class StoreController extends Controller
             }
             $start = Carbon::parse($request->date_from)->startOfDay();
             $end = Carbon::parse($request->date_to)->endOfDay();
-            $label = $start->format('d M Y') . ' — ' . $end->format('d M Y');
+            $label = $start->format('d M Y') . ' - ' . $end->format('d M Y');
         } else {
             $start = $now->copy()->startOfMonth()->startOfDay();
             $end = $now->copy()->endOfMonth()->endOfDay();
@@ -4330,7 +4330,7 @@ class StoreController extends Controller
                 ? ($studentClassMap[$req->recipient_id] ?? null)
                 : null;
             $ui = $this->formatRequisitionUi($req, $className);
-            $ui['category_name'] = $req->item->category->category_name ?? '—';
+            $ui['category_name'] = $req->item->category->category_name ?? '-';
             return $ui;
         })->values()->all();
 
@@ -4466,8 +4466,8 @@ class StoreController extends Controller
             'item' => [
                 'itemID' => (int) $item->itemID,
                 'item_name' => $item->item_name,
-                'category_name' => $item->category->category_name ?? '—',
-                'measurement_type' => $item->measurementType->type_name ?? '—',
+                'category_name' => $item->category->category_name ?? '-',
+                'measurement_type' => $item->measurementType->type_name ?? '-',
             ],
             'summary' => [
                 'labels_in_stock' => $inStock->count(),
@@ -4849,7 +4849,7 @@ class StoreController extends Controller
                 'success' => true,
                 'message' => $request->resolve_method === 'cash'
                     ? 'Record resolved with cash payment.'
-                    : 'Record resolved — stock replaced.',
+                    : 'Record resolved - stock replaced.',
                 'incident' => $this->formatIncidentUi($incident, $className),
                 'stock_entry' => $stockEntryUi,
                 'available_stock_unit' => $availableUnitUi,
@@ -4921,7 +4921,7 @@ class StoreController extends Controller
             'school' => $school,
             'section' => $section,
             'section_label' => $sectionLabels[$section] ?? ucfirst($section),
-            'title' => 'Store — ' . ($sectionLabels[$section] ?? ucfirst($section)),
+            'title' => 'Store - ' . ($sectionLabels[$section] ?? ucfirst($section)),
             'generated_at' => now()->format('d M Y, H:i'),
             'filter_label' => $filterLabel,
             'period_label' => null,
@@ -4960,8 +4960,8 @@ class StoreController extends Controller
                 $data['table_rows'] = $items->values()->map(fn ($item, $i) => [
                     (string) ($i + 1),
                     e($item->item_name),
-                    e($item->category->category_name ?? '—'),
-                    e($item->measurementType->type_name ?? '—'),
+                    e($item->category->category_name ?? '-'),
+                    e($item->measurementType->type_name ?? '-'),
                 ])->all();
                 break;
 
@@ -4976,13 +4976,13 @@ class StoreController extends Controller
                 $data['table_headers'] = ['#', 'Item', 'Package / Unit', 'Available Labels', 'Requisition'];
                 $data['table_rows'] = $entries->values()->map(function ($entry, $i) {
                     $available = $entry->stockUnits->filter(fn ($u) => (float) $u->remaining_items > 0)->count();
-                    $reqStatus = $entry->stockUnits->first()?->requisition_status ?? '—';
+                    $reqStatus = $entry->stockUnits->first()?->requisition_status ?? '-';
                     $pkgUnit = $entry->store_method === 'package'
                         ? ($entry->package->package_name ?? 'Package')
                         : ($entry->unit->unit_name ?? 'Unit');
                     return [
                         (string) ($i + 1),
-                        e($entry->item->item_name ?? '—'),
+                        e($entry->item->item_name ?? '-'),
                         e($pkgUnit),
                         (string) $available,
                         e($reqStatus === 'can_return' ? 'Can Return' : "Can't Return"),
@@ -5002,18 +5002,18 @@ class StoreController extends Controller
                 $reqs = $reqQuery->orderByDesc('issued_at')->get();
                 $data['table_headers'] = ['#', 'Recipient', 'Item', 'Take', 'Issued', 'Return Status', 'Expected Return'];
                 $data['table_rows'] = $reqs->values()->map(function ($req, $i) {
-                    $returnStatus = '—';
+                    $returnStatus = '-';
                     if ($req->requisition_status === 'can_return') {
                         if ($req->status === 'returned') {
                             $cond = $req->return_condition === 'bad' ? 'damaged' : $req->return_condition;
                             $returnStatus = match ($cond) {
-                                'damaged' => 'Returned — Damaged',
-                                'lost' => 'Returned — Lost',
-                                default => 'Returned — Good',
+                                'damaged' => 'Returned - Damaged',
+                                'lost' => 'Returned - Lost',
+                                default => 'Returned - Good',
                             };
                         } else {
                             $overdue = $req->expected_return_date && $req->expected_return_date->isPast();
-                            $returnStatus = $overdue ? 'Not Returned — Overdue' : 'Not Returned — Pending';
+                            $returnStatus = $overdue ? 'Not Returned - Overdue' : 'Not Returned - Pending';
                         }
                     } else {
                         $returnStatus = "Can't Return";
@@ -5021,11 +5021,11 @@ class StoreController extends Controller
                     return [
                         (string) ($i + 1),
                         e($req->recipient_name),
-                        e($req->item->item_name ?? '—'),
-                        e($req->take_display ?? '—'),
-                        e($req->issued_at ? $req->issued_at->format('d M Y') : '—'),
+                        e($req->item->item_name ?? '-'),
+                        e($req->take_display ?? '-'),
+                        e($req->issued_at ? $req->issued_at->format('d M Y') : '-'),
                         e($returnStatus),
-                        e($req->expected_return_date ? $req->expected_return_date->format('d M Y') : '—'),
+                        e($req->expected_return_date ? $req->expected_return_date->format('d M Y') : '-'),
                     ];
                 })->all();
                 break;
@@ -5048,12 +5048,12 @@ class StoreController extends Controller
                     }
                     return [
                         (string) ($i + 1),
-                        e($inc->item->item_name ?? '—'),
-                        e($inc->responsible_name ?? '—'),
-                        e($inc->take_display ?? '—'),
-                        e($inc->reason ?? '—'),
+                        e($inc->item->item_name ?? '-'),
+                        e($inc->responsible_name ?? '-'),
+                        e($inc->take_display ?? '-'),
+                        e($inc->reason ?? '-'),
                         e($status),
-                        e($inc->created_at ? $inc->created_at->format('d M Y') : '—'),
+                        e($inc->created_at ? $inc->created_at->format('d M Y') : '-'),
                     ];
                 })->all();
                 break;
@@ -5080,7 +5080,7 @@ class StoreController extends Controller
                     return [
                         (string) ($i + 1),
                         e($type->type_name),
-                        e($units ?: '—'),
+                        e($units ?: '-'),
                     ];
                 })->all();
                 break;
@@ -5099,7 +5099,7 @@ class StoreController extends Controller
             case 'report':
                 $reportType = $request->get('report_type', 'all_inventory');
                 $data['report_type'] = $reportType;
-                $data['title'] = 'Store Report — ' . match ($reportType) {
+                $data['title'] = 'Store Report - ' . match ($reportType) {
                     'requisition' => 'Requisition Report',
                     'specific_item' => 'Specific Item Report',
                     default => 'All Items Inventory',
@@ -5122,7 +5122,7 @@ class StoreController extends Controller
                             ['label' => 'In Stock', 'value' => $summary['total_in_stock'] ?? 0],
                             ['label' => 'Issued This Month', 'value' => $summary['issued_this_month'] ?? 0],
                             ['label' => 'Available', 'value' => $summary['available_in_stock'] ?? 0],
-                            ['label' => 'Month', 'value' => $summary['month_label'] ?? '—'],
+                            ['label' => 'Month', 'value' => $summary['month_label'] ?? '-'],
                         ];
                         $data['report_items'] = $payload['items'] ?? [];
                     }
@@ -5152,12 +5152,12 @@ class StoreController extends Controller
                         $data['table_rows'] = collect($payload['rows'] ?? [])->values()->map(function ($row, $i) {
                             return [
                                 (string) ($i + 1),
-                                e($row['recipient_name'] ?? '—'),
-                                e($row['item_name'] ?? '—'),
-                                e($row['category_name'] ?? '—'),
-                                e($row['take_display'] ?? '—'),
-                                e($row['issued_at'] ?? '—'),
-                                e($row['return_status_text'] ?? '—'),
+                                e($row['recipient_name'] ?? '-'),
+                                e($row['item_name'] ?? '-'),
+                                e($row['category_name'] ?? '-'),
+                                e($row['take_display'] ?? '-'),
+                                e($row['issued_at'] ?? '-'),
+                                e($row['return_status_text'] ?? '-'),
                             ];
                         })->all();
                     }
@@ -5179,7 +5179,7 @@ class StoreController extends Controller
                         $summary = $payload['summary'] ?? [];
                         $data['report_item'] = $payload['item'] ?? null;
                         $data['period_label'] = $summary['period_label'] ?? $period['label'];
-                        $data['filter_label'] = ($payload['item']['item_name'] ?? 'Item') . ' — ' . ($summary['period_label'] ?? '');
+                        $data['filter_label'] = ($payload['item']['item_name'] ?? 'Item') . ' - ' . ($summary['period_label'] ?? '');
                         $data['summary_cards'] = [
                             ['label' => 'In Stock', 'value' => $summary['labels_in_stock'] ?? 0],
                             ['label' => 'Issues', 'value' => $summary['issues_in_period'] ?? 0],

@@ -165,7 +165,7 @@ class ManageStudentController extends Controller
 
     /**
      * Ensure parent has a login user. Never fail student registration if parent email
-     * already exists — a parent can be linked to many students via parentID.
+     * already exists - a parent can be linked to many students via parentID.
      */
     private function ensureParentLoginUser($parent): void
     {
@@ -558,7 +558,7 @@ class ManageStudentController extends Controller
             return $date;
         };
 
-        // Get student photo path (placeholder if file missing — no 404 in browser)
+        // Get student photo path (placeholder if file missing - no 404 in browser)
         $studentImgPath = \App\Support\UserImageUrl::forGender($student->photo, $student->gender);
 
         return response()->json([
@@ -1706,7 +1706,7 @@ class ManageStudentController extends Controller
                     $label = 'Dropout';
                     $student->status = 'Inactive';
                 } else {
-                    // Dropped (expelled / stopped) — keep Dropped + Dropout promotion for reporting
+                    // Dropped (expelled / stopped) - keep Dropped + Dropout promotion for reporting
                     $enrollmentStatus = 'Dropped';
                     $promotionStatus = 'Dropout';
                     $label = 'Dropped (left / expelled)';
@@ -1715,7 +1715,7 @@ class ManageStudentController extends Controller
 
                 $noteLine = $label . ' on ' . now()->format('Y-m-d');
                 if ($notes !== '') {
-                    $noteLine .= ' — ' . $notes;
+                    $noteLine .= ' - ' . $notes;
                 }
 
                 $enrollment->status = $enrollmentStatus;
@@ -2013,7 +2013,7 @@ class ManageStudentController extends Controller
     }
 
     /**
-     * Page JS for manage_student — served as application/javascript
+     * Page JS for manage_student - served as application/javascript
      * so HTML minifiers (e.g. Cloudflare) cannot break && operators.
      */
     public function manage_student_page_js()
@@ -2441,7 +2441,7 @@ class ManageStudentController extends Controller
         }
 
         if (!$this->schoolHasEnrollments($schoolID)) {
-            // Legacy schools with empty enrollments table — approximate via students.status
+            // Legacy schools with empty enrollments table - approximate via students.status
             $legacyMap = [
                 'Active' => 'Active',
                 'Completed' => 'Graduated',
@@ -3255,7 +3255,7 @@ class ManageStudentController extends Controller
     }
 
     /**
-     * Test device connection (fast — single attempt, short timeout)
+     * Test device connection (fast - single attempt, short timeout)
      */
     public function test_device_connection(Request $request)
     {
@@ -3304,7 +3304,7 @@ class ManageStudentController extends Controller
             $tcp = ZKTecoService::quickTcpCheck($ip, $port, 3);
             if (!$tcp['reachable']) {
                 $tcpError = $tcp['error'] ?? 'No response';
-                Log::warning("ZKTeco: TCP check failed for {$ip}:{$port} — {$tcpError}");
+                Log::warning("ZKTeco: TCP check failed for {$ip}:{$port} - {$tcpError}");
 
                 $message = "Cannot reach fingerprint device at {$ip}:{$port}. {$tcpError}"
                     . '<br><br><strong>Fingerprint device (target):</strong> ' . $ip . ':' . $port
@@ -3332,7 +3332,7 @@ class ManageStudentController extends Controller
             try {
                 $connected = $zkteco->connect(true);
             } catch (\Throwable $e) {
-                Log::warning("ZKTeco: Handshake failed for {$ip}:{$port} — " . $e->getMessage());
+                Log::warning("ZKTeco: Handshake failed for {$ip}:{$port} - " . $e->getMessage());
 
                 return response()->json([
                     'success' => false,
@@ -3391,7 +3391,7 @@ class ManageStudentController extends Controller
             $message = $e->getMessage();
             if (stripos($message, 'Maximum execution time') !== false) {
                 $message = "Connection test timed out for {$ip}:{$port}. "
-                    . 'The device did not respond in time — check network, IP, port, and Comm Key.';
+                    . 'The device did not respond in time - check network, IP, port, and Comm Key.';
             }
 
             Log::error('ZKTeco Connection Test Error: ' . $message);
@@ -3442,14 +3442,14 @@ class ManageStudentController extends Controller
             'push_sdk_url' => $serverUrl . '/iclock/getrequest',
             'push_sdk_data_url' => $serverUrl . '/iclock/cdata',
             'instructions' => [
-                '1. On device: Main Menu → Comm (Communication) — NOT under System',
+                '1. On device: Main Menu → Comm (Communication) - NOT under System',
                 '2. Open Cloud Server Setting (or Cloud Service Setup / Push Server)',
                 '3. Enable Cloud Server / ADMS: ON',
                 '4. Enable Domain Name: ON if using ' . ($scheme === 'https' ? 'HTTPS URL' : 'domain'),
                 '5. Server Address: ' . $serverIP,
                 '6. Server Port: ' . (in_array((int) $serverPort, [80, 443], true) ? $serverPort : $serverPort),
                 '7. Path (if asked): /iclock/getrequest',
-                '8. If Comm menu has no Cloud Server option, this device may need firmware with PUSH/ADMS — use LAN sync instead.',
+                '8. If Comm menu has no Cloud Server option, this device may need firmware with PUSH/ADMS - use LAN sync instead.',
             ],
         ];
     }
@@ -3620,7 +3620,7 @@ class ManageStudentController extends Controller
 
             $zkteco = new \App\Services\ZKTecoService($ip, $port);
 
-            // UID and UserID will both use fingerprintId (must be 1–65535)
+            // UID and UserID will both use fingerprintId (must be 1-65535)
             $uid = (int) $fingerprintId;
             $name = strtoupper($studentName);
 
@@ -5765,7 +5765,7 @@ class ManageStudentController extends Controller
 
         $fileName = 'Student_Upload_Template.xlsx';
 
-        // Stream directly — avoids Permission denied on storage/app/public
+        // Stream directly - avoids Permission denied on storage/app/public
         return response()->streamDownload(
             function () use ($spreadsheet) {
                 $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);

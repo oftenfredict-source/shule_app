@@ -1,5 +1,5 @@
 /* ============================================================
-   ShuleXpert Global Theme — Light (white) / Dark (black)
+   ShuleXpert Global Theme - Light (white) / Dark (black)
    Toggle: data-sx-theme on <html> via includes/theme_toggle
    ============================================================ */
 
@@ -56,7 +56,7 @@
 }
 
 /* ============================================================
-   LIGHT MODE — pure white surfaces
+   LIGHT MODE - pure white surfaces
    ============================================================ */
 html[data-sx-theme="light"] {
     color-scheme: light;
@@ -107,7 +107,7 @@ html[data-sx-theme="light"] .sx-auth-stage {
 }
 
 /* ============================================================
-   DARK MODE — black surfaces, white text everywhere
+   DARK MODE - black surfaces, white text everywhere
    ============================================================ */
 html[data-sx-theme="dark"] {
     color-scheme: dark;

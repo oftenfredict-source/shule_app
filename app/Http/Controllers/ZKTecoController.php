@@ -1970,7 +1970,7 @@ class ZKTecoController extends Controller
     }
 
     /**
-     * Registered fingerprint devices (per school — SaaS).
+     * Registered fingerprint devices (per school - SaaS).
      */
     public function listDevices()
     {
@@ -2407,7 +2407,7 @@ class ZKTecoController extends Controller
 
     /**
      * Sync ALL teacher/staff attendance logs from device into database.
-     * Skips records already saved (teacher + date) — safe for offline devices with months of logs.
+     * Skips records already saved (teacher + date) - safe for offline devices with months of logs.
      */
     public function syncTeacherStaffAttendanceFromDevice(Request $request)
     {

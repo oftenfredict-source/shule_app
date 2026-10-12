@@ -643,7 +643,7 @@ class StudentRegistrationController extends Controller
                 'request_parent_id' => $request->parent_id,
             ]);
 
-            // Login user only — never mutate parents.phone; never fail student on email collision
+            // Login user only - never mutate parents.phone; never fail student on email collision
             try {
                 ParentUserAccount::ensure($parent);
             } catch (\Throwable $e) {

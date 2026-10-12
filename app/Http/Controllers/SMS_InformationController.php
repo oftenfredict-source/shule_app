@@ -370,7 +370,7 @@ class SMS_InformationController extends Controller
                 return [
                     'id' => $item['id'],
                     'phone' => $item['phone'],
-                    'display_name' => $item['parent_name'] . ' — ' . $relation . ' of ' . implode(', ', $item['children']),
+                    'display_name' => $item['parent_name'] . ' - ' . $relation . ' of ' . implode(', ', $item['children']),
                     'role_label' => 'Pending Join',
                 ];
             })->values();

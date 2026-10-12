@@ -224,7 +224,7 @@ class OnlineApplicationController extends Controller
     }
 
     /**
-     * Public school landing (encrypted token) — school info, classes, fees, apply CTAs.
+     * Public school landing (encrypted token) - school info, classes, fees, apply CTAs.
      */
     public function showSchoolLanding(string $token)
     {
@@ -235,7 +235,7 @@ class OnlineApplicationController extends Controller
                 ->with('error', $e->getMessage());
         }
 
-        // Legacy Crypt tokens change every encode — 301 to the stable public URL for SEO.
+        // Legacy Crypt tokens change every encode - 301 to the stable public URL for SEO.
         if (!$this->applyTokens->isStableSchoolToken($token)) {
             return redirect()->to($this->applyTokens->schoolUrl($schoolID), 301);
         }
@@ -342,7 +342,7 @@ class OnlineApplicationController extends Controller
                 : (count($names) . ' CLASSES');
         }
 
-        $reportTitle = 'OFFICIAL FEES STRUCTURE — ' . $scopeLabel . ' | ' . $yearLabel;
+        $reportTitle = 'OFFICIAL FEES STRUCTURE - ' . $scopeLabel . ' | ' . $yearLabel;
 
         $data = [
             'school' => $school,
@@ -385,7 +385,7 @@ class OnlineApplicationController extends Controller
     }
 
     /**
-     * Show the application form (encrypted token only — auth required).
+     * Show the application form (encrypted token only - auth required).
      */
     public function showApplicationForm(Request $request)
     {

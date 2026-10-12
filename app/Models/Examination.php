@@ -154,7 +154,7 @@ class Examination extends Model
     /**
      * All linked year labels (for exam lists without a class context).
      * Dual schools (Form 5/6): "O-Level 2027 · A-Level 2026/2027"
-     * O-only / no Form 5–6: plain year like header (e.g. "2026") — no O/A prefixes.
+     * O-only / no Form 5-6: plain year like header (e.g. "2026") - no O/A prefixes.
      */
     public function displayYearLabelAll(bool $withLevelPrefix = true): string
     {

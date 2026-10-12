@@ -418,7 +418,7 @@ class SchoolAgentAttendanceController extends Controller
             'record_time' => $punchFormatted,
             'action' => 'Permitted',
             'status' => 'Permitted',
-            'message' => 'Approved permission — counted as Permitted.',
+            'message' => 'Approved permission - counted as Permitted.',
         ];
     }
 
@@ -667,7 +667,7 @@ class SchoolAgentAttendanceController extends Controller
                 'action' => $label,
                 'status' => $label,
                 'attendance_status' => $label,
-                'message' => 'Approved ruksa — counted as '.$label.'.',
+                'message' => 'Approved ruksa - counted as '.$label.'.',
             ];
         }
 

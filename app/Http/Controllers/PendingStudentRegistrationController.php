@@ -319,14 +319,14 @@ class PendingStudentRegistrationController extends Controller
 
         $instructions = $spreadsheet->createSheet();
         $instructions->setTitle('Instructions');
-        $instructions->setCellValue('A1', 'Pending Student Registration — Import Template');
+        $instructions->setCellValue('A1', 'Pending Student Registration - Import Template');
         $instructions->setCellValue('A3', '1. Fill student rows on the "Pending Students" sheet.');
         $instructions->setCellValue('A4', '2. Required columns: first_name, last_name.');
         $instructions->setCellValue('A5', '3. gender: Male, Female, or Other.');
         $instructions->setCellValue('A6', '4. date_of_birth format: YYYY-MM-DD (e.g. 2012-05-15).');
         $instructions->setCellValue('A7', '5. previous_level examples: Std 7, Form 4, Other.');
         $instructions->setCellValue('A8', '6. intended_class_name / intended_subclass_name must match existing school classes (optional).');
-        $instructions->setCellValue('A9', '7. Imported students stay PENDING — they do NOT count as enrolled students until Confirm.');
+        $instructions->setCellValue('A9', '7. Imported students stay PENDING - they do NOT count as enrolled students until Confirm.');
         $instructions->setCellValue('A10', '8. Delete the example row before importing.');
         $instructions->getStyle('A1')->getFont()->setBold(true)->setSize(14);
 
@@ -448,7 +448,7 @@ class PendingStudentRegistrationController extends Controller
 
                 $dob = $get('date_of_birth');
                 if ($dob && !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $dob)) {
-                    // Excel serial or other format — try parse
+                    // Excel serial or other format - try parse
                     try {
                         $dob = \Carbon\Carbon::parse($dob)->toDateString();
                     } catch (\Throwable $e) {

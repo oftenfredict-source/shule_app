@@ -66,7 +66,7 @@ class StoreNotificationService
         };
 
         $recipientMsg = "Item {$itemName} ({$takeDisplay}) imerudishwa katika hali: {$conditionLabel}.";
-        $adminMsg = "{$requisition->recipient_name} amerejesha {$itemName} ({$takeDisplay}) — hali: {$conditionLabel}.";
+        $adminMsg = "{$requisition->recipient_name} amerejesha {$itemName} ({$takeDisplay}) - hali: {$conditionLabel}.";
 
         $this->sendToRecipient(
             $school,
@@ -204,7 +204,7 @@ class StoreNotificationService
             $req->loadMissing(['item']);
             $itemName = $req->item->item_name ?? 'Item';
             $take = $req->take_display ?: $this->formatQty($req->quantity_taken) . ' item(s)';
-            return "{$itemName} — {$take}";
+            return "{$itemName} - {$take}";
         })->implode('; ');
     }
 

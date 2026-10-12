@@ -36,7 +36,7 @@ class OnlineAdmissionService
 
     /**
      * Store upload using the same path resolution as ManageStudentController photos
-     * (SCRIPT_FILENAME / DOCUMENT_ROOT / public_path) — works on local, subdomain, cPanel.
+     * (SCRIPT_FILENAME / DOCUMENT_ROOT / public_path) - works on local, subdomain, cPanel.
      */
     public function storeUploadedImage(?UploadedFile $file): ?string
     {

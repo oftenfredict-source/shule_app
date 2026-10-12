@@ -65,7 +65,7 @@ class BlackBookController extends Controller
             'privileges' => $privileges,
             'privileges_summary' => implode(', ', $enabled) ?: 'No privileges',
             'granted_by' => $actor->granted_by,
-            'created_at' => $actor->created_at ? $actor->created_at->format('d M Y, H:i') : '—',
+            'created_at' => $actor->created_at ? $actor->created_at->format('d M Y, H:i') : '-',
         ];
     }
 
@@ -159,7 +159,7 @@ class BlackBookController extends Controller
     private function formatStudentClass(?Student $student): string
     {
         if (!$student) {
-            return '—';
+            return '-';
         }
 
         $schoolID = (int) ($student->schoolID ?: $this->schoolId());
@@ -176,11 +176,11 @@ class BlackBookController extends Controller
         }
 
         if (!$student->subclass) {
-            return '—';
+            return '-';
         }
         $class = $student->subclass->class->class_name ?? '';
         $sub = $student->subclass->subclass_name ?? '';
-        return trim($class . ($sub ? ' ' . $sub : '')) ?: '—';
+        return trim($class . ($sub ? ' ' . $sub : '')) ?: '-';
     }
 
     private function formatReport(BlackBookReport $report): array
@@ -195,12 +195,12 @@ class BlackBookController extends Controller
             'studentID' => (int) $report->studentID,
             'enrollmentID' => (int) ($report->enrollmentID ?? optional($student?->currentEnrollment)->enrollmentID),
             'student_name' => $this->formatStudentName($student),
-            'admission_number' => $student->admission_number ?? '—',
+            'admission_number' => $student->admission_number ?? '-',
             'class_name' => $report->enrollment
                 ? trim(($report->enrollment->classModel->class_name ?? $report->enrollment->subclass->class->class_name ?? '') . ' ' . ($report->enrollment->subclass->subclass_name ?? ''))
                 : $this->formatStudentClass($student),
             'problem_categoryID' => (int) $report->problem_categoryID,
-            'problem_category' => $report->problemCategory->name ?? '—',
+            'problem_category' => $report->problemCategory->name ?? '-',
             'problem_weight' => (int) ($report->problemCategory->weight ?? 0),
             'description' => $report->description,
             'reported_by_name' => $report->reported_by_name,
@@ -499,7 +499,7 @@ class BlackBookController extends Controller
             return [
                 'studentID' => (int) $row->studentID,
                 'student_name' => $name,
-                'class_name' => $class ?: '—',
+                'class_name' => $class ?: '-',
                 'report_count' => (int) $row->report_count,
             ];
         })->values()->all();
@@ -891,7 +891,7 @@ class BlackBookController extends Controller
             if (!$student) {
                 return null;
             }
-            $className = $this->formatEnrollmentClass($enr) ?: '—';
+            $className = $this->formatEnrollmentClass($enr) ?: '-';
             $canReportStudent = $enr->status === 'Active';
             $statusSuffix = $canReportStudent ? '' : ' [' . $enr->status . ']';
             $name = $this->formatStudentName($student);
@@ -904,7 +904,7 @@ class BlackBookController extends Controller
                 'full_name' => $name,
                 'admission_number' => $student->admission_number,
                 'class_name' => $className,
-                'display' => $name . ' — ' . $className . ' — Adm: ' . ($student->admission_number ?? 'N/A') . $statusSuffix,
+                'display' => $name . ' - ' . $className . ' - Adm: ' . ($student->admission_number ?? 'N/A') . $statusSuffix,
             ];
         })->filter()->values();
 
@@ -1448,7 +1448,7 @@ class BlackBookController extends Controller
                 'studentID' => (int) $row->studentID,
                 'student_name' => trim(preg_replace('/\s+/', ' ', $row->student_name)),
                 'admission_number' => $row->admission_number,
-                'class_name' => trim($row->class_name) ?: '—',
+                'class_name' => trim($row->class_name) ?: '-',
                 'report_count' => (int) $row->report_count,
                 'reports' => $reports,
             ];

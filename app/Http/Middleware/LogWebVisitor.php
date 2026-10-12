@@ -64,7 +64,7 @@ class LogWebVisitor
             ];
 
             // afterResponse flushes to the client (fastcgi_finish_request) before geo-IP HTTP,
-            // so reverse proxies never wait on ipapi.co — that was causing live 504s.
+            // so reverse proxies never wait on ipapi.co - that was causing live 504s.
             dispatch(function () use ($payload) {
                 try {
                     $geo = WebVisitor::resolveIpLocation($payload['ip_address']);
@@ -147,7 +147,7 @@ class LogWebVisitor
                 return true;
             }
 
-            // Named authenticated app routes — skip
+            // Named authenticated app routes - skip
             return false;
         }
 

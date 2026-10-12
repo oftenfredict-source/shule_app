@@ -660,7 +660,7 @@ class SchoolOnlineAdmissionController extends Controller
                 'label' => $label,
                 'field_type' => 'file',
                 'is_file' => true,
-                'value' => '—',
+                'value' => '-',
                 'filename' => null,
                 'url' => null,
                 'download_url' => null,
@@ -668,7 +668,7 @@ class SchoolOnlineAdmissionController extends Controller
             ];
         }
 
-        $value = '—';
+        $value = '-';
         if ($raw !== null && $raw !== '') {
             if (is_bool($raw)) {
                 $value = $raw ? 'Yes' : 'No';

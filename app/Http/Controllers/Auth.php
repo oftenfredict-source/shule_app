@@ -1095,7 +1095,7 @@ class Auth extends Controller
     }
 
     /**
-     * School fingerprint sync agent — Admin login API (token-based, no session).
+     * School fingerprint sync agent - Admin login API (token-based, no session).
      */
     public function schoolAgentLoginApi(Request $request)
     {
@@ -1290,7 +1290,7 @@ class Auth extends Controller
     }
 
     /**
-     * Mobile app (Flutter) — create a web session so WebView can load parent/teacher/admin blades.
+     * Mobile app (Flutter) - create a web session so WebView can load parent/teacher/admin blades.
      * Uses the same login rules as POST /auth but without CSRF (API route).
      */
     public function createMobileWebSession(Request $request)

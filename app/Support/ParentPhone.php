@@ -5,7 +5,7 @@ namespace App\Support;
 use App\Models\ParentModel;
 
 /**
- * Tanzania phone helpers for parent reuse (link FK only — never rewrite parent phone).
+ * Tanzania phone helpers for parent reuse (link FK only - never rewrite parent phone).
  */
 class ParentPhone
 {

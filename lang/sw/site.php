@@ -108,7 +108,7 @@ return [
     'modules_page_title' => 'Seti kamili ya moduli za ShuleXpert',
     'modules_page_desc' => 'Kila moduli hapa chini inaonyesha uwezo hai katika mfumo wa ShuleXpert, ikiwa ni pamoja na moduli maalum za <strong>Lesson Plans</strong> na <strong>Scheme of Work</strong>, pamoja na ada, mitihani, uchambuzi wa mada, mahudhurio, ratiba, maktaba, SMS na shughuli za shule.',
     'modules_banner_lead' => 'Chunguza seti ya moduli za ShuleXpert: ada, mahudhurio, mitihani, lesson plans, scheme of work, portal ya wazazi, SMS na zaidi.',
-    'apply_banner_lead' => 'Tafuta shule zenye nafasi za madarasa na wasilisha maombi ya uandikishaji mtandaoni — bure kwa wazazi na walezi.',
+    'apply_banner_lead' => 'Tafuta shule zenye nafasi za madarasa na wasilisha maombi ya uandikishaji mtandaoni - bure kwa wazazi na walezi.',
     'apply_heading' => 'Maombi ya shule mtandaoni Tanzania',
     'apply_intro' => 'Tafuta shule za msingi na sekondari zinazoshiriki, angalia nafasi za madarasa, na wasilisha maombi yako mtandaoni, bure kwa wazazi na walezi. Inaendeshwa na <strong>EmCa Techonology</strong>.',
     'apply_logged_in' => 'Umeingia kama',

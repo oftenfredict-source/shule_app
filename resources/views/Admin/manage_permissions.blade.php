@@ -622,6 +622,18 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    function permJquery() {
+        if (typeof window.jQuery === 'function') {
+            try { window.$ = window.jQuery; } catch (e) {}
+            return window.jQuery;
+        }
+        return null;
+    }
+
+    if (!permJquery()) {
+        console.error('jQuery is required on permissions page');
+    }
+
     @if(session('success'))
         Swal.fire({ icon: 'success', title: 'Success', text: "{{ session('success') }}", confirmButtonColor: '#940000' });
     @endif
@@ -930,6 +942,8 @@
     }
 
     function toggleFilterInputs() {
+        var $ = permJquery();
+        if (!$) return;
         const type = $('#filter_type').val();
         $('.filter-input-group').hide();
         if (type === 'range') {
@@ -1025,7 +1039,10 @@
     bindAdminTabLinks();
 
     function openApprovalChainModal() {
-        $('#approvalChainModal').modal('show');
+        var $ = permJquery();
+        if ($) {
+            $('#approvalChainModal').modal('show');
+        }
         fetch("{{ route('admin.permissions.chain.view') }}", {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
@@ -1280,7 +1297,16 @@
         })
         .then(data => {
             Swal.fire({ icon: 'success', title: 'Success', text: data.message, confirmButtonColor: '#940000' });
-            $(form.closest('.modal')).modal('hide');
+            var jq = window.jQuery;
+            var modalEl = form.closest('.modal');
+            if (typeof jq === 'function' && modalEl) {
+                jq(modalEl).modal('hide');
+            } else if (modalEl) {
+                modalEl.classList.remove('show');
+                modalEl.style.display = 'none';
+                document.body.classList.remove('modal-open');
+                document.querySelectorAll('.modal-backdrop').forEach(function (el) { el.remove(); });
+            }
             submitAdminFilters();
         })
         .catch((err) => {
@@ -1304,12 +1330,17 @@
 
     // Student Permission Requesters Modal Functions
     function openStudentRequesterModal() {
-        $('#studentRequesterModal').modal('show');
+        var $ = permJquery();
+        if ($) {
+            $('#studentRequesterModal').modal('show');
+        }
         loadStudentRequesters();
         loadAvailableUsers();
     }
 
     function loadAvailableUsers() {
+        var $ = permJquery();
+        if (!$) return;
         $.ajax({
             url: '{{ route("admin.student_permission_requesters.get_users") }}',
             method: 'GET',
@@ -1359,6 +1390,8 @@
     }
 
     function filterDropdownOptions() {
+        var $ = permJquery();
+        if (!$) return;
         const searchQuery = $('#requesterDropdownSearch').val().toLowerCase();
         $('.requester-option').each(function() {
             const optionText = $(this).text().toLowerCase();
@@ -1371,13 +1404,15 @@
     }
 
     function addRequesterFromDropdown(value, name) {
+        var $ = permJquery();
+        if (!$) return;
         // Check if already added
         if ($(`#selectedRequesters .badge[data-id="${value}"]`).length) return;
 
         const badge = `
             <span class="badge px-3 py-2 text-white d-flex align-items-center gap-2" data-id="${value}" style="background: #940000; border-radius: 0; font-size: 11px;">
                 ${name}
-                <i class="fa fa-times cursor-pointer" onclick="$(this).parent().remove();"></i>
+                <i class="fa fa-times cursor-pointer" onclick="this.parentElement && this.parentElement.remove();"></i>
             </span>`;
         $('#selectedRequesters').append(badge);
     }
@@ -1387,6 +1422,8 @@
     }
 
     function loadStudentRequesters() {
+        var $ = permJquery();
+        if (!$) return;
         $.ajax({
             url: '{{ route("admin.student_permission_requesters.index") }}',
             method: 'GET',
@@ -1423,19 +1460,16 @@
     }
 
     function saveStudentRequesters() {
+        var $ = permJquery();
+        if (!$) return;
         const selectedUsers = [];
         $('#selectedRequesters .badge').each(function() {
             const value = $(this).data('id');
             const parts = value.split('_');
             const userId = parseInt(parts[1]);
             const userType = parts[0];
-
-            console.log('Badge value:', value, 'Parts:', parts, 'User ID:', userId, 'User Type:', userType);
-
             selectedUsers.push({ type: userType, user_id: userId });
         });
-
-        console.log('Final selected users array:', selectedUsers);
 
         if (selectedUsers.length === 0) {
             Swal.fire({ icon: 'warning', title: 'Warning', text: 'Please select at least one user.', confirmButtonColor: '#940000' });
@@ -1478,6 +1512,8 @@
             confirmButtonText: 'Yes, remove it'
         }).then((result) => {
             if (result.isConfirmed) {
+                var $ = permJquery();
+                if (!$) return;
                 $.ajax({
                     url: '{{ route("admin.student_permission_requesters.destroy", ':id') }}'.replace(':id', id),
                     method: 'DELETE',
@@ -1535,27 +1571,32 @@
         dropdown._permMenu = null;
     }
 
-    $(document).on('show.bs.dropdown', '#perm-list-view .perm-action-dropdown, #perm-grid-view .perm-action-dropdown', function () {
-        placePermActionMenu(this);
-    });
+    if (typeof window.jQuery === 'function') {
+        window.$ = window.jQuery;
+        var jq = window.jQuery;
 
-    $(document).on('hidden.bs.dropdown', '#perm-list-view .perm-action-dropdown, #perm-grid-view .perm-action-dropdown', function () {
-        restorePermActionMenu(this);
-    });
-
-    $(window).on('scroll resize', function () {
-        $('#perm-list-view .perm-action-dropdown.show, #perm-grid-view .perm-action-dropdown.show').each(function () {
-            $(this).find('[data-toggle="dropdown"]').dropdown('toggle');
+        jq(document).on('show.bs.dropdown', '#perm-list-view .perm-action-dropdown, #perm-grid-view .perm-action-dropdown', function () {
+            placePermActionMenu(this);
         });
-    });
 
-    $(document).on('click', '.perm-reason-toggle', function (event) {
-        event.preventDefault();
-        const box = $(this).closest('.perm-reason-text');
-        const open = box.hasClass('is-open');
-        box.toggleClass('is-open', !open);
-        $(this).text(open ? 'View more' : 'View less');
-    });
+        jq(document).on('hidden.bs.dropdown', '#perm-list-view .perm-action-dropdown, #perm-grid-view .perm-action-dropdown', function () {
+            restorePermActionMenu(this);
+        });
+
+        jq(window).on('scroll resize', function () {
+            jq('#perm-list-view .perm-action-dropdown.show, #perm-grid-view .perm-action-dropdown.show').each(function () {
+                jq(this).find('[data-toggle="dropdown"]').dropdown('toggle');
+            });
+        });
+
+        jq(document).on('click', '.perm-reason-toggle', function (event) {
+            event.preventDefault();
+            const box = jq(this).closest('.perm-reason-text');
+            const open = box.hasClass('is-open');
+            box.toggleClass('is-open', !open);
+            jq(this).text(open ? 'View more' : 'View less');
+        });
+    }
 </script>
 
 <!-- Student Permission Requesters Modal -->

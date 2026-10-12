@@ -61,7 +61,7 @@ class OnlineApplicationApplyTokenService
 
     /**
      * Stable, deterministic school landing token (safe for sitemap + canonical).
-     * Format: {schoolID}.{hmac32} — does not rotate on each request.
+     * Format: {schoolID}.{hmac32} - does not rotate on each request.
      */
     public function encodeSchool(int $schoolID): string
     {
@@ -89,7 +89,7 @@ class OnlineApplicationApplyTokenService
             return $schoolID;
         }
 
-        // Legacy Laravel Crypt tokens (random IV each encode — bad for SEO).
+        // Legacy Laravel Crypt tokens (random IV each encode - bad for SEO).
         $data = $this->decryptPayload($token);
 
         $schoolID = (int) ($data['school'] ?? 0);
@@ -120,7 +120,7 @@ class OnlineApplicationApplyTokenService
     }
 
     /**
-     * In-app school landing URL (same host as the request — local/LAN/prod).
+     * In-app school landing URL (same host as the request - local/LAN/prod).
      */
     public function localSchoolUrl(int $schoolID): string
     {

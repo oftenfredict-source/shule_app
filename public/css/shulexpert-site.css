@@ -1,5 +1,5 @@
 /* ============================================================
-   ShuleXpert Public Site — Education template retheme
+   ShuleXpert Public Site - Education template retheme
    Brand: #940000 | #FFFFFF | #FFF5F5 | Century Gothic
    Powered by EmCa Techonology
    ============================================================ */
@@ -99,9 +99,9 @@ b, sup, sub, u, del { color: var(--sx-primary); }
 .banner-content .primary-btn:hover { background: #fff !important; color: var(--sx-primary) !important; }
 
 /* ============================================================
-   HEADER — top bar (red) vs main nav (dark plum) — distinct layers
+   HEADER - top bar (red) vs main nav (dark plum) - distinct layers
    ============================================================ */
-/* Fixed header — banner/content sits underneath (no white gap) */
+/* Fixed header - banner/content sits underneath (no white gap) */
 #header,
 #header.sx-site-header {
     position: fixed;
@@ -240,7 +240,7 @@ b, sup, sub, u, del { color: var(--sx-primary); }
 
 #header.header-scrolled { background-color: transparent; }
 
-/* Header nav links — visible on dark nav bar */
+/* Header nav links - visible on dark nav bar */
 #header.sx-site-header .nav-menu,
 #header.sx-site-header .nav-menu > li,
 #header.sx-site-header .nav-menu a {
@@ -395,7 +395,7 @@ b, sup, sub, u, del { color: var(--sx-primary); }
         radial-gradient(ellipse at 0% 50%, rgba(148,0,0,0.06) 0%, transparent 55%),
         linear-gradient(180deg, #FFF5F5 0%, #ffffff 100%) !important;
 }
-/* Home — testimonials with SS.jpg background */
+/* Home - testimonials with SS.jpg background */
 .sx-reviews-showcase.review-area {
     position: relative;
     overflow: hidden;
@@ -495,7 +495,7 @@ b, sup, sub, u, del { color: var(--sx-primary); }
 .section-title h1 { color: var(--sx-title); }
 .menu-content .title p { color: var(--sx-text); }
 
-/* Module cards — compact icon widgets */
+/* Module cards - compact icon widgets */
 .sx-modules-grid {
     margin-bottom: -8px;
 }
@@ -528,7 +528,7 @@ b, sup, sub, u, del { color: var(--sx-primary); }
         linear-gradient(180deg, #ffffff 0%, #FFF5F5 100%) !important;
 }
 
-/* Home — modules showcase with x.jpg + artistic gradient */
+/* Home - modules showcase with x.jpg + artistic gradient */
 .sx-modules-showcase.popular-course-area {
     position: relative;
     overflow: hidden;
@@ -718,7 +718,7 @@ b, sup, sub, u, del { color: var(--sx-primary); }
     line-height: 1;
 }
 
-/* Feature strip on home — module-card style gradients */
+/* Feature strip on home - module-card style gradients */
 .feature-area {
     background:
         linear-gradient(180deg, rgba(4,9,30,0.04) 0%, transparent 100%),
@@ -842,7 +842,7 @@ b, sup, sub, u, del { color: var(--sx-primary); }
     color: var(--sx-primary-dark) !important;
 }
 
-/* Inner page banner — richer artistic gradients */
+/* Inner page banner - richer artistic gradients */
 .about-banner {
     background:
         linear-gradient(128deg, rgba(148,0,0,0.94) 0%, rgba(196,58,58,0.72) 35%, rgba(92,0,0,0.82) 65%, rgba(4,9,30,0.88) 100%),
@@ -868,7 +868,7 @@ b, sup, sub, u, del { color: var(--sx-primary); }
     pointer-events: none;
 }
 
-/* Brand logo — flat, no shadow or animation */
+/* Brand logo - flat, no shadow or animation */
 .sx-logo,
 .sx-splash-logo,
 #logo .sx-brand img,
@@ -911,7 +911,7 @@ b, sup, sub, u, del { color: var(--sx-primary); }
     color: #fff;
 }
 
-/* Login — plain nav link, visible on dark bar */
+/* Login - plain nav link, visible on dark bar */
 #header.sx-site-header .nav-menu .sx-login-link a {
     padding: 6px 5px !important;
     box-shadow: none !important;
@@ -1095,7 +1095,7 @@ body.sx-mobile-nav-open {
 }
 
 /* ============================================================
-   Modules mega menu — full featured dropdown panel
+   Modules mega menu - full featured dropdown panel
    ============================================================ */
 .sx-modules-mega {
     position: static !important;
@@ -1312,7 +1312,7 @@ body.sx-mobile-nav-open {
 /* Info / about blocks */
 .info-area .info-area-right h1 { color: var(--sx-title); }
 
-/* Home — Built for schools worldwide (scoped — home page only) */
+/* Home - Built for schools worldwide (scoped - home page only) */
 .sx-home-info.sx-soft-band {
     padding: 0;
 }
@@ -1410,7 +1410,7 @@ body.sx-mobile-nav-open {
     }
 }
 
-/* About page — tighter spacing (balanced) */
+/* About page - tighter spacing (balanced) */
 .sx-about-banner.about-banner {
     min-height: 220px !important;
     padding-top: 110px !important;
@@ -1541,7 +1541,7 @@ body.sx-mobile-nav-open {
 }
 
 /* ============================================================
-   Auth pages — artistic login / forgot-password
+   Auth pages - artistic login / forgot-password
    ============================================================ */
 .sx-auth-stage {
     min-height: calc(100vh - 120px);
@@ -1811,7 +1811,7 @@ body.sx-mobile-nav-open {
 }
 
 /* ============================================================
-   TEAM — unique spotlight profiles (home + /team page)
+   TEAM - unique spotlight profiles (home + /team page)
    ============================================================ */
 @keyframes sxTeamRingSpin {
     to { transform: rotate(360deg); }
@@ -2152,7 +2152,7 @@ body.sx-mobile-nav-open {
     }
 }
 
-/* —— Online Application —— */
+/* -- Online Application -- */
 .sx-apply-banner.about-banner {
     min-height: 340px !important;
     padding-top: 168px !important;
@@ -3372,7 +3372,7 @@ html {
     }
 }
 
-/* Online Application — auth CTA, view more classes, portal */
+/* Online Application - auth CTA, view more classes, portal */
 .sx-apply-auth-cta {
     display: flex;
     flex-wrap: wrap;
@@ -4150,7 +4150,7 @@ html {
 }
 
 /* ============================================================
-   Public site — soft premium dark mode (not pure black)
+   Public site - soft premium dark mode (not pure black)
    ============================================================ */
 html[data-sx-theme="dark"][data-sx-site="public"] {
     --sx-dark-bg: #160d10;
@@ -4185,7 +4185,7 @@ html[data-sx-theme="dark"][data-sx-site="public"] #logo .sx-brand-sub {
     color: rgba(255,255,255,0.78) !important;
 }
 
-/* Hero / banners keep photo + gradient — no solid black wash */
+/* Hero / banners keep photo + gradient - no solid black wash */
 html[data-sx-theme="dark"][data-sx-site="public"] .banner-area.home-banner {
     background:
         linear-gradient(150deg, rgba(4,9,30,0.78) 0%, rgba(92,0,0,0.55) 38%, rgba(148,0,0,0.42) 62%, rgba(196,58,58,0.28) 100%),
@@ -4337,7 +4337,7 @@ html[data-sx-theme="dark"][data-sx-site="public"] .common-textarea {
     color: var(--sx-dark-text) !important;
 }
 
-/* Dark mode readability — override page-local light colors (#222/#666) */
+/* Dark mode readability - override page-local light colors (#222/#666) */
 html[data-sx-theme="dark"][data-sx-site="public"] .sx-price-highlight,
 html[data-sx-theme="dark"][data-sx-site="public"] .sx-price-highlight--alt,
 html[data-sx-theme="dark"][data-sx-site="public"] .sx-price-plan,
@@ -4490,7 +4490,7 @@ html[data-sx-theme="dark"][data-sx-site="public"] .sx-about-partner__cta a {
     color: #fff !important;
 }
 
-/* FAQ accordion / filters — titles were #222 on dark cards */
+/* FAQ accordion / filters - titles were #222 on dark cards */
 html[data-sx-theme="dark"][data-sx-site="public"] .sx-faq-item__title,
 html[data-sx-theme="dark"][data-sx-site="public"] .sx-faq-item__q,
 html[data-sx-theme="dark"][data-sx-site="public"] .sx-faq-aside__card h4,
@@ -4714,7 +4714,7 @@ html[data-sx-theme="light"][data-sx-site="public"] .sx-team-page .sx-team-see-mo
     color: #940000 !important;
 }
 
-/* Online Application — soft dark surfaces & readable text */
+/* Online Application - soft dark surfaces & readable text */
 html[data-sx-theme="dark"][data-sx-site="public"] .sx-apply-page {
     background: var(--sx-dark-bg) !important;
 }

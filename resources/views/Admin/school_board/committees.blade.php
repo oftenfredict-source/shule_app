@@ -127,7 +127,7 @@
                         @if($committee->committee_code)
                             Code: {{ $committee->committee_code }} ·
                         @endif
-                        Formed: {{ $committee->formed_date ? $committee->formed_date->format('d M Y') : '—' }} ·
+                        Formed: {{ $committee->formed_date ? $committee->formed_date->format('d M Y') : '-' }} ·
                         {{ $committee->members->count() }} member{{ $committee->members->count() === 1 ? '' : 's' }}
                     </div>
                     @if($committee->description)
@@ -182,12 +182,12 @@
                                     @endphp
                                     <tr>
                                         <td><strong>{{ $member->full_name }}</strong></td>
-                                        <td>{{ optional($member->position)->position_name ?: '—' }}</td>
+                                        <td>{{ optional($member->position)->position_name ?: '-' }}</td>
                                         <td><span class="badge badge-role {{ $roleClass }}">{{ $role }}</span></td>
                                         <td>
                                             {{ $member->pivot->assigned_date
                                                 ? \Carbon\Carbon::parse($member->pivot->assigned_date)->format('d M Y')
-                                                : '—' }}
+                                                : '-' }}
                                         </td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-outline-danger remove-member-btn"
@@ -284,7 +284,7 @@
                         <div class="mb-3">
                             <label class="form-label">Board Member <span class="text-danger">*</span></label>
                             <select class="form-control" name="memberID" id="assignMemberID" required>
-                                <option value="">— Select member —</option>
+                                <option value="">- Select member -</option>
                                 @foreach($boardMembers as $bm)
                                     <option value="{{ $bm->memberID }}">
                                         {{ $bm->full_name }}

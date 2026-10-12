@@ -75,8 +75,8 @@ class PrimaryClassesSeeder extends Seeder
         }
 
         $this->command->info("\n🎉 Done! 7 primary classes with subclasses created for schoolID $schoolID.");
-        $this->command->info("   - 3 classes with 2 subclasses (Std1–Std3): 6 subclasses");
-        $this->command->info("   - 4 classes with 1 subclass (Std4–Std7): 4 subclasses");
+        $this->command->info("   - 3 classes with 2 subclasses (Std1-Std3): 6 subclasses");
+        $this->command->info("   - 4 classes with 1 subclass (Std4-Std7): 4 subclasses");
         $this->command->info("   Total subclasses: 10");
     }
 }

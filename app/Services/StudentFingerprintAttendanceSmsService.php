@@ -53,7 +53,7 @@ class StudentFingerprintAttendanceSmsService
     }
 
     /**
-     * Manual send from report / teacher widget — always allowed (period from report filters).
+     * Manual send from report / teacher widget - always allowed (period from report filters).
      */
     public function isManualSendAllowed(int $schoolID): bool
     {
@@ -77,7 +77,7 @@ class StudentFingerprintAttendanceSmsService
 
         $time = $config->send_time
             ? Carbon::parse($config->send_time)->format('H:i')
-            : '—';
+            : '-';
 
         if ($config->send_method === SchoolFingerprintAttendanceSmsSchedule::METHOD_MANUAL) {
             return ucfirst($config->schedule).' · Manual';
@@ -131,7 +131,7 @@ class StudentFingerprintAttendanceSmsService
                 'start' => $reference->copy()->startOfWeek(Carbon::MONDAY),
                 'end' => $reference->copy()->endOfWeek(Carbon::SUNDAY),
                 'label' => $reference->copy()->startOfWeek(Carbon::MONDAY)->format('d M')
-                    .' – '.$reference->copy()->endOfWeek(Carbon::SUNDAY)->format('d M Y'),
+                    .' - '.$reference->copy()->endOfWeek(Carbon::SUNDAY)->format('d M Y'),
             ],
             SchoolFingerprintAttendanceSmsSchedule::SCHEDULE_MONTHLY => [
                 'start' => $reference->copy()->startOfMonth(),

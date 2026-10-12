@@ -65,7 +65,7 @@ class SmsService
             if ($resolvedSchoolID) {
                 $school = \App\Models\School::find($resolvedSchoolID);
                 if ($school && !$school->isSmsEnabled()) {
-                    Log::info("SmsService: SMS blocked — disabled for school {$resolvedSchoolID}");
+                    Log::info("SmsService: SMS blocked - disabled for school {$resolvedSchoolID}");
                     return [
                         'success' => false,
                         'message' => 'SMS is disabled for this school.',

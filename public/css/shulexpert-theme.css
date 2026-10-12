@@ -1,5 +1,5 @@
 /* ============================================================
-   ShuleXpert Global Theme — Light / Soft Dark
+   ShuleXpert Global Theme - Light / Soft Dark
    Toggle: data-sx-theme on <html> via includes/theme_toggle
    Public site uses its own soft dark in shulexpert-site.css
    ============================================================ */
@@ -57,7 +57,7 @@
 }
 
 /* ============================================================
-   LIGHT MODE — portal shells
+   LIGHT MODE - portal shells
    ============================================================ */
 html[data-sx-theme="light"] {
     color-scheme: light;
@@ -147,7 +147,7 @@ html[data-sx-theme="light"]:not([data-sx-site="public"]) .sx-auth-stage {
 }
 
 /* ============================================================
-   DARK MODE — soft premium portal (not pure black)
+   DARK MODE - soft premium portal (not pure black)
    ============================================================ */
 html[data-sx-theme="dark"] {
     color-scheme: dark;
@@ -197,7 +197,7 @@ html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-sidebar {
     box-shadow: 2px 0 16px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* Admin sidebar children — override hard-coded white */
+/* Admin sidebar children - override hard-coded white */
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel .navbar,
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel .navbar-default,
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) #left-panel .main-menu,
@@ -280,7 +280,7 @@ html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table th {
     background-color: transparent !important;
 }
 
-/* Readable text — do NOT force every * to white */
+/* Readable text - do NOT force every * to white */
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) p,
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) label,
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) span,
@@ -442,7 +442,7 @@ html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-sidebar .sidebar-g
     opacity: 0.9;
 }
 
-/* Corp brand text — soft red accent, not washed white */
+/* Corp brand text - soft red accent, not washed white */
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) #corp-header-logo .corp-logo-title {
     color: #ffffff !important;
 }
@@ -500,7 +500,7 @@ html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-auth-form-wrap {
     color: var(--sx-portal-text) !important;
 }
 
-/* Bootstrap table-light — was white bg + light text in dark mode */
+/* Bootstrap table-light - was white bg + light text in dark mode */
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table-light,
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table-light > :not(caption) > * > *,
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) thead.table-light th,
@@ -514,7 +514,7 @@ html[data-sx-theme="dark"]:not([data-sx-site="public"]) .table > thead > tr > th
     border-color: var(--sx-portal-border) !important;
 }
 
-/* School Board module — hard-coded light surfaces */
+/* School Board module - hard-coded light surfaces */
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .member-stat,
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .filter-bar,
 html[data-sx-theme="dark"]:not([data-sx-site="public"]) .sx-board-wrap .committee-card,

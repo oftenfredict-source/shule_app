@@ -213,7 +213,7 @@ class ResultManagementController extends Controller
             $rankBy = "average";
         }
 
-        // Academic year always from header selection (like manageExamination) — no page year picker
+        // Academic year always from header selection (like manageExamination) - no page year picker
         $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
         // Expand sibling AYs (e.g. 2025/2026 id + plain 2026 id) so enrollments & exams still match
         $academicYearIDs = $this->expandRelatedAcademicYearIds(
@@ -515,7 +515,7 @@ class ResultManagementController extends Controller
         }
 
         // Format subclasses with display names
-        // A-Level (Form Five/Six): subclass only (e.g. "A") — Main Class already selected
+        // A-Level (Form Five/Six): subclass only (e.g. "A") - Main Class already selected
         // O-Level: keep "FORM ONE A" style
         foreach ($allSubclasses as $classID => $classSubclasses) {
             // If class has only one subclass and it's default (empty name), include it but show only class name
@@ -3972,7 +3972,7 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * Rank student within subclass (mchepuo), fallback to main class — same idea as individual report.
+     * Rank student within subclass (mchepuo), fallback to main class - same idea as individual report.
      *
      * @return array{0: ?int, 1: ?int}
      */
@@ -4590,7 +4590,7 @@ class ResultManagementController extends Controller
         }
 
         // Construct Premium SMS Format
-        // Avoid "|" (GSM-7 extended) — some handsets/gateways render it as "?"
+        // Avoid "|" (GSM-7 extended) - some handsets/gateways render it as "?"
         $msg = "";
         if (!($school && $school->senderID)) {
             $msg .= "{$schoolName}\n";
@@ -4682,7 +4682,7 @@ class ResultManagementController extends Controller
             );
 
             // Get examinations for this term and academic year (header).
-            // When a specific examID is requested, skip year/term filters — identity
+            // When a specific examID is requested, skip year/term filters - identity
             // is enough (avoids Position 0/0 when exam.year differs from header calendar year).
             $examinationsQuery = Examination::where("schoolID", $schoolID);
 
@@ -5803,9 +5803,9 @@ class ResultManagementController extends Controller
 
     /**
      * Secondary schools: fixed letter grades (do not use grade_definitions).
-     * O-Level: A 75–100 (1), B 65–74 (2), C 45–64 (3), D 30–44 (4), F 0–29 (5)
-     * A-Level (Form 5/6): A 80–100 (1), B 70–79 (2), C 60–69 (3), D 50–59 (4),
-     *   E 40–49 (5), S 35–39 (6), F 0–34 (7)
+     * O-Level: A 75-100 (1), B 65-74 (2), C 45-64 (3), D 30-44 (4), F 0-29 (5)
+     * A-Level (Form 5/6): A 80-100 (1), B 70-79 (2), C 60-69 (3), D 50-59 (4),
+     *   E 40-49 (5), S 35-39 (6), F 0-34 (7)
      */
     private function getSecondaryHardcodedGrade(
         $marks,
@@ -5964,7 +5964,7 @@ class ResultManagementController extends Controller
      * Weighted total: sum(marks * percent/100). Missing marks count as 0.
      *
      * @param  array<int|string, float|null>  $marksByExamId
-     * @param  array<int|string, float|int>  $weights  examID => percent (0–100)
+     * @param  array<int|string, float|int>  $weights  examID => percent (0-100)
      */
     private function computePercentWeightedTotal(
         array $marksByExamId,
@@ -6039,7 +6039,7 @@ class ResultManagementController extends Controller
         if (abs($sum - 100.0) > 0.05) {
             $remaining = round(100.0 - $sum, 2);
             if ($remaining > 0) {
-                return "Remaining {$remaining}% — please assign the rest to an exam.";
+                return "Remaining {$remaining}% - please assign the rest to an exam.";
             }
 
             return "Percent total is {$sum}%. It must equal 100%.";
@@ -6049,7 +6049,7 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * Marks for one term-report exam column — use the column's own marks only.
+     * Marks for one term-report exam column - use the column's own marks only.
      * Do not fold CA tests into the parent here: CA tests that are in the report
      * are their own columns, and CA tests outside the report must not wipe a
      * scored parent column (e.g. Terminal 85 ignored because Monthly Test missing).
@@ -6653,7 +6653,7 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * NECTA O-Level Division IV: 26–33 points and at least 2×D or 1×C in the best seven.
+     * NECTA O-Level Division IV: 26-33 points and at least 2×D or 1×C in the best seven.
      */
     private function meetsOLevelDivisionIVGradeCriteria(array $bestSevenGrades): bool
     {
@@ -6852,7 +6852,7 @@ class ResultManagementController extends Controller
                 ]) ||
                 preg_match("/form\s*(five|six|5|6)/i", $className)
             ) {
-                // A-Level Form 5/6 — A=1 … F=7
+                // A-Level Form 5/6 - A=1 … F=7
                 if ($marksNum >= 80) {
                     return ["grade" => "A", "points" => 1];
                 } elseif ($marksNum >= 70) {
@@ -6949,7 +6949,7 @@ class ResultManagementController extends Controller
         ) {
             // A-Level Form 5/6: points from combination subjects only
             // A=1, B=2, C=3, D=4, E=5, S=6, F=7
-            // Division I: 3–9, II: 10–12, III: 13–17, IV: 18–21, 0: 22–35
+            // Division I: 3-9, II: 10-12, III: 13-17, IV: 18-21, 0: 22-35
 
             if ($totalPoints >= 3 && $totalPoints <= 9) {
                 return ["grade" => null, "division" => "I." . $totalPoints];
@@ -7582,7 +7582,7 @@ class ResultManagementController extends Controller
         }
 
         if ($filterScopeLabel !== "") {
-            $title .= " — " . $filterScopeLabel;
+            $title .= " - " . $filterScopeLabel;
         }
 
         // Exam index numbers (same sequence as Excel board / attendance)
@@ -7649,7 +7649,7 @@ class ResultManagementController extends Controller
                             $className =
                                 $subName !== ""
                                     ? strtoupper($mainName) .
-                                        " — " .
+                                        " - " .
                                         strtoupper($subName)
                                     : strtoupper($mainName);
                         } else {
@@ -7798,7 +7798,7 @@ class ResultManagementController extends Controller
                 $filename,
             );
 
-            // Page numbers on every page (board + individual) — does not change layout scale
+            // Page numbers on every page (board + individual) - does not change layout scale
             try {
                 $dompdf = $pdf->getDomPDF();
                 $dompdf->render();
@@ -7848,7 +7848,7 @@ class ResultManagementController extends Controller
 
     /**
      * Individual report PDF scale. 1.0 = current default (unchanged).
-     * Allowed range: 1.00 – 1.40.
+     * Allowed range: 1.00 - 1.40.
      */
     private function normalizeIndividualPdfScale($raw): float
     {
@@ -7868,7 +7868,7 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * Exam numbers per class — same sequence as attendance template / add-results.
+     * Exam numbers per class - same sequence as attendance template / add-results.
      */
     private function buildExamNumberMapForClass(int $classID, ?School $school): array
     {
@@ -8391,7 +8391,7 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * Board TOTAL marks — compact, no forced rounding up to whole when fractional.
+     * Board TOTAL marks - compact, no forced rounding up to whole when fractional.
      */
     private function formatBoardTotalMarks(float $total): string
     {
@@ -8788,7 +8788,7 @@ class ResultManagementController extends Controller
         }
         unset($item);
 
-        // O-Level (Form 1–4) / Primary: no STREAM column. A-Level only: COMBINATION.
+        // O-Level (Form 1-4) / Primary: no STREAM column. A-Level only: COMBINATION.
         $streamHeader = $isALevelClass ? "COMBINATION" : null;
         $showName = $nameMode !== "index";
         $showIndex = $nameMode !== "name";
@@ -9053,7 +9053,7 @@ class ResultManagementController extends Controller
         );
 
         $classPerfLabel =
-            strtoupper(trim((string) $className)) . " — CLASS PERFORMANCE";
+            strtoupper(trim((string) $className)) . " - CLASS PERFORMANCE";
         $titleCombined =
             rtrim(trim((string) $titleLine), ".") . ", " . $classPerfLabel;
 
@@ -9160,7 +9160,7 @@ class ResultManagementController extends Controller
         unset($item);
 
         $subjectColSpan = 2; // Marks + Grade under each subject
-        // O-Level (Form 1–4) / Primary: no STREAM. A-Level only: COMBIE.
+        // O-Level (Form 1-4) / Primary: no STREAM. A-Level only: COMBIE.
         $streamHeader = $isALevelClass ? "COMBIE" : null;
 
         // Leading: S/N, Name, Index No, Sex [, COMBIE for A-Level] [, Point, Division for Secondary]
@@ -9203,7 +9203,7 @@ class ResultManagementController extends Controller
             "GPA",
         ];
         $perfColCount = count($perfHeader);
-        // Centre overview island (SEX → GPA) under the full board — like the title
+        // Centre overview island (SEX → GPA) under the full board - like the title
         if ($totalCols > $perfColCount) {
             $perfStartCol = (int) floor(($totalCols - $perfColCount) / 2) + 1;
         } else {
@@ -9220,7 +9220,7 @@ class ResultManagementController extends Controller
         );
         $gpaCol = Coordinate::stringFromColumnIndex($perfEndCol);
 
-        // School header — org logo LEFT, school logo RIGHT, title text CENTER between them
+        // School header - org logo LEFT, school logo RIGHT, title text CENTER between them
         // Organization name (if any) sits above school name
         $underOrg = (bool) ($school->is_under_organization ?? false);
         $orgName = $underOrg
@@ -9341,10 +9341,10 @@ class ResultManagementController extends Controller
             $sheet->getRowDimension($contactRow)->setRowHeight(16);
         }
 
-        // Title band: one horizontal line — centred across full board width
-        // e.g. "FIRST TERM REPORT RESULTS 2026, FORM THREE — CLASS PERFORMANCE"
+        // Title band: one horizontal line - centred across full board width
+        // e.g. "FIRST TERM REPORT RESULTS 2026, FORM THREE - CLASS PERFORMANCE"
         $classPerfLabel =
-            strtoupper(trim((string) $className)) . " — CLASS PERFORMANCE";
+            strtoupper(trim((string) $className)) . " - CLASS PERFORMANCE";
         $titleCombined =
             rtrim(trim((string) $titleLine), ".") . ", " . $classPerfLabel;
 
@@ -9500,7 +9500,7 @@ class ResultManagementController extends Controller
             }
         }
 
-        // Write F / M / T data rows (GPA column left empty — filled after merge)
+        // Write F / M / T data rows (GPA column left empty - filled after merge)
         $writePerfRow = function ($label, $key) use (
             $sheet,
             $stats,
@@ -9597,7 +9597,7 @@ class ResultManagementController extends Controller
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER);
 
-        // GPA — one merge across ALL data rows (F+M+T), value centred in the block
+        // GPA - one merge across ALL data rows (F+M+T), value centred in the block
         foreach ([$fRow, $mRow, $tRow] as $gpaClearRow) {
             $sheet->setCellValue("{$gpaCol}{$gpaClearRow}", null);
         }
@@ -9713,7 +9713,7 @@ class ResultManagementController extends Controller
             );
         }
 
-        // Subject names — each merged across Marks + Grade
+        // Subject names - each merged across Marks + Grade
         $colIndex = $fixedCols + 1;
         $maxVerticalLen = strlen("INDEX NO");
         foreach ($subjectNames as $name) {
@@ -9729,7 +9729,7 @@ class ResultManagementController extends Controller
             $colIndex += $subjectColSpan;
         }
 
-        // Trailing columns — merge vertically across both header rows
+        // Trailing columns - merge vertically across both header rows
         foreach ($trailingHeaders as $label) {
             $letter = Coordinate::stringFromColumnIndex($colIndex);
             $sheet->setCellValue("{$letter}{$subjectHeaderRow}", $label);
@@ -9755,7 +9755,7 @@ class ResultManagementController extends Controller
             ->setVertical(Alignment::VERTICAL_CENTER)
             ->setWrapText(true);
 
-        // S/N, Student Name, Index No — horizontal; SEX and after rotate vertical
+        // S/N, Student Name, Index No - horizontal; SEX and after rotate vertical
         for ($c = 1; $c <= 3; $c++) {
             $letter = Coordinate::stringFromColumnIndex($c);
             $sheet
@@ -9793,7 +9793,7 @@ class ResultManagementController extends Controller
                 ->setTextRotation(90);
         }
 
-        // Sub-header Marks/Grade — horizontal, smaller
+        // Sub-header Marks/Grade - horizontal, smaller
         $marksGradeStart = Coordinate::stringFromColumnIndex($fixedCols + 1);
         $marksGradeEnd = Coordinate::stringFromColumnIndex(
             $fixedCols + count($subjectNames) * $subjectColSpan,
@@ -10017,7 +10017,7 @@ class ResultManagementController extends Controller
             } elseif ($c === 3) {
                 $sheet->getColumnDimension($colLetter)->setWidth(18);
             } elseif ($strmCol > 0 && $c === $strmCol) {
-                // Combie — wider so labels fit
+                // Combie - wider so labels fit
                 $sheet->getColumnDimension($colLetter)->setWidth(14);
             } elseif ($c === $totalCol) {
                 $sheet->getColumnDimension($colLetter)->setWidth(11);
@@ -10189,7 +10189,7 @@ class ResultManagementController extends Controller
 
     /**
      * Append Remark Color Definition + Subject Performance Statistics below board results.
-     * Layout matches subject_performance_statistics_pdf (no school header — already on sheet).
+     * Layout matches subject_performance_statistics_pdf (no school header - already on sheet).
      */
     private function appendSubjectPerformanceStatsToSheet(
         Worksheet $sheet,
@@ -10605,7 +10605,7 @@ class ResultManagementController extends Controller
                 ->setARGB("FFEEEEEE");
         }
 
-        // Only widen trailing columns — do not shrink board result columns above
+        // Only widen trailing columns - do not shrink board result columns above
         $trailStart = 2 + count($gradesToLoop) * 3;
         $trailMinWidths = [12, 10, 32]; // GPA, RANKS, COMPETENCY LEVEL
         foreach ($trailMinWidths as $i => $minW) {
@@ -10820,7 +10820,7 @@ class ResultManagementController extends Controller
                 $rankBy = "average";
             }
 
-            // Get students based on option (Active enrollments for selected year — same as PDF)
+            // Get students based on option (Active enrollments for selected year - same as PDF)
             $students = $this->studentsForResultDownload($request, $schoolID);
 
             // Get results data
@@ -10908,7 +10908,7 @@ class ResultManagementController extends Controller
                     $cid > 0
                         ? ClassModel::find($cid)?->class_name ?? "Class {$cid}"
                         : "Unknown Class";
-                // Header label: A-Level + subclass filter → "FORM FIVE — PCM"
+                // Header label: A-Level + subclass filter → "FORM FIVE - PCM"
                 // (data STRM column stays subclass-only via resolveBoardStreamLabel)
                 $className = $mainClassName;
                 if ($option === "subclass" && $subclassID) {
@@ -10923,7 +10923,7 @@ class ResultManagementController extends Controller
                             $className =
                                 $subName !== ""
                                     ? strtoupper($mainName) .
-                                        " — " .
+                                        " - " .
                                         strtoupper($subName)
                                     : strtoupper($mainName);
                         } else {
@@ -11249,7 +11249,7 @@ class ResultManagementController extends Controller
             ],
             "message" =>
                 "Report already defined for {$termLabel} {$year} ({$levelLabel})" .
-                ($examCount > 0 ? " — {$examCount} exam(s)." : "."),
+                ($examCount > 0 ? " - {$examCount} exam(s)." : "."),
         ]);
     }
 
@@ -12362,11 +12362,11 @@ class ResultManagementController extends Controller
 
         // When a specific subclass is chosen, filter to that subclass only.
         // When 'all' (or empty), load subjects from ALL subclasses of this class
-        // and deduplicate — so a subject taught in multiple subclasses appears once.
+        // and deduplicate - so a subject taught in multiple subclasses appears once.
         if (!empty($subclassID) && $subclassID !== "all") {
             $query->where("subclassID", $subclassID);
         }
-        // else: no subclassID filter — fetches every class_subject row for this class
+        // else: no subclassID filter - fetches every class_subject row for this class
 
         $subjects = $query
             ->get()

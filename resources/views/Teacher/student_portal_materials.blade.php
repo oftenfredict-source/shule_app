@@ -82,7 +82,7 @@
                             <label class="lph-label">Attachment</label>
                             <input class="form-control" type="file" name="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.mp4,.mp3">
                         </div>
-                        <p class="file-hint">Optional: body, file, and/or link — max file {{ $uploadLimit ?? '256M' }}</p>
+                        <p class="file-hint">Optional: body, file, and/or link - max file {{ $uploadLimit ?? '256M' }}</p>
                         <button class="lph-btn lph-btn-brand" type="submit"><i class="fa fa-save"></i> Save note</button>
                     </form>
                 </div>
@@ -97,7 +97,7 @@
                             <div>
                                 <div class="lph-item-title">{{ $note->title }}</div>
                                 <div class="lph-item-meta">
-                                    {{ optional($classes->firstWhere('classID', $note->classID))->class_name ?? '—' }}
+                                    {{ optional($classes->firstWhere('classID', $note->classID))->class_name ?? '-' }}
                                     @if($note->subclassID) · {{ optional($subclasses->firstWhere('subclassID', $note->subclassID))->subclass_name }}@endif
                                     @if($note->subjectID) · {{ optional($subjects->firstWhere('subjectID', $note->subjectID))->subject_name }}@endif
                                     @if($note->original_name)<br><i class="fa fa-paperclip"></i> {{ $note->original_name }}@endif
@@ -171,7 +171,7 @@
                             <div>
                                 <div class="lph-item-title">{{ $book->title }}</div>
                                 <div class="lph-item-meta">
-                                    {{ optional($classes->firstWhere('classID', $book->classID))->class_name ?? '—' }}
+                                    {{ optional($classes->firstWhere('classID', $book->classID))->class_name ?? '-' }}
                                     @if($book->author) · {{ $book->author }}@endif
                                     @if($book->file_path)
                                         <br><a href="{{ asset($book->file_path) }}" target="_blank"><i class="fa fa-download"></i> {{ $book->original_name ?? 'Download' }}</a>
@@ -206,7 +206,7 @@
                 <div class="lph-panel">
                     <div class="lph-panel-head">
                         <h2>Create quiz</h2>
-                        <p>Multiple choice (A–D) with instant scoring.</p>
+                        <p>Multiple choice (A-D) with instant scoring.</p>
                     </div>
                     <form method="POST" action="{{ route('student_portal.materials.quizzes.store') }}" id="quizForm">
                         @csrf
@@ -227,7 +227,7 @@
                             <label class="lph-label">Closes at</label>
                             <input class="form-control" type="datetime-local" name="closes_at">
                         </div>
-                        <p class="file-hint">Optional window — if both are set, the quiz only accepts answers between those times.</p>
+                        <p class="file-hint">Optional window - if both are set, the quiz only accepts answers between those times.</p>
                         <div id="quizQuestions"></div>
                         <button type="button" class="lph-btn lph-btn-soft mb-2" id="addQuestion"><i class="fa fa-plus"></i> Add question</button>
                         <button class="lph-btn lph-btn-brand" type="submit"><i class="fa fa-save"></i> Save quiz</button>
@@ -244,7 +244,7 @@
                             <div>
                                 <div class="lph-item-title">{{ $quiz->title }}</div>
                                 <div class="lph-item-meta">
-                                    {{ optional($classes->firstWhere('classID', $quiz->classID))->class_name ?? '—' }}
+                                    {{ optional($classes->firstWhere('classID', $quiz->classID))->class_name ?? '-' }}
                                     · {{ $quiz->questions->count() }} questions · {{ $quiz->attempts->count() }} attempts
                                     @if(method_exists($quiz, 'isScheduled') && $quiz->isScheduled())
                                         <br><span class="lph-badge lph-badge-sched">{{ $quiz->opens_at->format('d M Y H:i') }} → {{ $quiz->closes_at->format('d M Y H:i') }}</span>
@@ -322,10 +322,10 @@
                                         @endphp
                                         <tr>
                                             <td>{{ $name }}</td>
-                                            <td>{{ $st->admission_number ?? '—' }}</td>
+                                            <td>{{ $st->admission_number ?? '-' }}</td>
                                             <td><strong>{{ $attempt->score }}</strong> / {{ $attempt->total }}</td>
                                             <td><span class="lph-pct {{ $pct >= 50 ? 'pass' : 'fail' }}">{{ $pct }}%</span></td>
-                                            <td>{{ $attempt->submitted_at ? $attempt->submitted_at->format('d M Y H:i') : '—' }}</td>
+                                            <td>{{ $attempt->submitted_at ? $attempt->submitted_at->format('d M Y H:i') : '-' }}</td>
                                         </tr>
                                     @endforeach
                                     </tbody>

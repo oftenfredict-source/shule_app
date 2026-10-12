@@ -346,7 +346,7 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * User-facing error only — never expose SQL / stack / paths (security).
+     * User-facing error only - never expose SQL / stack / paths (security).
      * Full details always go to the log.
      */
     private function safeUserFacingError(\Throwable $e, string $fallback): string
@@ -1529,7 +1529,7 @@ class ManageExaminationController extends Controller
             }
 
 
-            // Bulk insert results (chunked — large schools exceed MySQL placeholder limit)
+            // Bulk insert results (chunked - large schools exceed MySQL placeholder limit)
             if (! empty($results)) {
                 $this->insertInChunks($results, 500, Result::class);
             }
@@ -4381,7 +4381,7 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * Exam result rows for SMS — same election rules as individual report blade.
+     * Exam result rows for SMS - same election rules as individual report blade.
      */
     private function getFilteredExamResultRowsForSms(
         int $studentID,
@@ -5887,7 +5887,7 @@ class ManageExaminationController extends Controller
             $classTeacherSubclassIds = Subclass::where('teacherID', $teacherID)->pluck('subclassID')->toArray();
             $coordinatorClassIds = ClassModel::where('teacherID', $teacherID)->pluck('classID')->toArray();
 
-            // HOD logic — find departments where this teacher is head
+            // HOD logic - find departments where this teacher is head
             $hodDepartmentIds = \App\Models\Department::where('head_teacherID', $teacherID)->pluck('departmentID')->toArray();
             $hodSubjectIds = !empty($hodDepartmentIds)
                 ? DB::table('department_subjects')->whereIn('departmentID', $hodDepartmentIds)->pluck('subjectID')->toArray()
@@ -6787,7 +6787,7 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * Resubmit a rejected exam paper — restarts the approval chain
+     * Resubmit a rejected exam paper - restarts the approval chain
      */
     public function resubmitExamPaper(Request $request, $examPaperID)
     {
@@ -7811,7 +7811,7 @@ class ManageExaminationController extends Controller
             $name = $year->year_name ?: $year->year;
             $levelLabel = $level === 'a_level' ? 'A-Level' : ($level === 'o_level' ? 'O-Level' : 'Year');
             $label = $hasALevel && in_array($level, ['o_level', 'a_level'], true)
-                ? "{$levelLabel} — {$name}"
+                ? "{$levelLabel} - {$name}"
                 : (string) $name;
             $calendarYear = is_numeric($year->year)
                 ? (int) $year->year
@@ -7868,7 +7868,7 @@ class ManageExaminationController extends Controller
             $parts[] = $o->year_name ?: $o->year;
         }
 
-        return !empty($parts) ? implode(' / ', $parts) : '—';
+        return !empty($parts) ? implode(' / ', $parts) : '-';
     }
 
     /**
@@ -8768,7 +8768,7 @@ class ManageExaminationController extends Controller
                 $assignment->is_active = $testDate->isSameDay($today) ? 1 : 0;
                 $assignment->is_past = $testDate->lt($today) && !$testDate->isToday() ? 1 : 0;
 
-                // Student count — Active enrollments for header year
+                // Student count - Active enrollments for header year
                 $enrollmentService = app(StudentEnrollmentService::class);
                 $studentCount = 0;
                 if ($test->scope === 'class') {
@@ -10094,7 +10094,7 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * Resolve exam_papers upload directory — manage_student style + writable probe for subdomains.
+     * Resolve exam_papers upload directory - manage_student style + writable probe for subdomains.
      */
     private function resolveExamPaperUploadPath(): string
     {
@@ -10126,7 +10126,7 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * Ensure directory exists and PHP can write — fixes subdomain permission issues.
+     * Ensure directory exists and PHP can write - fixes subdomain permission issues.
      */
     private function ensureWritableUploadDirectory(string $dir): bool
     {

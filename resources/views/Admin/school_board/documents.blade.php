@@ -137,15 +137,15 @@
                                         <div><i class="fa fa-sitemap"></i> {{ $doc->committee->committee_name }}</div>
                                     @endif
                                     @if(!$doc->meeting && !$doc->resolution && !$doc->committee)
-                                        <span class="text-muted">—</span>
+                                        <span class="text-muted">-</span>
                                     @endif
                                 </td>
                                 <td class="small">
-                                    {{ $doc->original_filename ?: '—' }}
+                                    {{ $doc->original_filename ?: '-' }}
                                     <div class="meeting-meta">{{ $doc->file_size_label }}</div>
                                 </td>
                                 <td class="small">
-                                    {{ $doc->created_at ? $doc->created_at->format('d M Y H:i') : '—' }}
+                                    {{ $doc->created_at ? $doc->created_at->format('d M Y H:i') : '-' }}
                                     @if($doc->uploaded_by_name)
                                         <div class="meeting-meta">by {{ $doc->uploaded_by_name }}</div>
                                     @endif
@@ -231,10 +231,10 @@
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Link Meeting</label>
                             <select class="form-control" name="meetingID" id="meetingID">
-                                <option value="">— None —</option>
+                                <option value="">- None -</option>
                                 @foreach($meetings as $m)
                                     <option value="{{ $m->meetingID }}">
-                                        {{ $m->meeting_date ? $m->meeting_date->format('d M Y') : '' }} — {{ $m->title }}
+                                        {{ $m->meeting_date ? $m->meeting_date->format('d M Y') : '' }} - {{ $m->title }}
                                     </option>
                                 @endforeach
                             </select>
@@ -242,10 +242,10 @@
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Link Resolution</label>
                             <select class="form-control" name="resolutionID" id="resolutionID">
-                                <option value="">— None —</option>
+                                <option value="">- None -</option>
                                 @foreach($resolutions as $r)
                                     <option value="{{ $r->resolutionID }}">
-                                        {{ $r->resolution_number ?: '#' . $r->resolutionID }} — {{ \Illuminate\Support\Str::limit($r->title, 35) }}
+                                        {{ $r->resolution_number ?: '#' . $r->resolutionID }} - {{ \Illuminate\Support\Str::limit($r->title, 35) }}
                                     </option>
                                 @endforeach
                             </select>
@@ -253,7 +253,7 @@
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Link Committee</label>
                             <select class="form-control" name="committeeID" id="committeeID">
-                                <option value="">— None —</option>
+                                <option value="">- None -</option>
                                 @foreach($committees as $c)
                                     <option value="{{ $c->committeeID }}">{{ $c->committee_name }}</option>
                                 @endforeach
@@ -373,7 +373,7 @@
             document.getElementById('fileRequiredMark').style.display = 'none';
             const label = document.getElementById('currentFileLabel');
             label.style.display = '';
-            label.textContent = 'Current file: ' + (btn.dataset.filename || '—') + ' (leave empty to keep)';
+            label.textContent = 'Current file: ' + (btn.dataset.filename || '-') + ' (leave empty to keep)';
             document.getElementById('documentModalTitle').textContent = 'Edit Document';
             document.getElementById('documentSubmitBtn').textContent = 'Update';
             openModal(modal);

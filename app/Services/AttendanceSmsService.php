@@ -195,7 +195,7 @@ class AttendanceSmsService
 
         $time = $config->send_time
             ? Carbon::parse($config->send_time)->format('H:i')
-            : '—';
+            : '-';
 
         if ($config->send_method === SchoolAttendanceSmsSchedule::METHOD_MANUAL) {
             return ucfirst($config->schedule) . ' · Manual';
@@ -210,7 +210,7 @@ class AttendanceSmsService
             SchoolAttendanceSmsSchedule::SCHEDULE_MONTHLY => "Monthly · Auto day {$config->send_day_of_month} @ {$time}",
             SchoolAttendanceSmsSchedule::SCHEDULE_YEARLY => 'Yearly · Auto '
                 . ($months[$config->send_month] ?? '?') . " {$config->send_day_of_month} @ {$time}",
-            default => '—',
+            default => '-',
         };
     }
 

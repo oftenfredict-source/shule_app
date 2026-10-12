@@ -28,7 +28,7 @@ return new class extends Migration
             });
         }
 
-        // status is VARCHAR(255) — full column exceeds MySQL index length on utf8mb4
+        // status is VARCHAR(255) - full column exceeds MySQL index length on utf8mb4
         if (! $this->indexExists('black_book_problem_categories', 'bb_problem_cats_school_status_idx')) {
             DB::statement('CREATE INDEX bb_problem_cats_school_status_idx ON black_book_problem_categories (schoolID, status(20))');
         }

@@ -22,7 +22,7 @@ return new class extends Migration
                 $table->id('componentID');
                 $table->unsignedBigInteger('subjectID');
                 $table->string('component_name', 100);
-                $table->unsignedTinyInteger('max_marks')->default(100); // 1–100
+                $table->unsignedTinyInteger('max_marks')->default(100); // 1-100
                 $table->unsignedSmallInteger('sort_order')->default(0);
                 $table->timestamps();
 

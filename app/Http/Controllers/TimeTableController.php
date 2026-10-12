@@ -4075,7 +4075,7 @@ class TimeTableController extends Controller
                 if ($filterTeacherID && $filterDay && $filterStart && $filterEnd && count($group) >= 1) {
                     // Need at least 2 overlapping sessions to be a "conflict" for school scan;
                     // for slot check, any other session overlapping the proposed window means conflict.
-                    // If only one row and it's the proposed slot itself with no other, not a conflict —
+                    // If only one row and it's the proposed slot itself with no other, not a conflict -
                     // but we can't distinguish proposed-only. Callers should pass excludeSubclassID.
                     // If group has 1 row after filter, it's an existing DB session overlapping the slot → conflict.
                     $teacher = $group[0];
@@ -4105,7 +4105,7 @@ class TimeTableController extends Controller
             for ($i = 0; $i < $n; $i++) {
                 for ($j = $i + 1; $j < $n; $j++) {
                     // Same subclass + same start/end + optional parallel is OK (different subjects, same teacher rare)
-                    // Still a conflict if same teacher is in two overlapping periods (even optional parallel —
+                    // Still a conflict if same teacher is in two overlapping periods (even optional parallel -
                     // validateTeacherConflict already blocks same teacher twice in one period)
                     if ($this->sessionTimesOverlap(
                         $group[$i]['start_time'],

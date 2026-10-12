@@ -320,7 +320,7 @@ class ManageClassessController extends Controller
                 }
                 return 100;
             }
-            // Secondary — Pre Form One before Form One
+            // Secondary - Pre Form One before Form One
             if (str_contains($name, 'pre') && str_contains($name, 'one')) return 0;
             if (str_contains($name, 'one')) return 1;
             if (str_contains($name, 'two')) return 2;
@@ -924,7 +924,7 @@ class ManageClassessController extends Controller
             }
             unset($result);
 
-            // Calculate positions within entire class — Active enrollments only
+            // Calculate positions within entire class - Active enrollments only
             $classID = $subclass->classID;
             $activeInClassIds = $enrollmentService->studentIDsInClass(
                 (int) $classID,
@@ -5002,7 +5002,7 @@ class ManageClassessController extends Controller
 
             $zkteco = new \App\Services\ZKTecoService($ip, $port);
 
-            // UID and UserID will both use fingerprintId (must be 1–65535)
+            // UID and UserID will both use fingerprintId (must be 1-65535)
             $uid = (int) $fingerprintId;
             $name = strtoupper($studentName);
 

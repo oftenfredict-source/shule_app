@@ -877,7 +877,7 @@ class ManageAttendanceController extends Controller
             'name' => $name !== '' ? $name : 'N/A',
             'class_name' => $className !== '' ? $className : 'N/A',
             'main_class_name' => $mainClass !== '' ? $mainClass : 'N/A',
-            'subclass_name' => $subName !== '' ? $subName : '—',
+            'subclass_name' => $subName !== '' ? $subName : '-',
             'subclassID' => (int) ($student->subclassID ?? 0),
             'classID' => (int) ($student->subclass->classID ?? 0),
             'gender' => $this->formatGenderLabel($student->gender ?? null),
@@ -944,12 +944,12 @@ class ManageAttendanceController extends Controller
             if ($sub) {
                 $main = $sub->class->class_name ?? '';
                 $subName = trim($sub->subclass_name ?? '');
-                $scope .= ' — '.strtoupper(trim($main.($subName !== '' ? ' '.$subName : '')));
+                $scope .= ' - '.strtoupper(trim($main.($subName !== '' ? ' '.$subName : '')));
             }
         } elseif ($classID) {
             $class = ClassModel::find($classID);
             if ($class) {
-                $scope .= ' — '.strtoupper($class->class_name);
+                $scope .= ' - '.strtoupper($class->class_name);
             }
         }
 
@@ -1594,7 +1594,7 @@ class ManageAttendanceController extends Controller
             if (!empty($enrolledIDs)) {
                 $studentsBase->whereIn('students.studentID', $enrolledIDs);
             } else {
-                // No enrollments for selected year/status — empty cohort (do not use students.subclassID)
+                // No enrollments for selected year/status - empty cohort (do not use students.subclassID)
                 $studentsBase->whereRaw('1 = 0');
             }
 
@@ -1965,7 +1965,7 @@ class ManageAttendanceController extends Controller
                     if (!empty($enrolledIDs)) {
                         $q->whereIn('students.studentID', $enrolledIDs);
                     } else {
-                        // No Active/selected enrollments — do not fall back to students.subclassID
+                        // No Active/selected enrollments - do not fall back to students.subclassID
                         $q->whereRaw('1 = 0');
                     }
                 });
@@ -3105,7 +3105,7 @@ class ManageAttendanceController extends Controller
                 'start' => $start,
                 'end' => $end,
                 'incomplete' => $end->gt($today),
-                'label' => $start->format('j F Y') . ' — ' . $end->format('j F Y'),
+                'label' => $start->format('j F Y') . ' - ' . $end->format('j F Y'),
                 'from_date' => $from,
                 'to_date' => $to,
             ];

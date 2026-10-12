@@ -346,7 +346,7 @@
             <div id="tsReportContent">
                 <div class="alert alert-info mb-0">
                     <i class="bi bi-info-circle"></i> Choose the filters above (Day / Month / … + Person Type + <strong>Status</strong>), then click <strong>Generate Report</strong>.
-                    Status options: <strong>All</strong>, <strong>Present only</strong>, or <strong>Absent only</strong> — the matching count will be shown.
+                    Status options: <strong>All</strong>, <strong>Present only</strong>, or <strong>Absent only</strong> - the matching count will be shown.
                 </div>
             </div>
         </div>
@@ -362,7 +362,7 @@
                             <div class="alert alert-light border small mb-3">
                                 <strong><i class="bi bi-info-circle"></i> Check-in window:</strong>
                                 From 3 hours before start time until 2 hours after start time
-                                (e.g. start 8:00 AM → window 5:00 AM–10:00 AM), any fingerprint punch is recorded as <strong>Sign In</strong> only,
+                                (e.g. start 8:00 AM → window 5:00 AM-10:00 AM), any fingerprint punch is recorded as <strong>Sign In</strong> only,
                                 even if the person punches more than once. After that window, punches are recorded as <strong>Sign Out</strong>.
                             </div>
                             <div class="form-group">

@@ -114,8 +114,8 @@
                                         <div class="small text-muted">{{ $row->previous_school }}</div>
                                     @endif
                                 </td>
-                                <td>{{ $row->gender ?: '—' }}</td>
-                                <td>{{ $row->previous_level ?: '—' }}</td>
+                                <td>{{ $row->gender ?: '-' }}</td>
+                                <td>{{ $row->previous_level ?: '-' }}</td>
                                 <td class="small">
                                     @if($row->intendedClass)
                                         {{ $row->intendedClass->class_name }}
@@ -123,11 +123,11 @@
                                             {{ $row->intendedSubclass->subclass_name }}
                                         @endif
                                     @else
-                                        —
+                                        -
                                     @endif
                                 </td>
                                 <td class="small">
-                                    {{ trim(($row->parent_first_name ?? '') . ' ' . ($row->parent_last_name ?? '')) ?: '—' }}
+                                    {{ trim(($row->parent_first_name ?? '') . ' ' . ($row->parent_last_name ?? '')) ?: '-' }}
                                     @if($row->parent_phone)
                                         <br>{{ $row->parent_phone }}
                                     @endif
@@ -178,7 +178,7 @@
                                             <i class="fa fa-trash"></i>
                                         </button>
                                     @else
-                                        <span class="small text-muted">—</span>
+                                        <span class="small text-muted">-</span>
                                     @endif
                                 </td>
                             </tr>
@@ -224,7 +224,7 @@
                         <div class="col-md-4 mb-3">
                             <label>Gender</label>
                             <select class="form-control" name="gender" id="gender">
-                                <option value="">—</option>
+                                <option value="">-</option>
                                 <option value="Male">Male</option>
                                 <option value="Female">Female</option>
                                 <option value="Other">Other</option>
@@ -237,7 +237,7 @@
                         <div class="col-md-4 mb-3">
                             <label>Previous Level</label>
                             <select class="form-control" name="previous_level" id="previous_level">
-                                <option value="">—</option>
+                                <option value="">-</option>
                                 <option value="Std 7">Std 7</option>
                                 <option value="Form 4">Form 4</option>
                                 <option value="Other">Other</option>
@@ -250,7 +250,7 @@
                         <div class="col-md-3 mb-3">
                             <label>Intended Class</label>
                             <select class="form-control" name="intended_classID" id="intended_classID">
-                                <option value="">—</option>
+                                <option value="">-</option>
                                 @foreach($classes as $c)
                                     <option value="{{ $c->classID }}">{{ $c->class_name }}</option>
                                 @endforeach
@@ -259,7 +259,7 @@
                         <div class="col-md-3 mb-3">
                             <label>Intended Stream</label>
                             <select class="form-control" name="intended_subclassID" id="intended_subclassID">
-                                <option value="">—</option>
+                                <option value="">-</option>
                             </select>
                         </div>
                         <div class="col-12"><hr><strong>Parent / Guardian</strong></div>
@@ -274,7 +274,7 @@
                         <div class="col-md-4 mb-3">
                             <label>Parent Gender</label>
                             <select class="form-control" name="parent_gender" id="parent_gender">
-                                <option value="">—</option>
+                                <option value="">-</option>
                                 <option value="Male">Male</option>
                                 <option value="Female">Female</option>
                             </select>
@@ -345,7 +345,7 @@
                     <p id="confirmText" class="mb-3"></p>
                     <label>Enroll into stream <span class="text-danger">*</span></label>
                     <select class="form-control" id="confirmSubclassID" required>
-                        <option value="">— Select class / stream —</option>
+                        <option value="">- Select class / stream -</option>
                         @foreach($classes as $c)
                             @foreach($c->subclasses as $s)
                                 <option value="{{ $s->subclassID }}">
@@ -395,7 +395,7 @@
 
     function fillSubclasses(classId, selected) {
         const sel = document.getElementById('intended_subclassID');
-        sel.innerHTML = '<option value="">—</option>';
+        sel.innerHTML = '<option value="">-</option>';
         const list = subclassesByClass[classId] || [];
         list.forEach(function (s) {
             const opt = document.createElement('option');

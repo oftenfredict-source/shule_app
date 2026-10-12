@@ -98,7 +98,7 @@
 
     @if($upcomingMeetings->isNotEmpty())
         <div class="upcoming-box">
-            <h6><i class="fa fa-clock-o"></i> Upcoming Meetings — minutes locked</h6>
+            <h6><i class="fa fa-clock-o"></i> Upcoming Meetings - minutes locked</h6>
             <p class="lock-note mb-2">
                 You can see these meetings here, but you cannot type minutes until the meeting start time arrives
                 (status becomes <strong>Ongoing</strong>).
@@ -184,7 +184,7 @@
                                     @if($meeting)
                                         <strong>{{ $meeting->title }}</strong>
                                         <div class="meeting-meta">
-                                            {{ $meeting->meeting_date ? $meeting->meeting_date->format('d M Y') : '—' }}
+                                            {{ $meeting->meeting_date ? $meeting->meeting_date->format('d M Y') : '-' }}
                                             · {{ $meeting->meeting_type }}
                                             @if($meeting->committee)
                                                 · {{ $meeting->committee->committee_name }}
@@ -194,7 +194,7 @@
                                         <span class="text-muted">Meeting removed</span>
                                     @endif
                                 </td>
-                                <td>{{ optional($minute->preparer)->full_name ?: '—' }}</td>
+                                <td>{{ optional($minute->preparer)->full_name ?: '-' }}</td>
                                 <td>
                                     <span class="badge {{ $statusClass }}">{{ $minute->status }}</span>
                                     @if($minute->status === 'Approved' && $minute->approved_at)
@@ -204,7 +204,7 @@
                                         </div>
                                     @endif
                                 </td>
-                                <td class="small">{{ $minute->updated_at ? $minute->updated_at->format('d M Y H:i') : '—' }}</td>
+                                <td class="small">{{ $minute->updated_at ? $minute->updated_at->format('d M Y H:i') : '-' }}</td>
                                 <td class="text-nowrap">
                                     <button type="button" class="btn btn-sm btn-outline-secondary view-minute-btn"
                                         data-title="{{ $minute->title }}"
@@ -268,7 +268,7 @@
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Meeting <span class="text-danger">*</span></label>
                             <select class="form-control" name="meetingID" id="meetingID" required>
-                                <option value="">— Select Ongoing / Completed meeting —</option>
+                                <option value="">- Select Ongoing / Completed meeting -</option>
                                 @foreach($editableMeetings as $m)
                                     @php
                                         $hasMinute = $minutes->contains('meetingID', $m->meetingID);
@@ -279,7 +279,7 @@
                                         data-has-minute="{{ $hasMinute ? '1' : '0' }}">
                                         {{ $m->meeting_date->format('d M Y') }}
                                         @if($startLabel) {{ $startLabel }} @endif
-                                        — {{ $m->title }}
+                                        - {{ $m->title }}
                                         ({{ $m->status }})
                                         @if($hasMinute) [has minutes] @endif
                                     </option>
@@ -302,7 +302,7 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Prepared By</label>
                             <select class="form-control" name="prepared_by" id="prepared_by">
-                                <option value="">— Select —</option>
+                                <option value="">- Select -</option>
                                 @foreach($boardMembers as $bm)
                                     <option value="{{ $bm->memberID }}">{{ $bm->full_name }}</option>
                                 @endforeach
@@ -311,7 +311,7 @@
                         <div class="col-md-6 mb-3" id="approverWrap" style="display:none;">
                             <label class="form-label">Approved By</label>
                             <select class="form-control" name="approved_by" id="approved_by">
-                                <option value="">— Select —</option>
+                                <option value="">- Select -</option>
                                 @foreach($boardMembers as $bm)
                                     <option value="{{ $bm->memberID }}">{{ $bm->full_name }}</option>
                                 @endforeach
@@ -495,8 +495,8 @@
             document.getElementById('viewMinuteMeta').textContent =
                 (btn.dataset.meeting || '') + (btn.dataset.date ? ' · ' + btn.dataset.date : '');
             document.getElementById('viewMinuteStatus').textContent = btn.dataset.status || '';
-            document.getElementById('viewMinuteContent').textContent = btn.dataset.content || '—';
-            document.getElementById('viewMinuteDecisions').textContent = btn.dataset.decisions || '—';
+            document.getElementById('viewMinuteContent').textContent = btn.dataset.content || '-';
+            document.getElementById('viewMinuteDecisions').textContent = btn.dataset.decisions || '-';
             openModal(document.getElementById('viewMinuteModal'));
         });
     });

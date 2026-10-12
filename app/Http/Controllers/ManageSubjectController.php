@@ -1066,7 +1066,7 @@ class ManageSubjectController extends Controller
                         ? $subjectData['components']
                         : [];
 
-                    // Duo: teachers live on papers only — clear main teacher
+                    // Duo: teachers live on papers only - clear main teacher
                     if ($isDuo) {
                         $teacherID = null;
                         $componentAssignments = $this->normalizeComponentTeacherAssignments(

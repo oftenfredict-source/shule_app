@@ -1,4 +1,4 @@
-﻿@include('includes.teacher_nav')
+@include('includes.teacher_nav')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <link rel="stylesheet" href="{{ asset('css/teacher-dashboard.css') }}?v=2">
 
@@ -58,7 +58,7 @@
         <div>
             <span class="td-kicker">Today · {{ \Carbon\Carbon::now()->format('l, d M Y') }}</span>
             <h1>Hello, {{ $teacherDisplayName }}</h1>
-            <p>Your teaching overview — sessions, plans, attendance, and approvals in one place.</p>
+            <p>Your teaching overview - sessions, plans, attendance, and approvals in one place.</p>
             @if(isset($isNavHOD) && $isNavHOD)
                 <span class="td-hod"><i class="fa fa-star"></i> Head of Department: {{ $hodDeptName ?? '' }}</span>
             @endif
@@ -103,15 +103,15 @@
             <div class="td-att-grid" style="flex:1;min-width:220px;">
                 <div class="td-att-item">
                     <small>Check in</small>
-                    <strong>{{ $todayCheckIn ? \Carbon\Carbon::parse($todayCheckIn)->format('h:i A') : '—' }}</strong>
+                    <strong>{{ $todayCheckIn ? \Carbon\Carbon::parse($todayCheckIn)->format('h:i A') : '-' }}</strong>
                 </div>
                 <div class="td-att-item">
                     <small>Check out</small>
-                    <strong>{{ $todayCheckOut ? \Carbon\Carbon::parse($todayCheckOut)->format('h:i A') : '—' }}</strong>
+                    <strong>{{ $todayCheckOut ? \Carbon\Carbon::parse($todayCheckOut)->format('h:i A') : '-' }}</strong>
                 </div>
                 <div class="td-att-item">
                     <small>Official time</small>
-                    <strong>{{ !empty($teacherTodayAttendance['work_start_time']) ? \Carbon\Carbon::parse($teacherTodayAttendance['work_start_time'])->format('h:i A') : '—' }}</strong>
+                    <strong>{{ !empty($teacherTodayAttendance['work_start_time']) ? \Carbon\Carbon::parse($teacherTodayAttendance['work_start_time'])->format('h:i A') : '-' }}</strong>
                 </div>
             </div>
             <a href="{{ route('teacher.my_attendance') }}" class="td-btn td-btn-outline td-btn-sm">

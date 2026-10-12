@@ -136,11 +136,11 @@
                                         <span class="text-muted">Not assigned</span>
                                     @endif
                                 </td>
-                                <td>{{ $member->phone ?: '—' }}</td>
-                                <td>{{ $member->email ?: '—' }}</td>
-                                <td>{{ $member->occupation ?: '—' }}</td>
+                                <td>{{ $member->phone ?: '-' }}</td>
+                                <td>{{ $member->email ?: '-' }}</td>
+                                <td>{{ $member->occupation ?: '-' }}</td>
                                 <td class="small">
-                                    {{ $member->appointed_date ? $member->appointed_date->format('d M Y') : '—' }}
+                                    {{ $member->appointed_date ? $member->appointed_date->format('d M Y') : '-' }}
                                     @if($member->term_end_date)
                                         <br>to {{ $member->term_end_date->format('d M Y') }}
                                     @endif
@@ -229,7 +229,7 @@
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Gender</label>
                             <select class="form-control" name="gender" id="gender">
-                                <option value="">— Select —</option>
+                                <option value="">- Select -</option>
                                 <option value="Male">Male</option>
                                 <option value="Female">Female</option>
                                 <option value="Other">Other</option>
@@ -258,7 +258,7 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Position</label>
                             <select class="form-control" name="positionID" id="positionID">
-                                <option value="">— Assign later —</option>
+                                <option value="">- Assign later -</option>
                                 @foreach($positions->where('is_active', true) as $pos)
                                     <option value="{{ $pos->positionID }}">{{ $pos->position_name }}</option>
                                 @endforeach
@@ -314,7 +314,7 @@
                     <p class="mb-2">Member: <strong id="assignMemberName"></strong></p>
                     <label class="form-label">Position</label>
                     <select class="form-control" name="positionID" id="assignPositionID">
-                        <option value="">— No position —</option>
+                        <option value="">- No position -</option>
                         @foreach($positions->where('is_active', true) as $pos)
                             <option value="{{ $pos->positionID }}">{{ $pos->position_name }}</option>
                         @endforeach

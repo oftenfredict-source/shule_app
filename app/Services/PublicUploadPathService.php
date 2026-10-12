@@ -6,7 +6,7 @@ use Illuminate\Http\UploadedFile;
 use RuntimeException;
 
 /**
- * Public upload paths — mirrors ManageStudentController photo upload exactly.
+ * Public upload paths - mirrors ManageStudentController photo upload exactly.
  */
 class PublicUploadPathService
 {
@@ -33,7 +33,7 @@ class PublicUploadPathService
             @mkdir($uploadPath, 0755, true);
         }
 
-        // userImages uploads work on this server — align exam_papers with it
+        // userImages uploads work on this server - align exam_papers with it
         self::syncPermissionsWithUserImages($uploadPath, $scriptDir . '/userImages');
 
         return $uploadPath;

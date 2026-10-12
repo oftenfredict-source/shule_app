@@ -66,7 +66,7 @@ class SelectedAcademicYearService
         if (!$hasALevel) {
             $selectedId = (int) (Session::get(self::SESSION_O_LEVEL) ?: Session::get(self::SESSION_PRIMARY));
             // O-only / Primary-style secondary: slash year names (2025/2026) are calendars,
-            // NOT A-Level tracks — keep them selectable so exams bound to those AYs appear.
+            // NOT A-Level tracks - keep them selectable so exams bound to those AYs appear.
             $pool = $years;
             $selected = $pool->firstWhere('academic_yearID', $selectedId);
 

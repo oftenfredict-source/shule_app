@@ -204,7 +204,7 @@ class StorePortalController extends StoreController
             'expected_return_date' => $req->expected_return_date
                 ? $req->expected_return_date->format('d M Y')
                 : null,
-            'requested_at' => $req->requested_at ? $req->requested_at->format('d M Y, H:i') : '—',
+            'requested_at' => $req->requested_at ? $req->requested_at->format('d M Y, H:i') : '-',
             'reviewed_at' => $req->reviewed_at ? $req->reviewed_at->format('d M Y, H:i') : null,
             'review_notes' => $req->review_notes,
         ];
@@ -299,7 +299,7 @@ class StorePortalController extends StoreController
                 : $this->formatQtyPortal($p['qty_of_level']) . ' × ' . $opt['label']
                     . ' (' . $this->formatQtyPortal($p['items_taken']) . ' ' . ($unit->unit->unit_name ?? 'item') . ')';
 
-            return "{$itemName} [{$unit->label}] — {$take}";
+            return "{$itemName} [{$unit->label}] - {$take}";
         })->implode('; ');
 
         $requestedBy = Session::get('name') ?: $ctx['name'];

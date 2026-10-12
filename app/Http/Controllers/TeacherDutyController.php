@@ -228,7 +228,7 @@ class TeacherDutyController extends Controller
                 'id' => $row->id,
                 'student_name' => trim($row->first_name . ' ' . ($row->last_name ?? '')),
                 'parent_name' => trim(($row->parent_first_name ?? '') . ' ' . ($row->parent_last_name ?? '')) ?: 'Parent',
-                'class_name' => $classLabel !== '' ? $classLabel : '—',
+                'class_name' => $classLabel !== '' ? $classLabel : '-',
                 'reason_type' => $row->reason_type,
                 'reason' => $row->reason_description,
                 'start_date' => $row->start_date,

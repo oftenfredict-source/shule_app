@@ -27,7 +27,7 @@ Route::get('/health', [ApiController::class, 'healthCheck'])->name('api.health')
 Route::post('/login', [ApiController::class, 'login'])->name('api.login');
 Route::post('/logout', [ApiController::class, 'logout'])->name('api.logout');
 
-// Flutter/mobile — open web blades (parent portal, etc.) inside WebView with session cookie
+// Flutter/mobile - open web blades (parent portal, etc.) inside WebView with session cookie
 Route::post('/mobile/web-session', [\App\Http\Controllers\Auth::class, 'createMobileWebSession'])
     ->middleware('web')
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])

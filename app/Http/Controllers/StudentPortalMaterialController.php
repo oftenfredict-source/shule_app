@@ -394,7 +394,7 @@ class StudentPortalMaterialController extends Controller
 
     private function rejectBadUpload(Request $request, string $tab)
     {
-        // Empty POST when file exceeds post_max_size — PHP drops the body.
+        // Empty POST when file exceeds post_max_size - PHP drops the body.
         $contentLength = (int) $request->server('CONTENT_LENGTH', 0);
         $postMax = $this->iniBytes(ini_get('post_max_size'));
         if ($contentLength > 0 && empty($request->all()) && empty($_FILES) && $postMax > 0 && $contentLength > $postMax) {

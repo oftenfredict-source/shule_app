@@ -1756,7 +1756,7 @@ class SiteController extends Controller
      */
     public function quickAsk(Request $request)
     {
-        // Honeypot — bots fill this, humans never see it
+        // Honeypot - bots fill this, humans never see it
         if (filled($request->input('website'))) {
             return response()->json(['success' => true, 'message' => 'OK']);
         }

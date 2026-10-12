@@ -65,7 +65,7 @@
         html[data-sx-theme="dark"][data-sx-site="public"],
         html[data-sx-theme="dark"][data-sx-site="public"] body { background:#160d10!important }
         html[data-sx-theme="dark"][data-sx-site="public"] #main-content { background:#160d10!important }
-        /* Critical header prefs — keeps EN/SW styled even if CSS file is stale/cached */
+        /* Critical header prefs - keeps EN/SW styled even if CSS file is stale/cached */
         .sx-header-top-tools{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
         .sx-header-top-link{color:#fff!important;font-size:13px}
         .sx-site-prefs{display:inline-flex;align-items:center;gap:8px}

@@ -80,7 +80,7 @@ class ExamShiftService
                     'first_grade' => $target->first_grade,
                     'final_grade' => $target->final_grade,
                     'grade_range' => ($target->first_grade || $target->final_grade)
-                        ? trim(($target->first_grade ?? '—') . ' to ' . ($target->final_grade ?? '—'))
+                        ? trim(($target->first_grade ?? '-') . ' to ' . ($target->final_grade ?? '-'))
                         : 'No grade limit',
                     'qualifies' => $qualifies,
                 ];
@@ -99,8 +99,8 @@ class ExamShiftService
                 'from_subclassID' => (int) $currentSubclass->subclassID,
                 'from_classID' => (int) $currentClass->classID,
                 'suggested_subclassID' => $suggested['subclassID'] ?? null,
-                'to_class' => $suggested['label'] ?? '—',
-                'grade_range' => $suggested['grade_range'] ?? '—',
+                'to_class' => $suggested['label'] ?? '-',
+                'grade_range' => $suggested['grade_range'] ?? '-',
                 'marks' => $marksInfo['display'] ?? 'N/A',
                 'marks_value' => $marksInfo['compare_value'] ?? null,
                 'qualifies' => (bool) $suggested,
@@ -425,7 +425,7 @@ class ExamShiftService
             return $value >= $low && $value <= $high;
         }
 
-        // Letter / division text ranges — treat as textual window when marks_info has division
+        // Letter / division text ranges - treat as textual window when marks_info has division
         $token = strtoupper(trim((string) ($marksInfo['division'] ?? $marksInfo['display'] ?? '')));
         $a = strtoupper(trim((string) $first));
         $b = strtoupper(trim((string) $final));

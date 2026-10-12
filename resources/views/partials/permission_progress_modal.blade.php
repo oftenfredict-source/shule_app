@@ -37,11 +37,15 @@
 
 <script>
     function viewPermissionProgress(permissionID, isStudentPermission = false) {
-        // Ensure jQuery is loaded
-        if (typeof $ === 'undefined') {
+        var $ = window.jQuery;
+        if (typeof $ !== 'function') {
             console.error('jQuery is required for viewPermissionProgress');
+            if (window.Swal) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Page scripts failed to load. Please refresh.', confirmButtonColor: '#940000' });
+            }
             return;
         }
+        window.$ = $;
 
         $('#progressContent').html('<div class="text-center p-4"><i class="fa fa-spinner fa-spin fa-2x spinner-custom"></i><p class="mt-2">Loading progress...</p></div>');
         $('#progressModal').modal('show');

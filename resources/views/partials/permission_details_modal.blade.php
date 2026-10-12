@@ -3,7 +3,7 @@
         <div class="modal-content" style="border-radius: 0;">
             <div class="modal-header bg-primary-custom text-white" style="border-radius: 0;">
                 <h5 class="modal-title" id="permissionDetailsModalLabel"><i class="fa fa-list-alt"></i> Permission Details</h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close" onclick="$('#permissionDetailsModal').modal('hide')">
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close" onclick="if (window.jQuery) { window.jQuery('#permissionDetailsModal').modal('hide'); }">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -71,7 +71,7 @@
                         <span id="pd_pdf_progress_text" style="font-size: 11px; margin-left: 8px; font-weight: bold; color: #940000;">0%</span>
                     </div>
                 </div>
-                <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="$('#permissionDetailsModal').modal('hide')" style="border-radius: 0;">Close</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="if (window.jQuery) { window.jQuery('#permissionDetailsModal').modal('hide'); }" style="border-radius: 0;">Close</button>
             </div>
         </div>
     </div>
@@ -79,6 +79,16 @@
 
 <script>
     function viewPermissionDetails(permission) {
+        var $ = window.jQuery;
+        if (typeof $ !== 'function') {
+            console.error('jQuery is required for viewPermissionDetails');
+            if (window.Swal) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Page scripts failed to load. Please refresh.', confirmButtonColor: '#940000' });
+            }
+            return;
+        }
+        window.$ = $;
+
         $('#pd_status').text(permission.status);
 
         // Handle badge color

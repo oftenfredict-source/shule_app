@@ -2016,7 +2016,7 @@ class TeachersController extends Controller
         $pdf = PDF::loadView("Admin.pdf.teacher_tange_pdf", [
             "teachers" => collect([$teacher]),
             "school" => $school,
-            "title" => "TANGE — TEACHERS PARTICULAR",
+            "title" => "TANGE - TEACHERS PARTICULAR",
         ]);
         $pdf->setOptions([
             "isRemoteEnabled" => true,
@@ -3867,7 +3867,7 @@ class TeachersController extends Controller
 
             $graphData["sessions_by_day"] = $sessionsByDay;
 
-            // Graph 2: Subject performance (pass/fail) — Active enrollments in header year
+            // Graph 2: Subject performance (pass/fail) - Active enrollments in header year
             $classSubjects = ClassSubject::where("teacherID", $teacherID)
                 ->where("status", "Active")
                 ->with(["subject", "subclass.class"])
@@ -7870,7 +7870,7 @@ class TeachersController extends Controller
                 });
 
                 // View: also include any exam that already has saved marks for this subject
-                // (including sibling subclass class_subjects — save remaps per student stream)
+                // (including sibling subclass class_subjects - save remaps per student stream)
                 if ($forView) {
                     $relatedCsIds = ClassSubject::where(
                         "classID",
@@ -8146,7 +8146,7 @@ class TeachersController extends Controller
                     ? strtolower($school->school_type)
                     : "secondary";
 
-            // Fetch exam paper WITHOUT restricting by teacherID — the paper was created by the subject owner
+            // Fetch exam paper WITHOUT restricting by teacherID - the paper was created by the subject owner
             // but assigned teachers also need to load the question format
             $componentID = request()->get('componentID');
             if ($componentID === '' || $componentID === null || $componentID === '0') {
@@ -8752,7 +8752,7 @@ class TeachersController extends Controller
             \App\Services\SelectedAcademicYearService::class,
         )->isALevelClassName($className);
 
-        // Form Five / Form Six (A-Level) — NECTA-style scale
+        // Form Five / Form Six (A-Level) - NECTA-style scale
         if ($isALevel) {
             if ($marksNum >= 80) {
                 return ["grade" => "A", "remark" => "Excellent"];
@@ -9945,7 +9945,7 @@ class TeachersController extends Controller
     }
 
     /**
-     * Parse Excel for the Add Results form — does NOT save.
+     * Parse Excel for the Add Results form - does NOT save.
      * Returns rows for the client to fill marks + auto-calculate grade/remark.
      */
     public function parseExcelResultsForForm(Request $request)
@@ -14767,7 +14767,7 @@ class TeachersController extends Controller
                 ->startOfWeek(Carbon::MONDAY)
                 ->addWeeks($weekOffset);
             $endOfWeek = $startOfWeek->copy()->endOfWeek();
-            $weekLabel = $startOfWeek->format("d M Y") . " – " . $endOfWeek->format("d M Y");
+            $weekLabel = $startOfWeek->format("d M Y") . " - " . $endOfWeek->format("d M Y");
 
             $teacherName = trim(($teacher->first_name ?? "") . " " . ($teacher->last_name ?? ""));
             $days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -14807,11 +14807,11 @@ class TeachersController extends Controller
                         $subjectName = $session->subject->subject_name ?? "N/A";
                     }
 
-                    $classLabel = "—";
+                    $classLabel = "-";
                     if ($session->subclass) {
                         $className = $session->subclass->class->class_name ?? "";
                         $stream = $session->subclass->subclass_name ?? "";
-                        $classLabel = trim($className . " " . $stream) ?: "—";
+                        $classLabel = trim($className . " " . $stream) ?: "-";
                     }
 
                     $startLabel = Carbon::parse($session->start_time)->format("h:i A");
@@ -14820,7 +14820,7 @@ class TeachersController extends Controller
                     $rows[] = [
                         "day" => $day,
                         "date_label" => $dayDate->format("d M Y"),
-                        "time_label" => $startLabel . " – " . $endLabel,
+                        "time_label" => $startLabel . " - " . $endLabel,
                         "class_label" => $classLabel,
                         "subject_name" => $subjectName,
                         "is_prepo" => (bool) $session->is_prepo,
@@ -14830,7 +14830,7 @@ class TeachersController extends Controller
                 }
             }
 
-            $reportTitle = "TEACHER SESSIONS — " . strtoupper($teacherName) . " | " . strtoupper($weekLabel);
+            $reportTitle = "TEACHER SESSIONS - " . strtoupper($teacherName) . " | " . strtoupper($weekLabel);
             $safeTeacher = preg_replace('/[^\w\-]+/', '_', preg_replace('/\s+/', '_', $teacherName)) ?: 'Teacher';
             $filename = 'My_Sessions_' . $safeTeacher . '_' . $startOfWeek->format('Ymd') . '.pdf';
 

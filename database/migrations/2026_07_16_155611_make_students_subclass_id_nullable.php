@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Index exists but FK may be missing on some DBs — drop safely if present
+        // Index exists but FK may be missing on some DBs - drop safely if present
         $fk = collect(DB::select("
             SELECT CONSTRAINT_NAME
             FROM information_schema.TABLE_CONSTRAINTS

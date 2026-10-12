@@ -379,7 +379,7 @@
         signIn: 'Ingia',
         signOut: 'Toka',
         officePrompt: 'Ofisi anayotembelea (si lazima)',
-        noOffice: '—',
+        noOffice: '-',
         searchHint: 'Andika jina au simu kutafuta mgeni wa awali',
         completed: 'Imekamilika',
         noMatch: 'Hakuna mgeni wa awali'
@@ -394,7 +394,7 @@
         signIn: 'Sign In',
         signOut: 'Sign Out',
         officePrompt: 'Office being visited (optional)',
-        noOffice: '—',
+        noOffice: '-',
         searchHint: 'Type name or phone to search previous visitors',
         completed: 'Completed',
         noMatch: 'No previous visitor found'
@@ -509,7 +509,7 @@
                 <canvas class="signature-box" data-signature></canvas>
                 <input type="hidden" name="signature[]">
             </td>
-            <td class="text-muted small">—</td>
+            <td class="text-muted small">-</td>
             <td>
                 <button type="button" class="btn btn-sm btn-danger remove-row">
                     <i class="fa fa-trash"></i>
@@ -898,7 +898,7 @@
                 title: labels.signIn,
                 input: 'text',
                 inputLabel: labels.officePrompt,
-                inputValue: currentOffice === '—' ? '' : currentOffice,
+                inputValue: currentOffice === '-' ? '' : currentOffice,
                 showCancelButton: true,
                 confirmButtonColor: '#940000',
                 confirmButtonText: labels.signIn

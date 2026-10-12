@@ -179,7 +179,7 @@ class WebVisitor extends Model
         }
 
         try {
-            // Fail fast — never block PHP workers on slow/rate-limited geo APIs.
+            // Fail fast - never block PHP workers on slow/rate-limited geo APIs.
             $response = Http::connectTimeout(1)
                 ->timeout(2)
                 ->get("https://ipapi.co/{$ip}/json/");

@@ -264,7 +264,7 @@ Route::post("/register-school", [SiteController::class, "registerSchoolSubmit"])
     ->middleware("throttle:3,10")
     ->name("site.register_school.submit");
 
-// Browser auto-requests /favicon.ico — serve round ShuleXpert logo
+// Browser auto-requests /favicon.ico - serve round ShuleXpert logo
 Route::get("/favicon.ico", function () {
     $round = public_path("images/shuleXpert-favicon.png");
     $jpg = public_path("images/shuleXpert.jpg");
@@ -674,7 +674,7 @@ Route::post("auth/otp/verify", [Auth::class, "verifyOtp"])->name(
 Route::post("auth/otp/resend", [Auth::class, "resendOtp"])->name(
     "auth.otp.resend",
 );
-// Google may GET this POST-only API — send crawlers to login (noindex) instead of 405.
+// Google may GET this POST-only API - send crawlers to login (noindex) instead of 405.
 Route::get("auth/otp/{any?}", function () {
     return redirect()->route('login', [], 301);
 })->where('any', '.*');
@@ -4006,7 +4006,7 @@ Route::get("get_fee/{feeID}", [FeesController::class, "get_fee"])->name(
     "get_fee",
 );
 
-// School bank accounts (Multi Account Fees) — Admin only for register/OTP
+// School bank accounts (Multi Account Fees) - Admin only for register/OTP
 Route::get("fees/active_banks", [FeesController::class, "list_active_banks"])->name("fees.active_banks");
 Route::get("fees/school_bank_accounts", [FeesController::class, "list_school_bank_accounts"])->name("fees.school_bank_accounts");
 Route::get("fees/approved_bank_accounts", [FeesController::class, "list_approved_school_bank_accounts"])->name("fees.approved_bank_accounts");
@@ -4567,7 +4567,7 @@ Route::get("populate-results", function () {
 Route::prefix("sgpm")
     ->name("sgpm.")
     ->group(function () {
-        // Departments — static paths must be registered before {id} routes
+        // Departments - static paths must be registered before {id} routes
         Route::post("departments/hods/send-sms", [
             \App\Http\Controllers\DepartmentController::class,
             "sendSmsToHODs",

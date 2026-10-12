@@ -18,8 +18,8 @@ class SecondaryResultGradingService
     }
 
     /**
-     * O-Level: A 75–100 (1) … F (5)
-     * A-Level Form 5/6: A 80–100 (1) … S 35–39 (6), F (7)
+     * O-Level: A 75-100 (1) … F (5)
+     * A-Level Form 5/6: A 80-100 (1) … S 35-39 (6), F (7)
      */
     public function getSecondaryHardcodedGrade(
         $marks,

@@ -2089,7 +2089,7 @@ class ManageTeachersController extends Controller
 
             $zkteco = new ZKTecoService($ip, $port, $password, 15, true);
 
-            // UID and UserID will both use fingerprintId (must be 1–65535)
+            // UID and UserID will both use fingerprintId (must be 1-65535)
             $uid = (int) $fingerprintId;
             $name = strtoupper($teacherName);
 
@@ -2199,7 +2199,7 @@ class ManageTeachersController extends Controller
         $pdf = Pdf::loadView('Admin.pdf.teacher_tange_pdf', [
             'teachers' => collect([$teacher]),
             'school' => $school,
-            'title' => 'TANGE — TEACHERS PARTICULAR',
+            'title' => 'TANGE - TEACHERS PARTICULAR',
         ]);
         $pdf->setOptions([
             'isRemoteEnabled' => true,
@@ -2232,7 +2232,7 @@ class ManageTeachersController extends Controller
             return redirect()->back()->with('error', 'School not found.');
         }
 
-        // Admin, or staff/teacher with teacher management permission only — not every teacher
+        // Admin, or staff/teacher with teacher management permission only - not every teacher
         $userType = Session::get('user_type');
         if (
             $userType !== 'Admin'
@@ -2255,7 +2255,7 @@ class ManageTeachersController extends Controller
         $pdf = Pdf::loadView('Admin.pdf.teacher_tange_pdf', [
             'teachers' => $teachers->values(),
             'school' => $school,
-            'title' => 'TANGE — TEACHERS PARTICULAR | ALL TEACHERS',
+            'title' => 'TANGE - TEACHERS PARTICULAR | ALL TEACHERS',
         ]);
         $pdf->setOptions([
             'isRemoteEnabled' => true,

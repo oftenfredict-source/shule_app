@@ -16,7 +16,7 @@ Allow: /favicon.ico
 Allow: /site.webmanifest
 Allow: /shulexpert-map.xml
 
-# Authenticated / app areas — not for search indexing
+# Authenticated / app areas - not for search indexing
 Disallow: /admin
 Disallow: /AdminDashboard
 Disallow: /TeacherDashboard

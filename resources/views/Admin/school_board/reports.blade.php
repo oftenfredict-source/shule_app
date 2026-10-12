@@ -101,7 +101,7 @@
         </form>
         <p class="meeting-meta mb-3" style="font-size:0.85rem;color:#777;">
             Period: <strong>{{ \Carbon\Carbon::parse($from)->format('d M Y') }}</strong>
-            – <strong>{{ \Carbon\Carbon::parse($to)->format('d M Y') }}</strong>
+            - <strong>{{ \Carbon\Carbon::parse($to)->format('d M Y') }}</strong>
         </p>
     @else
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 no-print">
@@ -203,7 +203,7 @@
                                     @foreach($overdueActions as $a)
                                         <tr>
                                             <td>{{ $a->title }}</td>
-                                            <td class="small">{{ optional($a->assignee)->full_name ?: '—' }}</td>
+                                            <td class="small">{{ optional($a->assignee)->full_name ?: '-' }}</td>
                                             <td class="text-nowrap small text-danger">{{ $a->due_date->format('d M Y') }}</td>
                                         </tr>
                                     @endforeach
@@ -260,7 +260,7 @@
                                 <tbody>
                                     @foreach($resolutions as $r)
                                         <tr>
-                                            <td class="text-nowrap small">{{ $r->resolution_number ?: '—' }}</td>
+                                            <td class="text-nowrap small">{{ $r->resolution_number ?: '-' }}</td>
                                             <td>{{ \Illuminate\Support\Str::limit($r->title, 50) }}</td>
                                             <td><span class="badge bg-secondary">{{ $r->status }}</span></td>
                                         </tr>
@@ -353,7 +353,7 @@
                                     @foreach($minutes as $min)
                                         <tr>
                                             <td>{{ \Illuminate\Support\Str::limit($min->title, 40) }}</td>
-                                            <td class="small">{{ optional($min->meeting)->title ?: '—' }}</td>
+                                            <td class="small">{{ optional($min->meeting)->title ?: '-' }}</td>
                                             <td><span class="badge bg-secondary">{{ $min->status }}</span></td>
                                         </tr>
                                     @endforeach
@@ -410,8 +410,8 @@
                                 @foreach($members->sortBy('full_name') as $mem)
                                     <tr>
                                         <td>{{ $mem->full_name }}</td>
-                                        <td>{{ optional($mem->position)->position_name ?: '—' }}</td>
-                                        <td>{{ $mem->phone ?: '—' }}</td>
+                                        <td>{{ optional($mem->position)->position_name ?: '-' }}</td>
+                                        <td>{{ $mem->phone ?: '-' }}</td>
                                         <td><span class="badge {{ $mem->status === 'Active' ? 'bg-success' : 'bg-secondary' }}">{{ $mem->status }}</span></td>
                                     </tr>
                                 @endforeach

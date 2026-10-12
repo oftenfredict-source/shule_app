@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Hash;
 
 /**
  * Ensure a parent has a login row without colliding on users.email / users.name.
- * Never creates/updates the parents table — only users.
+ * Never creates/updates the parents table - only users.
  */
 class ParentUserAccount
 {

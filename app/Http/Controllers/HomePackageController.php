@@ -235,7 +235,7 @@ class HomePackageController extends Controller
         }
 
         $packages = $query->orderByDesc('created_at')->get()->map(function (HomePackage $p) {
-            $classLabel = '—';
+            $classLabel = '-';
             if ($p->classSubject) {
                 if ($p->classSubject->subclass && $p->classSubject->subclass->class) {
                     $classLabel = $p->classSubject->subclass->class->class_name.' - '.$p->classSubject->subclass->subclass_name;
@@ -250,17 +250,17 @@ class HomePackageController extends Controller
                 'original_filename' => $p->original_filename,
                 'level' => $p->level,
                 'level_label' => $p->levelLabel(),
-                'subject_name' => $p->subject->subject_name ?? '—',
+                'subject_name' => $p->subject->subject_name ?? '-',
                 'class_label' => $classLabel,
                 'class_subjectID' => $p->class_subjectID,
                 'holidayID' => $p->holidayID,
-                'holiday_name' => $p->holiday->holiday_name ?? '—',
+                'holiday_name' => $p->holiday->holiday_name ?? '-',
                 'holiday_dates' => $p->holiday
                     ? (optional($p->holiday->start_date)->format('d/m/Y') . ' - ' . optional($p->holiday->end_date)->format('d/m/Y'))
-                    : '—',
+                    : '-',
                 'academic_yearID' => $p->academic_yearID,
                 'year_label' => $p->academicYear->year_name
-                    ?? ($p->academicYear->year ?? '—'),
+                    ?? ($p->academicYear->year ?? '-'),
                 'mime_type' => $p->mime_type,
                 'created_at' => optional($p->created_at)->format('d/m/Y H:i'),
                 'view_url' => route('home_packages.view', $p->home_packageID),
@@ -513,7 +513,7 @@ class HomePackageController extends Controller
     }
 
     /**
-     * Serve home package file (inline view or forced download) — same path resolution as exam papers.
+     * Serve home package file (inline view or forced download) - same path resolution as exam papers.
      */
     private function serveHomePackageFile(int $homePackageID, bool $inline)
     {
@@ -633,7 +633,7 @@ class HomePackageController extends Controller
         }
 
         $packages = $query->orderBy('subjectID')->orderByDesc('created_at')->get()->map(function (HomePackage $p) {
-            $classLabel = '—';
+            $classLabel = '-';
             if ($p->classSubject) {
                 if ($p->classSubject->subclass && $p->classSubject->subclass->class) {
                     $classLabel = $p->classSubject->subclass->class->class_name.' - '.$p->classSubject->subclass->subclass_name;
@@ -651,7 +651,7 @@ class HomePackageController extends Controller
                 'class_label' => $classLabel,
                 'teacher_name' => $p->teacher
                     ? trim(($p->teacher->first_name ?? '').' '.($p->teacher->last_name ?? ''))
-                    : '—',
+                    : '-',
                 'view_url' => route('home_packages.view', $p->home_packageID),
                 'download_url' => route('home_packages.download', $p->home_packageID),
             ];
@@ -706,14 +706,14 @@ class HomePackageController extends Controller
                     'is_viewed' => (bool) $n->is_viewed,
                     'created_at' => optional($n->created_at)->diffForHumans(),
                     'message' => 'Kifurushi kipya cha masomo ya nyumbani'
-                        . ($subject ? ' — '.$subject : '')
+                        . ($subject ? ' - '.$subject : '')
                         . ($holiday ? ' ('.$holiday.')' : ''),
-                    'holiday_name' => $holiday ?: '—',
+                    'holiday_name' => $holiday ?: '-',
                     'subject_name' => $subject,
-                    'level_label' => $p ? $p->levelLabel() : '—',
+                    'level_label' => $p ? $p->levelLabel() : '-',
                     'teacher_name' => $p && $p->teacher
                         ? trim(($p->teacher->first_name ?? '') . ' ' . ($p->teacher->last_name ?? ''))
-                        : '—',
+                        : '-',
                     'home_packageID' => $p->home_packageID ?? null,
                     'original_filename' => $p->original_filename ?? null,
                     'mime_type' => $p->mime_type ?? null,

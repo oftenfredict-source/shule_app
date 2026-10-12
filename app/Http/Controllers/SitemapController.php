@@ -95,7 +95,7 @@ class SitemapController extends Controller
                 ];
             }
         } catch (\Throwable $e) {
-            // ignore — sitemap should still return static URLs
+            // ignore - sitemap should still return static URLs
         }
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";

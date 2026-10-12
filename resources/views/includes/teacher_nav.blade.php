@@ -298,7 +298,7 @@
     background: #7a0000 !important;
 }
 
-/* Brand row — same white logo card as Admin (55px, aligns with red #header) */
+/* Brand row - same white logo card as Admin (55px, aligns with red #header) */
 .navbar-header {
     display: flex;
     align-items: center;
@@ -421,7 +421,7 @@
     background: #ffffff !important;
 }
 
-/* Top bar — same red flex header as Admin */
+/* Top bar - same red flex header as Admin */
 #header,
 #header.header,
 .right-panel header.header,

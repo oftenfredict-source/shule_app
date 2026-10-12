@@ -219,7 +219,7 @@ class StudentPortalController extends Controller
         $subclassName = $enrollment?->subclass?->subclass_name;
         $classLabel = trim(($className ?? '') . ' ' . ($subclassName ?? ''));
 
-        return [$student, $school, $classLabel !== '' ? $classLabel : '—'];
+        return [$student, $school, $classLabel !== '' ? $classLabel : '-'];
     }
 
     private function scopeIds(Student $student): array

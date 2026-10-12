@@ -78,7 +78,7 @@ class ZKTecoService
             . 'so the device connects <em>to</em> ShuleXpert (not the other way around).'
             . '<br><br><strong>Push URL:</strong> <code>' . $pushUrl . '</code>'
             . '<br><br><strong>Device Tester</strong> (Test Connection, pull attendance) only works when PHP runs on the '
-            . 'same network as the machine — e.g. Laragon at school, or a PC on the LAN.';
+            . 'same network as the machine - e.g. Laragon at school, or a PC on the LAN.';
     }
 
     protected ?ZKTeco $client = null;

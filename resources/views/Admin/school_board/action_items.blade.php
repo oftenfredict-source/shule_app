@@ -176,12 +176,12 @@
                                         <div class="mt-1"><i class="fa fa-gavel"></i> {{ $item->resolution->resolution_number ?: $item->resolution->title }}</div>
                                     @endif
                                     @if(!$item->meeting && !$item->resolution)
-                                        <span class="text-muted">—</span>
+                                        <span class="text-muted">-</span>
                                     @endif
                                 </td>
-                                <td>{{ optional($item->assignee)->full_name ?: '—' }}</td>
+                                <td>{{ optional($item->assignee)->full_name ?: '-' }}</td>
                                 <td class="small text-nowrap">
-                                    {{ $item->due_date ? $item->due_date->format('d M Y') : '—' }}
+                                    {{ $item->due_date ? $item->due_date->format('d M Y') : '-' }}
                                     @if($item->isOverdue())
                                         <br><span class="badge bg-danger">Overdue</span>
                                     @endif
@@ -251,10 +251,10 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Meeting</label>
                             <select class="form-control" name="meetingID" id="meetingID">
-                                <option value="">— Optional if resolution selected —</option>
+                                <option value="">- Optional if resolution selected -</option>
                                 @foreach($sourceMeetings as $m)
                                     <option value="{{ $m->meetingID }}">
-                                        {{ $m->meeting_date->format('d M Y') }} — {{ $m->title }} ({{ $m->status }})
+                                        {{ $m->meeting_date->format('d M Y') }} - {{ $m->title }} ({{ $m->status }})
                                     </option>
                                 @endforeach
                             </select>
@@ -262,10 +262,10 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Related Resolution</label>
                             <select class="form-control" name="resolutionID" id="resolutionID">
-                                <option value="">— Optional —</option>
+                                <option value="">- Optional -</option>
                                 @foreach($resolutions as $r)
                                     <option value="{{ $r->resolutionID }}" data-meeting="{{ $r->meetingID }}">
-                                        {{ $r->resolution_number ?: '#' . $r->resolutionID }} — {{ \Illuminate\Support\Str::limit($r->title, 40) }}
+                                        {{ $r->resolution_number ?: '#' . $r->resolutionID }} - {{ \Illuminate\Support\Str::limit($r->title, 40) }}
                                     </option>
                                 @endforeach
                             </select>
@@ -290,7 +290,7 @@
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Assigned To</label>
                             <select class="form-control" name="assigned_to" id="assigned_to">
-                                <option value="">— Select —</option>
+                                <option value="">- Select -</option>
                                 @foreach($boardMembers as $bm)
                                     <option value="{{ $bm->memberID }}">{{ $bm->full_name }}</option>
                                 @endforeach
@@ -458,12 +458,12 @@
             document.getElementById('viewActionTitle').textContent = btn.dataset.title || 'Action Item';
             document.getElementById('viewActionStatus').textContent = btn.dataset.status || '';
             document.getElementById('viewActionPriority').textContent = btn.dataset.priority || '';
-            document.getElementById('viewActionMeeting').textContent = btn.dataset.meeting || '—';
-            document.getElementById('viewActionResolution').textContent = btn.dataset.resolution || '—';
-            document.getElementById('viewActionAssignee').textContent = btn.dataset.assignee || '—';
-            document.getElementById('viewActionDue').textContent = btn.dataset.due || '—';
-            document.getElementById('viewActionDescription').textContent = btn.dataset.description || '—';
-            document.getElementById('viewActionNotes').textContent = btn.dataset.notes || '—';
+            document.getElementById('viewActionMeeting').textContent = btn.dataset.meeting || '-';
+            document.getElementById('viewActionResolution').textContent = btn.dataset.resolution || '-';
+            document.getElementById('viewActionAssignee').textContent = btn.dataset.assignee || '-';
+            document.getElementById('viewActionDue').textContent = btn.dataset.due || '-';
+            document.getElementById('viewActionDescription').textContent = btn.dataset.description || '-';
+            document.getElementById('viewActionNotes').textContent = btn.dataset.notes || '-';
             openModal(document.getElementById('viewActionModal'));
         });
     });

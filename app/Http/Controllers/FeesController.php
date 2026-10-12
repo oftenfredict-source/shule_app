@@ -1788,7 +1788,7 @@ class FeesController extends Controller
                         return (int) ($p->feeID ?? 0) === $feeIDFilter;
                     });
                     if (!$focusedPayment) {
-                        // No bill yet for this fee — still list the student as pending
+                        // No bill yet for this fee - still list the student as pending
                         $feeMeta = $multiFeesMap->get($feeIDFilter);
                         $yearPayments = collect();
                         $payment = null;
@@ -3245,7 +3245,7 @@ class FeesController extends Controller
             $preview = $this->buildControlNumberSmsMessage($payment);
             $customMessage = trim((string) $request->input('message', ''));
 
-            // Preview only — do not send yet
+            // Preview only - do not send yet
             if ($request->boolean('preview') || $request->input('preview_only')) {
                 return response()->json([
                     'success' => true,
@@ -3411,7 +3411,7 @@ class FeesController extends Controller
         }, $filterParts)));
 
         $scope = !empty($parts) ? implode(' | ', $parts) : 'All Students';
-        return trim($baseTitle) . ' — ' . $scope . ' — ' . $yearLabel;
+        return trim($baseTitle) . ' - ' . $scope . ' - ' . $yearLabel;
     }
 
     /**
@@ -3454,9 +3454,9 @@ class FeesController extends Controller
             $labels['payment_status'] = 'Status: ' . $paymentStatus;
         }
         if ($deadlineFilter === 'reached_unpaid') {
-            $labels['deadline'] = 'Deadline: Reached — not paid';
+            $labels['deadline'] = 'Deadline: Reached - not paid';
         } elseif ($deadlineFilter === 'reached_paid') {
-            $labels['deadline'] = 'Deadline: Reached — paid';
+            $labels['deadline'] = 'Deadline: Reached - paid';
         }
         if ($sponsorshipFilter === 'sponsored') {
             $labels['sponsorship'] = 'Sponsored';
@@ -3597,7 +3597,7 @@ class FeesController extends Controller
                         && ($deadlinePaid + 0.00001 < $deadlineRequired);
                     return [
                         'fee_name' => $fee->fee_name ?? 'Fee',
-                        'account_label' => $fee && $fee->bankAccount ? $fee->bankAccount->displayLabel() : '—',
+                        'account_label' => $fee && $fee->bankAccount ? $fee->bankAccount->displayLabel() : '-',
                         'control_number' => $mp->control_number,
                         'amount_required' => (float) $mp->amount_required,
                         'amount_paid' => (float) $mp->amount_paid,
@@ -3765,7 +3765,7 @@ class FeesController extends Controller
                 $payerName = $student ? ($student->first_name . ' ' . $student->last_name) : 'Student';
                 $incomeDesc = 'Student fee payment (auto-sync)';
                 if ($yearLabel !== '') {
-                    $incomeDesc .= ' — ' . $yearLabel;
+                    $incomeDesc .= ' - ' . $yearLabel;
                 }
                 \App\Models\Income::create([
                     'schoolID' => $payment->schoolID,
@@ -3836,7 +3836,7 @@ class FeesController extends Controller
             ->map(function (Student $s) {
                 $className = $s->subclass->class->class_name ?? '';
                 $subclassName = $s->subclass->subclass_name ?? '';
-                $classLabel = trim($className . ' ' . $subclassName) ?: '—';
+                $classLabel = trim($className . ' ' . $subclassName) ?: '-';
                 $fullName = trim(($s->first_name ?? '') . ' ' . ($s->middle_name ? $s->middle_name . ' ' : '') . ($s->last_name ?? ''));
 
                 return [
@@ -3944,7 +3944,7 @@ class FeesController extends Controller
                     'academic_year_id' => $mp->academic_yearID,
                     'can_record' => !$yearClosed && !$isClosed,
                     'payment' => $mp,
-                    'label' => $feeName . ' · CN ' . ($mp->control_number ?: '—') . ' (Bal: ' . number_format((float) $mp->balance, 0) . '/=)',
+                    'label' => $feeName . ' · CN ' . ($mp->control_number ?: '-') . ' (Bal: ' . number_format((float) $mp->balance, 0) . '/=)',
                 ];
             }
         } else {
@@ -3973,7 +3973,7 @@ class FeesController extends Controller
                     'academic_year_id' => $payment->academic_yearID,
                     'can_record' => !$yearClosed && !$isClosed,
                     'payment' => $payment,
-                    'label' => 'Control Number ' . ($payment->control_number ?: '—') . ' · Any fee (Bal: ' . number_format((float) $payment->balance, 0) . '/=)',
+                    'label' => 'Control Number ' . ($payment->control_number ?: '-') . ' · Any fee (Bal: ' . number_format((float) $payment->balance, 0) . '/=)',
                 ];
 
                 foreach ($fps as $fp) {
@@ -4000,7 +4000,7 @@ class FeesController extends Controller
                         'academic_year_id' => $payment->academic_yearID,
                         'can_record' => !$yearClosed && !$isClosed,
                         'payment' => $payment,
-                        'label' => $fname . ' · CN ' . ($payment->control_number ?: '—') . ' (Bal: ' . number_format($bal, 0) . '/=)',
+                        'label' => $fname . ' · CN ' . ($payment->control_number ?: '-') . ' (Bal: ' . number_format($bal, 0) . '/=)',
                     ];
                 }
             }
@@ -4456,7 +4456,7 @@ class FeesController extends Controller
                     : (count($names) . ' CLASSES');
             }
 
-            $reportTitle = 'OFFICIAL FEES STRUCTURE — ' . $scopeLabel . ' | ' . $yearLabel;
+            $reportTitle = 'OFFICIAL FEES STRUCTURE - ' . $scopeLabel . ' | ' . $yearLabel;
 
             $data = [
                 'school' => $school,
@@ -4737,9 +4737,9 @@ class FeesController extends Controller
 
             $deadlineFilterLabel = '';
             if ($deadlineFilter === 'reached_unpaid') {
-                $deadlineFilterLabel = 'Reached — not paid';
+                $deadlineFilterLabel = 'Reached - not paid';
             } elseif ($deadlineFilter === 'reached_paid') {
-                $deadlineFilterLabel = 'Reached — paid';
+                $deadlineFilterLabel = 'Reached - paid';
             }
 
             $filterLabels = $this->resolvePaymentsPdfFilterLabels(
@@ -5972,7 +5972,7 @@ class FeesController extends Controller
                     'status' => $acc->status,
                     'rejection_reason' => $acc->rejection_reason,
                     'otp_verified_at' => optional($acc->otp_verified_at)->format('Y-m-d H:i'),
-                    'bank_name' => $acc->bank->bank_name ?? '—',
+                    'bank_name' => $acc->bank->bank_name ?? '-',
                     'bank_code' => $acc->bank->bank_code ?? '',
                     'display_label' => $acc->displayLabel(),
                 ];
@@ -6172,7 +6172,7 @@ class FeesController extends Controller
         }
 
         // Editing requires OTP re-verification via send/verify endpoints.
-        // This endpoint only deletes pending drafts without OTP if needed — keep update via OTP flow.
+        // This endpoint only deletes pending drafts without OTP if needed - keep update via OTP flow.
         return response()->json([
             'success' => true,
             'message' => 'To edit this account, use Register Account Number tab with OTP verification.',

@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 class StudentMoveService
 {
     /**
-     * @deprecated Cutoff corrections removed — students follow normal promote/graduate rules.
+     * @deprecated Cutoff corrections removed - students follow normal promote/graduate rules.
      * Kept false so any leftover callers stay inactive.
      */
     public const ALEVEL_MAY_CUTOFF_CORRECTION_ENABLED = false;
@@ -267,7 +267,7 @@ class StudentMoveService
                 return $pick($sameCombieMatches->first(), true);
             }
 
-            return $pick(null, true, 'Combies not match — select destination combie/subclass');
+            return $pick(null, true, 'Combies not match - select destination combie/subclass');
         }
 
         // 3) Same stream_code
@@ -444,7 +444,7 @@ class StudentMoveService
 
     /**
      * Current-year O-Level correction: registered in July or later → stay in same class.
-     * On/before 30 June → promote (Form 1–3) or graduate (Form 4).
+     * On/before 30 June → promote (Form 1-3) or graduate (Form 4).
      */
     public function shouldStaySameClassForOLevelCorrection(StudentEnrollment $enrollment, string $currentClassName): bool
     {
@@ -526,10 +526,10 @@ class StudentMoveService
             $nextClass = $this->findClassByKey($schoolID, $nextKey);
             if (!$nextClass) {
                 $error = 'Next class not found: ' . $nextKey;
-                $destinationLabel = '—';
+                $destinationLabel = '-';
             } elseif (!$enrollment->subclass) {
                 $error = 'Current subclass missing';
-                $destinationLabel = '—';
+                $destinationLabel = '-';
             } else {
                 if (!$enrollment->relationLoaded('subclass') || !$enrollment->subclass->relationLoaded('combie')) {
                     $enrollment->load('subclass.combie');
@@ -601,7 +601,7 @@ class StudentMoveService
     }
 
     /**
-     * Students already moved into target year (Completed batches) — show with revert icon.
+     * Students already moved into target year (Completed batches) - show with revert icon.
      */
     public function alreadyMovedForTargetYear(int $schoolID, int $toAcademicYearID, ?string $level = null): Collection
     {
@@ -642,7 +642,7 @@ class StudentMoveService
                 $newLabel = $this->withCombieBrackets(
                     trim($newClass . ' ' . $newSub),
                     optional(optional($item->newEnrollment)->subclass)->combie
-                ) ?: '—';
+                ) ?: '-';
             }
 
             $fromCombie = $this->formatCombieLabel(optional(optional($item->oldEnrollment)->subclass)->combie);
@@ -668,7 +668,7 @@ class StudentMoveService
                 'destination_combie' => $toCombie,
                 'action' => 'AlreadyMoved',
                 'error' => null,
-                'note' => 'Already moved — undo to move again',
+                'note' => 'Already moved - undo to move again',
                 'already_moved' => true,
                 'can_move' => false,
                 'can_undo' => true,
@@ -1271,7 +1271,7 @@ class StudentMoveService
             $newLabel = trim($newClassName . ' ' . ($newSubclass->subclass_name ?? ''));
 
             $action = 'Internal';
-            // Internal stream change is NOT school transfer — keep Pending.
+            // Internal stream change is NOT school transfer - keep Pending.
             // Transferred promotion_status = left the school.
             $promotionStatus = 'Pending';
             if ($type === 'external') {

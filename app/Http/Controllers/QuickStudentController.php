@@ -198,7 +198,7 @@ class QuickStudentController extends Controller
     }
 
     /**
-     * Current (is_current) academic year for class O/A level — not header selection.
+     * Current (is_current) academic year for class O/A level - not header selection.
      */
     private function resolveCurrentYearIdForClass(?string $className, int $schoolID): ?int
     {
@@ -445,7 +445,7 @@ class QuickStudentController extends Controller
 
             $smsSent = false;
             $parentSmsSent = false;
-            // SMS only when a NEW parent is created — never when reusing an existing parent
+            // SMS only when a NEW parent is created - never when reusing an existing parent
             if ($isNewParent && $parent && $parent->phone) {
                 try {
                     $school = School::find($schoolID);
@@ -679,7 +679,7 @@ class QuickStudentController extends Controller
     }
 
     /**
-     * Close an Active enrollment (preserve history — never delete).
+     * Close an Active enrollment (preserve history - never delete).
      */
     private function closeActiveEnrollment(
         StudentEnrollment $enrollment,
@@ -868,7 +868,7 @@ class QuickStudentController extends Controller
 
             $message = $enrolled . ' student(s) enrolled into ' . trim($classLabel) . ' by ' . $actor['label'] . '.';
             if (count($movedFromOther) > 0) {
-                $message .= ' Note: ' . count($movedFromOther) . ' had an Active enrollment elsewhere — previous enrollment status was updated (history kept).';
+                $message .= ' Note: ' . count($movedFromOther) . ' had an Active enrollment elsewhere - previous enrollment status was updated (history kept).';
             }
 
             return response()->json([
@@ -965,7 +965,7 @@ class QuickStudentController extends Controller
     }
 
     /**
-     * Remove Active enrollment (status update only — history preserved).
+     * Remove Active enrollment (status update only - history preserved).
      */
     public function removeEnrollment(Request $request)
     {
@@ -1027,7 +1027,7 @@ class QuickStudentController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => $removed . ' student(s) removed from Active enrollment by ' . $actor['label'] . '. Enrollment history was kept — status updated to Cancelled.',
+                'message' => $removed . ' student(s) removed from Active enrollment by ' . $actor['label'] . '. Enrollment history was kept - status updated to Cancelled.',
                 'removed_count' => $removed,
                 'performed_by' => $actor['label'],
             ]);
@@ -1057,7 +1057,7 @@ class QuickStudentController extends Controller
     /**
      * Minimal Excel template for Quick Registration.
      * Query: with_demo=1, with_enrollment=1 (adds Stream/Subclass ID + Valid Subclasses sheet),
-     *        subclass_id=N (class-teacher locked stream — auto-enroll, no Subclass ID column).
+     *        subclass_id=N (class-teacher locked stream - auto-enroll, no Subclass ID column).
      */
     public function downloadQuickTemplate(Request $request)
     {
@@ -1110,7 +1110,7 @@ class QuickStudentController extends Controller
     /**
      * Build the Quick Registration workbook (empty or with demo rows).
      * When $withEnrollment: adds Stream/Subclass ID column + "Valid Subclasses" reference sheet.
-     * When $lockedSubclass: class-teacher mode — no Subclass ID column; all imports enroll into that stream.
+     * When $lockedSubclass: class-teacher mode - no Subclass ID column; all imports enroll into that stream.
      */
     private function buildQuickRegistrationSpreadsheet(
         bool $withDemo,
@@ -1176,13 +1176,13 @@ class QuickStudentController extends Controller
         $sheet2 = $spreadsheet->createSheet();
         $sheet2->setTitle('Instructions');
         if ($lockedSubclass) {
-            $sheet2->setCellValue('A1', 'Quick Registration — Class Teacher (' . $lockedLabel . ')');
+            $sheet2->setCellValue('A1', 'Quick Registration - Class Teacher (' . $lockedLabel . ')');
             $sheet2->getStyle('A1')->getFont()->setBold(true);
             $sheet2->setCellValue('A3', '1. Fill one student per row (delete the grey example row if empty template).');
             $sheet2->setCellValue('A4', '2. Required: Student first/last name, gender, parent phone. Parent names + gender only if phone is NEW in this school.');
             $sheet2->setCellValue('A5', '3. Parent phone must be 255 + 9 digits (e.g. 255712345678). 0712… is also accepted.');
             $sheet2->setCellValue('A6', '4. If parent phone already exists in this school, that parent is reused.');
-            $sheet2->setCellValue('A7', '5. Do NOT fill Subclass ID — all students are enrolled automatically into: ' . $lockedLabel . ' (ID ' . $lockedSubclass->subclassID . ').');
+            $sheet2->setCellValue('A7', '5. Do NOT fill Subclass ID - all students are enrolled automatically into: ' . $lockedLabel . ' (ID ' . $lockedSubclass->subclassID . ').');
             $sheet2->setCellValue('A8', '6. Admission numbers are auto-generated.');
             $next = 9;
         } else {
@@ -1200,13 +1200,13 @@ class QuickStudentController extends Controller
                 $sheet2->setCellValue('A9', '7. Admission numbers are auto-generated.');
                 $next = 10;
             } else {
-                $sheet2->setCellValue('A7', '5. Students are registered WITHOUT class enrollment — enroll later via Enroll Student.');
+                $sheet2->setCellValue('A7', '5. Students are registered WITHOUT class enrollment - enroll later via Enroll Student.');
                 $sheet2->setCellValue('A8', '6. Admission numbers are auto-generated.');
                 $next = 9;
             }
         }
         if ($withDemo) {
-            $sheet2->setCellValue('A' . $next, ($next >= 10 ? '8' : '7') . '. This file contains ' . self::QUICK_DEMO_ROW_COUNT . ' demo students (Tanzanian names) for testing — upload or use Import with demo data.');
+            $sheet2->setCellValue('A' . $next, ($next >= 10 ? '8' : '7') . '. This file contains ' . self::QUICK_DEMO_ROW_COUNT . ' demo students (Tanzanian names) for testing - upload or use Import with demo data.');
         }
         $sheet2->getColumnDimension('A')->setWidth(100);
 
@@ -1332,7 +1332,7 @@ class QuickStudentController extends Controller
 
     /**
      * Import quick-registration Excel.
-     * Optional: with_enrollment=1 (per-row Subclass ID), or subclassID=N (class teacher — enroll all into stream).
+     * Optional: with_enrollment=1 (per-row Subclass ID), or subclassID=N (class teacher - enroll all into stream).
      */
     public function importQuickStudents(Request $request)
     {
@@ -1569,7 +1569,7 @@ class QuickStudentController extends Controller
     }
 
     /**
-     * Fast bulk path for demo imports (2,000 rows) — batch inserts, no SMS, no per-row locks.
+     * Fast bulk path for demo imports (2,000 rows) - batch inserts, no SMS, no per-row locks.
      *
      * @param  array<int, array<string, mixed>>  $items
      */
@@ -2214,7 +2214,7 @@ class QuickStudentController extends Controller
             $sMiddle = $middle[($i + 3) % count($middle)];
             $sLast = $last[($i * 7 + 11) % count($last)];
 
-            // Unique demo phones: 2557999XXXXX (demo range — no SMS)
+            // Unique demo phones: 2557999XXXXX (demo range - no SMS)
             $phone = '2557999' . str_pad((string) $i, 5, '0', STR_PAD_LEFT);
 
             $parentIsMale = (($i + 5) % 3 !== 0);

@@ -1,4 +1,4 @@
-/* ShuleXpert site base layout — Education template essentials (local fallback) */
+/* ShuleXpert site base layout - Education template essentials (local fallback) */
 
 html { scroll-behavior: smooth; }
 body {
@@ -13,7 +13,7 @@ a:hover { text-decoration: none; }
 ul { list-style: none; margin: 0; padding: 0; }
 img { max-width: 100%; height: auto; }
 
-/* No extra gap below header — banner slides under fixed nav */
+/* No extra gap below header - banner slides under fixed nav */
 #main-content {
     padding-top: 0 !important;
 }

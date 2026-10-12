@@ -450,7 +450,17 @@
         });
     }
 
+    function approvalJquery() {
+        if (typeof window.jQuery === 'function') {
+            try { window.$ = window.jQuery; } catch (e) {}
+            return window.jQuery;
+        }
+        return null;
+    }
+
     function toggleFilterInputs() {
+        var $ = approvalJquery();
+        if (!$) return;
         const type = $('#filter_type').val();
         $('.filter-input-group').hide();
         if (type === 'range') {
@@ -466,11 +476,15 @@
         window.location.href = "{{ route('admin.hr.permissions.pending_approvals') }}";
     }
 
-    $('#filterForm').on('submit', function(e) {
-        const loadingBar = document.getElementById('approvalLoading');
-        if (loadingBar) loadingBar.style.display = 'flex';
-        // Let it submit naturally as it's a GET request
-    });
+    (function () {
+        var $ = approvalJquery();
+        if (!$) return;
+        $('#filterForm').on('submit', function(e) {
+            const loadingBar = document.getElementById('approvalLoading');
+            if (loadingBar) loadingBar.style.display = 'flex';
+            // Let it submit naturally as it's a GET request
+        });
+    })();
 
     initViewToggle();
 </script>
@@ -480,29 +494,49 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    function approvalJquery() {
+        if (typeof window.jQuery === 'function') {
+            try { window.$ = window.jQuery; } catch (e) {}
+            return window.jQuery;
+        }
+        return null;
+    }
+
     function openApprovalModal(id, isStudentPermission = false) {
+        var $ = approvalJquery();
+        if (!$) return;
         $('#approvePermissionID').val(id);
         $('#isStudentPermission').val(isStudentPermission ? '1' : '0');
         $('#approveModal').modal('show');
     }
 
     function openRejectionModal(id, isStudentPermission = false) {
+        var $ = approvalJquery();
+        if (!$) return;
         $('#rejectPermissionID').val(id);
         $('#isStudentPermissionReject').val(isStudentPermission ? '1' : '0');
         $('#rejectModal').modal('show');
     }
 
-    $('#approveForm').on('submit', function(e) {
-        e.preventDefault();
-        submitAction("{{ route('admin.permissions.approve') }}", $(this));
-    });
+    (function () {
+        var $ = approvalJquery();
+        if (!$) return;
 
-    $('#rejectForm').on('submit', function(e) {
-        e.preventDefault();
-        submitAction("{{ route('admin.permissions.reject') }}", $(this));
-    });
+        $('#approveForm').on('submit', function(e) {
+            e.preventDefault();
+            submitAction("{{ route('admin.permissions.approve') }}", $(this));
+        });
+
+        $('#rejectForm').on('submit', function(e) {
+            e.preventDefault();
+            submitAction("{{ route('admin.permissions.reject') }}", $(this));
+        });
+    })();
 
     function submitAction(url, $form) {
+        var $ = approvalJquery();
+        if (!$ || !$form) return;
+
         const modalContent = $form.closest('.modal-content')[0];
         const internalLoading = $form.find('.modal-loading')[0];
         const loadingBar = document.getElementById('approvalLoading');
@@ -573,7 +607,10 @@
                 }
                 $submitBtn.prop('disabled', false);
                 $submitBtn.text($submitBtn.data('prevLabel') || $submitBtn.text());
-                $('.modal').modal('hide');
+                var jq = approvalJquery();
+                if (jq) {
+                    jq('.modal').modal('hide');
+                }
             }
         });
     }

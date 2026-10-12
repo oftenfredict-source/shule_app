@@ -377,7 +377,7 @@
                                 <label class="fw-bold small">STUDENT PORTAL</label>
                                 <select class="form-select" name="student_portal_enabled" id="e_student_portal">
                                     <option value="0">No</option>
-                                    <option value="1">Yes — students sign in with admission number</option>
+                                    <option value="1">Yes - students sign in with admission number</option>
                                 </select>
                             </div>
                             <div class="col-md-4 mb-3">

@@ -422,7 +422,7 @@
           margin-top: 24px;
       }
 
-      /* Soft dark — Super Admin layout */
+      /* Soft dark - Super Admin layout */
       html[data-sx-theme="dark"] body.sx-sa-body {
           background-color: #121212 !important;
       }

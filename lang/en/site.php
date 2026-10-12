@@ -108,7 +108,7 @@ return [
     'modules_page_title' => 'Complete ShuleXpert module suite',
     'modules_page_desc' => 'Each module below reflects a live capability in the ShuleXpert system, including dedicated <strong>Lesson Plans</strong> and <strong>Scheme of Work</strong> modules, plus fees, exams, topic analysis, attendance, timetable, library, SMS and school operations.',
     'modules_banner_lead' => 'Explore the live ShuleXpert module suite: fees, attendance, exams, lesson plans, scheme of work, parent portal, SMS and more.',
-    'apply_banner_lead' => 'Search schools with open class spaces and submit a student admission application online — free for parents and guardians.',
+    'apply_banner_lead' => 'Search schools with open class spaces and submit a student admission application online - free for parents and guardians.',
     'apply_heading' => 'Online school application in Tanzania',
     'apply_intro' => 'Search participating primary and secondary schools, check available class spaces for student admission, and submit your application online, free for parents and guardians. Powered by <strong>EmCa Techonology</strong>.',
     'apply_logged_in' => 'Logged in as',

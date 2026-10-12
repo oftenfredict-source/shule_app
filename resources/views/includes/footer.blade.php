@@ -681,7 +681,7 @@
       max-width: min(300px, 86vw) !important;
     }
 
-    /* Logo row — match Super Admin brand height */
+    /* Logo row - match Super Admin brand height */
     #left-panel .navbar-header,
     body.mobile-drawer-open #left-panel .navbar-header {
       display: flex !important;
@@ -1403,6 +1403,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof jQuery === 'undefined') return;
+    window.$ = jQuery;
     const $ = jQuery;
 
     // Universal AJAX Form Handler for SGPM and other modules

@@ -98,7 +98,7 @@
 
     @if($upcomingMeetings->isNotEmpty())
         <div class="upcoming-box">
-            <h6><i class="fa fa-clock-o"></i> Upcoming meetings — resolutions locked</h6>
+            <h6><i class="fa fa-clock-o"></i> Upcoming meetings - resolutions locked</h6>
             <p class="lock-note">
                 Resolutions can only be recorded from <strong>Ongoing</strong> or <strong>Completed</strong> meetings.
                 {{ $upcomingMeetings->count() }} upcoming meeting(s) waiting for start time.
@@ -155,7 +155,7 @@
                             @endphp
                             <tr>
                                 <td>{{ $index + 1 }}</td>
-                                <td class="text-nowrap"><strong>{{ $res->resolution_number ?: '—' }}</strong></td>
+                                <td class="text-nowrap"><strong>{{ $res->resolution_number ?: '-' }}</strong></td>
                                 <td>
                                     <strong>{{ $res->title }}</strong>
                                     @if($res->description)
@@ -166,19 +166,19 @@
                                     @if($meeting)
                                         <strong>{{ $meeting->title }}</strong>
                                         <div class="meeting-meta">
-                                            {{ $meeting->meeting_date ? $meeting->meeting_date->format('d M Y') : '—' }}
+                                            {{ $meeting->meeting_date ? $meeting->meeting_date->format('d M Y') : '-' }}
                                         </div>
                                     @else
-                                        <span class="text-muted">—</span>
+                                        <span class="text-muted">-</span>
                                     @endif
                                 </td>
                                 <td class="small">
-                                    {{ optional($res->proposer)->full_name ?: '—' }}
-                                    <br><span class="text-muted">2nd: {{ optional($res->seconder)->full_name ?: '—' }}</span>
+                                    {{ optional($res->proposer)->full_name ?: '-' }}
+                                    <br><span class="text-muted">2nd: {{ optional($res->seconder)->full_name ?: '-' }}</span>
                                 </td>
-                                <td>{{ optional($res->assignee)->full_name ?: '—' }}</td>
+                                <td>{{ optional($res->assignee)->full_name ?: '-' }}</td>
                                 <td class="small">
-                                    {{ $res->implementation_deadline ? $res->implementation_deadline->format('d M Y') : '—' }}
+                                    {{ $res->implementation_deadline ? $res->implementation_deadline->format('d M Y') : '-' }}
                                 </td>
                                 <td><span class="badge {{ $statusClass }}">{{ $res->status }}</span></td>
                                 <td class="text-nowrap">
@@ -248,10 +248,10 @@
                         <div class="col-md-8 mb-3">
                             <label class="form-label">Meeting <span class="text-danger">*</span></label>
                             <select class="form-control" name="meetingID" id="meetingID" required>
-                                <option value="">— Select Ongoing / Completed meeting —</option>
+                                <option value="">- Select Ongoing / Completed meeting -</option>
                                 @foreach($sourceMeetings as $m)
                                     <option value="{{ $m->meetingID }}" data-date="{{ $m->meeting_date->format('Y-m-d') }}">
-                                        {{ $m->meeting_date->format('d M Y') }} — {{ $m->title }} ({{ $m->status }})
+                                        {{ $m->meeting_date->format('d M Y') }} - {{ $m->title }} ({{ $m->status }})
                                     </option>
                                 @endforeach
                             </select>
@@ -282,7 +282,7 @@
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Proposed By</label>
                             <select class="form-control" name="proposed_by" id="proposed_by">
-                                <option value="">— Select —</option>
+                                <option value="">- Select -</option>
                                 @foreach($boardMembers as $bm)
                                     <option value="{{ $bm->memberID }}">{{ $bm->full_name }}</option>
                                 @endforeach
@@ -291,7 +291,7 @@
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Seconded By</label>
                             <select class="form-control" name="seconded_by" id="seconded_by">
-                                <option value="">— Select —</option>
+                                <option value="">- Select -</option>
                                 @foreach($boardMembers as $bm)
                                     <option value="{{ $bm->memberID }}">{{ $bm->full_name }}</option>
                                 @endforeach
@@ -300,7 +300,7 @@
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Assigned To</label>
                             <select class="form-control" name="assigned_to" id="assigned_to">
-                                <option value="">— Select —</option>
+                                <option value="">- Select -</option>
                                 @foreach($boardMembers as $bm)
                                     <option value="{{ $bm->memberID }}">{{ $bm->full_name }}</option>
                                 @endforeach
@@ -470,13 +470,13 @@
             document.getElementById('viewResMeta').textContent = btn.dataset.meeting
                 ? ('Meeting: ' + btn.dataset.meeting)
                 : '';
-            document.getElementById('viewResDescription').textContent = btn.dataset.description || '—';
-            document.getElementById('viewResProposer').textContent = btn.dataset.proposer || '—';
-            document.getElementById('viewResSeconder').textContent = btn.dataset.seconder || '—';
-            document.getElementById('viewResAssignee').textContent = btn.dataset.assignee || '—';
-            document.getElementById('viewResDate').textContent = btn.dataset.date || '—';
-            document.getElementById('viewResDeadline').textContent = btn.dataset.deadline || '—';
-            document.getElementById('viewResNotes').textContent = btn.dataset.notes || '—';
+            document.getElementById('viewResDescription').textContent = btn.dataset.description || '-';
+            document.getElementById('viewResProposer').textContent = btn.dataset.proposer || '-';
+            document.getElementById('viewResSeconder').textContent = btn.dataset.seconder || '-';
+            document.getElementById('viewResAssignee').textContent = btn.dataset.assignee || '-';
+            document.getElementById('viewResDate').textContent = btn.dataset.date || '-';
+            document.getElementById('viewResDeadline').textContent = btn.dataset.deadline || '-';
+            document.getElementById('viewResNotes').textContent = btn.dataset.notes || '-';
             openModal(document.getElementById('viewResolutionModal'));
         });
     });

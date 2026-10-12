@@ -175,7 +175,7 @@
         <div>
             <span class="sp-mark">S</span>
             <h1>Student Portal</h1>
-            <p>Notes, books, and quizzes from your school — sign in with your admission number.</p>
+            <p>Notes, books, and quizzes from your school - sign in with your admission number.</p>
         </div>
         <div class="sp-login-powered">Powered by ShuleXpert</div>
     </aside>
