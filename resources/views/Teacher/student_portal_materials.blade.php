@@ -4,7 +4,7 @@
 @include('includes.teacher_nav')
 @endif
 
-<link rel="stylesheet" href="{{ asset('css/learning-portal-hub.css') }}?v=3">
+<link rel="stylesheet" href="{{ asset('css/learning-portal-hub.css') }}?v=4">
 
 @php $activeTab = session('portal_tab', request('tab', 'notes')); @endphp
 
@@ -205,32 +205,54 @@
             <div class="lph-grid quiz">
                 <div class="lph-panel">
                     <div class="lph-panel-head">
-                        <h2>Create quiz</h2>
-                        <p>Multiple choice (A-D) with instant scoring.</p>
+                        <h2>Create quiz / exam</h2>
+                        <p>Fill details below, then add questions one by one.</p>
                     </div>
                     <form method="POST" action="{{ route('student_portal.materials.quizzes.store') }}" id="quizForm">
                         @csrf
-                        @include('Teacher.partials.portal_class_fields')
-                        <div class="lph-field">
-                            <label class="lph-label">Quiz title *</label>
-                            <input class="form-control" name="title" placeholder="Quiz / exam title" required maxlength="180">
+                        <div class="lph-quiz-meta">
+                            @include('Teacher.partials.portal_class_fields')
+                            <div class="lph-field">
+                                <label class="lph-label">Quiz title *</label>
+                                <input class="form-control" name="title" placeholder="Quiz / exam title" required maxlength="180">
+                            </div>
+                            <div class="lph-field">
+                                <label class="lph-label">Instructions</label>
+                                <textarea class="form-control" name="instructions" rows="3" placeholder="Guidance for students"></textarea>
+                            </div>
+                            <div class="lph-field">
+                                <label class="lph-label">Opens at</label>
+                                <input class="form-control" type="datetime-local" name="opens_at">
+                            </div>
+                            <div class="lph-field">
+                                <label class="lph-label">Closes at</label>
+                                <input class="form-control" type="datetime-local" name="closes_at">
+                            </div>
                         </div>
-                        <div class="lph-field">
-                            <label class="lph-label">Instructions</label>
-                            <textarea class="form-control" name="instructions" rows="2" placeholder="Guidance for students"></textarea>
+
+                        <div class="lph-panel-head" style="margin-top:1.25rem;">
+                            <h2 style="font-size:1.05rem;margin:0;">Questions</h2>
+                            <p style="margin:0.35rem 0 0;">Chagua aina ya swali, bofya <strong>Add question</strong>, kisha andika maudhui.</p>
                         </div>
-                        <div class="lph-field">
-                            <label class="lph-label">Opens at</label>
-                            <input class="form-control" type="datetime-local" name="opens_at">
+
+                        <div class="lph-quiz-add-row">
+                            <div class="lph-field">
+                                <label class="lph-label" for="sectionTypeSelect">Question type</label>
+                                <select class="form-control" id="sectionTypeSelect">
+                                    <option value="multiple_choice">Multiple choice</option>
+                                    <option value="true_false">True / False</option>
+                                    <option value="matching">Matching</option>
+                                    <option value="fill_blank">Fill in the blanks</option>
+                                    <option value="short_answer">Short answer</option>
+                                    <option value="essay">Essay / Assignment</option>
+                                </select>
+                            </div>
+                            <button type="button" class="lph-btn lph-btn-soft" id="addSectionBtn">
+                                <i class="fa fa-plus"></i> Add question
+                            </button>
                         </div>
-                        <div class="lph-field">
-                            <label class="lph-label">Closes at</label>
-                            <input class="form-control" type="datetime-local" name="closes_at">
-                        </div>
-                        <p class="file-hint">Optional window - if both are set, the quiz only accepts answers between those times.</p>
-                        <div id="quizQuestions"></div>
-                        <button type="button" class="lph-btn lph-btn-soft mb-2" id="addQuestion"><i class="fa fa-plus"></i> Add question</button>
-                        <button class="lph-btn lph-btn-brand" type="submit"><i class="fa fa-save"></i> Save quiz</button>
+                        <div id="quizSections"></div>
+                        <button class="lph-btn lph-btn-brand" type="submit" style="margin-top:0.75rem;"><i class="fa fa-save"></i> Save exam</button>
                     </form>
                 </div>
                 <div class="lph-panel">
@@ -244,8 +266,16 @@
                             <div>
                                 <div class="lph-item-title">{{ $quiz->title }}</div>
                                 <div class="lph-item-meta">
-                                    {{ optional($classes->firstWhere('classID', $quiz->classID))->class_name ?? '-' }}
-                                    · {{ $quiz->questions->count() }} questions · {{ $quiz->attempts->count() }} attempts
+                                    {{ optional($classes->firstWhere('classID', $quiz->classID))->class_name ?? '—' }}
+                                    · {{ $quiz->questions->groupBy('section_number')->count() }} sections
+                                    · {{ $quiz->questions->count() }} items
+                                    · {{ $quiz->attempts->count() }} attempts
+                                    @php
+                                        $types = $quiz->questions->pluck('question_type')->unique()->filter()->values();
+                                    @endphp
+                                    @if($types->isNotEmpty())
+                                        <br><span style="color:#8a6a6a;font-size:0.78rem;">{{ $types->map(fn ($t) => \App\Support\StudentPortalQuizScoring::typeLabel($t))->implode(' · ') }}</span>
+                                    @endif
                                     @if(method_exists($quiz, 'isScheduled') && $quiz->isScheduled())
                                         <br><span class="lph-badge lph-badge-sched">{{ $quiz->opens_at->format('d M Y H:i') }} → {{ $quiz->closes_at->format('d M Y H:i') }}</span>
                                     @endif
@@ -263,7 +293,7 @@
                             </div>
                         </div>
                     @empty
-                        <div class="lph-empty">No quizzes yet. Build one on the left.</div>
+                        <div class="lph-empty">No quizzes yet. Create one above.</div>
                     @endforelse
                     </div>
                 </div>
@@ -276,7 +306,7 @@
                 <div class="lph-panel-head" style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-end;">
                     <div>
                         <h2>Quiz results</h2>
-                        <p>Scores submitted by students in the portal</p>
+                        <p>Fungua <strong>Review / Mark</strong> kuona majibu yote. Short answer &amp; essay/assignment weka alama mwenyewe.</p>
                     </div>
                     @php $hasAttempts = $quizzes->contains(fn ($q) => $q->attempts->count() > 0); @endphp
                     @if($hasAttempts)
@@ -311,7 +341,7 @@
                             <div class="table-responsive">
                                 <table class="lph-table">
                                     <thead>
-                                        <tr><th>Student</th><th>Admission</th><th>Score</th><th>%</th><th>Submitted</th></tr>
+                                        <tr><th>Student</th><th>Admission</th><th>Score</th><th>%</th><th>Status</th><th>Submitted</th><th></th></tr>
                                     </thead>
                                     <tbody>
                                     @foreach($quiz->attempts as $attempt)
@@ -319,13 +349,30 @@
                                             $st = $studentsById->get($attempt->studentID);
                                             $name = $st ? trim(($st->first_name ?? '').' '.($st->middle_name ?? '').' '.($st->last_name ?? '')) : 'Student #'.$attempt->studentID;
                                             $pct = $attempt->total > 0 ? round(($attempt->score / $attempt->total) * 100) : 0;
+                                            $hasManualQs = $quiz->questions->contains(fn ($q) => in_array($q->question_type, ['short_answer', 'essay'], true));
+                                            $needsMark = $hasManualQs && empty($attempt->graded_at);
                                         @endphp
                                         <tr>
                                             <td>{{ $name }}</td>
                                             <td>{{ $st->admission_number ?? '-' }}</td>
                                             <td><strong>{{ $attempt->score }}</strong> / {{ $attempt->total }}</td>
                                             <td><span class="lph-pct {{ $pct >= 50 ? 'pass' : 'fail' }}">{{ $pct }}%</span></td>
-                                            <td>{{ $attempt->submitted_at ? $attempt->submitted_at->format('d M Y H:i') : '-' }}</td>
+                                            <td>
+                                                @if($needsMark)
+                                                    <span class="badge" style="background:#fff3cd;color:#856404;">Needs marking</span>
+                                                @elseif($hasManualQs && $attempt->graded_at)
+                                                    <span class="badge" style="background:#d4edda;color:#155724;">Graded</span>
+                                                @else
+                                                    <span class="badge" style="background:#e9ecef;color:#495057;">Auto</span>
+                                                @endif
+                                            </td>
+                                            <td>{{ $attempt->submitted_at ? $attempt->submitted_at->format('d M Y H:i') : '—' }}</td>
+                                            <td>
+                                                <a class="lph-btn lph-btn-brand" style="width:auto;padding:4px 10px;font-size:0.8rem;"
+                                                   href="{{ route('student_portal.materials.attempts.review', ['quizId' => $quiz->id, 'attemptId' => $attempt->id]) }}">
+                                                    <i class="fa fa-eye"></i> Review / Mark
+                                                </a>
+                                            </td>
                                         </tr>
                                     @endforeach
                                     </tbody>
@@ -359,36 +406,161 @@
         });
     });
 
-    var box = document.getElementById('quizQuestions');
-    if (box) {
-        var n = 0;
-        function add() {
-            var i = n++;
-            var html = '<div class="lph-q" data-qi="'+i+'">'
-                + '<div class="lph-q-top"><small>Question '+(i+1)+'</small>'
-                + '<button type="button" class="lph-btn lph-btn-danger remove-q" style="padding:2px 8px;">×</button></div>'
-                + '<input class="form-control mb-2" name="questions['+i+'][question_text]" placeholder="Write the question *" required>'
-                + '<div class="row">'
-                + '<div class="col-6 mb-2"><input class="form-control" name="questions['+i+'][option_a]" placeholder="A *" required></div>'
-                + '<div class="col-6 mb-2"><input class="form-control" name="questions['+i+'][option_b]" placeholder="B *" required></div>'
-                + '<div class="col-6 mb-2"><input class="form-control" name="questions['+i+'][option_c]" placeholder="C"></div>'
-                + '<div class="col-6 mb-2"><input class="form-control" name="questions['+i+'][option_d]" placeholder="D"></div>'
-                + '</div>'
-                + '<select class="form-control" name="questions['+i+'][correct_option]" required>'
-                + '<option value="A">Correct: A</option><option value="B">Correct: B</option>'
-                + '<option value="C">Correct: C</option><option value="D">Correct: D</option></select>'
-                + '</div>';
-            box.insertAdjacentHTML('beforeend', html);
+    var sectionsBox = document.getElementById('quizSections');
+    if (sectionsBox) {
+        var sectionSeq = 0;
+        var typeLabels = {
+            multiple_choice: 'Multiple choice',
+            true_false: 'True / False',
+            matching: 'Matching (set correct pairs)',
+            fill_blank: 'Fill in the blanks',
+            short_answer: 'Short answers (teacher marks)',
+            essay: 'Essay / Assignment (teacher marks)'
+        };
+
+        function renumberSections() {
+            sectionsBox.querySelectorAll('.lph-section').forEach(function (el, idx) {
+                var lab = el.querySelector('.lph-section-num');
+                if (lab) lab.textContent = 'Question ' + (idx + 1);
+            });
         }
-        var addBtn = document.getElementById('addQuestion');
-        if (addBtn) addBtn.addEventListener('click', add);
-        box.addEventListener('click', function (e) {
-            var btn = e.target.closest('.remove-q');
-            if (!btn) return;
-            var row = btn.closest('.lph-q');
-            if (box.querySelectorAll('.lph-q').length > 1) row.remove();
+
+        function addItemRow(sectionEl, type, si) {
+            var items = sectionEl.querySelector('.lph-section-items');
+            if (!items) return;
+            var ii = items.querySelectorAll('.lph-item-row').length;
+            var html = '';
+            if (type === 'multiple_choice') {
+                html = '<div class="lph-item-row lph-q">'
+                    + '<div class="lph-q-top"><small>Item '+(ii+1)+'</small>'
+                    + '<button type="button" class="lph-btn lph-btn-danger remove-item" style="padding:2px 8px;">×</button></div>'
+                    + '<input class="form-control mb-2" name="sections['+si+'][items]['+ii+'][question_text]" placeholder="Question text *" required>'
+                    + '<div class="row">'
+                    + '<div class="col-6 mb-2"><input class="form-control" name="sections['+si+'][items]['+ii+'][option_a]" placeholder="A *" required></div>'
+                    + '<div class="col-6 mb-2"><input class="form-control" name="sections['+si+'][items]['+ii+'][option_b]" placeholder="B *" required></div>'
+                    + '<div class="col-6 mb-2"><input class="form-control" name="sections['+si+'][items]['+ii+'][option_c]" placeholder="C"></div>'
+                    + '<div class="col-6 mb-2"><input class="form-control" name="sections['+si+'][items]['+ii+'][option_d]" placeholder="D"></div>'
+                    + '</div>'
+                    + '<select class="form-control" name="sections['+si+'][items]['+ii+'][correct_option]" required>'
+                    + '<option value="A">Correct: A</option><option value="B">Correct: B</option>'
+                    + '<option value="C">Correct: C</option><option value="D">Correct: D</option></select></div>';
+            } else if (type === 'true_false') {
+                html = '<div class="lph-item-row lph-q">'
+                    + '<div class="lph-q-top"><small>Item (roman) '+(ii+1)+'</small>'
+                    + '<button type="button" class="lph-btn lph-btn-danger remove-item" style="padding:2px 8px;">×</button></div>'
+                    + '<input class="form-control mb-2" name="sections['+si+'][items]['+ii+'][question_text]" placeholder="Statement *" required>'
+                    + '<select class="form-control" name="sections['+si+'][items]['+ii+'][correct_option]" required>'
+                    + '<option value="true">True</option><option value="false">False</option></select></div>';
+            } else if (type === 'fill_blank') {
+                html = '<div class="lph-item-row lph-q">'
+                    + '<div class="lph-q-top"><small>Blank '+(ii+1)+'</small>'
+                    + '<button type="button" class="lph-btn lph-btn-danger remove-item" style="padding:2px 8px;">×</button></div>'
+                    + '<input class="form-control mb-2" name="sections['+si+'][items]['+ii+'][question_text]" placeholder="Sentence with blank e.g. The capital is ____ *" required>'
+                    + '<input class="form-control mb-2" name="sections['+si+'][items]['+ii+'][correct_answer]" placeholder="Correct answer *" required>'
+                    + '<input class="form-control" name="sections['+si+'][items]['+ii+'][alt_answers]" placeholder="Alt answers (optional, separate with |)"></div>';
+            } else if (type === 'short_answer' || type === 'essay') {
+                html = '<div class="lph-item-row lph-q">'
+                    + '<div class="lph-q-top"><small>'+(type === 'essay' ? 'Essay' : 'Short')+' '+(ii+1)+'</small>'
+                    + '<button type="button" class="lph-btn lph-btn-danger remove-item" style="padding:2px 8px;">×</button></div>'
+                    + '<textarea class="form-control mb-2" name="sections['+si+'][items]['+ii+'][question_text]" rows="2" placeholder="Prompt *" required></textarea>'
+                    + '<input class="form-control" type="number" min="0.5" step="0.5" name="sections['+si+'][items]['+ii+'][points]" value="'+(type === 'essay' ? '5' : '2')+'" placeholder="Points"></div>';
+            }
+            if (html) items.insertAdjacentHTML('beforeend', html);
+        }
+
+        function addMatchPair(sectionEl, si) {
+            var pairs = sectionEl.querySelector('.lph-match-pairs');
+            if (!pairs) return;
+            var pi = pairs.querySelectorAll('.lph-match-row').length;
+            if (pi >= 10) { alert('Maximum 10 matching pairs.'); return; }
+            pairs.insertAdjacentHTML('beforeend',
+                '<div class="lph-match-row row" style="margin-bottom:6px;">'
+                + '<div class="col-5"><input class="form-control" name="sections['+si+'][left]['+pi+']" placeholder="A'+(pi+1)+' — prompt *" required></div>'
+                + '<div class="col-5"><input class="form-control" name="sections['+si+'][right]['+pi+']" placeholder="Correct B match for A'+(pi+1)+' *" required></div>'
+                + '<div class="col-2"><input type="hidden" name="sections['+si+'][match]['+pi+']" value="'+pi+'">'
+                + '<button type="button" class="lph-btn lph-btn-danger remove-match" style="width:100%;padding:6px;">×</button></div></div>'
+            );
+        }
+
+        function addSection(type) {
+            var si = sectionSeq++;
+            var wrap = document.createElement('div');
+            wrap.className = 'lph-section lph-q';
+            wrap.dataset.si = String(si);
+            wrap.dataset.type = type;
+            var body = '<div class="lph-q-top">'
+                + '<small><span class="lph-section-num">Question</span> · '+ (typeLabels[type] || type) +'</small>'
+                + '<button type="button" class="lph-btn lph-btn-danger remove-section" style="padding:2px 8px;">×</button></div>'
+                + '<input type="hidden" name="sections['+si+'][question_type]" value="'+type+'">'
+                + '<input class="form-control mb-2" name="sections['+si+'][section_title]" placeholder="Section title (optional) e.g. Matching items">'
+                + '<textarea class="form-control mb-2" name="sections['+si+'][instructions]" rows="1" placeholder="Section instructions (optional)"></textarea>';
+
+            if (type === 'matching') {
+                body += '<div class="file-hint" style="background:#f8f4ef;border:1px solid #eadfdf;padding:10px;border-radius:8px;margin-bottom:10px;">'
+                    + '<strong>Jinsi matching inavyofanya kazi:</strong><br>'
+                    + '1) Andika <em>prompt</em> upande wa A na <em>jibu sahihi</em> upande wa B (jozi moja = majibu ya system).<br>'
+                    + '2) System huhifadhi jozi hizo kama majibu sahihi na <strong>hu-mark otomatiki</strong>.<br>'
+                    + '3) Mwanafunzi anaona A kwa mpangilio, na B zimechanganywa — anavuta B kwenda A.<br>'
+                    + 'Max 10 pairs. Partial credit: kila jozi sahihi inachukua sehemu ya alama.'
+                    + '</div>'
+                    + '<div class="row mb-1" style="font-size:0.78rem;font-weight:700;color:#6b5c5c;"><div class="col-5">Column A (prompt)</div><div class="col-5">Column B (correct answer)</div></div>'
+                    + '<div class="lph-match-pairs"></div>'
+                    + '<button type="button" class="lph-btn lph-btn-soft mb-2 add-match-pair"><i class="fa fa-plus"></i> Add correct pair</button>';
+            } else {
+                body += '<div class="lph-section-items"></div>'
+                    + '<button type="button" class="lph-btn lph-btn-soft mb-2 add-section-item"><i class="fa fa-plus"></i> Add item</button>';
+            }
+            wrap.innerHTML = body;
+            sectionsBox.appendChild(wrap);
+            if (type === 'matching') {
+                addMatchPair(wrap, si);
+                addMatchPair(wrap, si);
+            } else {
+                addItemRow(wrap, type, si);
+                if (type === 'true_false') addItemRow(wrap, type, si);
+            }
+            renumberSections();
+        }
+
+        var addSectionBtn = document.getElementById('addSectionBtn');
+        var typeSelect = document.getElementById('sectionTypeSelect');
+        if (addSectionBtn && typeSelect) {
+            addSectionBtn.addEventListener('click', function () {
+                addSection(typeSelect.value || 'multiple_choice');
+            });
+        }
+
+        sectionsBox.addEventListener('click', function (e) {
+            var sectionEl = e.target.closest('.lph-section');
+            if (!sectionEl) return;
+            var si = sectionEl.dataset.si;
+            var type = sectionEl.dataset.type;
+            if (e.target.closest('.remove-section')) {
+                if (sectionsBox.querySelectorAll('.lph-section').length <= 1) return;
+                sectionEl.remove();
+                renumberSections();
+                return;
+            }
+            if (e.target.closest('.add-section-item')) {
+                addItemRow(sectionEl, type, si);
+                return;
+            }
+            if (e.target.closest('.add-match-pair')) {
+                addMatchPair(sectionEl, si);
+                return;
+            }
+            if (e.target.closest('.remove-item')) {
+                var items = sectionEl.querySelectorAll('.lph-item-row');
+                if (items.length > 1) e.target.closest('.lph-item-row').remove();
+                return;
+            }
+            if (e.target.closest('.remove-match')) {
+                var rows = sectionEl.querySelectorAll('.lph-match-row');
+                if (rows.length > 2) e.target.closest('.lph-match-row').remove();
+            }
         });
-        add();
+
+        addSection('multiple_choice');
     }
 
     document.querySelectorAll('.portal-class').forEach(function (sel) {

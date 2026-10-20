@@ -43,7 +43,9 @@ class StudentPortalQuiz extends Model
 
     public function questions()
     {
-        return $this->hasMany(StudentPortalQuizQuestion::class, 'quiz_id')->orderBy('sort_order');
+        return $this->hasMany(StudentPortalQuizQuestion::class, 'quiz_id')
+            ->orderBy('section_number')
+            ->orderBy('sort_order');
     }
 
     public function attempts()

@@ -1,6 +1,11 @@
 @include('includes.teacher_nav')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<link rel="stylesheet" href="{{ asset('css/teacher-dashboard.css') }}?v=2">
+{{-- Prefer asset URL; always inline as fallback so APP_URL / deploy path cannot break the dashboard --}}
+@php $tdCssPath = public_path('css/teacher-dashboard.css'); @endphp
+@if (is_file($tdCssPath))
+<link rel="stylesheet" href="{{ asset('css/teacher-dashboard.css') }}?v={{ filemtime($tdCssPath) }}">
+<style id="teacher-dashboard-css-inline">{!! file_get_contents($tdCssPath) !!}</style>
+@endif
 
 @php
     $teacherDisplayName = trim(($tangeTeacher->first_name ?? '') . ' ' . ($tangeTeacher->last_name ?? ''));
@@ -357,76 +362,90 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-$(document).ready(function() {
-    $('.view-class-teacher-approvals').on('click', function() {
-        const examID = $(this).data('exam-id');
-        $('#classTeacherApprovalsModal').modal('show');
+(function () {
+    function boot($) {
+        if (!$ || typeof $.fn === 'undefined') return;
+        $(function () {
+            $('.view-class-teacher-approvals').on('click', function () {
+                const examID = $(this).data('exam-id');
+                $('#classTeacherApprovalsModal').modal('show');
 
-        $.ajax({
-            url: '{{ route("get_class_teacher_approvals", ":examID") }}'.replace(':examID', examID),
-            method: 'GET',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    let html = `<h6 class="mb-3"><strong>${response.exam_name}</strong></h6>`;
-                    html += '<table class="table table-bordered table-hover">';
-                    html += '<thead class="thead-light"><tr>';
-                    html += '<th>Class</th><th>Subclass</th><th>Class Teacher</th><th>Phone</th><th>Status</th><th>Action</th>';
-                    html += '</tr></thead><tbody>';
+                $.ajax({
+                    url: '{{ route("get_class_teacher_approvals", ":examID") }}'.replace(':examID', examID),
+                    method: 'GET',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            let html = `<h6 class="mb-3"><strong>${response.exam_name}</strong></h6>`;
+                            html += '<table class="table table-bordered table-hover">';
+                            html += '<thead class="thead-light"><tr>';
+                            html += '<th>Class</th><th>Subclass</th><th>Class Teacher</th><th>Phone</th><th>Status</th><th>Action</th>';
+                            html += '</tr></thead><tbody>';
 
-                    response.details.forEach(function(detail) {
-                        const statusBadge = detail.status === 'approved'
-                            ? '<span class="badge badge-success"><i class="bi bi-check-circle"></i> Approved</span>'
-                            : detail.status === 'rejected'
-                            ? '<span class="badge badge-danger"><i class="bi bi-x-circle"></i> Rejected</span>'
-                            : '<span class="badge badge-warning"><i class="bi bi-clock"></i> Pending</span>';
+                            response.details.forEach(function (detail) {
+                                const statusBadge = detail.status === 'approved'
+                                    ? '<span class="badge badge-success"><i class="bi bi-check-circle"></i> Approved</span>'
+                                    : detail.status === 'rejected'
+                                    ? '<span class="badge badge-danger"><i class="bi bi-x-circle"></i> Rejected</span>'
+                                    : '<span class="badge badge-warning"><i class="bi bi-clock"></i> Pending</span>';
 
-                        const teacherName = detail.class_teacher ? detail.class_teacher.name : 'Not Assigned';
-                        const teacherPhone = detail.class_teacher ? (detail.class_teacher.phone || 'N/A') : 'N/A';
+                                const teacherName = detail.class_teacher ? detail.class_teacher.name : 'Not Assigned';
+                                const teacherPhone = detail.class_teacher ? (detail.class_teacher.phone || 'N/A') : 'N/A';
 
-                        html += '<tr>';
-                        html += `<td>${detail.class_name}</td>`;
-                        html += `<td>${detail.subclass_name}</td>`;
-                        html += `<td>${teacherName}</td>`;
-                        html += `<td>${teacherPhone}</td>`;
-                        html += `<td>${statusBadge}</td>`;
-                        html += '<td>';
-                        if (detail.status === 'pending' && teacherPhone && teacherPhone !== 'N/A') {
-                            html += `<button class="btn btn-sm btn-primary send-reminder-sms" data-phone="${teacherPhone}" data-subclass="${detail.subclass_name}">`;
-                            html += '<i class="bi bi-send"></i> Send Reminder</button>';
+                                html += '<tr>';
+                                html += `<td>${detail.class_name}</td>`;
+                                html += `<td>${detail.subclass_name}</td>`;
+                                html += `<td>${teacherName}</td>`;
+                                html += `<td>${teacherPhone}</td>`;
+                                html += `<td>${statusBadge}</td>`;
+                                html += '<td>';
+                                if (detail.status === 'pending' && teacherPhone && teacherPhone !== 'N/A') {
+                                    html += `<button class="btn btn-sm btn-primary send-reminder-sms" data-phone="${teacherPhone}" data-subclass="${detail.subclass_name}">`;
+                                    html += '<i class="bi bi-send"></i> Send Reminder</button>';
+                                }
+                                html += '</td></tr>';
+                            });
+
+                            html += '</tbody></table>';
+                            $('#classTeacherApprovalsContent').html(html);
+
+                            $('.send-reminder-sms').on('click', function () {
+                                const subclass = $(this).data('subclass');
+                                Swal.fire({
+                                    title: 'Send Reminder SMS',
+                                    text: `Send reminder to class teacher of ${subclass}?`,
+                                    icon: 'question',
+                                    showCancelButton: true,
+                                    confirmButtonColor: '#940000',
+                                    confirmButtonText: 'Send'
+                                }).then(function (result) {
+                                    if (!result.isConfirmed) return;
+                                    Swal.fire({ icon: 'info', title: 'Reminder', text: 'Please use the exam approval page to send reminders.', confirmButtonColor: '#940000' });
+                                });
+                            });
+                        } else {
+                            $('#classTeacherApprovalsContent').html('<div class="alert alert-warning">' + (response.message || 'No data') + '</div>');
                         }
-                        html += '</td></tr>';
-                    });
-
-                    html += '</tbody></table>';
-                    $('#classTeacherApprovalsContent').html(html);
-
-                    $('.send-reminder-sms').on('click', function() {
-                        const subclass = $(this).data('subclass');
-                        Swal.fire({
-                            title: 'Send Reminder SMS',
-                            text: `Send reminder to class teacher of ${subclass}?`,
-                            icon: 'question',
-                            showCancelButton: true,
-                            confirmButtonColor: '#940000',
-                            confirmButtonText: 'Send'
-                        }).then(function(result) {
-                            if (!result.isConfirmed) return;
-                            Swal.fire({ icon: 'info', title: 'Reminder', text: 'Please use the exam approval page to send reminders.', confirmButtonColor: '#940000' });
-                        });
-                    });
-                } else {
-                    $('#classTeacherApprovalsContent').html('<div class="alert alert-warning">' + (response.message || 'No data') + '</div>');
-                }
-            },
-            error: function() {
-                $('#classTeacherApprovalsContent').html('<div class="alert alert-danger">Error loading class teacher approvals. Please try again.</div>');
-            }
+                    },
+                    error: function () {
+                        $('#classTeacherApprovalsContent').html('<div class="alert alert-danger">Error loading class teacher approvals. Please try again.</div>');
+                    }
+                });
+            });
         });
-    });
-});
+    }
+
+    if (window.jQuery) {
+        boot(window.jQuery);
+    } else {
+        var s = document.createElement('script');
+        s.src = 'https://code.jquery.com/jquery-3.6.4.min.js';
+        s.onload = function () { boot(window.jQuery); };
+        document.head.appendChild(s);
+    }
+})();
 </script>
 
 @include('includes.footer')

@@ -15,7 +15,25 @@
     body, .content, .card, .btn, .table, .form-control, .form-select, .modal {
         font-family: "Century Gothic", Arial, sans-serif;
     }
-    .sx-board-wrap { padding: 1rem 1.25rem 2rem; }
+    /* Avoid page jitter without clipping wide tables (do not use overflow-x:hidden on wrap/panel) */
+    html {
+        scrollbar-gutter: stable;
+    }
+    #right-panel.right-panel {
+        min-width: 0;
+        transition: margin-left 0.25s ease !important;
+    }
+    .sx-board-wrap {
+        padding: 1rem 1.25rem 2rem;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    .sx-board-wrap .card,
+    .sx-board-wrap .card-body {
+        overflow: visible;
+        max-width: 100%;
+    }
     .sx-board-hero {
         background: linear-gradient(135deg, #940000 0%, #6b0000 100%);
         color: #fff;
@@ -36,14 +54,76 @@
     .btn-primary-custom:hover { background: #b30000; border-color: #b30000; color: #fff; }
     .bg-primary-custom { background: #940000 !important; }
     .card, .btn, .form-control, .form-select, .modal-content { border-radius: 0 !important; }
-    .member-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 1rem; }
+    .member-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 1rem;
+        max-width: 100%;
+    }
     .member-stat {
-        background: #fff; border: 1px solid #eee; padding: 12px 16px; min-width: 140px;
+        background: #fff;
+        border: 1px solid #eee;
+        padding: 12px 16px;
+        flex: 1 1 140px;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    .sx-board-wrap .table-responsive {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        padding-bottom: 4px;
+    }
+    .sx-board-wrap .table-responsive > .table {
+        margin-bottom: 0;
+        width: 100%;
+        min-width: 920px;
+    }
+    .sx-board-wrap .table-scroll-hint {
+        font-size: 0.78rem;
+        color: #888;
+        margin-top: 6px;
+        text-align: right;
+    }
+    .sx-board-wrap #boardMembersTable .col-email {
+        max-width: 160px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .sx-board-wrap #boardMembersTable th.col-actions,
+    .sx-board-wrap #boardMembersTable td.col-actions {
+        position: sticky;
+        right: 0;
+        z-index: 2;
+        min-width: 158px;
+        background: #fff;
+        box-shadow: -6px 0 10px rgba(0, 0, 0, 0.06);
+    }
+    .sx-board-wrap #boardMembersTable thead th.col-actions {
+        background: #940000 !important;
+        z-index: 3;
+        box-shadow: -6px 0 10px rgba(0, 0, 0, 0.12);
+    }
+    .sx-board-wrap #boardMembersTable tbody tr:hover td.col-actions {
+        background: #f8f9fa;
     }
     .member-stat .label { font-size: 0.75rem; color: #777; text-transform: uppercase; font-weight: 700; }
     .member-stat .value { font-size: 1.4rem; font-weight: 800; color: #940000; }
     .table thead th { white-space: nowrap; }
     .badge-position { background: #fff5f5; color: #940000; border: 1px solid rgba(148,0,0,0.25); font-weight: 600; }
+    @media (max-width: 1200px) {
+        .sx-board-wrap .table-scroll-hint { display: block; }
+    }
+    @media (min-width: 1201px) {
+        .sx-board-wrap .table-scroll-hint { display: none; }
+    }
 </style>
 
 @php
@@ -112,11 +192,11 @@
                             <th>Name</th>
                             <th>Position</th>
                             <th>Phone</th>
-                            <th>Email</th>
-                            <th>Occupation</th>
+                            <th class="col-email">Email</th>
+                            <th class="d-none d-xl-table-cell">Occupation</th>
                             <th>Term</th>
                             <th>Status</th>
-                            <th>Actions</th>
+                            <th class="col-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -136,9 +216,9 @@
                                         <span class="text-muted">Not assigned</span>
                                     @endif
                                 </td>
-                                <td>{{ $member->phone ?: '-' }}</td>
-                                <td>{{ $member->email ?: '-' }}</td>
-                                <td>{{ $member->occupation ?: '-' }}</td>
+                                <td>{{ $member->phone ?: '—' }}</td>
+                                <td class="col-email" title="{{ $member->email ?: '' }}">{{ $member->email ?: '—' }}</td>
+                                <td class="d-none d-xl-table-cell">{{ $member->occupation ?: '—' }}</td>
                                 <td class="small">
                                     {{ $member->appointed_date ? $member->appointed_date->format('d M Y') : '-' }}
                                     @if($member->term_end_date)
@@ -154,13 +234,21 @@
                                         <span class="badge bg-dark">Former</span>
                                     @endif
                                 </td>
-                                <td class="text-nowrap">
+                                <td class="text-nowrap col-actions">
                                     <button type="button" class="btn btn-sm btn-outline-secondary assign-position-btn"
                                         data-id="{{ $member->memberID }}"
                                         data-name="{{ $member->full_name }}"
                                         data-position="{{ $member->positionID }}">
                                         <i class="fa fa-briefcase"></i>
                                     </button>
+                                    @if($member->user_id || $member->username)
+                                        <button type="button" class="btn btn-sm btn-info generate-member-password-btn"
+                                            data-id="{{ $member->memberID }}"
+                                            data-name="{{ $member->full_name }}"
+                                            title="Reset password to surname (UPPERCASE)">
+                                            <i class="fa fa-key"></i>
+                                        </button>
+                                    @endif
                                     <button type="button" class="btn btn-sm btn-warning edit-member-btn"
                                         data-id="{{ $member->memberID }}"
                                         data-first="{{ $member->first_name }}"
@@ -177,7 +265,9 @@
                                         data-appointed="{{ $member->appointed_date ? $member->appointed_date->format('Y-m-d') : '' }}"
                                         data-term-end="{{ $member->term_end_date ? $member->term_end_date->format('Y-m-d') : '' }}"
                                         data-status="{{ $member->status }}"
-                                        data-notes="{{ $member->notes }}">
+                                        data-notes="{{ $member->notes }}"
+                                        data-username="{{ $member->username }}"
+                                        data-has-login="{{ $member->user_id ? '1' : '0' }}">
                                         <i class="fa fa-pencil"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-danger delete-member-btn"
@@ -197,6 +287,7 @@
                     </tbody>
                 </table>
             </div>
+            <p class="table-scroll-hint mb-0"><i class="fa fa-arrows-h"></i> Scroll table sideways to see all columns — action buttons stay on the right.</p>
         </div>
     </div>
 </div>
@@ -240,8 +331,8 @@
                             <input type="text" class="form-control" name="phone" id="phone" placeholder="255..." required>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="form-label">Email</label>
-                            <input type="email" class="form-control" name="email" id="email">
+                            <label class="form-label">Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" name="email" id="email" required placeholder="Used as portal username">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Occupation</label>
@@ -283,6 +374,20 @@
                         <div class="col-12 mb-3">
                             <label class="form-label">Address</label>
                             <textarea class="form-control" name="address" id="address" rows="2"></textarea>
+                        </div>
+                        <div class="col-12 mb-2">
+                            <div class="border-top pt-3">
+                                <h6 style="color:#940000;font-weight:800;margin-bottom:0.75rem;">
+                                    <i class="fa fa-key"></i> Portal login
+                                </h6>
+                                <p class="small text-muted mb-2">
+                                    Sign in at the main login page. Dashboard content depends on position.
+                                </p>
+                                <div class="alert alert-light border mb-0 py-2 px-3" id="portalLoginPreview">
+                                    <div><strong>Username:</strong> <span id="previewLoginEmail" class="text-muted">Enter email above</span></div>
+                                    <div class="mt-1"><strong>Password:</strong> <span id="previewLoginPassword" class="text-muted">LAST NAME in capitals (e.g. FRED)</span></div>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-12 mb-1">
                             <label class="form-label">Notes</label>
@@ -402,12 +507,32 @@
         }
     }
 
+    function defaultPasswordFromLastName(lastName) {
+        const s = (lastName || '').trim().toUpperCase();
+        return s || 'MEMBER';
+    }
+
+    function updatePortalLoginPreview() {
+        const emailEl = document.getElementById('email');
+        const lastEl = document.getElementById('last_name');
+        const previewEmail = document.getElementById('previewLoginEmail');
+        const previewPassword = document.getElementById('previewLoginPassword');
+        if (!previewEmail || !previewPassword) return;
+        const email = (emailEl && emailEl.value) ? emailEl.value.trim() : '';
+        const last = (lastEl && lastEl.value) ? lastEl.value.trim() : '';
+        previewEmail.textContent = email || 'Enter email above';
+        previewEmail.className = email ? '' : 'text-muted';
+        previewPassword.textContent = last ? defaultPasswordFromLastName(last) : 'LAST NAME in capitals (e.g. FRED)';
+        previewPassword.className = last ? '' : 'text-muted';
+    }
+
     function resetMemberForm() {
         memberForm.reset();
         document.getElementById('memberID').value = '';
         document.getElementById('status').value = 'Active';
         document.getElementById('memberModalTitle').textContent = 'Register Board Member';
         document.getElementById('memberSubmitBtn').textContent = 'Save Member';
+        updatePortalLoginPreview();
     }
 
     function jsonHeaders() {
@@ -428,6 +553,11 @@
         }
         return fallback;
     }
+
+    ['email', 'last_name'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', updatePortalLoginPreview);
+    });
 
     document.getElementById('openAddMemberBtn').addEventListener('click', function () {
         resetMemberForm();
@@ -458,6 +588,7 @@
             document.getElementById('notes').value = btn.dataset.notes || '';
             document.getElementById('memberModalTitle').textContent = 'Edit Board Member';
             document.getElementById('memberSubmitBtn').textContent = 'Update Member';
+            updatePortalLoginPreview();
             openModal(memberModal);
         });
     });
@@ -468,6 +599,44 @@
             document.getElementById('assignMemberName').textContent = btn.dataset.name || '';
             document.getElementById('assignPositionID').value = btn.dataset.position || '';
             openModal(document.getElementById('assignPositionModal'));
+        });
+    });
+
+    document.querySelectorAll('.generate-member-password-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            Swal.fire({
+                icon: 'question',
+                title: 'Reset password to surname?',
+                text: (btn.dataset.name || 'Member') + ' — password will be LAST NAME in capitals.',
+                showCancelButton: true,
+                confirmButtonColor: '#940000',
+                confirmButtonText: 'Generate'
+            }).then(function (result) {
+                if (!result.isConfirmed) return;
+                fetch(`{{ route('admin.school_board.members.generate_password') }}`, {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, jsonHeaders()),
+                    body: new URLSearchParams({ memberID: btn.dataset.id, _token: csrf })
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (!data.success) {
+                        Swal.fire({ icon: 'error', title: 'Failed', text: parseErrorMessage(data, 'Could not generate password.'), confirmButtonColor: '#940000' });
+                        return;
+                    }
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Password generated',
+                        html: '<p><strong>Username:</strong> ' + (data.username || '') + '</p>'
+                            + '<p><strong>Password:</strong> <code>' + (data.password || '') + '</code></p>'
+                            + '<p class="small text-muted mb-0">' + (data.sms_note || '') + '</p>',
+                        confirmButtonColor: '#940000'
+                    });
+                })
+                .catch(function () {
+                    Swal.fire({ icon: 'error', title: 'Failed', text: 'Could not generate password.', confirmButtonColor: '#940000' });
+                });
+            });
         });
     });
 
@@ -542,7 +711,13 @@
         })
         .then(function (data) {
             closeModal(memberModal);
-            Swal.fire({ icon: 'success', title: 'Success', text: data.message, confirmButtonColor: '#940000' })
+            let html = data.message || 'Saved.';
+            if (data.username && data.password) {
+                html = '<p>' + (data.message || 'Saved.') + '</p>'
+                    + '<p><strong>Username:</strong> ' + data.username + '</p>'
+                    + '<p><strong>Password:</strong> <code>' + data.password + '</code></p>';
+            }
+            Swal.fire({ icon: 'success', title: 'Success', html: html, confirmButtonColor: '#940000' })
                 .then(function () { location.reload(); });
         })
         .catch(function (err) {

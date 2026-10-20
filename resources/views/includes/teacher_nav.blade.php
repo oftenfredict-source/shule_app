@@ -20,16 +20,39 @@
 
     <script src="{{ asset('vendors/jquery/dist/jquery.js') }}"></script>
     <script>
-        if (!window.jQuery) {
-            document.write('<script src="https://code.jquery.com/jquery-3.6.4.min.js"><\/script>');
-        }
-        window.$ = window.jQuery;
+        (function () {
+            function bindDollar() {
+                if (window.jQuery) {
+                    window.$ = window.jQuery;
+                }
+            }
+            function loadScript(src, onload) {
+                var s = document.createElement('script');
+                s.src = src;
+                s.onload = onload;
+                document.head.appendChild(s);
+            }
+            bindDollar();
+            if (!window.jQuery) {
+                loadScript('https://code.jquery.com/jquery-3.6.4.min.js', function () {
+                    bindDollar();
+                    if (!window.jQuery || !window.jQuery.fn || typeof window.jQuery.fn.modal !== 'function') {
+                        loadScript('https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js');
+                    }
+                });
+            }
+        })();
     </script>
     <script src="{{ asset('vendors/bootstrap/dist/js/bootstrap.bundle.js') }}"></script>
     <script>
-        if (!window.jQuery || !window.jQuery.fn || typeof window.jQuery.fn.modal !== 'function') {
-            document.write('<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"><\/script>');
-        }
+        (function () {
+            if (window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.modal === 'function') {
+                return;
+            }
+            var s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js';
+            document.head.appendChild(s);
+        })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
