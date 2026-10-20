@@ -29,6 +29,8 @@ class SchoolBoardMember extends Model
         'term_end_date',
         'status',
         'notes',
+        'username',
+        'user_id',
     ];
 
     protected $casts = [
@@ -39,6 +41,11 @@ class SchoolBoardMember extends Model
     public function position()
     {
         return $this->belongsTo(SchoolBoardPosition::class, 'positionID', 'positionID');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
     public function committees()
@@ -52,6 +59,16 @@ class SchoolBoardMember extends Model
             ->withTimestamps();
     }
 
+    public function boardRoles()
+    {
+        return $this->belongsToMany(
+            SchoolBoardRole::class,
+            'school_board_member_roles',
+            'memberID',
+            'boardRoleID'
+        )->withPivot(['id', 'schoolID'])->withTimestamps();
+    }
+
     public function getFullNameAttribute(): string
     {
         return trim(implode(' ', array_filter([
@@ -59,5 +76,39 @@ class SchoolBoardMember extends Model
             $this->middle_name,
             $this->last_name,
         ])));
+    }
+
+    public function getPositionCodeAttribute(): string
+    {
+        return strtoupper((string) ($this->position->position_code ?? 'MEMBER'));
+    }
+
+    /**
+     * Merged permission names from assigned board roles.
+     *
+     * @return list<string>
+     */
+    public function boardPermissionNames(): array
+    {
+        if (!$this->relationLoaded('boardRoles')) {
+            $this->load(['boardRoles.permissions']);
+        }
+
+        $names = [];
+        foreach ($this->boardRoles as $role) {
+            if (!$role->is_active) {
+                continue;
+            }
+            foreach ($role->permissions as $perm) {
+                $names[] = (string) $perm->name;
+            }
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    public function hasBoardPermission(string $permission): bool
+    {
+        return in_array($permission, $this->boardPermissionNames(), true);
     }
 }

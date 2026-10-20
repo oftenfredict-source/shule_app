@@ -77,4 +77,9 @@ class User extends Authenticatable
     {
         return $this->belongsTo(School::class, 'schoolID', 'schoolID');
     }
+
+    public function boardMember()
+    {
+        return $this->hasOne(SchoolBoardMember::class, 'user_id', 'id');
+    }
 }

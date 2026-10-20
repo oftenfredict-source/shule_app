@@ -12,9 +12,11 @@ use App\Models\StudentPortalQuiz;
 use App\Models\StudentPortalQuizAttempt;
 use App\Models\StudentPortalQuizQuestion;
 use App\Models\Subclass;
+use App\Support\StudentPortalQuizScoring;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\ValidationException;
 
 class StudentPortalMaterialController extends Controller
 {
@@ -200,16 +202,25 @@ class StudentPortalMaterialController extends Controller
             'instructions' => 'nullable|string|max:5000',
             'opens_at' => 'nullable|date|required_with:closes_at',
             'closes_at' => 'nullable|date|required_with:opens_at|after:opens_at',
-            'questions' => 'required|array|min:1|max:40',
-            'questions.*.question_text' => 'required|string|max:1000',
-            'questions.*.option_a' => 'required|string|max:300',
-            'questions.*.option_b' => 'required|string|max:300',
-            'questions.*.option_c' => 'nullable|string|max:300',
-            'questions.*.option_d' => 'nullable|string|max:300',
-            'questions.*.correct_option' => 'required|in:A,B,C,D,a,b,c,d',
+            'sections' => 'required|array|min:1|max:20',
+            'sections.*.question_type' => 'required|in:multiple_choice,true_false,matching,fill_blank,short_answer,essay',
+            'sections.*.section_title' => 'nullable|string|max:200',
+            'sections.*.instructions' => 'nullable|string|max:2000',
         ]);
 
-        DB::transaction(function () use ($request, $school, $data) {
+        $rows = $this->buildQuizQuestionRows($request->input('sections', []));
+        if ($rows === []) {
+            throw ValidationException::withMessages([
+                'sections' => 'Add at least one question item in your sections.',
+            ]);
+        }
+        if (count($rows) > 80) {
+            throw ValidationException::withMessages([
+                'sections' => 'Too many items (max 80 across all sections).',
+            ]);
+        }
+
+        DB::transaction(function () use ($request, $school, $data, $rows) {
             $quiz = StudentPortalQuiz::create(array_merge($data, [
                 'schoolID' => $school->schoolID,
                 'teacherID' => Session::get('teacherID'),
@@ -220,26 +231,208 @@ class StudentPortalMaterialController extends Controller
                 'closes_at' => $request->filled('closes_at') ? $request->closes_at : null,
             ]));
 
-            foreach (array_values($request->input('questions')) as $index => $question) {
-                StudentPortalQuizQuestion::create([
-                    'quiz_id' => $quiz->id,
-                    'question_text' => $question['question_text'],
-                    'option_a' => $question['option_a'],
-                    'option_b' => $question['option_b'],
-                    'option_c' => $question['option_c'] ?? null,
-                    'option_d' => $question['option_d'] ?? null,
-                    'correct_option' => strtoupper($question['correct_option']),
-                    'sort_order' => $index + 1,
-                ]);
+            foreach ($rows as $index => $row) {
+                $row['quiz_id'] = $quiz->id;
+                $row['sort_order'] = $index + 1;
+                StudentPortalQuizQuestion::create($row);
             }
         });
 
         $message = $request->filled('opens_at')
             ? 'Quiz imehifadhiwa. Itafunguka kwa mwanafunzi muda ulioweka, kisha ijifunge yenyewe.'
-            : 'Quiz / mtihani umehifadhiwa. Wanafunzi wanaweza kuufanya kwenye portal.';
+            : 'Quiz / mtihani umehifadhiwa (aina mbalimbali za maswali). Wanafunzi wanaweza kuufanya kwenye portal.';
 
         return back()->with('success', $message)
             ->with('portal_tab', 'quizzes');
+    }
+
+    /**
+     * Normalize teacher section builder payload into question rows.
+     *
+     * @param  array<int, array<string, mixed>>  $sections
+     * @return list<array<string, mixed>>
+     */
+    private function buildQuizQuestionRows(array $sections): array
+    {
+        $rows = [];
+        $sectionNo = 0;
+
+        foreach (array_values($sections) as $section) {
+            $type = (string) ($section['question_type'] ?? '');
+            if ($type === '') {
+                continue;
+            }
+            $sectionNo++;
+            $title = trim((string) ($section['section_title'] ?? '')) ?: null;
+            $sectionInstructions = trim((string) ($section['instructions'] ?? '')) ?: null;
+
+            if ($type === 'matching') {
+                $rawLeft = (array) ($section['left'] ?? []);
+                $rawRight = (array) ($section['right'] ?? []);
+                $pairs = [];
+                foreach ($rawLeft as $i => $leftText) {
+                    $leftText = trim((string) $leftText);
+                    $rightText = trim((string) ($rawRight[$i] ?? ''));
+                    if ($leftText === '' || $rightText === '') {
+                        continue;
+                    }
+                    $pairs[] = [$leftText, $rightText];
+                }
+                if (count($pairs) < 2) {
+                    continue;
+                }
+                $pairs = array_slice($pairs, 0, 10);
+
+                $leftItems = [];
+                $rightItems = [];
+                $answers = [];
+                foreach ($pairs as $i => [$leftText, $rightText]) {
+                    $leftKey = (string) ($i + 1);
+                    $rightKey = chr(97 + $i);
+                    $leftItems[] = ['key' => $leftKey, 'text' => $leftText];
+                    $rightItems[] = ['key' => $rightKey, 'text' => $rightText];
+                    $answers[$leftKey] = $rightKey;
+                }
+
+                // Shuffle display order of column B (answers stay keyed)
+                $displayRight = $rightItems;
+                shuffle($displayRight);
+
+                $rows[] = [
+                    'question_type' => 'matching',
+                    'section_number' => $sectionNo,
+                    'section_title' => $title ?: 'Matching',
+                    'item_label' => null,
+                    'points' => (float) count($leftItems),
+                    'question_text' => $sectionInstructions ?: 'Match items in column A with column B.',
+                    'option_a' => null,
+                    'option_b' => null,
+                    'option_c' => null,
+                    'option_d' => null,
+                    'correct_option' => null,
+                    'config' => [
+                        'left' => $leftItems,
+                        'right' => $displayRight,
+                        'answers' => $answers,
+                    ],
+                ];
+                continue;
+            }
+
+            $items = array_values((array) ($section['items'] ?? []));
+            $itemIndex = 0;
+            foreach ($items as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $text = trim((string) ($item['question_text'] ?? $item['text'] ?? ''));
+                if ($text === '') {
+                    continue;
+                }
+                $itemIndex++;
+                $label = $type === 'true_false'
+                    ? StudentPortalQuizScoring::roman($itemIndex)
+                    : (string) $itemIndex;
+                $points = isset($item['points']) && is_numeric($item['points'])
+                    ? max(0.5, (float) $item['points'])
+                    : 1.0;
+
+                if ($type === 'multiple_choice') {
+                    $a = trim((string) ($item['option_a'] ?? ''));
+                    $b = trim((string) ($item['option_b'] ?? ''));
+                    if ($a === '' || $b === '') {
+                        continue;
+                    }
+                    $correct = strtoupper(trim((string) ($item['correct_option'] ?? 'A')));
+                    if (!in_array($correct, ['A', 'B', 'C', 'D'], true)) {
+                        $correct = 'A';
+                    }
+                    $rows[] = [
+                        'question_type' => 'multiple_choice',
+                        'section_number' => $sectionNo,
+                        'section_title' => $title ?: 'Multiple choice',
+                        'item_label' => $label,
+                        'points' => $points,
+                        'question_text' => $text,
+                        'option_a' => $a,
+                        'option_b' => $b,
+                        'option_c' => trim((string) ($item['option_c'] ?? '')) ?: null,
+                        'option_d' => trim((string) ($item['option_d'] ?? '')) ?: null,
+                        'correct_option' => $correct,
+                        'config' => $sectionInstructions ? ['section_instructions' => $sectionInstructions] : null,
+                    ];
+                    continue;
+                }
+
+                if ($type === 'true_false') {
+                    $correct = strtolower(trim((string) ($item['correct_option'] ?? $item['correct'] ?? 'true')));
+                    $correct = in_array($correct, ['false', 'f', '0'], true) ? 'false' : 'true';
+                    $rows[] = [
+                        'question_type' => 'true_false',
+                        'section_number' => $sectionNo,
+                        'section_title' => $title ?: 'True / False',
+                        'item_label' => $label,
+                        'points' => $points,
+                        'question_text' => $text,
+                        'option_a' => 'True',
+                        'option_b' => 'False',
+                        'option_c' => null,
+                        'option_d' => null,
+                        'correct_option' => $correct,
+                        'config' => $sectionInstructions ? ['section_instructions' => $sectionInstructions] : null,
+                    ];
+                    continue;
+                }
+
+                if ($type === 'fill_blank') {
+                    $answer = trim((string) ($item['correct_answer'] ?? $item['answer'] ?? ''));
+                    if ($answer === '') {
+                        continue;
+                    }
+                    $alts = array_values(array_filter(array_map('trim', preg_split('/\s*\|\s*/', (string) ($item['alt_answers'] ?? '')) ?: [])));
+                    $rows[] = [
+                        'question_type' => 'fill_blank',
+                        'section_number' => $sectionNo,
+                        'section_title' => $title ?: 'Fill in the blanks',
+                        'item_label' => $label,
+                        'points' => $points,
+                        'question_text' => $text,
+                        'option_a' => null,
+                        'option_b' => null,
+                        'option_c' => null,
+                        'option_d' => null,
+                        'correct_option' => $answer,
+                        'config' => [
+                            'answer' => $answer,
+                            'answers' => array_values(array_unique(array_merge([$answer], $alts))),
+                            'section_instructions' => $sectionInstructions,
+                        ],
+                    ];
+                    continue;
+                }
+
+                // short_answer / essay
+                $rows[] = [
+                    'question_type' => $type,
+                    'section_number' => $sectionNo,
+                    'section_title' => $title ?: ($type === 'essay' ? 'Essay' : 'Short answers'),
+                    'item_label' => $label,
+                    'points' => $points,
+                    'question_text' => $text,
+                    'option_a' => null,
+                    'option_b' => null,
+                    'option_c' => null,
+                    'option_d' => null,
+                    'correct_option' => null,
+                    'config' => [
+                        'manual' => true,
+                        'section_instructions' => $sectionInstructions,
+                    ],
+                ];
+            }
+        }
+
+        return $rows;
     }
 
     public function deleteQuiz($id)
@@ -264,6 +457,121 @@ class StudentPortalMaterialController extends Controller
 
         return back()->with('success', $quiz->is_published ? 'Quiz imechapishwa.' : 'Quiz imefichwa.')
             ->with('portal_tab', 'quizzes');
+    }
+
+    /**
+     * Teacher reviews one student attempt (all answers) and can mark written questions.
+     */
+    public function reviewAttempt($quizId, $attemptId)
+    {
+        [$school] = $this->guard();
+        $quiz = StudentPortalQuiz::with('questions')
+            ->where('schoolID', $school->schoolID)
+            ->where('id', $quizId)
+            ->firstOrFail();
+
+        $attempt = StudentPortalQuizAttempt::where('quiz_id', $quiz->id)
+            ->where('id', $attemptId)
+            ->where('schoolID', $school->schoolID)
+            ->firstOrFail();
+
+        $student = Student::where('schoolID', $school->schoolID)
+            ->where('studentID', $attempt->studentID)
+            ->first();
+
+        $questions = $quiz->questions->sortBy('sort_order')->values();
+        $manualScores = is_array($attempt->manual_scores) ? $attempt->manual_scores : [];
+        $feedback = is_array($attempt->teacher_feedback) ? $attempt->teacher_feedback : [];
+        $totals = StudentPortalQuizScoring::recomputeWithManual(
+            $questions,
+            is_array($attempt->answers) ? $attempt->answers : [],
+            $manualScores
+        );
+
+        $userType = Session::get('user_type');
+
+        return view('Teacher.student_portal_quiz_review', [
+            'school' => $school,
+            'quiz' => $quiz,
+            'attempt' => $attempt,
+            'student' => $student,
+            'questions' => $questions,
+            'manualScores' => $manualScores,
+            'feedback' => $feedback,
+            'totals' => $totals,
+            'user_type' => $userType,
+        ]);
+    }
+
+    /**
+     * Save teacher marks for short answer / essay questions and refresh total score.
+     */
+    public function markAttempt(Request $request, $quizId, $attemptId)
+    {
+        [$school] = $this->guard();
+        $quiz = StudentPortalQuiz::with('questions')
+            ->where('schoolID', $school->schoolID)
+            ->where('id', $quizId)
+            ->firstOrFail();
+
+        $attempt = StudentPortalQuizAttempt::where('quiz_id', $quiz->id)
+            ->where('id', $attemptId)
+            ->where('schoolID', $school->schoolID)
+            ->firstOrFail();
+
+        $request->validate([
+            'marks' => 'nullable|array',
+            'feedback' => 'nullable|array',
+        ]);
+
+        $marksIn = (array) $request->input('marks', []);
+        $feedbackIn = (array) $request->input('feedback', []);
+        $manualScores = [];
+        $feedback = [];
+
+        foreach ($quiz->questions as $question) {
+            $type = $question->question_type ?: 'multiple_choice';
+            if (!StudentPortalQuizScoring::isManualType($type)) {
+                continue;
+            }
+            $qid = (string) $question->id;
+            $max = (float) ($question->points ?: 1);
+            if (array_key_exists($qid, $marksIn) || array_key_exists($question->id, $marksIn)) {
+                $raw = $marksIn[$qid] ?? $marksIn[$question->id];
+                if ($raw === '' || $raw === null) {
+                    continue;
+                }
+                $pts = is_numeric($raw) ? (float) $raw : 0.0;
+                $manualScores[$qid] = max(0.0, min($max, $pts));
+            }
+            $note = trim((string) ($feedbackIn[$qid] ?? $feedbackIn[$question->id] ?? ''));
+            if ($note !== '') {
+                $feedback[$qid] = mb_substr($note, 0, 2000);
+            }
+        }
+
+        $totals = StudentPortalQuizScoring::recomputeWithManual(
+            $quiz->questions,
+            is_array($attempt->answers) ? $attempt->answers : [],
+            $manualScores
+        );
+
+        $attempt->update([
+            'manual_scores' => $manualScores,
+            'teacher_feedback' => $feedback ?: null,
+            'score' => $totals['score'],
+            'total' => $totals['total'] > 0 ? $totals['total'] : $attempt->total,
+            'graded_at' => now(),
+            'graded_by' => Session::get('teacherID') ?: Session::get('adminID'),
+        ]);
+
+        $msg = $totals['pending'] > 0
+            ? 'Alama zimehifadhiwa. Bado kuna maswali '.$totals['pending'].' yanayosubiri alama.'
+            : 'Alama zimehifadhiwa. Marking imekamilika.';
+
+        return redirect()
+            ->route('student_portal.materials.attempts.review', ['quizId' => $quiz->id, 'attemptId' => $attempt->id])
+            ->with('success', $msg);
     }
 
     public function exportResults(Request $request, $quizId = null)

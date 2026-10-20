@@ -73,6 +73,11 @@ class SchoolBoardMeeting extends Model
         return $this->hasMany(SchoolBoardActionItem::class, 'meetingID', 'meetingID');
     }
 
+    public function comments()
+    {
+        return $this->hasMany(SchoolBoardMeetingComment::class, 'meetingID', 'meetingID');
+    }
+
     public function startsAt(): Carbon
     {
         $date = $this->meeting_date

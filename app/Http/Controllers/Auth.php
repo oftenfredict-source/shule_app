@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\School;
+use App\Models\SchoolBoardMember;
 use App\Models\Teacher;
 use App\Models\ParentModel;
 use App\Models\OtherStaff;
@@ -249,6 +250,11 @@ class Auth extends Controller
             'parentID',
             'watchmanID',
             'watchman_name',
+            'boardMemberID',
+            'board_member_name',
+            'board_position_code',
+            'board_position_name',
+            'board_permissions',
             'force_password_change',
             'user_log_id',
             'otp_pending',
@@ -346,6 +352,8 @@ class Auth extends Controller
                 return redirect()->route('staffDashboard');
             } elseif ($userType === 'Watchman') {
                 return redirect()->route('watchman.visitors');
+            } elseif ($userType === 'BoardMember') {
+                return redirect()->route('board.portal.dashboard');
             }
         }
 
@@ -819,6 +827,72 @@ class Auth extends Controller
 
                 return redirect()->route('parentDashboard')
                     ->with('success', 'You have logged in successfully as Parent!');
+                break;
+
+            case 'BoardMember':
+                $member = SchoolBoardMember::with('position')
+                    ->where(function ($q) use ($userLogin, $username) {
+                        $q->where('user_id', $userLogin->id)
+                            ->orWhere('username', $username)
+                            ->orWhere('username', $userLogin->name);
+                    })
+                    ->first();
+
+                if (!$member && $userLogin->schoolID) {
+                    $member = SchoolBoardMember::with('position')
+                        ->where('schoolID', $userLogin->schoolID)
+                        ->where(function ($q) use ($username, $userLogin) {
+                            $q->where('username', $username)
+                                ->orWhere('username', $userLogin->name)
+                                ->orWhere('user_id', $userLogin->id);
+                        })
+                        ->first();
+                }
+
+                if (!$member) {
+                    if ($this->isAjax($request)) {
+                        return $this->jsonFail('Board member record not found. Please contact admin.', 404);
+                    }
+                    return redirect()->back()
+                        ->with('error', 'Board member record not found.')
+                        ->withInput($request->only('username'));
+                }
+
+                if ($member->status !== 'Active') {
+                    if ($this->isAjax($request)) {
+                        return $this->jsonFail('This board member account is not active.', 403);
+                    }
+                    return redirect()->back()
+                        ->with('error', 'This board member account is not active.')
+                        ->withInput($request->only('username'));
+                }
+
+                if ($resp = $this->checkSchoolLoginStatus($member->schoolID, $request)) {
+                    return $resp;
+                }
+
+                $member->loadMissing(['position', 'boardRoles.permissions']);
+
+                Session::put('schoolID', $member->schoolID);
+                Session::put('boardMemberID', $member->memberID);
+                Session::put('board_member_name', $member->full_name);
+                Session::put('board_position_code', $member->position->position_code ?? 'MEMBER');
+                Session::put('board_position_name', $member->position->position_name ?? 'Member');
+                Session::put('board_permissions', $member->boardPermissionNames());
+                Session::put('user_type', 'BoardMember');
+                Session::put('userID', $userLogin->id);
+                Session::put('user_name', $userLogin->name);
+                Session::put('user_email', $userLogin->email);
+
+                $this->logUserLogin($userLogin, $request, $member->schoolID);
+                $request->session()->regenerate();
+
+                if ($this->isAjax($request)) {
+                    return response()->json(['success' => true, 'redirect' => route('board.portal.dashboard')]);
+                }
+
+                return redirect()->route('board.portal.dashboard')
+                    ->with('success', 'Welcome to the School Board portal.');
                 break;
 
             default:

@@ -49,6 +49,7 @@ use App\Http\Controllers\StorePortalController;
 use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\GoalManagementController;
 use App\Http\Controllers\SchoolBoardController;
+use App\Http\Controllers\BoardPortalController;
 use App\Http\Controllers\AttendanceSmsController;
 use App\Http\Controllers\FingerprintAttendanceSmsController;
 use App\Http\Controllers\FingerprintAttendanceSetupController;
@@ -667,6 +668,8 @@ Route::post("student-portal-materials/quizzes/{id}/toggle", [\App\Http\Controlle
 Route::delete("student-portal-materials/quizzes/{id}", [\App\Http\Controllers\StudentPortalMaterialController::class, "deleteQuiz"])->name("student_portal.materials.quizzes.delete");
 Route::get("student-portal-materials/results/export", [\App\Http\Controllers\StudentPortalMaterialController::class, "exportResults"])->name("student_portal.materials.results.export");
 Route::get("student-portal-materials/results/export/{quizId}", [\App\Http\Controllers\StudentPortalMaterialController::class, "exportResults"])->name("student_portal.materials.results.export.quiz");
+Route::get("student-portal-materials/quizzes/{quizId}/attempts/{attemptId}", [\App\Http\Controllers\StudentPortalMaterialController::class, "reviewAttempt"])->name("student_portal.materials.attempts.review");
+Route::post("student-portal-materials/quizzes/{quizId}/attempts/{attemptId}/mark", [\App\Http\Controllers\StudentPortalMaterialController::class, "markAttempt"])->name("student_portal.materials.attempts.mark");
 Route::view("forgot-password", "auth.forgot-password")->name("forgot_password");
 Route::post("auth", [Auth::class, "auth"])->name("auth");
 Route::post("auth/otp/verify", [Auth::class, "verifyOtp"])->name(
@@ -2836,7 +2839,14 @@ Route::prefix("admin/school-board")->name("admin.school_board.")->group(function
     Route::post("/members/update", [SchoolBoardController::class, "updateMember"])->name("members.update");
     Route::post("/members/assign-position", [SchoolBoardController::class, "assignMemberPosition"])->name("members.assign_position");
     Route::post("/members/delete", [SchoolBoardController::class, "deleteMember"])->name("members.delete");
+    Route::post("/members/generate-password", [SchoolBoardController::class, "generateMemberLoginPassword"])->name("members.generate_password");
     Route::post("/positions/store", [SchoolBoardController::class, "storePosition"])->name("positions.store");
+    Route::get("/roles", [SchoolBoardController::class, "roles"])->name("roles");
+    Route::post("/roles/store", [SchoolBoardController::class, "storeBoardRole"])->name("roles.store");
+    Route::post("/roles/permissions", [SchoolBoardController::class, "updateBoardRolePermissions"])->name("roles.permissions");
+    Route::post("/roles/delete", [SchoolBoardController::class, "deleteBoardRole"])->name("roles.delete");
+    Route::post("/roles/assign", [SchoolBoardController::class, "assignMemberRole"])->name("roles.assign");
+    Route::post("/roles/remove", [SchoolBoardController::class, "removeMemberRole"])->name("roles.remove");
     Route::get("/committees", [SchoolBoardController::class, "committees"])->name("committees");
     Route::post("/committees/store", [SchoolBoardController::class, "storeCommittee"])->name("committees.store");
     Route::post("/committees/update", [SchoolBoardController::class, "updateCommittee"])->name("committees.update");
@@ -2866,6 +2876,32 @@ Route::prefix("admin/school-board")->name("admin.school_board.")->group(function
     Route::post("/documents/delete", [SchoolBoardController::class, "deleteDocument"])->name("documents.delete");
     Route::get("/documents/download/{documentID}", [SchoolBoardController::class, "downloadDocument"])->name("documents.download");
     Route::get("/reports", [SchoolBoardController::class, "reports"])->name("reports");
+});
+
+/* School Board Member Portal */
+Route::prefix("board-portal")->name("board.portal.")->group(function () {
+    Route::get("/", [BoardPortalController::class, "dashboard"])->name("dashboard");
+    Route::get("/messages", [BoardPortalController::class, "messages"])->name("messages");
+    Route::post("/messages/compose", [BoardPortalController::class, "composeMessage"])->name("messages.compose");
+    Route::post("/messages/reply", [BoardPortalController::class, "replyMessage"])->name("messages.reply");
+    Route::post("/messages/mark-read", [BoardPortalController::class, "markMessageRead"])->name("messages.mark_read");
+    Route::get("/members", [BoardPortalController::class, "members"])->name("members");
+    Route::post("/members/message", [BoardPortalController::class, "sendMemberMessage"])->name("members.message");
+    Route::get("/committees", [BoardPortalController::class, "committees"])->name("committees");
+    Route::post("/committees/store", [BoardPortalController::class, "storeCommittee"])->name("committees.store");
+    Route::get("/meetings", [BoardPortalController::class, "meetings"])->name("meetings");
+    Route::post("/meetings/store", [BoardPortalController::class, "storeMeeting"])->name("meetings.store");
+    Route::post("/meetings/comment", [BoardPortalController::class, "storeMeetingComment"])->name("meetings.comment");
+    Route::get("/minutes", [BoardPortalController::class, "minutes"])->name("minutes");
+    Route::post("/minutes/store", [BoardPortalController::class, "storeMinute"])->name("minutes.store");
+    Route::get("/resolutions", [BoardPortalController::class, "resolutions"])->name("resolutions");
+    Route::post("/resolutions/store", [BoardPortalController::class, "storeResolution"])->name("resolutions.store");
+    Route::get("/action-items", [BoardPortalController::class, "actionItems"])->name("action_items");
+    Route::post("/action-items/store", [BoardPortalController::class, "storeActionItem"])->name("action_items.store");
+    Route::post("/action-items/update-status", [BoardPortalController::class, "updateActionItemStatus"])->name("action_items.update_status");
+    Route::get("/documents", [BoardPortalController::class, "documents"])->name("documents");
+    Route::post("/documents/store", [BoardPortalController::class, "storeDocument"])->name("documents.store");
+    Route::get("/documents/download/{documentID}", [BoardPortalController::class, "downloadDocument"])->name("documents.download");
 });
 
 Route::get("admin/school-visitors/today", [

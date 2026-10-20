@@ -162,30 +162,24 @@ class StudentPortalController extends Controller
             $answers = [];
         }
 
-        $score = 0;
-        $stored = [];
-        foreach ($quiz->questions as $question) {
-            $picked = strtoupper(trim((string) ($answers[$question->id] ?? '')));
-            if (!in_array($picked, ['A', 'B', 'C', 'D'], true)) {
-                $picked = '';
-            }
-            $stored[$question->id] = $picked;
-            if ($picked !== '' && $picked === strtoupper($question->correct_option)) {
-                $score++;
-            }
-        }
+        $graded = \App\Support\StudentPortalQuizScoring::grade($quiz->questions, $answers);
 
         StudentPortalQuizAttempt::create([
             'quiz_id' => $quiz->id,
             'studentID' => $student->studentID,
             'schoolID' => $school->schoolID,
-            'score' => $score,
-            'total' => $quiz->questions->count(),
-            'answers' => $stored,
+            'score' => $graded['score'],
+            'total' => $graded['total'] > 0 ? $graded['total'] : $quiz->questions->count(),
+            'answers' => $graded['stored'],
             'submitted_at' => now(),
         ]);
 
-        return redirect()->route('student_portal.quiz', $quiz->id)->with('success', 'Quiz submitted.');
+        $msg = 'Quiz submitted.';
+        if (($graded['manual_pending'] ?? 0) > 0) {
+            $msg .= ' Written answers were saved for teacher review.';
+        }
+
+        return redirect()->route('student_portal.quiz', $quiz->id)->with('success', $msg);
     }
 
     private function requireStudent(): array

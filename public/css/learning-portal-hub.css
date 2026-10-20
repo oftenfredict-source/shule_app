@@ -226,7 +226,40 @@
     align-items: start;
 }
 
-.lph-grid.quiz { grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); }
+/* Quiz builder: full-width create form, list underneath */
+.lph-grid.quiz {
+    grid-template-columns: 1fr;
+    gap: 22px;
+}
+.lph-grid.quiz .lph-panel { max-width: none; }
+.lph-quiz-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+}
+.lph-quiz-add-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+    margin: 1rem 0 0.85rem;
+    padding: 12px 14px;
+    background: #faf7f5;
+    border: 1px solid var(--lph-line);
+}
+.lph-quiz-add-row .lph-field { margin: 0; flex: 1 1 220px; }
+.lph-quiz-add-row .lph-btn { flex: 0 0 auto; white-space: nowrap; }
+.lph-section {
+    margin-bottom: 14px;
+    padding: 14px;
+    border: 1px solid var(--lph-line);
+    background: #fff;
+}
+.lph-section .form-control,
+.lph-section textarea.form-control { max-width: 100%; }
+@media (max-width: 700px) {
+    .lph-quiz-meta { grid-template-columns: 1fr; }
+}
 
 .lph-panel {
     background: var(--lph-surface);

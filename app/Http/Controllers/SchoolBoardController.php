@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\School;
 use App\Models\SchoolBoardActionItem;
 use App\Models\SchoolBoardCommittee;
 use App\Models\SchoolBoardCommitteeMember;
@@ -12,7 +13,12 @@ use App\Models\SchoolBoardMember;
 use App\Models\SchoolBoardMinute;
 use App\Models\SchoolBoardPosition;
 use App\Models\SchoolBoardResolution;
+use App\Models\SchoolBoardRole;
+use App\Models\SchoolBoardRolePermission;
+use App\Models\User;
+use App\Services\SmsService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
@@ -42,6 +48,7 @@ class SchoolBoardController extends Controller
             'memberID', 'positionID', 'middle_name', 'gender', 'email',
             'occupation', 'organization', 'address',
             'appointed_date', 'term_end_date', 'notes',
+            'username', 'password', 'password_confirmation',
         ] as $key) {
             if (!array_key_exists($key, $data)) {
                 continue;
@@ -52,6 +59,132 @@ class SchoolBoardController extends Controller
         }
 
         return $data;
+    }
+
+    private function boardLoginUsernameFromEmail(string $email): string
+    {
+        return trim($email);
+    }
+
+    private function boardDefaultPasswordFromLastName(string $lastName): string
+    {
+        $password = strtoupper(trim($lastName));
+
+        return $password !== '' ? $password : 'MEMBER';
+    }
+
+    private function assertBoardLoginEmailAvailable(string $email, int $schoolID, ?int $ignoreMemberID = null): ?string
+    {
+        $email = trim($email);
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return 'Valid email is required — it is used as the portal username.';
+        }
+
+        $loginName = $this->boardLoginUsernameFromEmail($email);
+
+        $memberQuery = SchoolBoardMember::where('schoolID', $schoolID)
+            ->where(function ($q) use ($loginName, $email) {
+                $q->where('username', $loginName)
+                    ->orWhere('username', $email)
+                    ->orWhereRaw('LOWER(email) = ?', [strtolower($email)]);
+            });
+        if ($ignoreMemberID) {
+            $memberQuery->where('memberID', '!=', $ignoreMemberID);
+        }
+        if ($memberQuery->exists()) {
+            return 'This email is already used by another board member in this school.';
+        }
+
+        $ignoreUserId = null;
+        if ($ignoreMemberID) {
+            $current = SchoolBoardMember::where('memberID', $ignoreMemberID)->first();
+            $ignoreUserId = $current?->user_id;
+        }
+
+        $emailLower = strtolower($email);
+        $userConflict = User::query()
+            ->when($ignoreUserId, fn ($q) => $q->where('id', '!=', $ignoreUserId))
+            ->where(function ($q) use ($loginName, $email, $emailLower) {
+                $q->where('name', $loginName)
+                    ->orWhere('name', $email)
+                    ->orWhere('email', $email)
+                    ->orWhereRaw('LOWER(name) = ?', [$emailLower])
+                    ->orWhereRaw('LOWER(email) = ?', [$emailLower]);
+            })
+            ->first();
+
+        if ($userConflict && $userConflict->user_type !== 'BoardMember') {
+            return 'This email is already used by another account in the system.';
+        }
+        if ($userConflict && $userConflict->user_type === 'BoardMember') {
+            return 'This email is already linked to another board login.';
+        }
+
+        return null;
+    }
+
+    private function createOrUpdateBoardLoginUser(
+        SchoolBoardMember $member,
+        string $loginEmail,
+        ?string $plainPassword,
+        int $schoolID
+    ): User {
+        $loginEmail = trim($loginEmail);
+        $loginName = $this->boardLoginUsernameFromEmail($loginEmail);
+
+        if ($member->user_id) {
+            $user = User::find($member->user_id);
+            if ($user) {
+                $user->name = $loginName;
+                $user->email = $loginEmail;
+                $user->user_type = 'BoardMember';
+                if ($plainPassword !== null && $plainPassword !== '') {
+                    $user->password = $plainPassword;
+                }
+                $user->save();
+
+                $member->username = $loginName;
+                $member->save();
+
+                return $user;
+            }
+        }
+
+        if ($plainPassword === null || $plainPassword === '') {
+            throw new \InvalidArgumentException('Password is required to create a login account.');
+        }
+
+        // users table has no schoolID column — school is linked via school_board_members
+        $user = User::create([
+            'name' => $loginName,
+            'email' => $loginEmail,
+            'password' => $plainPassword,
+            'user_type' => 'BoardMember',
+        ]);
+
+        $member->user_id = $user->id;
+        $member->username = $loginName;
+        $member->save();
+
+        return $user;
+    }
+
+    private function sendBoardCredentialsSms(SchoolBoardMember $member, string $username, string $plainPassword, int $schoolID): ?array
+    {
+        if (empty($member->phone)) {
+            return null;
+        }
+
+        try {
+            $school = School::find($schoolID);
+            $schoolName = $school->school_name ?? 'ShuleXpert';
+            $prefix = ($school && $school->senderID) ? '' : "{$schoolName}. ";
+            $message = "{$prefix}School Board portal. Username: {$username}. Password: {$plainPassword}. Login: https://shulexpert.com/login";
+
+            return (new SmsService())->sendSms($member->phone, $message, null, $schoolID);
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 
     public function storeMember(Request $request)
@@ -72,7 +205,7 @@ class SchoolBoardController extends Controller
                 'last_name' => 'required|string|max:100',
                 'gender' => 'nullable|in:Male,Female,Other',
                 'phone' => 'required|string|max:40',
-                'email' => 'nullable|email|max:150',
+                'email' => 'required|email|max:150',
                 'occupation' => 'nullable|string|max:150',
                 'organization' => 'nullable|string|max:150',
                 'national_id' => 'required|string|max:50',
@@ -82,6 +215,8 @@ class SchoolBoardController extends Controller
                 'term_end_date' => 'nullable|date|after_or_equal:appointed_date',
                 'status' => 'nullable|in:Active,Inactive,Former',
                 'notes' => 'nullable|string|max:1000',
+            ], [
+                'email.required' => 'Email is required — it is used as the portal username.',
             ])->validate();
 
             if (!empty($validated['positionID'])) {
@@ -93,29 +228,51 @@ class SchoolBoardController extends Controller
                 }
             }
 
-            $member = SchoolBoardMember::create([
-                'schoolID' => $schoolID,
-                'positionID' => $validated['positionID'] ?? null,
-                'first_name' => trim($validated['first_name']),
-                'middle_name' => isset($validated['middle_name']) ? trim((string) $validated['middle_name']) : null,
-                'last_name' => trim($validated['last_name']),
-                'gender' => $validated['gender'] ?? null,
-                'phone' => trim($validated['phone']),
-                'email' => $validated['email'] ?? null,
-                'occupation' => $validated['occupation'] ?? null,
-                'organization' => $validated['organization'] ?? null,
-                'national_id' => trim($validated['national_id']),
-                'address' => $validated['address'] ?? null,
-                'appointed_date' => $validated['appointed_date'] ?? null,
-                'term_end_date' => $validated['term_end_date'] ?? null,
-                'status' => $validated['status'] ?? 'Active',
-                'notes' => $validated['notes'] ?? null,
-            ]);
+            $loginEmail = trim($validated['email']);
+            if ($err = $this->assertBoardLoginEmailAvailable($loginEmail, (int) $schoolID)) {
+                return response()->json(['success' => false, 'message' => $err], 422);
+            }
+
+            $loginUsername = $this->boardLoginUsernameFromEmail($loginEmail);
+            $plainPassword = $this->boardDefaultPasswordFromLastName($validated['last_name']);
+            $smsResult = null;
+
+            $member = DB::transaction(function () use ($validated, $schoolID, $loginEmail, $loginUsername, $plainPassword) {
+                $member = SchoolBoardMember::create([
+                    'schoolID' => $schoolID,
+                    'positionID' => $validated['positionID'] ?? null,
+                    'first_name' => trim($validated['first_name']),
+                    'middle_name' => isset($validated['middle_name']) ? trim((string) $validated['middle_name']) : null,
+                    'last_name' => trim($validated['last_name']),
+                    'gender' => $validated['gender'] ?? null,
+                    'phone' => trim($validated['phone']),
+                    'email' => $loginEmail,
+                    'occupation' => $validated['occupation'] ?? null,
+                    'organization' => $validated['organization'] ?? null,
+                    'national_id' => trim($validated['national_id']),
+                    'address' => $validated['address'] ?? null,
+                    'appointed_date' => $validated['appointed_date'] ?? null,
+                    'term_end_date' => $validated['term_end_date'] ?? null,
+                    'status' => $validated['status'] ?? 'Active',
+                    'notes' => $validated['notes'] ?? null,
+                    'username' => $loginUsername,
+                ]);
+
+                $this->createOrUpdateBoardLoginUser($member, $loginEmail, $plainPassword, (int) $schoolID);
+                $this->syncPortalRoleFromPosition($member->fresh());
+
+                return $member->fresh(['position', 'boardRoles']);
+            });
+
+            $smsResult = $this->sendBoardCredentialsSms($member, $loginEmail, $plainPassword, (int) $schoolID);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Board member registered successfully.',
+                'message' => 'Board member registered with portal login.',
                 'memberID' => $member->memberID,
+                'username' => $loginEmail,
+                'password' => $plainPassword,
+                'sms_sent' => (bool) ($smsResult['success'] ?? false),
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -150,7 +307,7 @@ class SchoolBoardController extends Controller
                 'last_name' => 'required|string|max:100',
                 'gender' => 'nullable|in:Male,Female,Other',
                 'phone' => 'required|string|max:40',
-                'email' => 'nullable|email|max:150',
+                'email' => 'required|email|max:150',
                 'occupation' => 'nullable|string|max:150',
                 'organization' => 'nullable|string|max:150',
                 'national_id' => 'required|string|max:50',
@@ -160,6 +317,8 @@ class SchoolBoardController extends Controller
                 'term_end_date' => 'nullable|date|after_or_equal:appointed_date',
                 'status' => 'nullable|in:Active,Inactive,Former',
                 'notes' => 'nullable|string|max:1000',
+            ], [
+                'email.required' => 'Email is required — it is used as the portal username.',
             ])->validate();
 
             $member = SchoolBoardMember::where('schoolID', $schoolID)
@@ -175,23 +334,57 @@ class SchoolBoardController extends Controller
                 }
             }
 
-            $member->update([
-                'positionID' => $validated['positionID'] ?? null,
-                'first_name' => trim($validated['first_name']),
-                'middle_name' => isset($validated['middle_name']) ? trim((string) $validated['middle_name']) : null,
-                'last_name' => trim($validated['last_name']),
-                'gender' => $validated['gender'] ?? null,
-                'phone' => trim($validated['phone']),
-                'email' => $validated['email'] ?? null,
-                'occupation' => $validated['occupation'] ?? null,
-                'organization' => $validated['organization'] ?? null,
-                'national_id' => trim($validated['national_id']),
-                'address' => $validated['address'] ?? null,
-                'appointed_date' => $validated['appointed_date'] ?? null,
-                'term_end_date' => $validated['term_end_date'] ?? null,
-                'status' => $validated['status'] ?? $member->status,
-                'notes' => $validated['notes'] ?? null,
-            ]);
+            $loginEmail = trim($validated['email']);
+            if ($err = $this->assertBoardLoginEmailAvailable($loginEmail, (int) $schoolID, (int) $member->memberID)) {
+                return response()->json(['success' => false, 'message' => $err], 422);
+            }
+
+            $loginUsername = $this->boardLoginUsernameFromEmail($loginEmail);
+            $needsLogin = !$member->user_id || empty($member->username);
+            $plainPassword = $needsLogin
+                ? $this->boardDefaultPasswordFromLastName($validated['last_name'])
+                : null;
+
+            DB::transaction(function () use ($member, $validated, $schoolID, $loginEmail, $loginUsername, $plainPassword, $needsLogin) {
+                $member->update([
+                    'positionID' => $validated['positionID'] ?? null,
+                    'first_name' => trim($validated['first_name']),
+                    'middle_name' => isset($validated['middle_name']) ? trim((string) $validated['middle_name']) : null,
+                    'last_name' => trim($validated['last_name']),
+                    'gender' => $validated['gender'] ?? null,
+                    'phone' => trim($validated['phone']),
+                    'email' => $loginEmail,
+                    'occupation' => $validated['occupation'] ?? null,
+                    'organization' => $validated['organization'] ?? null,
+                    'national_id' => trim($validated['national_id']),
+                    'address' => $validated['address'] ?? null,
+                    'appointed_date' => $validated['appointed_date'] ?? null,
+                    'term_end_date' => $validated['term_end_date'] ?? null,
+                    'status' => $validated['status'] ?? $member->status,
+                    'notes' => $validated['notes'] ?? null,
+                    'username' => $loginUsername,
+                ]);
+
+                if ($needsLogin || $member->user_id) {
+                    $this->createOrUpdateBoardLoginUser(
+                        $member->fresh(),
+                        $loginEmail,
+                        $plainPassword,
+                        (int) $schoolID
+                    );
+                }
+
+                $this->syncPortalRoleFromPosition($member->fresh(['position']));
+            });
+
+            if ($needsLogin && $plainPassword) {
+                $this->sendBoardCredentialsSms(
+                    $member->fresh(),
+                    $loginEmail,
+                    (string) $plainPassword,
+                    (int) $schoolID
+                );
+            }
 
             return response()->json([
                 'success' => true,
@@ -280,6 +473,12 @@ class SchoolBoardController extends Controller
                 'label' => 'Documents',
                 'route' => 'admin.school_board.documents',
                 'icon' => 'fa-folder-open-o',
+            ],
+            [
+                'key' => 'roles',
+                'label' => 'Roles & Permissions',
+                'route' => 'admin.school_board.roles',
+                'icon' => 'fa-lock',
             ],
             [
                 'key' => 'reports',
@@ -416,11 +615,84 @@ class SchoolBoardController extends Controller
             ->where('memberID', $validated['memberID'])
             ->firstOrFail();
 
-        $member->delete();
+        DB::transaction(function () use ($member) {
+            if ($member->user_id) {
+                User::where('id', $member->user_id)
+                    ->where('user_type', 'BoardMember')
+                    ->delete();
+            } elseif ($member->username) {
+                User::where('name', $member->username)
+                    ->where('user_type', 'BoardMember')
+                    ->delete();
+            }
+            $member->delete();
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Board member deleted successfully.',
+        ]);
+    }
+
+    public function generateMemberLoginPassword(Request $request)
+    {
+        if ($redirect = $this->authorizeBoardAccess($request)) {
+            return $redirect;
+        }
+
+        $schoolID = $this->schoolId();
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'memberID' => 'required|integer',
+        ]);
+
+        $member = SchoolBoardMember::where('schoolID', $schoolID)
+            ->where('memberID', $validated['memberID'])
+            ->first();
+
+        if (!$member) {
+            return response()->json(['success' => false, 'message' => 'Board member not found.'], 404);
+        }
+
+        if (!$member->user_id && !$member->username) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This member has no portal login yet. Edit the member and set username/password first.',
+            ], 422);
+        }
+
+        $user = null;
+        if ($member->user_id) {
+            $user = User::where('id', $member->user_id)->where('user_type', 'BoardMember')->first();
+        }
+        if (!$user && $member->username) {
+            $user = User::where('name', $member->username)->where('user_type', 'BoardMember')->first();
+        }
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Login account not found for this member.'], 404);
+        }
+
+        $plainPassword = $this->boardDefaultPasswordFromLastName($member->last_name);
+        $user->password = $plainPassword;
+        $user->save();
+
+        $username = $member->email ?: $member->username ?: $user->name;
+        $smsResult = $this->sendBoardCredentialsSms($member, $username, $plainPassword, (int) $schoolID);
+        $smsSent = (bool) ($smsResult['success'] ?? false);
+
+        return response()->json([
+            'success' => true,
+            'message' => $smsSent ? 'New password generated and sent via SMS.' : 'New password generated.',
+            'username' => $username,
+            'password' => $plainPassword,
+            'sms_sent' => $smsSent,
+            'sms_note' => $smsSent
+                ? 'Password was also sent by SMS.'
+                : ($smsResult['message'] ?? 'SMS not sent — share the password manually.'),
         ]);
     }
 
@@ -2564,5 +2836,454 @@ class SchoolBoardController extends Controller
             'overdueActions' => $overdueActions,
             'documents' => $documents->take(10),
         ];
+    }
+
+    /** @return array<string, array<string, string>> */
+    private function availableBoardPermissions(): array
+    {
+        return config('board_portal_permissions', []);
+    }
+
+    /**
+     * Map board position → default system portal role and assign if missing.
+     * Chair / Vice Chair → CHAIR (create meetings, committees, etc.)
+     * Secretary → SECRETARY (records: minutes, resolutions, …)
+     */
+    private function syncPortalRoleFromPosition(?SchoolBoardMember $member): void
+    {
+        if (!$member || !Schema::hasTable('school_board_roles') || !Schema::hasTable('school_board_member_roles')) {
+            return;
+        }
+
+        $schoolID = (int) $member->schoolID;
+        $this->ensureDefaultBoardRoles($schoolID);
+
+        if (!$member->relationLoaded('position')) {
+            $member->load('position');
+        }
+
+        $positionCode = strtoupper((string) ($member->position->position_code ?? 'MEMBER'));
+        $roleCode = match ($positionCode) {
+            'CHAIR', 'VICE_CHAIR' => 'CHAIR',
+            'SECRETARY' => 'SECRETARY',
+            'TREASURER' => 'TREASURER',
+            default => 'MEMBER',
+        };
+
+        $role = SchoolBoardRole::where('schoolID', $schoolID)
+            ->where('role_code', $roleCode)
+            ->where('is_system', true)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$role) {
+            return;
+        }
+
+        $exists = DB::table('school_board_member_roles')
+            ->where('memberID', $member->memberID)
+            ->where('boardRoleID', $role->boardRoleID)
+            ->exists();
+
+        if (!$exists) {
+            DB::table('school_board_member_roles')->insert([
+                'schoolID' => $schoolID,
+                'memberID' => $member->memberID,
+                'boardRoleID' => $role->boardRoleID,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    private function ensureDefaultBoardRoles(int $schoolID): void
+    {
+        if (!Schema::hasTable('school_board_roles')) {
+            return;
+        }
+
+        $defaults = [
+            [
+                'role_name' => 'Board Chair Access',
+                'role_code' => 'CHAIR',
+                'description' => 'Full board portal access for chair / vice chair.',
+                'sort_order' => 1,
+                'permissions' => [
+                    'board_portal.access', 'board_portal.dashboard',
+                    'board_portal.committees.view', 'board_portal.committees.manage',
+                    'board_portal.meetings.view', 'board_portal.meetings.view_all', 'board_portal.meetings.manage', 'board_portal.meetings.comment',
+                    'board_portal.minutes.view', 'board_portal.minutes.view_all', 'board_portal.minutes.manage',
+                    'board_portal.resolutions.view', 'board_portal.resolutions.view_all', 'board_portal.resolutions.manage',
+                    'board_portal.action_items.view', 'board_portal.action_items.view_all',
+                    'board_portal.action_items.update_own', 'board_portal.action_items.update_any',
+                    'board_portal.action_items.manage',
+                    'board_portal.documents.view', 'board_portal.documents.download', 'board_portal.documents.manage',
+                    'board_portal.members.view', 'board_portal.members.message',
+                    'board_portal.messages.view', 'board_portal.messages.compose',
+                ],
+            ],
+            [
+                'role_name' => 'Board Secretary Access',
+                'role_code' => 'SECRETARY',
+                'description' => 'Keep records: meetings, minutes, resolutions, and follow-ups.',
+                'sort_order' => 2,
+                'permissions' => [
+                    'board_portal.access', 'board_portal.dashboard',
+                    'board_portal.committees.view', 'board_portal.committees.manage',
+                    'board_portal.meetings.view', 'board_portal.meetings.view_all', 'board_portal.meetings.manage', 'board_portal.meetings.comment',
+                    'board_portal.minutes.view', 'board_portal.minutes.view_all', 'board_portal.minutes.manage',
+                    'board_portal.resolutions.view', 'board_portal.resolutions.view_all', 'board_portal.resolutions.manage',
+                    'board_portal.action_items.view', 'board_portal.action_items.view_all',
+                    'board_portal.action_items.update_own', 'board_portal.action_items.update_any',
+                    'board_portal.action_items.manage',
+                    'board_portal.documents.view', 'board_portal.documents.download', 'board_portal.documents.manage',
+                    'board_portal.members.view', 'board_portal.members.message',
+                    'board_portal.messages.view', 'board_portal.messages.compose',
+                ],
+            ],
+            [
+                'role_name' => 'Board Treasurer Access',
+                'role_code' => 'TREASURER',
+                'description' => 'Meetings, resolutions, documents, and actions.',
+                'sort_order' => 3,
+                'permissions' => [
+                    'board_portal.access', 'board_portal.dashboard',
+                    'board_portal.committees.view',
+                    'board_portal.meetings.view', 'board_portal.meetings.view_all', 'board_portal.meetings.comment',
+                    'board_portal.minutes.view',
+                    'board_portal.resolutions.view', 'board_portal.resolutions.view_all',
+                    'board_portal.action_items.view', 'board_portal.action_items.view_all',
+                    'board_portal.action_items.update_own',
+                    'board_portal.documents.view', 'board_portal.documents.download', 'board_portal.documents.manage',
+                    'board_portal.members.view',
+                    'board_portal.messages.view',
+                ],
+            ],
+            [
+                'role_name' => 'Board Member Access',
+                'role_code' => 'MEMBER',
+                'description' => 'Standard member: own meetings, actions, and documents.',
+                'sort_order' => 10,
+                'permissions' => [
+                    'board_portal.access', 'board_portal.dashboard',
+                    'board_portal.committees.view',
+                    'board_portal.meetings.view', 'board_portal.meetings.comment',
+                    'board_portal.minutes.view',
+                    'board_portal.resolutions.view',
+                    'board_portal.action_items.view', 'board_portal.action_items.update_own',
+                    'board_portal.documents.view', 'board_portal.documents.download',
+                    'board_portal.messages.view',
+                ],
+            ],
+        ];
+
+        $catalog = $this->availableBoardPermissions();
+        $categoryByName = [];
+        foreach ($catalog as $category => $perms) {
+            foreach ($perms as $name => $label) {
+                $categoryByName[$name] = $category;
+            }
+        }
+
+        foreach ($defaults as $def) {
+            $role = SchoolBoardRole::firstOrCreate(
+                [
+                    'schoolID' => $schoolID,
+                    'role_name' => $def['role_name'],
+                ],
+                [
+                    'role_code' => $def['role_code'],
+                    'description' => $def['description'],
+                    'is_system' => true,
+                    'is_active' => true,
+                    'sort_order' => $def['sort_order'],
+                ]
+            );
+
+            // Seed missing permissions (keeps existing custom roles intact; adds new manage perms to system roles)
+            foreach ($def['permissions'] as $permName) {
+                SchoolBoardRolePermission::firstOrCreate(
+                    [
+                        'boardRoleID' => $role->boardRoleID,
+                        'name' => $permName,
+                    ],
+                    [
+                        'permission_category' => $categoryByName[$permName] ?? null,
+                    ]
+                );
+            }
+        }
+    }
+
+    public function roles()
+    {
+        if ($redirect = $this->authorizeBoardAccess()) {
+            return $redirect;
+        }
+
+        $schoolID = $this->schoolId();
+        if (!$schoolID) {
+            return redirect()->route('login')->with('error', 'School session missing.');
+        }
+
+        if (!Schema::hasTable('school_board_roles')) {
+            return view('Admin.school_board.roles', [
+                'section' => 'roles',
+                'title' => 'Roles & Permissions',
+                'subtitle' => 'Run database migration to enable board roles.',
+                'menu' => $this->menuItems(),
+                'roles' => collect(),
+                'members' => collect(),
+                'permissionCatalog' => $this->availableBoardPermissions(),
+                'tablesReady' => false,
+            ]);
+        }
+
+        $this->ensureDefaultBoardRoles((int) $schoolID);
+
+        $members = SchoolBoardMember::with(['position', 'boardRoles'])
+            ->where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+
+        // Ensure Chair / Secretary / etc. have matching portal roles (create meetings, keep records)
+        foreach ($members as $boardMember) {
+            $this->syncPortalRoleFromPosition($boardMember);
+        }
+        $members->load('boardRoles');
+
+        $roles = SchoolBoardRole::with(['permissions', 'members'])
+            ->where('schoolID', $schoolID)
+            ->orderBy('sort_order')
+            ->orderBy('role_name')
+            ->get();
+
+        return view('Admin.school_board.roles', [
+            'section' => 'roles',
+            'title' => 'Roles & Permissions',
+            'subtitle' => 'Create board roles, set portal permissions, and assign them to members.',
+            'menu' => $this->menuItems(),
+            'roles' => $roles,
+            'members' => $members,
+            'permissionCatalog' => $this->availableBoardPermissions(),
+            'tablesReady' => true,
+        ]);
+    }
+
+    public function storeBoardRole(Request $request)
+    {
+        if ($redirect = $this->authorizeBoardAccess($request)) {
+            return $redirect;
+        }
+
+        $schoolID = $this->schoolId();
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'role_name' => 'required|string|max:120',
+            'description' => 'nullable|string|max:255',
+        ]);
+
+        $name = trim($validated['role_name']);
+        $exists = SchoolBoardRole::where('schoolID', $schoolID)->where('role_name', $name)->exists();
+        if ($exists) {
+            return response()->json(['success' => false, 'message' => 'That role already exists.'], 422);
+        }
+
+        $role = SchoolBoardRole::create([
+            'schoolID' => $schoolID,
+            'role_name' => $name,
+            'description' => $validated['description'] ?? null,
+            'is_system' => false,
+            'is_active' => true,
+            'sort_order' => 50,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Role created. Select permissions and save.',
+            'boardRoleID' => $role->boardRoleID,
+        ]);
+    }
+
+    public function updateBoardRolePermissions(Request $request)
+    {
+        if ($redirect = $this->authorizeBoardAccess($request)) {
+            return $redirect;
+        }
+
+        $schoolID = $this->schoolId();
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'boardRoleID' => 'required|integer',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string|max:120',
+            'role_name' => 'nullable|string|max:120',
+            'description' => 'nullable|string|max:255',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $role = SchoolBoardRole::where('schoolID', $schoolID)
+            ->where('boardRoleID', $validated['boardRoleID'])
+            ->firstOrFail();
+
+        if (!empty($validated['role_name'])) {
+            $newName = trim($validated['role_name']);
+            $dup = SchoolBoardRole::where('schoolID', $schoolID)
+                ->where('role_name', $newName)
+                ->where('boardRoleID', '!=', $role->boardRoleID)
+                ->exists();
+            if ($dup) {
+                return response()->json(['success' => false, 'message' => 'Another role already uses that name.'], 422);
+            }
+            $role->role_name = $newName;
+        }
+        if (array_key_exists('description', $validated)) {
+            $role->description = $validated['description'];
+        }
+        if (array_key_exists('is_active', $validated)) {
+            $role->is_active = (bool) $validated['is_active'];
+        }
+        $role->save();
+
+        $catalog = $this->availableBoardPermissions();
+        $allowed = [];
+        $categoryByName = [];
+        foreach ($catalog as $category => $perms) {
+            foreach ($perms as $name => $label) {
+                $allowed[] = $name;
+                $categoryByName[$name] = $category;
+            }
+        }
+
+        $selected = array_values(array_unique(array_intersect($validated['permissions'] ?? [], $allowed)));
+
+        SchoolBoardRolePermission::where('boardRoleID', $role->boardRoleID)->delete();
+        foreach ($selected as $permName) {
+            SchoolBoardRolePermission::create([
+                'boardRoleID' => $role->boardRoleID,
+                'name' => $permName,
+                'permission_category' => $categoryByName[$permName] ?? null,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Role permissions saved.',
+            'count' => count($selected),
+        ]);
+    }
+
+    public function deleteBoardRole(Request $request)
+    {
+        if ($redirect = $this->authorizeBoardAccess($request)) {
+            return $redirect;
+        }
+
+        $schoolID = $this->schoolId();
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'boardRoleID' => 'required|integer',
+        ]);
+
+        $role = SchoolBoardRole::where('schoolID', $schoolID)
+            ->where('boardRoleID', $validated['boardRoleID'])
+            ->firstOrFail();
+
+        if ($role->is_system) {
+            return response()->json([
+                'success' => false,
+                'message' => 'System roles cannot be deleted. You can deactivate them instead.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($role) {
+            DB::table('school_board_member_roles')->where('boardRoleID', $role->boardRoleID)->delete();
+            SchoolBoardRolePermission::where('boardRoleID', $role->boardRoleID)->delete();
+            $role->delete();
+        });
+
+        return response()->json(['success' => true, 'message' => 'Role deleted.']);
+    }
+
+    public function assignMemberRole(Request $request)
+    {
+        if ($redirect = $this->authorizeBoardAccess($request)) {
+            return $redirect;
+        }
+
+        $schoolID = $this->schoolId();
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'memberID' => 'required|integer',
+            'boardRoleID' => 'required|integer',
+        ]);
+
+        $member = SchoolBoardMember::where('schoolID', $schoolID)
+            ->where('memberID', $validated['memberID'])
+            ->firstOrFail();
+
+        $role = SchoolBoardRole::where('schoolID', $schoolID)
+            ->where('boardRoleID', $validated['boardRoleID'])
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $exists = DB::table('school_board_member_roles')
+            ->where('memberID', $member->memberID)
+            ->where('boardRoleID', $role->boardRoleID)
+            ->exists();
+
+        if (!$exists) {
+            DB::table('school_board_member_roles')->insert([
+                'schoolID' => $schoolID,
+                'memberID' => $member->memberID,
+                'boardRoleID' => $role->boardRoleID,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Role assigned to ' . $member->full_name . '.',
+        ]);
+    }
+
+    public function removeMemberRole(Request $request)
+    {
+        if ($redirect = $this->authorizeBoardAccess($request)) {
+            return $redirect;
+        }
+
+        $schoolID = $this->schoolId();
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'memberID' => 'required|integer',
+            'boardRoleID' => 'required|integer',
+        ]);
+
+        DB::table('school_board_member_roles')
+            ->where('schoolID', $schoolID)
+            ->where('memberID', $validated['memberID'])
+            ->where('boardRoleID', $validated['boardRoleID'])
+            ->delete();
+
+        return response()->json(['success' => true, 'message' => 'Role removed from member.']);
     }
 }
