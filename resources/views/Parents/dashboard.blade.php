@@ -1,6 +1,6 @@
 @extends('layouts.parent_corp')
 
-@section('title', 'Parent Dashboard - ShuleXpert')
+@section('title', __('parent.dashboard_title') . ' - ShuleXpert')
 
 @section('content')
 <style>
@@ -154,7 +154,7 @@
                     <div class="d-flex flex-wrap gap-3 mt-2">
                         <span class="text-muted"><i class="bx bx-phone"></i> {{ $parent->phone }}</span>
                         @if($parent->email)<span class="text-muted"><i class="bx bx-envelope"></i> {{ $parent->email }}</span>@endif
-                        <span class="text-muted"><i class="bx bx-hash"></i> Parent ID: {{ $parent->parentID }}</span>
+                        <span class="text-muted"><i class="bx bx-hash"></i> {{ __('parent.parent_id') }}: {{ $parent->parentID }}</span>
                         @if($school)<span class="text-primary font-weight-bold"><i class="bx bx-building-house"></i> {{ $school->school_name }}</span>@endif
                     </div>
                 </div>
@@ -172,11 +172,11 @@
                     <i class="bx bx-megaphone me-3" style="font-size: 24px; color: #940000;"></i>
                     <div style="color: #333;">
                         @if($rn->type == 'exam')
-                            Matokeo ya <strong>{{ $rn->examination->exam_name ?? 'Mtihani' }}</strong> kwa mwanafunzi <strong>{{ $rn->student->first_name }} {{ $rn->student->last_name }}</strong> yametoka.
+                            {!! __('parent.exam_results_out', ['exam' => '<strong>'.e($rn->examination->exam_name ?? __('parent.exam_generic')).'</strong>', 'name' => '<strong>'.e(($rn->student->first_name ?? '').' '.($rn->student->last_name ?? '')).'</strong>']) !!}
                         @else
-                            Ripoti ya <strong>Muhula ({{ $rn->term == 'first_term' ? 'Muhula wa 1' : 'Muhula wa 2' }})</strong> kwa mwanafunzi <strong>{{ $rn->student->first_name }} {{ $rn->student->last_name }}</strong> imetoka.
+                            {!! __('parent.term_report_out', ['term' => $rn->term == 'first_term' ? __('parent.term_1') : __('parent.term_2'), 'name' => '<strong>'.e(($rn->student->first_name ?? '').' '.($rn->student->last_name ?? '')).'</strong>']) !!}
                         @endif
-                        <a href="{{ route('parentResults') }}" class="alert-link ms-2" style="color: #940000; text-decoration: underline;">Bofya hapa kutazama</a>
+                        <a href="{{ route('parentResults') }}" class="alert-link ms-2" style="color: #940000; text-decoration: underline;">{{ __('parent.click_to_view') }}</a>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
@@ -191,28 +191,28 @@
         <div class="stat-card">
             <div class="stat-icon"><i class="bx bx-group"></i></div>
             <div class="stat-number">{{ number_format($totalStudents) }}</div>
-            <div class="stat-label">Total Children</div>
+            <div class="stat-label">{{ __('parent.total_children') }}</div>
         </div>
     </div>
     <div class="col-6 col-md-6 col-lg-3">
         <div class="stat-card">
             <div class="stat-icon"><i class="bx bx-user-check"></i></div>
             <div class="stat-number">{{ number_format($activeStudents) }}</div>
-            <div class="stat-label">Active Students</div>
+            <div class="stat-label">{{ __('parent.active_students') }}</div>
         </div>
     </div>
     <div class="col-6 col-md-6 col-lg-3">
         <div class="stat-card">
             <div class="stat-icon"><i class="bx bx-chart"></i></div>
             <div class="stat-number">{{ $recentResults->count() }}</div>
-            <div class="stat-label">Recent Results</div>
+            <div class="stat-label">{{ __('parent.recent_results') }}</div>
         </div>
     </div>
     <div class="col-6 col-md-6 col-lg-3">
         <div class="stat-card">
             <div class="stat-icon"><i class="bx bx-alarm-exclamation"></i></div>
             <div class="stat-number">{{ $upcomingExams->count() }}</div>
-            <div class="stat-label">Upcoming Exams</div>
+            <div class="stat-label">{{ __('parent.upcoming_exams') }}</div>
         </div>
     </div>
 </div>
@@ -222,19 +222,19 @@
     <div class="col-12">
         <div class="card border-0 shadow-sm" style="border-top: 4px solid #940000 !important;">
             <div class="card-body">
-                <div class="section-title mb-3" style="margin-bottom: 12px !important;"><i class="bx bx-calendar-check"></i> Mahudhurio ya Watoto</div>
+                <div class="section-title mb-3" style="margin-bottom: 12px !important;"><i class="bx bx-calendar-check"></i> {{ __('parent.children_attendance') }}</div>
                 <div class="row g-3 align-items-end">
                     <div class="col-md-4">
-                        <label class="small text-uppercase fw-bold text-muted">Chagua Aina</label>
+                        <label class="small text-uppercase fw-bold text-muted">{{ __('parent.choose_type') }}</label>
                         <select class="form-select" id="dashboardAttendanceMode">
-                            <option value="{{ route('parentAttendance') }}">Mahudhurio ya Mfumo</option>
-                            <option value="{{ route('parentFingerprintAttendance') }}">Alama za Vidole (Fingerprint)</option>
+                            <option value="{{ route('parentAttendance') }}">{{ __('parent.system_attendance') }}</option>
+                            <option value="{{ route('parentFingerprintAttendance') }}">{{ __('parent.fingerprint_attendance') }}</option>
                         </select>
                     </div>
                     <div class="col-md-8">
-                        <p class="small text-muted mb-2">Bofya hapa chini kuona mahudhurio ya kila mtoto kwa kalenda ya mwezi.</p>
+                        <p class="small text-muted mb-2">{{ __('parent.attendance_hint') }}</p>
                         <a href="{{ route('parentAttendance') }}" class="btn btn-primary">
-                            <i class="bx bx-show"></i> Angalia Mahudhurio ya Mfumo
+                            <i class="bx bx-show"></i> {{ __('parent.view_system_attendance') }}
                         </a>
                     </div>
                 </div>
@@ -246,7 +246,7 @@
 <div class="row">
     <!-- Children List -->
     <div class="col-lg-4">
-        <div class="section-title"><i class="bx bx-child"></i> My Children</div>
+        <div class="section-title"><i class="bx bx-child"></i> {{ __('parent.my_children') }}</div>
         <div class="mb-4">
             @foreach($students as $student)
                 <div class="student-item">
@@ -261,14 +261,14 @@
                             {{ $student->subclass->class->class_name ?? '' }} {{ $student->subclass->subclass_name ?? '' }}
                         </div>
                         <div class="mt-1">
-                            <span class="badge {{ $student->status == 'Active' ? 'bg-success' : 'bg-secondary' }}" style="font-size: 9px; border-radius: 0;">{{ strtoupper($student->status) }}</span>
+                            <span class="badge {{ $student->status == 'Active' ? 'bg-success' : 'bg-secondary' }}" style="font-size: 9px; border-radius: 0;">{{ strtoupper($student->status == 'Active' ? __('parent.active') : __('parent.inactive')) }}</span>
                         </div>
                     </div>
                 </div>
             @endforeach
         </div>
 
-        <div class="section-title mt-4"><i class="bx bx-pie-chart-alt-2"></i> Gender Distribution</div>
+        <div class="section-title mt-4"><i class="bx bx-pie-chart-alt-2"></i> {{ __('parent.gender_distribution') }}</div>
         <div class="card p-3 mb-4 shadow-sm border-0">
             <canvas id="genderChart" height="200"></canvas>
         </div>
@@ -277,32 +277,32 @@
     <!-- Main Activity Section -->
     <div class="col-lg-8">
         <!-- Recent Results -->
-        <div class="section-title"><i class="bx bx-award"></i> Latest Examination Results</div>
+        <div class="section-title"><i class="bx bx-award"></i> {{ __('parent.latest_exam_results') }}</div>
         <div class="card mb-5 border-0 shadow-sm">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Student</th>
-                            <th>Subject</th>
-                            <th>Exam</th>
-                            <th class="text-center">Marks</th>
-                            <th class="text-center">Grade</th>
+                            <th>{{ __('parent.student') }}</th>
+                            <th>{{ __('parent.subject') }}</th>
+                            <th>{{ __('parent.exam') }}</th>
+                            <th class="text-center">{{ __('parent.marks') }}</th>
+                            <th class="text-center">{{ __('parent.grade') }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($recentResults as $result)
                         <tr>
                             <td style="font-weight: 700;">{{ $result->student->first_name }}</td>
-                            <td>{{ $result->classSubject->subject->subject_name ?? 'N/A' }}</td>
-                            <td style="font-size: 12px;">{{ $result->examination->exam_name ?? 'N/A' }}</td>
+                            <td>{{ $result->classSubject->subject->subject_name ?? __('parent.na') }}</td>
+                            <td style="font-size: 12px;">{{ $result->examination->exam_name ?? __('parent.na') }}</td>
                             <td class="text-center"><span class="badge bg-primary" style="border-radius: 0;">{{ $result->marks }}</span></td>
                             <td class="text-center"><span class="badge bg-success" style="border-radius: 0;">{{ $result->grade }}</span></td>
                         </tr>
                         @endforeach
                         @if($recentResults->isEmpty())
                         <tr>
-                            <td colspan="5" class="text-center py-4 text-muted">No recent results found</td>
+                            <td colspan="5" class="text-center py-4 text-muted">{{ __('parent.no_recent_results') }}</td>
                         </tr>
                         @endif
                     </tbody>
@@ -311,16 +311,16 @@
         </div>
 
         <!-- Attendance -->
-        <div class="section-title"><i class="bx bx-calendar-event"></i> Recent Attendance</div>
+        <div class="section-title"><i class="bx bx-calendar-event"></i> {{ __('parent.recent_attendance') }}</div>
         <div class="card mb-5 border-0 shadow-sm">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Student</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                            <th>Remark</th>
+                            <th>{{ __('parent.student') }}</th>
+                            <th>{{ __('parent.date') }}</th>
+                            <th>{{ __('parent.status') }}</th>
+                            <th>{{ __('parent.remark') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -336,8 +336,15 @@
                                         'Absent' => 'danger',
                                         default => 'secondary'
                                     };
+                                    $attStatus = match(strtolower((string)$attendance->status)) {
+                                        'present' => __('parent.present'),
+                                        'wait' => __('parent.wait'),
+                                        'absent' => __('parent.absent'),
+                                        'sick' => __('parent.sick'),
+                                        default => $attendance->status
+                                    };
                                 @endphp
-                                <span class="badge bg-{{ $color }}" style="border-radius: 0;">{{ strtoupper($attendance->status) }}</span>
+                                <span class="badge bg-{{ $color }}" style="border-radius: 0;">{{ strtoupper($attStatus) }}</span>
                             </td>
                             <td style="font-size: 12px; color: #777;">{{ $attendance->remark ?: '-' }}</td>
                         </tr>
@@ -361,7 +368,7 @@
         new Chart(genderCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Male', 'Female'],
+                labels: [@json(__('parent.male')), @json(__('parent.female'))],
                 datasets: [{
                     data: [{{ $maleStudents }}, {{ $femaleStudents }}],
                     backgroundColor: ['#940000', '#f0f0f0'],

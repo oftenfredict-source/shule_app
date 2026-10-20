@@ -1,6 +1,6 @@
 @extends('layouts.parent_corp')
 
-@section('title', 'Registered Subjects - ShuleXpert')
+@section('title', __('parent.curriculum_subjects') . ' - ShuleXpert')
 
 @section('content')
 <style>
@@ -46,7 +46,7 @@
 
 <div class="row">
     <div class="col-12">
-        <div class="section-title"><i class="bx bx-book"></i> Curriculum & Subjects</div>
+        <div class="section-title"><i class="bx bx-book"></i> {{ __('parent.curriculum_subjects') }}</div>
     </div>
 
     <!-- Student Selection -->
@@ -54,9 +54,9 @@
         <div class="selection-card">
             <div class="row align-items-end g-3">
                 <div class="col-md-6">
-                    <label class="form-label text-uppercase small font-weight-bold">Select Student</label>
+                    <label class="form-label text-uppercase small font-weight-bold">{{ __('parent.select_student') }}</label>
                     <select id="studentSelect" class="form-select">
-                        <option value="">Choose a student...</option>
+                        <option value="">{{ __('parent.choose_a_student') }}</option>
                         @foreach($students as $student)
                             <option value="{{ $student->studentID }}">
                                 {{ $student->first_name }} {{ $student->last_name }} 
@@ -66,7 +66,7 @@
                     </select>
                 </div>
                 <div class="col-md-auto">
-                    <div class="text-muted small pb-2"><i class="bx bx-info-circle"></i> Selecting a student will load their current subject list and teacher assignments.</div>
+                    <div class="text-muted small pb-2"><i class="bx bx-info-circle"></i> {{ __('parent.select_student_hint') }}</div>
                 </div>
             </div>
         </div>
@@ -76,7 +76,7 @@
     <div class="col-12 mt-4" id="subjectsContainer">
         <div class="bg-white p-5 text-center shadow-sm">
             <i class="bx bx-select-multiple text-muted mb-3" style="font-size: 50px;"></i>
-            <h5 class="text-muted">Please select a student above to view their subjects.</h5>
+            <h5 class="text-muted">{{ __('parent.select_student_to_view') }}</h5>
         </div>
     </div>
 </div>
@@ -87,6 +87,7 @@
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script>
     $(document).ready(function() {
+        const P = @json(trans('parent'));
         $('#studentSelect').on('change', function() {
             var studentID = $(this).val();
             if (!studentID) return;
@@ -99,24 +100,25 @@
                 success: function(response) {
                     if (response.success && response.subjects) {
                         var html = '<div class="card border-0 shadow-sm">';
-                        html += '<div class="card-header bg-white py-3 border-bottom"><h6 class="mb-0 font-weight-bold text-uppercase" style="letter-spacing:1px; color:#940000;"><i class="bx bx-list-ul"></i> Subject List for ' + response.student.first_name + '</h6></div>';
+                        html += '<div class="card-header bg-white py-3 border-bottom"><h6 class="mb-0 font-weight-bold text-uppercase" style="letter-spacing:1px; color:#940000;"><i class="bx bx-list-ul"></i> ' + P.subject_list_for.replace(':name', response.student.first_name) + '</h6></div>';
                         html += '<div class="table-responsive">';
                         html += '<table class="table table-hover align-middle mb-0" id="subjectsTable">';
-                        html += '<thead><tr><th>#</th><th>Subject</th><th>Teacher</th><th>Requirement</th><th>Action</th></tr></thead><tbody>';
+                        html += '<thead><tr><th>#</th><th>' + P.subject + '</th><th>' + P.teacher + '</th><th>' + P.requirement + '</th><th>' + P.actions + '</th></tr></thead><tbody>';
 
                         response.subjects.forEach(function(s, idx) {
                             var reqBadge = s.student_status === 'Required' ? 'bg-warning text-dark' : 'bg-info text-white';
+                            var reqLabel = s.student_status === 'Required' ? P.required : P.optional;
                             html += '<tr class="subject-row">';
                             html += '<td>' + (idx+1) + '</td>';
                             html += '<td><div style="font-weight:800; color:#333;">' + s.subject_name + '</div><div class="small text-muted">' + (s.subject_code || '---') + '</div></td>';
-                            html += '<td class="small">' + (s.teacher_name || '<i class="text-muted">No teacher assigned</i>') + '</td>';
-                            html += '<td><span class="status-badge ' + reqBadge + '">' + s.student_status + '</span></td>';
+                            html += '<td class="small">' + (s.teacher_name || '<i class="text-muted">' + P.no_teacher + '</i>') + '</td>';
+                            html += '<td><span class="status-badge ' + reqBadge + '">' + reqLabel + '</span></td>';
                             html += '<td>';
                             if (s.student_status === 'Optional' && s.status === 'Active') {
                                 if (s.is_elected) {
-                                    html += '<button class="btn btn-sm btn-danger deselect-subject-btn py-1" style="font-size:10px; border-radius:0;" data-sid="'+response.student.studentID+'" data-csid="'+s.class_subjectID+'" data-name="'+s.subject_name+'">DESELECT</button>';
+                                    html += '<button class="btn btn-sm btn-danger deselect-subject-btn py-1" style="font-size:10px; border-radius:0;" data-sid="'+response.student.studentID+'" data-csid="'+s.class_subjectID+'" data-name="'+s.subject_name+'">' + P.deselect + '</button>';
                                 } else {
-                                    html += '<button class="btn btn-sm btn-primary elect-subject-btn py-1" style="font-size:10px; border-radius:0;" data-sid="'+response.student.studentID+'" data-csid="'+s.class_subjectID+'" data-name="'+s.subject_name+'">ELECT SUBJECT</button>';
+                                    html += '<button class="btn btn-sm btn-primary elect-subject-btn py-1" style="font-size:10px; border-radius:0;" data-sid="'+response.student.studentID+'" data-csid="'+s.class_subjectID+'" data-name="'+s.subject_name+'">' + P.elect_subject + '</button>';
                                 }
                             } else {
                                 html += '<span class="text-muted small">---</span>';
@@ -140,19 +142,19 @@
             var name = $(this).data('name');
 
             Swal.fire({
-                title: isElect ? 'Elect Subject?' : 'Deselect Subject?',
-                text: 'Confirm action for ' + name,
+                title: isElect ? P.elect_q : P.deselect_q,
+                text: P.confirm_for.replace(':name', name),
                 icon: isElect ? 'question' : 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#940000',
-                confirmButtonText: 'Confirm'
+                confirmButtonText: P.confirm
             }).then((res) => {
                 if (res.isConfirmed) {
                     $.post(url, { studentID: sid, classSubjectID: csid, _token: '{{ csrf_token() }}' }, function(r) {
                         if (r.success) {
-                            Swal.fire('Success', r.success, 'success').then(() => $('#studentSelect').trigger('change'));
+                            Swal.fire(P.success, r.success, 'success').then(() => $('#studentSelect').trigger('change'));
                         } else {
-                            Swal.fire('Error', r.error, 'error');
+                            Swal.fire(P.error, r.error, 'error');
                         }
                     });
                 }

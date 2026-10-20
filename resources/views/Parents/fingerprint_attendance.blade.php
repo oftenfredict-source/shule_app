@@ -1,10 +1,10 @@
 @extends('layouts.parent_corp')
 
-@section('title', 'Mahudhurio ya Alama za Vidole - ShuleXpert')
+@section('title', __('parent.fingerprint_title') . ' - ShuleXpert')
 
 @section('content')
 @php
-    $monthLabel = \Carbon\Carbon::create((int)$year, (int)$month, 1)->locale('sw')->isoFormat('MMMM Y');
+    $monthLabel = \Carbon\Carbon::create((int)$year, (int)$month, 1)->locale(app()->getLocale())->isoFormat('MMMM Y');
 @endphp
 <style>
     .att-hero {
@@ -126,15 +126,15 @@
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
                 <div>
                     <div class="section-title mb-2" style="border: none; padding: 0;">
-                        <i class="bx bx-fingerprint"></i> Mahudhurio ya Alama za Vidole
+                        <i class="bx bx-fingerprint"></i> {{ __('parent.fingerprint_title') }}
                     </div>
-                    <p class="text-muted small mb-0">Chagua mtoto kuona mahudhurio yake kulingana na alama za vidole. Ruhusa na wagonjwa zinaangaliwa kutoka kwenye maombi yaliyoidhinishwa.</p>
+                    <p class="text-muted small mb-0">{{ __('parent.fingerprint_intro') }}</p>
                 </div>
                 <div>
-                    <label class="small text-uppercase fw-bold text-muted d-block mb-1">Aina ya Mahudhurio</label>
+                    <label class="small text-uppercase fw-bold text-muted d-block mb-1">{{ __('parent.attendance_type') }}</label>
                     <select class="form-select form-select-sm mode-select" id="attendanceModeSelect">
-                        <option value="{{ route('parentAttendance') }}">Mahudhurio ya Mfumo</option>
-                        <option value="{{ route('parentFingerprintAttendance') }}" selected>Alama za Vidole (Fingerprint)</option>
+                        <option value="{{ route('parentAttendance') }}">{{ __('parent.system_attendance') }}</option>
+                        <option value="{{ route('parentFingerprintAttendance') }}" selected>{{ __('parent.fingerprint_attendance') }}</option>
                     </select>
                 </div>
             </div>
@@ -150,21 +150,21 @@
     <div class="col-12">
         <div class="hint-box">
             <i class="bx bx-info-circle text-danger"></i>
-            <strong>Chagua mwanafunzi</strong> kuona mahudhurio yake kwa kalenda ya mwezi (<strong>{{ $monthLabel }}</strong>).
-            Watoto walio kwenye madarasa yasiyoruhusiwa wataonekana kwa kivuli.
+            {!! __('parent.choose_student_month', ['month' => '<strong>'.e($monthLabel).'</strong>']) !!}
+            {{ __('parent.fp_shadow_note') }}
         </div>
     </div>
 
     <div class="col-12">
         <form method="GET" action="{{ route('parentFingerprintAttendance') }}" class="row g-2 mb-3">
             <div class="col-md-5">
-                <input type="text" name="q" class="form-control" placeholder="Tafuta mtoto kwa jina au namba ya usajili..." value="{{ $search }}">
+                <input type="text" name="q" class="form-control" placeholder="{{ __('parent.search_child_placeholder') }}" value="{{ $search }}">
             </div>
             <div class="col-md-3 col-6">
                 <select name="month" class="form-select">
                     @for($m = 1; $m <= 12; $m++)
                         <option value="{{ $m }}" {{ (int)$month === $m ? 'selected' : '' }}>
-                            {{ \Carbon\Carbon::create(null, $m, 1)->locale('sw')->isoFormat('MMMM') }}
+                            {{ \Carbon\Carbon::create(null, $m, 1)->locale(app()->getLocale())->isoFormat('MMMM') }}
                         </option>
                     @endfor
                 </select>
@@ -177,22 +177,22 @@
                 </select>
             </div>
             <div class="col-md-2 col-12">
-                <button type="submit" class="btn btn-primary w-100"><i class="bx bx-search"></i> Tafuta</button>
+                <button type="submit" class="btn btn-primary w-100"><i class="bx bx-search"></i> {{ __('parent.search_btn') }}</button>
             </div>
         </form>
     </div>
 
     @if($students->isEmpty())
         <div class="col-12">
-            <div class="alert alert-warning mb-0">Hakuna watoto waliosajiliwa kwenye akaunti yako.</div>
+            <div class="alert alert-warning mb-0">{{ __('parent.no_students') }}</div>
         </div>
     @elseif(empty($childrenOverview))
         <div class="col-12">
-            <div class="alert alert-info mb-0">Hakuna mtoto aliyepatikana kwa utafutaji wako.</div>
+            <div class="alert alert-info mb-0">{{ __('parent.no_search_child') }}</div>
         </div>
     @else
         <div class="col-12">
-            <div class="section-title"><i class="bx bx-group"></i> Watoto Wako ({{ count($childrenOverview) }})</div>
+            <div class="section-title"><i class="bx bx-group"></i> {{ __('parent.your_children') }} ({{ count($childrenOverview) }})</div>
         </div>
 
         @foreach($childrenOverview as $item)
@@ -216,27 +216,27 @@
                             @endif
                             <div class="flex-grow-1 min-width-0">
                                 <div class="fw-bold text-truncate">{{ $st->first_name }} {{ $st->last_name }}</div>
-                                <div class="small text-muted text-truncate">{{ $className ?: 'Darasa haijulikani' }}</div>
-                                <div class="small text-muted">Usajili: {{ $st->admission_number ?? '-' }}</div>
+                                <div class="small text-muted text-truncate">{{ $className ?: __('parent.unknown_class') }}</div>
+                                <div class="small text-muted">{{ __('parent.admission') }}: {{ $st->admission_number ?? '-' }}</div>
                             </div>
                             <div class="rate-badge">{{ $stats['attendance_rate'] }}%</div>
                         </div>
                         <div class="row g-1 mt-3 text-center">
                             <div class="col mini-stat">
                                 <div class="val text-success">{{ $stats['present'] }}</div>
-                                <div class="lbl">Alikuwepo</div>
+                                <div class="lbl">{{ __('parent.present') }}</div>
                             </div>
                             <div class="col mini-stat">
                                 <div class="val text-danger">{{ $stats['absent'] }}</div>
-                                <div class="lbl">Hayupo</div>
+                                <div class="lbl">{{ __('parent.absent') }}</div>
                             </div>
                             <div class="col mini-stat">
                                 <div class="val" style="color:#fd7e14;">{{ $stats['sick'] }}</div>
-                                <div class="lbl">Mgonjwa</div>
+                                <div class="lbl">{{ __('parent.sick') }}</div>
                             </div>
                             <div class="col mini-stat">
                                 <div class="val text-warning">{{ $stats['permission'] }}</div>
-                                <div class="lbl">Ruhusa</div>
+                                <div class="lbl">{{ __('parent.permission') }}</div>
                             </div>
                         </div>
                     </a>
@@ -252,14 +252,14 @@
                             @endif
                             <div class="flex-grow-1 min-width-0">
                                 <div class="fw-bold text-truncate">{{ $st->first_name }} {{ $st->last_name }}</div>
-                                <div class="small text-muted text-truncate">{{ $className ?: 'Darasa haijulikani' }}</div>
-                                <div class="small text-muted">Usajili: {{ $st->admission_number ?? '-' }}</div>
+                                <div class="small text-muted text-truncate">{{ $className ?: __('parent.unknown_class') }}</div>
+                                <div class="small text-muted">{{ __('parent.admission') }}: {{ $st->admission_number ?? '-' }}</div>
                             </div>
                             <div class="rate-badge" style="border-color:#aaa; color:#888;">-</div>
                         </div>
                         <div class="disabled-banner">
                             <i class="bx bx-lock-alt"></i>
-                            Mahudhurio kwa alama za vidole hayajaruhusiwa kwa darasa hili
+                            {{ __('parent.fp_not_enabled') }}
                         </div>
                     </div>
                 @endif

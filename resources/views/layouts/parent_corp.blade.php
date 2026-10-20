@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html
-  lang="en"
+  lang="{{ in_array(Session::get('locale', 'sw'), ['en', 'sw'], true) ? Session::get('locale', 'sw') : 'sw' }}"
   class="light-style"
   dir="ltr"
   data-theme="theme-default"
@@ -13,9 +13,9 @@
       content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
     />
 
-    <title>@yield('title', 'ShuleXpert - Parent Portal')</title>
+    <title>@yield('title', 'ShuleXpert - ' . __('parent.portal'))</title>
 
-    <meta name="description" content="ShuleXpert - Parent Portal" />
+    <meta name="description" content="ShuleXpert - {{ __('parent.portal') }}" />
     
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}" />
@@ -175,6 +175,21 @@
           justify-content: center;
           overflow: visible;
           flex-shrink: 0;
+          border: 2px solid #000 !important;
+          border-radius: 50% !important;
+          background: #fff !important;
+          color: #940000 !important;
+      }
+      html[data-sx-theme="light"] #parentHpNotifBtn,
+      html:not([data-sx-theme="dark"]) #parentHpNotifBtn {
+          border: 2px solid #000 !important;
+          background: #fff !important;
+          color: #940000 !important;
+      }
+      html[data-sx-theme="dark"] #parentHpNotifBtn {
+          border: 2px solid #000 !important;
+          background: #1f1f1f !important;
+          color: #ffd6d6 !important;
       }
       #parentHpNotifBadge {
           top: 2px !important;
@@ -280,6 +295,29 @@
       .corp-login-name { font-size:15px; font-weight:800; color:#940000; }
       .parent-ay-wrap { display:flex; gap:6px; align-items:center; flex-shrink:1; min-width:0; }
       .parent-ay-select { max-width: 120px; }
+      .parent-lang-switch {
+          display: inline-flex;
+          border: 1px solid #940000;
+          overflow: hidden;
+          background: #fff;
+          flex-shrink: 0;
+      }
+      .parent-lang-btn {
+          border: 0;
+          background: transparent;
+          color: #940000;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: .04em;
+          padding: 6px 9px;
+          cursor: pointer;
+          line-height: 1;
+          min-width: 34px;
+      }
+      .parent-lang-btn.is-active {
+          background: #940000;
+          color: #fff;
+      }
  
       @media (max-width: 991px) {
           #corp-sidebar { left: -240px; transition: left 0.3s; top: 64px; height: calc(100vh - 64px); }
@@ -402,7 +440,7 @@
 
     <!-- Corporate Header -->
     <header id="corp-header">
-        <button type="button" id="mobile-toggle" aria-label="Toggle menu" onclick="document.getElementById('corp-sidebar').classList.toggle('mobile-open')">
+        <button type="button" id="mobile-toggle" aria-label="{{ __('parent.toggle_menu') }}" onclick="document.getElementById('corp-sidebar').classList.toggle('mobile-open')">
             <i class="bx bx-menu"></i>
         </button>
 
@@ -410,13 +448,13 @@
             <img src="{{ asset('images/shuleXpert.jpg') }}" alt="ShuleXpert" onerror="this.onerror=null; this.src='{{ asset('images/logo.png') }}';">
             <div class="corp-logo-text">
                 <div class="corp-logo-title">ShuleXpert</div>
-                <div class="corp-logo-sub">PARENT PORTAL</div>
+                <div class="corp-logo-sub">{{ __('parent.portal') }}</div>
             </div>
         </a>
 
         <div id="corp-header-center">
             <div class="corp-login-info">
-                <div class="corp-login-label">ACCESSING PORTAL AS</div>
+                <div class="corp-login-label">{{ __('parent.accessing_as') }}</div>
                 <div class="corp-login-name">{{ strtoupper($navParentName) }}</div>
             </div>
         </div>
@@ -456,11 +494,25 @@
                 </div>
             @endif
 
+            @php $parentLocale = Session::get('locale', 'sw') === 'en' ? 'en' : 'sw'; @endphp
+            <div class="parent-lang-switch" role="group" aria-label="{{ __('parent.language') }}">
+                <button type="button"
+                        class="parent-lang-btn{{ $parentLocale === 'sw' ? ' is-active' : '' }}"
+                        data-locale="sw"
+                        aria-pressed="{{ $parentLocale === 'sw' ? 'true' : 'false' }}"
+                        title="{{ __('parent.swahili') }}">SW</button>
+                <button type="button"
+                        class="parent-lang-btn{{ $parentLocale === 'en' ? ' is-active' : '' }}"
+                        data-locale="en"
+                        aria-pressed="{{ $parentLocale === 'en' ? 'true' : 'false' }}"
+                        title="{{ __('parent.english') }}">EN</button>
+            </div>
+
             {{-- Parent notifications (results + home package) --}}
             <div class="dropdown">
                 <button class="btn btn-link position-relative p-0" type="button" id="parentHpNotifBtn"
                         data-bs-toggle="dropdown" data-bs-auto-close="outside"
-                        aria-expanded="false" aria-label="Notifications"
+                        aria-expanded="false" aria-label="{{ __('parent.notifications') }}"
                         style="color:#940000;font-size:24px;text-decoration:none;line-height:1;">
                     <i class="bx bx-bell"></i>
                     <span id="parentHpNotifBadge" class="position-absolute badge rounded-pill bg-danger" style="font-size:10px;display:none;">0</span>
@@ -468,19 +520,22 @@
                 <div class="dropdown-menu dropdown-menu-end p-0 shadow" aria-labelledby="parentHpNotifBtn">
                     <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom" style="background:#fff5f5;">
                         <strong style="color:#940000;font-size:13px;">
-                            <i class="bx bxs-bell me-1"></i> Arifa
+                            <i class="bx bxs-bell me-1"></i> {{ __('parent.notifications') }}
                         </strong>
-                        <button type="button" class="btn btn-sm btn-link p-0" id="parentHpMarkAllRead" style="color:#940000;font-size:12px;">Soma zote</button>
+                        <button type="button" class="btn btn-sm btn-link p-0" id="parentHpMarkAllRead" style="color:#940000;font-size:12px;">{{ __('parent.mark_all_read') }}</button>
                     </div>
                     <div id="parentHpNotifList" style="max-height:360px;overflow-y:auto;">
-                        <div class="p-3 text-muted small text-center">Inapakia...</div>
+                        <div class="p-3 text-muted small text-center">{{ __('parent.loading') }}</div>
                     </div>
                     <div class="border-top px-3 py-2 d-flex justify-content-between gap-2 flex-wrap">
                         <a href="{{ route('parentResults') }}" class="small" style="color:#940000;font-weight:700;">
-                            <i class="bx bx-trophy"></i> Matokeo →
+                            <i class="bx bx-trophy"></i> {{ __('parent.results_link') }} →
                         </a>
                         <a href="{{ route('parentHomePackages') }}" class="small" style="color:#940000;font-weight:700;">
-                            <i class="bx bx-home-smile"></i> Home Package →
+                            <i class="bx bx-home-smile"></i> {{ __('parent.hp_link') }} →
+                        </a>
+                        <a href="{{ route('parentNotes') }}" class="small" style="color:#940000;font-weight:700;">
+                            <i class="bx bx-note"></i> {{ __('parent.notes_link') }} →
                         </a>
                     </div>
                 </div>
@@ -498,14 +553,14 @@
                     </div>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="#"><i class="bx bx-user me-2"></i>My Profile</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="bx bx-user me-2"></i>{{ __('parent.my_profile') }}</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="{{ route('parent.permissions') }}"><i class="bx bx-check-shield me-2"></i>Ruksa</a></li>
+                    <li><a class="dropdown-item" href="{{ route('parent.permissions') }}"><i class="bx bx-check-shield me-2"></i>{{ __('parent.permissions') }}</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
                         <form action="{{ route('logout') }}" method="POST">
                             @csrf
-                            <button type="submit" class="dropdown-item"><i class="bx bx-power-off me-2"></i>Logout</button>
+                            <button type="submit" class="dropdown-item"><i class="bx bx-power-off me-2"></i>{{ __('parent.logout') }}</button>
                         </form>
                     </li>
                 </ul>
@@ -514,7 +569,7 @@
     </header>
 
     @if(!empty($navSchoolSocial))
-        <div class="parent-school-social-bar" title="School social media">
+        <div class="parent-school-social-bar" title="{{ __('parent.school_social') }}">
             @foreach($navSchoolSocial as $sm)
                 <a href="{{ $sm['href'] }}" target="_blank" rel="noopener noreferrer" class="parent-sm-icon" title="{{ $sm['label'] }}"
                    style="background: {{ $sm['color'] ?? '#940000' }}; color:#fff;">
@@ -526,62 +581,66 @@
 
     <!-- Sidebar -->
     <nav id="corp-sidebar">
-        <div class="sidebar-group-title">TAALUMA NA SHUGHULI</div>
+        <div class="sidebar-group-title">{{ __('parent.nav_academics') }}</div>
         <a href="{{ route('parentDashboard') }}" class="sidebar-link {{ request()->routeIs('parentDashboard') ? 'active' : '' }}">
-            <i class="bx bx-grid-alt"></i> Dashibodi
+            <i class="bx bx-grid-alt"></i> {{ __('parent.nav_dashboard') }}
         </a>
 
         <!-- Matokeo Dropdown / Collapse -->
         <a class="sidebar-link {{ request()->routeIs('parentResults') || request()->routeIs('parentReport') ? 'active' : '' }}" data-bs-toggle="collapse" href="#matokeoCollapse" role="button" aria-expanded="{{ request()->routeIs('parentResults') || request()->routeIs('parentReport') ? 'true' : 'false' }}" aria-controls="matokeoCollapse">
-            <i class="bx bx-trophy"></i> Matokeo
+            <i class="bx bx-trophy"></i> {{ __('parent.nav_results') }}
             <span id="parentResultsSidebarBadge" class="badge bg-danger ms-1" style="font-size:10px;display:none;">0</span>
             <i class="bx bx-chevron-down ms-auto" style="font-size: 14px;"></i>
         </a>
         <div class="collapse {{ request()->routeIs('parentResults') || request()->routeIs('parentReport') ? 'show' : '' }}" id="matokeoCollapse">
             <a href="{{ route('parentResults') }}" class="sidebar-link" style="padding-left: 45px; font-size: 12px; {{ request()->routeIs('parentResults') ? 'color: #940000; font-weight: bold;' : '' }}">
-                <i class="bx bx-file-blank" style="font-size: 14px;"></i> Matokeo ya Mtihani
+                <i class="bx bx-file-blank" style="font-size: 14px;"></i> {{ __('parent.nav_exam_results') }}
             </a>
             <a href="{{ route('parentReport') }}" class="sidebar-link" style="padding-left: 45px; font-size: 12px; {{ request()->routeIs('parentReport') ? 'color: #940000; font-weight: bold;' : '' }}">
-                <i class="bx bx-book-open" style="font-size: 14px;"></i> Ripoti ya Mwanafunzi
+                <i class="bx bx-book-open" style="font-size: 14px;"></i> {{ __('parent.nav_student_report') }}
             </a>
         </div>
 
         <a class="sidebar-link {{ request()->routeIs('parentAttendance') || request()->routeIs('parentStudentAttendance') || request()->routeIs('parentFingerprintAttendance') || request()->routeIs('parentStudentFingerprintAttendance') ? 'active' : '' }}" data-bs-toggle="collapse" href="#mahudhurioCollapse" role="button" aria-expanded="{{ request()->routeIs('parentAttendance') || request()->routeIs('parentStudentAttendance') || request()->routeIs('parentFingerprintAttendance') || request()->routeIs('parentStudentFingerprintAttendance') ? 'true' : 'false' }}" aria-controls="mahudhurioCollapse">
-            <i class="bx bx-calendar-check"></i> Mahudhurio
+            <i class="bx bx-calendar-check"></i> {{ __('parent.nav_attendance') }}
             <i class="bx bx-chevron-down ms-auto" style="font-size: 14px;"></i>
         </a>
         <div class="collapse {{ request()->routeIs('parentAttendance') || request()->routeIs('parentStudentAttendance') || request()->routeIs('parentFingerprintAttendance') || request()->routeIs('parentStudentFingerprintAttendance') ? 'show' : '' }}" id="mahudhurioCollapse">
             <a href="{{ route('parentAttendance') }}" class="sidebar-link" style="padding-left: 45px; font-size: 12px; {{ request()->routeIs('parentAttendance') || request()->routeIs('parentStudentAttendance') ? 'color: #940000; font-weight: bold;' : '' }}">
-                <i class="bx bx-clipboard" style="font-size: 14px;"></i> Mahudhurio ya Mfumo
+                <i class="bx bx-clipboard" style="font-size: 14px;"></i> {{ __('parent.nav_system_attendance') }}
             </a>
             <a href="{{ route('parentFingerprintAttendance') }}" class="sidebar-link" style="padding-left: 45px; font-size: 12px; {{ request()->routeIs('parentFingerprintAttendance') || request()->routeIs('parentStudentFingerprintAttendance') ? 'color: #940000; font-weight: bold;' : '' }}">
-                <i class="bx bx-fingerprint" style="font-size: 14px;"></i> Alama za Vidole
+                <i class="bx bx-fingerprint" style="font-size: 14px;"></i> {{ __('parent.nav_fingerprint') }}
             </a>
         </div>
         <a href="{{ route('parentSubjects') }}" class="sidebar-link {{ request()->routeIs('parentSubjects') ? 'active' : '' }}">
-            <i class="bx bx-book"></i> Masomo
+            <i class="bx bx-book"></i> {{ __('parent.nav_subjects') }}
         </a>
         <a href="{{ route('parentHomePackages') }}" class="sidebar-link {{ request()->routeIs('parentHomePackages') ? 'active' : '' }}">
-            <i class="bx bx-home-smile"></i> Home Package
+            <i class="bx bx-home-smile"></i> {{ __('parent.nav_home_package') }}
             <span id="parentHpSidebarBadge" class="badge bg-danger ms-auto" style="font-size:10px;display:none;">0</span>
         </a>
+        <a href="{{ route('parentNotes') }}" class="sidebar-link {{ request()->routeIs('parentNotes') ? 'active' : '' }}">
+            <i class="bx bx-note"></i> {{ __('parent.nav_notes') }}
+            <span id="parentNotesSidebarBadge" class="badge bg-danger ms-auto" style="font-size:10px;display:none;">0</span>
+        </a>
 
-        <div class="sidebar-group-title">FEDHA</div>
+        <div class="sidebar-group-title">{{ __('parent.nav_finance') }}</div>
         <a href="{{ route('parentPayments') }}" class="sidebar-link {{ request()->routeIs('parentPayments') ? 'active' : '' }}">
-            <i class="bx bx-credit-card"></i> Fanya Malipo
+            <i class="bx bx-credit-card"></i> {{ __('parent.nav_make_payment') }}
         </a>
         <a href="{{ route('parentFeesSummary') }}" class="sidebar-link {{ request()->routeIs('parentFeesSummary') ? 'active' : '' }}">
-            <i class="bx bx-list-ul"></i> Muhtasari wa Ada
+            <i class="bx bx-list-ul"></i> {{ __('parent.nav_fees_summary') }}
         </a>
 
-        <div class="sidebar-group-title">AKAUNTI</div>
+        <div class="sidebar-group-title">{{ __('parent.nav_account') }}</div>
         <a href="{{ route('parent.permissions') }}" class="sidebar-link {{ request()->routeIs('parent.permissions') ? 'active' : '' }}">
-            <i class="bx bx-check-shield"></i> Ruhusa
+            <i class="bx bx-check-shield"></i> {{ __('parent.nav_permissions') }}
         </a>
         <form action="{{ route('logout') }}" method="POST">
             @csrf
             <button type="submit" class="sidebar-link w-100 border-0 bg-transparent text-start">
-                <i class="bx bx-log-out"></i> Ondoka (Logout)
+                <i class="bx bx-log-out"></i> {{ __('parent.nav_logout') }}
             </button>
         </form>
     </nav>
@@ -591,7 +650,7 @@
         @yield('content')
 
         <footer class="footer-corp">
-            &copy; {{ date('Y') }} ShuleXpert | Powered by EmCa Technologies LTD
+            &copy; {{ date('Y') }} ShuleXpert | {{ __('parent.powered_by') }}
         </footer>
     </main>
 
@@ -600,15 +659,15 @@
         <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="globalParentHpViewTitle">Home Package</h5>
+                    <h5 class="modal-title" id="globalParentHpViewTitle">{{ __('parent.home_package') }}</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-0" style="height:75vh;">
                     <iframe id="globalParentHpViewFrame" src="" style="width:100%;height:100%;border:0;"></iframe>
                 </div>
                 <div class="modal-footer">
-                    <a href="#" class="btn btn-outline-primary" id="globalParentHpDownloadBtn">Download</a>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Funga</button>
+                    <a href="#" class="btn btn-outline-primary" id="globalParentHpDownloadBtn">{{ __('parent.download') }}</a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('parent.close') }}</button>
                 </div>
             </div>
         </div>
@@ -629,8 +688,19 @@
                 }
             });
 
+            var P = @json(trans('parent'));
+            var csrf = $('meta[name="csrf-token"]').attr('content');
+
+            $(document).on('click', '.parent-lang-btn', function() {
+                var locale = $(this).data('locale');
+                if (!locale || $(this).hasClass('is-active')) return;
+                $.post(@json(route('change_language')), { _token: csrf, locale: locale })
+                    .done(function() { location.reload(); })
+                    .fail(function() { location.reload(); });
+            });
+
             window.openParentHomePackageView = function(url, downloadUrl, title) {
-                $('#globalParentHpViewTitle').text(title || 'Home Package');
+                $('#globalParentHpViewTitle').text(title || P.home_package);
                 $('#globalParentHpViewFrame').attr('src', url);
                 $('#globalParentHpDownloadBtn').attr('href', downloadUrl || '#');
                 var el = document.getElementById('globalParentHpViewModal');
@@ -643,7 +713,17 @@
 
             var notifUrl = @json(route('parent.header_notifications'));
             var markUrl = @json(route('parent.header_notifications.mark_read'));
-            var csrf = $('meta[name="csrf-token"]').attr('content');
+            var parentLbl = {
+                view: P.view,
+                notes: P.notes,
+                subject: P.notes_subject,
+                title: P.notes_title_label,
+                results: P.results,
+                homePackage: P.home_package,
+                noNotifications: P.no_notifications,
+                loadFailed: P.load_failed,
+                download: P.download
+            };
 
             function escapeHtml(s) {
                 return String(s == null ? '' : s)
@@ -657,6 +737,7 @@
                 var unread = data.unread || 0;
                 var unreadResults = data.unread_results || 0;
                 var unreadHp = data.unread_home_packages || 0;
+                var unreadNotes = data.unread_notes || 0;
 
                 if (unread > 0) {
                     $('#parentHpNotifBadge').text(unread).show();
@@ -676,9 +757,15 @@
                     $('#parentResultsSidebarBadge').hide();
                 }
 
+                if (unreadNotes > 0) {
+                    $('#parentNotesSidebarBadge').text(unreadNotes).show();
+                } else {
+                    $('#parentNotesSidebarBadge').hide();
+                }
+
                 var list = data.notifications || [];
                 if (!list.length) {
-                    $('#parentHpNotifList').html('<div class="p-3 text-muted small text-center">Hakuna arifa</div>');
+                    $('#parentHpNotifList').html('<div class="p-3 text-muted small text-center">' + parentLbl.noNotifications + '</div>');
                     return;
                 }
 
@@ -686,15 +773,36 @@
                 list.forEach(function(n) {
                     if (n.source === 'result') {
                         html += '<a href="' + escapeHtml(n.url || '#') + '" class="parent-hp-notif-item text-decoration-none parent-result-notif-link' + (n.is_viewed ? '' : ' unread') + '" data-id="' + n.id + '" data-source="result" style="color:inherit;">'
-                            + '<div class="parent-hp-notif-icon" title="Matokeo" style="background:#fff5f5;color:#940000;">'
+                            + '<div class="parent-hp-notif-icon" title="' + escapeHtml(parentLbl.results) + '" style="background:#fff5f5;color:#940000;">'
                             +   '<i class="bx ' + escapeHtml(n.icon || 'bx-trophy') + '"></i>'
                             + '</div>'
                             + '<div class="parent-hp-notif-body">'
-                            +   '<div class="parent-hp-notif-title"><i class="bx ' + escapeHtml(n.icon || 'bx-trophy') + '"></i> ' + escapeHtml(n.title || 'Matokeo') + '</div>'
+                            +   '<div class="parent-hp-notif-title"><i class="bx ' + escapeHtml(n.icon || 'bx-trophy') + '"></i> ' + escapeHtml(n.title || parentLbl.results) + '</div>'
                             +   '<div class="parent-hp-notif-msg">' + escapeHtml(n.message || '') + '</div>'
                             +   '<div class="parent-hp-notif-meta"><i class="bx bx-time-five"></i> ' + escapeHtml(n.created_at || '') + '</div>'
                             + '</div>'
                             + '</a>';
+                        return;
+                    }
+
+                    if (n.source === 'note') {
+                        html += '<div class="parent-hp-notif-item' + (n.is_viewed ? '' : ' unread') + '">'
+                            + '<div class="parent-hp-notif-icon" title="' + escapeHtml(parentLbl.notes) + '" style="background:#fff5f5;color:#940000;">'
+                            +   '<i class="bx bx-note"></i>'
+                            + '</div>'
+                            + '<div class="parent-hp-notif-body">'
+                            +   '<div class="parent-hp-notif-title"><i class="bx bx-note"></i> ' + escapeHtml(parentLbl.notes) + '</div>'
+                            +   '<div class="parent-hp-notif-msg">'
+                            +     parentLbl.subject + ': <strong>' + escapeHtml(n.subject_name || '') + '</strong>'
+                            +     (n.note_title ? ('<br>' + parentLbl.title + ': <strong>' + escapeHtml(n.note_title) + '</strong>') : '')
+                            +   '</div>'
+                            +   '<div class="parent-hp-notif-meta"><i class="bx bx-time-five"></i> ' + escapeHtml(n.created_at || '') + '</div>'
+                            +   '<div class="mt-2 d-flex gap-2 flex-wrap">'
+                            +     (n.view_url ? ('<button type="button" class="btn btn-sm btn-outline-primary parent-note-notif-view" data-id="' + n.id + '" data-url="' + escapeHtml(n.view_url) + '" data-dl="' + escapeHtml(n.download_url || '') + '" data-title="' + escapeHtml(n.note_title || parentLbl.notes) + '"><i class="bx bx-show"></i> ' + parentLbl.view + '</button>') : '')
+                            +     (n.download_url ? ('<a class="btn btn-sm btn-primary parent-note-notif-dl" data-id="' + n.id + '" href="' + escapeHtml(n.download_url) + '" title="' + escapeHtml(parentLbl.download) + '"><i class="bx bx-download"></i></a>') : '')
+                            +   '</div>'
+                            + '</div>'
+                            + '</div>';
                         return;
                     }
 
@@ -707,7 +815,7 @@
                         +   '<span class="hp-file-badge ' + kind + '"><i class="bx ' + fileIcon + '"></i></span>'
                         + '</div>'
                         + '<div class="parent-hp-notif-body">'
-                        +   '<div class="parent-hp-notif-title"><i class="bx bx-home-smile"></i> Home Package</div>'
+                        +   '<div class="parent-hp-notif-title"><i class="bx bx-home-smile"></i> ' + escapeHtml(parentLbl.homePackage) + '</div>'
                         +   '<div class="parent-hp-notif-msg">' + escapeHtml(n.message || '') + '</div>'
                         +   '<div class="parent-hp-notif-meta">'
                         +     '<i class="bx bx-time-five"></i> ' + escapeHtml(n.created_at || '')
@@ -715,8 +823,8 @@
                         +     (n.original_filename ? (' · <i class="bx ' + fileIcon + '"></i> ' + escapeHtml(n.original_filename)) : '')
                         +   '</div>'
                         +   '<div class="mt-2 d-flex gap-2 flex-wrap">'
-                        +     (n.view_url ? ('<button type="button" class="btn btn-sm btn-outline-primary parent-hp-notif-view" data-id="' + n.id + '" data-url="' + escapeHtml(n.view_url) + '" data-dl="' + escapeHtml(n.download_url || '') + '" data-title="' + escapeHtml(n.holiday_name || 'Home Package') + '"><i class="bx bx-show"></i> View</button>') : '')
-                        +     (n.download_url ? ('<a class="btn btn-sm btn-primary parent-hp-notif-dl" data-id="' + n.id + '" href="' + escapeHtml(n.download_url) + '"><i class="bx bx-download"></i> Download</a>') : '')
+                        +     (n.view_url ? ('<button type="button" class="btn btn-sm btn-outline-primary parent-hp-notif-view" data-id="' + n.id + '" data-url="' + escapeHtml(n.view_url) + '" data-dl="' + escapeHtml(n.download_url || '') + '" data-title="' + escapeHtml(n.holiday_name || parentLbl.homePackage) + '"><i class="bx bx-show"></i> ' + parentLbl.view + '</button>') : '')
+                        +     (n.download_url ? ('<a class="btn btn-sm btn-primary parent-hp-notif-dl" data-id="' + n.id + '" href="' + escapeHtml(n.download_url) + '"><i class="bx bx-download"></i> ' + parentLbl.download + '</a>') : '')
                         +   '</div>'
                         + '</div>'
                         + '</div>';
@@ -726,7 +834,7 @@
 
             function loadHpNotifications() {
                 $.get(notifUrl).done(renderHpNotifications).fail(function() {
-                    $('#parentHpNotifList').html('<div class="p-3 text-muted small text-center">Imeshindikana kupakia</div>');
+                    $('#parentHpNotifList').html('<div class="p-3 text-muted small text-center">' + parentLbl.loadFailed + '</div>');
                 });
             }
 
@@ -771,6 +879,26 @@
                 markHpRead(id).always(loadHpNotifications);
             });
 
+            function markNoteRead(id) {
+                return markHeaderRead({ source: 'note', id: id || 'all', all: id === 'all' });
+            }
+
+            $(document).on('click', '.parent-note-notif-view', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var id = $(this).data('id');
+                var url = $(this).data('url');
+                var dl = $(this).data('dl');
+                var title = $(this).data('title');
+                window.openParentHomePackageView(url, dl, title);
+                markNoteRead(id).always(loadHpNotifications);
+            });
+
+            $(document).on('click', '.parent-note-notif-dl', function() {
+                var id = $(this).data('id');
+                markNoteRead(id).always(loadHpNotifications);
+            });
+
             $('#parentHpMarkAllRead').on('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -796,7 +924,7 @@
                 $.post(url, payload).done(function() {
                     location.reload();
                 }).fail(function() {
-                    alert('Imeshindikana kubadilisha academic year');
+                    alert(P.academic_year_failed);
                 });
             });
         });

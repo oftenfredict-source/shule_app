@@ -1,6 +1,6 @@
 @extends('layouts.parent_corp')
 
-@section('title', 'Ruksa za Mwanafunzi - ShuleXpert')
+@section('title', __('parent.perm_title') . ' - ShuleXpert')
 
 @section('content')
 <style>
@@ -150,7 +150,7 @@
 
 <div class="row">
     <div class="col-12">
-        <div class="section-title"><i class="bx bx-check-shield"></i> Ruksa za Mwanafunzi</div>
+        <div class="section-title"><i class="bx bx-check-shield"></i> {{ __('parent.perm_title') }}</div>
     </div>
 
     <div class="col-12">
@@ -158,20 +158,20 @@
             <div class="card-header bg-transparent p-0">
                 <ul class="nav nav-tabs permission-tabs border-0 bg-white shadow-sm">
                     <li class="nav-item">
-                        <button type="button" class="nav-link parent-perm-tab {{ $activeTab === 'request' ? 'active' : '' }}" data-tab="request">Omba Ruksa</button>
+                        <button type="button" class="nav-link parent-perm-tab {{ $activeTab === 'request' ? 'active' : '' }}" data-tab="request">{{ __('parent.request_permission') }}</button>
                     </li>
                     <li class="nav-item">
-                        <button type="button" class="nav-link parent-perm-tab {{ $activeTab === 'pending' ? 'active' : '' }}" data-tab="pending">Inasubiri
+                        <button type="button" class="nav-link parent-perm-tab {{ $activeTab === 'pending' ? 'active' : '' }}" data-tab="pending">{{ __('parent.pending_tab') }}
                             <span class="parent-unread-badge" data-unread-for="pending" @if($unreadPendingCount < 1) style="display:none;" @endif><i class="bx bx-bell"></i> <span class="parent-unread-count">{{ $unreadPendingCount }}</span></span>
                         </button>
                     </li>
                     <li class="nav-item">
-                        <button type="button" class="nav-link parent-perm-tab {{ $activeTab === 'approved' ? 'active' : '' }}" data-tab="approved">Zimekubaliwa
+                        <button type="button" class="nav-link parent-perm-tab {{ $activeTab === 'approved' ? 'active' : '' }}" data-tab="approved">{{ __('parent.approved_tab') }}
                             <span class="parent-unread-badge" data-unread-for="approved" @if($unreadApprovedCount < 1) style="display:none;" @endif><i class="bx bx-bell"></i> <span class="parent-unread-count">{{ $unreadApprovedCount }}</span></span>
                         </button>
                     </li>
                     <li class="nav-item">
-                        <button type="button" class="nav-link parent-perm-tab {{ $activeTab === 'rejected' ? 'active' : '' }}" data-tab="rejected">Zimekataliwa
+                        <button type="button" class="nav-link parent-perm-tab {{ $activeTab === 'rejected' ? 'active' : '' }}" data-tab="rejected">{{ __('parent.rejected_tab') }}
                             <span class="parent-unread-badge" data-unread-for="rejected" @if($unreadRejectedCount < 1) style="display:none;" @endif><i class="bx bx-bell"></i> <span class="parent-unread-count">{{ $unreadRejectedCount }}</span></span>
                         </button>
                     </li>
@@ -183,8 +183,8 @@
                     @isset($editPermission)
                     <div class="alert alert-warning d-flex align-items-center gap-2 mb-3 px-3" style="border-radius:0; border-left: 4px solid #ff9800;">
                         <i class="bx bx-edit text-warning me-2" style="font-size:20px;"></i>
-                        <div><strong>Unahariri ombi lililokataliwa</strong>. Fanya mabadiliko hapa chini kisha bonyeza <em>Sasisha na Tuma Tena</em>.</div>
-                        <a href="{{ route('parent.permissions') }}" class="btn btn-sm btn-outline-secondary ms-auto" style="border-radius:0;"><i class="bx bx-x"></i> Ghairi</a>
+                        <div>{{ __('parent.editing_rejected') }}</div>
+                        <a href="{{ route('parent.permissions') }}" class="btn btn-sm btn-outline-secondary ms-auto" style="border-radius:0;"><i class="bx bx-x"></i> {{ __('parent.cancel') }}</a>
                     </div>
                     @endisset
                     @php
@@ -192,7 +192,7 @@
                         $editReasonRaw = strtolower((string) data_get($editPermission, 'reason_type', ''));
                         $editReason = in_array($editReasonRaw, ['sick', 'medical'], true) ? 'sick' : 'permission';
                     @endphp
-                    <h6 class="font-weight-bold mb-4" style="color:#940000; border-left:4px solid #940000; padding-left:15px;">{{ isset($editPermission) ? 'HARIRI NA TUMA TENA RUKSA' : 'OMBA RUKSA MPYA' }}</h6>
+                    <h6 class="font-weight-bold mb-4" style="color:#940000; border-left:4px solid #940000; padding-left:15px;">{{ isset($editPermission) ? __('parent.edit_resubmit') : __('parent.new_permission') }}</h6>
                     <form method="POST" action="{{ route('parent.permissions.store') }}" enctype="multipart/form-data" id="parentPermissionForm">
                         @csrf
                         @isset($editPermission)
@@ -200,52 +200,52 @@
                         @endisset
                         <div class="row request-field-row">
                             <div class="col-md-12 mb-2">
-                                <label class="form-label small font-weight-bold text-uppercase">Mwanafunzi</label>
+                                <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.student') }}</label>
                                 <select class="form-control" name="student_id" required>
-                                    <option value="">-- Chagua Mtoto --</option>
+                                    <option value="">{{ __('parent.choose_child') }}</option>
                                     @foreach($students as $student)
                                         <option value="{{ $student->studentID }}" {{ (string)$editStudentId === (string)$student->studentID ? 'selected' : '' }}>{{ $student->first_name }} {{ $student->last_name }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="col-md-6 mb-2">
-                                <label class="form-label small font-weight-bold text-uppercase">Tarehe ya Kuondoka</label>
+                                <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.leave_date') }}</label>
                                 <input type="date" class="form-control" name="start_date" id="parentStartDate"
                                     value="{{ isset($editPermission) && $editPermission->start_date ? \Carbon\Carbon::parse($editPermission->start_date)->format('Y-m-d') : '' }}" required>
                             </div>
                             <div class="col-md-6 mb-2">
-                                <label class="form-label small font-weight-bold text-uppercase">Tarehe ya Kurudi</label>
+                                <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.return_date') }}</label>
                                 <input type="date" class="form-control" name="end_date" id="parentEndDate"
                                     value="{{ isset($editPermission) && $editPermission->end_date ? \Carbon\Carbon::parse($editPermission->end_date)->format('Y-m-d') : '' }}" required>
                             </div>
                             <div class="col-md-12 mb-3">
-                                <label class="form-label small font-weight-bold text-uppercase">Jumla ya Siku za Ruhusa</label>
+                                <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.total_permission_days') }}</label>
                                 <input type="text" class="form-control" id="parentDaysDisplay" readonly style="background-color: #f8f9fa; font-weight: bold; color: #940000;">
-                                <small class="text-danger d-none" id="parentDaysError" style="font-weight: bold;">Siku zimezidi kikomo. Ruksa isizidi siku 7 za kazi.</small>
+                                <small class="text-danger d-none" id="parentDaysError" style="font-weight: bold;">{{ __('parent.days_exceeded') }}</small>
                             </div>
                             <div class="col-md-12 mb-2">
-                                <label class="form-label small font-weight-bold text-uppercase">Aina ya Ruksa</label>
+                                <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.permission_type') }}</label>
                                 <select class="form-control" name="reason_type" id="parentReasonType" required>
-                                    <option value="">-- Chagua Aina --</option>
-                                    <option value="permission" {{ isset($editPermission) && $editReason === 'permission' ? 'selected' : '' }}>Ruhusa</option>
-                                    <option value="sick" {{ isset($editPermission) && $editReason === 'sick' ? 'selected' : '' }}>Mgonjwa</option>
+                                    <option value="">{{ __('parent.choose_type_opt') }}</option>
+                                    <option value="permission" {{ isset($editPermission) && $editReason === 'permission' ? 'selected' : '' }}>{{ __('parent.permission') }}</option>
+                                    <option value="sick" {{ isset($editPermission) && $editReason === 'sick' ? 'selected' : '' }}>{{ __('parent.sick') }}</option>
                                 </select>
                             </div>
                             <div class="col-md-12 mb-2" id="medicalAttachmentField">
-                                <label class="form-label small font-weight-bold text-uppercase">Kiambatanisho (Sio lazima, PDF/Picha)</label>
+                                <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.attachment_optional') }}</label>
                                 <input type="file" class="form-control" name="attachment" accept=".pdf,.jpg,.jpeg,.png">
-                                <small class="text-muted">Unaweza kuambatisha barua ya daktari au nyaraka nyingine inayounga mkono ombi lako.</small>
+                                <small class="text-muted">{{ __('parent.attachment_hint') }}</small>
                             </div>
                             <div class="col-12 mb-3">
-                                <label class="form-label small font-weight-bold text-uppercase">Maelezo ya Kina</label>
-                                <textarea class="form-control" name="reason_description" rows="4" placeholder="Eleza kwa ufupi sababu ya kuomba ruksa..." required>{{ isset($editPermission) ? $editPermission->reason_description : '' }}</textarea>
+                                <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.details') }}</label>
+                                <textarea class="form-control" name="reason_description" rows="4" placeholder="{{ __('parent.details_placeholder') }}" required>{{ isset($editPermission) ? $editPermission->reason_description : '' }}</textarea>
                             </div>
                             <div class="col-12">
                                 <button class="btn btn-primary px-5" type="submit" id="parentPermissionSubmit">
                                     @isset($editPermission)
-                                        <i class="bx bx-refresh"></i> SASISHA NA TUMA TENA
+                                        <i class="bx bx-refresh"></i> {{ __('parent.update_resubmit') }}
                                     @else
-                                        <i class="bx bx-paper-plane"></i> TUMA OMBI
+                                        <i class="bx bx-paper-plane"></i> {{ __('parent.submit_request') }}
                                     @endisset
                                 </button>
                             </div>
@@ -255,7 +255,7 @@
 
                 <div id="parentListShell" style="display: {{ $activeTab === 'request' ? 'none' : 'block' }};">
                     <div class="form-loading" id="parentFilterLoading">
-                        <span><i class="bx bx-loader-alt bx-spin text-danger"></i> Inachuja...</span>
+                        <span><i class="bx bx-loader-alt bx-spin text-danger"></i> {{ __('parent.filtering') }}</span>
                         <div class="form-progress"></div>
                     </div>
                     <div class="row mb-3 px-3">
@@ -264,37 +264,37 @@
                                 <input type="hidden" name="tab" value="{{ $activeTab === 'request' ? 'pending' : $activeTab }}">
                                 <div class="row align-items-end g-3">
                                     <div class="col-md-3">
-                                        <label class="form-label small font-weight-bold text-uppercase">Chuja Kwa:</label>
+                                        <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.filter_by') }}:</label>
                                         <select name="filter_type" id="filter_type" class="form-control" onchange="toggleFilterInputs()">
-                                            <option value="all" {{ ($filterType ?? '') == 'all' ? 'selected' : '' }}>Rekodi Zote</option>
-                                            <option value="range" {{ ($filterType ?? '') == 'range' ? 'selected' : '' }}>Muda Maalum</option>
-                                            <option value="month" {{ ($filterType ?? '') == 'month' ? 'selected' : '' }}>Mwezi Maalum</option>
-                                            <option value="year" {{ ($filterType ?? '') == 'year' ? 'selected' : '' }}>Mwaka Maalum</option>
+                                            <option value="all" {{ ($filterType ?? '') == 'all' ? 'selected' : '' }}>{{ __('parent.all_records') }}</option>
+                                            <option value="range" {{ ($filterType ?? '') == 'range' ? 'selected' : '' }}>{{ __('parent.date_range') }}</option>
+                                            <option value="month" {{ ($filterType ?? '') == 'month' ? 'selected' : '' }}>{{ __('parent.specific_month') }}</option>
+                                            <option value="year" {{ ($filterType ?? '') == 'year' ? 'selected' : '' }}>{{ __('parent.specific_year') }}</option>
                                         </select>
                                     </div>
 
                                     <div id="range_inputs" class="col-md-6 filter-input-group" style="display: {{ ($filterType ?? '') == 'range' ? 'flex' : 'none' }}; gap: 10px;">
                                         <div class="flex-grow-1">
-                                            <label class="form-label small font-weight-bold text-uppercase">Kuanzia:</label>
+                                            <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.from') }}:</label>
                                             <input type="date" name="date_from" id="filterDateFrom" class="form-control" value="{{ $dateFrom ?? '' }}">
                                         </div>
                                         <div class="flex-grow-1">
-                                            <label class="form-label small font-weight-bold text-uppercase">Hadi:</label>
+                                            <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.to') }}:</label>
                                             <input type="date" name="date_to" id="filterDateTo" class="form-control" value="{{ $dateTo ?? '' }}">
                                         </div>
                                     </div>
 
                                     <div id="month_inputs" class="col-md-6 filter-input-group" style="display: {{ ($filterType ?? '') == 'month' ? 'flex' : 'none' }}; gap: 10px;">
                                         <div class="flex-grow-1">
-                                            <label class="form-label small font-weight-bold text-uppercase">Mwezi:</label>
+                                            <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.month') }}:</label>
                                             <select name="filter_month" class="form-control">
-                                                @foreach(['Januari', 'Februari', 'Machi', 'Aprili', 'Mei', 'Juni', 'Julai', 'Agosti', 'Septemba', 'Oktoba', 'Novemba', 'Desemba'] as $index => $monthName)
+                                                @foreach(__('parent.months') as $index => $monthName)
                                                     <option value="{{ $index + 1 }}" {{ ($filterMonth ?? date('n')) == ($index + 1) ? 'selected' : '' }}>{{ $monthName }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
                                         <div class="flex-grow-1">
-                                            <label class="form-label small font-weight-bold text-uppercase">Mwaka:</label>
+                                            <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.year') }}:</label>
                                             <select name="filter_month_year" class="form-control">
                                                 @for($y = date('Y'); $y >= date('Y')-5; $y--)
                                                     <option value="{{ $y }}" {{ ($filterMonthYear ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
@@ -304,7 +304,7 @@
                                     </div>
 
                                     <div id="year_inputs" class="col-md-3 filter-input-group" style="display: {{ ($filterType ?? '') == 'year' ? 'block' : 'none' }};">
-                                        <label class="form-label small font-weight-bold text-uppercase">Year:</label>
+                                        <label class="form-label small font-weight-bold text-uppercase">{{ __('parent.year') }}:</label>
                                         <select name="filter_year" class="form-control">
                                             @for($y = date('Y'); $y >= date('Y')-5; $y--)
                                                 <option value="{{ $y }}" {{ ($filterYear ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
@@ -313,8 +313,8 @@
                                     </div>
 
                                     <div class="col-md-5 d-flex align-items-end gap-2">
-                                        <button class="btn btn-outline-danger flex-fill" style="border-radius: 0; font-weight: bold; height: 48px;" type="submit"><i class="bx bx-filter"></i> CHUJA</button>
-                                        <button class="btn btn-secondary flex-fill" style="border-radius: 0; font-weight: bold; height: 48px;" type="button" onclick="resetParentFilters()"><i class="bx bx-undo"></i> SAFISHA</button>
+                                        <button class="btn btn-outline-danger flex-fill" style="border-radius: 0; font-weight: bold; height: 48px;" type="submit"><i class="bx bx-filter"></i> {{ __('parent.filter') }}</button>
+                                        <button class="btn btn-secondary flex-fill" style="border-radius: 0; font-weight: bold; height: 48px;" type="button" onclick="resetParentFilters()"><i class="bx bx-undo"></i> {{ __('parent.clear') }}</button>
                                     </div>
                                 </div>
                             </form>
@@ -344,6 +344,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     $(document).ready(function() {
+        const P = @json(trans('parent'));
         function initPermViewToggle(root) {
             var scope = root || document.querySelector('.perm-pane.is-active') || document;
             var isMobile = window.innerWidth <= 991;
@@ -468,7 +469,7 @@
             const daysCount = parseInt(daysDisplay.val() || '0', 10);
             if (daysCount > 7) {
                 e.preventDefault();
-                Swal.fire({ icon: 'error', title: 'Kikomo Kimezidi', text: 'Siku zimezidi kikomo. Ruksa isizidi siku 7 za kazi.', confirmButtonColor: '#940000' });
+                Swal.fire({ icon: 'error', title: P.days_exceeded_title, text: P.days_exceeded, confirmButtonColor: '#940000' });
                 return;
             }
 
@@ -476,7 +477,7 @@
             const btn = $('#parentPermissionSubmit');
             const defaultHtml = btn.data('default-html') || btn.html();
             btn.data('default-html', defaultHtml);
-            btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Inatuma...');
+            btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>' + P.sending);
             
             let formData = new FormData(this);
             formData.append('days_count', daysCount);
@@ -489,16 +490,16 @@
                 contentType: false,
                 success: function(res) {
                     if (res.success) {
-                        Swal.fire('Imetumwa!', res.message, 'success').then(() => location.reload());
+                        Swal.fire(P.sent, res.message, 'success').then(() => location.reload());
                     } else {
-                        Swal.fire('Hitilafu', res.message, 'error');
+                        Swal.fire(P.error, res.message, 'error');
                         btn.prop('disabled', false).html(defaultHtml);
                     }
                 },
                 error: function(xhr) {
-                    let msg = 'Imeshindikana kutuma ombi.';
+                    let msg = P.submit_failed;
                     if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                    Swal.fire('Hitilafu', msg, 'error');
+                    Swal.fire(P.error, msg, 'error');
                     btn.prop('disabled', false).html(defaultHtml);
                 }
             });
@@ -510,7 +511,7 @@
                 const loadingBar = document.getElementById('parentFilterLoading');
                 if (loadingBar) loadingBar.style.display = 'flex';
                 const btn = $(this).find('button[type="submit"]');
-                btn.html('<i class="bx bx-loader-alt bx-spin"></i> INACHUJA...');
+                btn.html('<i class="bx bx-loader-alt bx-spin"></i> ' + P.filtering);
                 btn.prop('disabled', true);
             });
         }

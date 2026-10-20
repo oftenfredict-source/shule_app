@@ -485,6 +485,15 @@
                                                onclick="openHomePackageModal(this.getAttribute('data-class-subject-id'), this.getAttribute('data-subject-name'))"></i>
                                             <small class="d-block text-muted mt-1">Home Package</small>
                                         </div>
+                                        <div class="text-center mb-2" title="Notes">
+                                            <i class="bi bi-journal-text action-icon"
+                                               style="color: #940000; cursor:pointer;"
+                                               role="button"
+                                               data-class-subject-id="{{ $classSubject->class_subjectID }}"
+                                               data-subject-name="{{ e($classSubject->subject->subject_name ?? 'Somo') }}"
+                                               onclick="openSubjectNotesModal(this.getAttribute('data-class-subject-id'), this.getAttribute('data-subject-name'))"></i>
+                                            <small class="d-block text-muted mt-1">Notes</small>
+                                        </div>
                                         <div class="text-center mb-2" title="View Students">
                                             <i class="bi bi-people-fill action-icon view-students" onclick="viewStudents({{ $classSubject->class_subjectID }})"></i>
                                             <small class="d-block text-muted mt-1">Students</small>
@@ -4957,6 +4966,7 @@ jQuery(document).on('click', '.deselect-student-btn', function() {
 </script>
 
 @include('Teacher.partials.home_package_modal')
+@include('Teacher.partials.subject_notes_modal')
 
 @include('includes.footer')
 

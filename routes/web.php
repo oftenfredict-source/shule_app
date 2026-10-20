@@ -21,6 +21,7 @@ use App\Http\Controllers\AccomodationController;
 use App\Http\Controllers\TimeTableController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\HomePackageController;
+use App\Http\Controllers\SubjectNoteController;
 use App\Http\Controllers\ManageAttendanceController;
 use App\Http\Controllers\AcademicYearsController;
 use App\Http\Controllers\SelectedAcademicYearController;
@@ -842,6 +843,18 @@ Route::get("parentHomePackages", [
     HomePackageController::class,
     "parentIndex",
 ])->name("parentHomePackages");
+Route::get("parentNotes", [
+    SubjectNoteController::class,
+    "parentIndex",
+])->name("parentNotes");
+Route::get("parentNotes/{studentID}/subjects", [
+    SubjectNoteController::class,
+    "parentChildSubjects",
+])->name("parentNotes.subjects");
+Route::get("parentNotes/{studentID}/subjects/{classSubjectID}/notes", [
+    SubjectNoteController::class,
+    "parentSubjectNotes",
+])->name("parentNotes.list");
 Route::get("parentHomePackages/{holidayID}/packages", [
     HomePackageController::class,
     "parentHolidayPackages",
@@ -3771,6 +3784,31 @@ Route::get("home-packages/{homePackageID}/download", [
     HomePackageController::class,
     "downloadFile",
 ])->name("home_packages.download");
+
+Route::get("subject-notes", [
+    SubjectNoteController::class,
+    "teacherIndex",
+])->name("subject_notes.index");
+Route::post("subject-notes", [
+    SubjectNoteController::class,
+    "store",
+])->name("subject_notes.store");
+Route::post("subject-notes/{noteID}", [
+    SubjectNoteController::class,
+    "update",
+])->name("subject_notes.update");
+Route::delete("subject-notes/{noteID}", [
+    SubjectNoteController::class,
+    "destroy",
+])->name("subject_notes.destroy");
+Route::get("subject-notes/{noteID}/view", [
+    SubjectNoteController::class,
+    "viewFile",
+])->name("subject_notes.view");
+Route::get("subject-notes/{noteID}/download", [
+    SubjectNoteController::class,
+    "downloadFile",
+])->name("subject_notes.download");
 
 //manage Attendance routes
 Route::get("manageAttendance", [

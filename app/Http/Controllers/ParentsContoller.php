@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\ParentResultNotification;
 use App\Models\ParentHomePackageNotification;
+use App\Models\ParentSubjectNoteNotification;
 use App\Models\CaDefinition;
 use App\Models\GradeDefinition;
 use App\Models\ClassModel;
@@ -44,6 +45,21 @@ class ParentsContoller extends Controller
     {
         $this->smsService = new SmsService();
         $this->grading = $grading;
+
+        $this->middleware(function ($request, $next) {
+            if (! Session::has('locale')) {
+                Session::put('locale', 'sw');
+            }
+            $locale = Session::get('locale', 'sw');
+            if (! in_array($locale, ['en', 'sw'], true)) {
+                $locale = 'sw';
+                Session::put('locale', 'sw');
+            }
+            app()->setLocale($locale);
+            Carbon::setLocale($locale);
+
+            return $next($request);
+        });
     }
 
     /**
@@ -1345,7 +1361,7 @@ class ParentsContoller extends Controller
         $calendar = $this->buildParentAttendanceMonthCalendar($studentID, $schoolID, $year, $month);
         $stats = $calendar['stats'];
 
-        $monthLabel = Carbon::create($year, $month, 1)->locale('sw')->isoFormat('MMMM Y');
+        $monthLabel = Carbon::create($year, $month, 1)->locale(app()->getLocale())->isoFormat('MMMM Y');
         $prevMonth = Carbon::create($year, $month, 1)->subMonth();
         $nextMonth = Carbon::create($year, $month, 1)->addMonth();
 
@@ -1501,12 +1517,12 @@ class ParentsContoller extends Controller
             'stats' => $stats,
             'rows' => $rows,
             'legend' => [
-                ['key' => 'present', 'label' => 'Alikuwepo', 'class' => 'att-cell-present', 'icon' => 'bx-check'],
-                ['key' => 'absent', 'label' => 'Alikosa', 'class' => 'att-cell-absent', 'icon' => 'bx-x'],
-                ['key' => 'permission', 'label' => 'Ruhusa', 'class' => 'att-cell-permission', 'icon' => 'bx-time-five'],
-                ['key' => 'sick', 'label' => 'Mgonjwa', 'class' => 'att-cell-sick', 'icon' => 'bx-plus-medical'],
-                ['key' => 'incomplete', 'label' => 'Haijakamilika', 'class' => 'att-cell-incomplete', 'icon' => 'bx-minus'],
-                ['key' => 'non_school', 'label' => 'Sio siku ya shule', 'class' => 'att-cell-non-school', 'icon' => 'bx-calendar-x'],
+                ['key' => 'present', 'label' => __('parent.present'), 'class' => 'att-cell-present', 'icon' => 'bx-check'],
+                ['key' => 'absent', 'label' => __('parent.missed'), 'class' => 'att-cell-absent', 'icon' => 'bx-x'],
+                ['key' => 'permission', 'label' => __('parent.permission'), 'class' => 'att-cell-permission', 'icon' => 'bx-time-five'],
+                ['key' => 'sick', 'label' => __('parent.sick'), 'class' => 'att-cell-sick', 'icon' => 'bx-plus-medical'],
+                ['key' => 'incomplete', 'label' => __('parent.incomplete'), 'class' => 'att-cell-incomplete', 'icon' => 'bx-minus'],
+                ['key' => 'non_school', 'label' => __('parent.non_school'), 'class' => 'att-cell-non-school', 'icon' => 'bx-calendar-x'],
             ],
         ];
     }
@@ -1526,7 +1542,7 @@ class ParentsContoller extends Controller
                 'date' => $dateStr,
                 'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
                 'status' => 'non_school',
-                'label' => 'Sio siku ya shule',
+                'label' => __('parent.non_school'),
                 'icon' => 'bx-calendar-x',
                 'css_class' => 'att-cell-non-school',
                 'counts_toward_stats' => false,
@@ -1554,7 +1570,7 @@ class ParentsContoller extends Controller
                 'date' => $dateStr,
                 'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
                 'status' => 'future',
-                'label' => 'Bado',
+                'label' => __('parent.future'),
                 'icon' => 'bx-minus',
                 'css_class' => 'att-cell-future',
                 'counts_toward_stats' => false,
@@ -1562,11 +1578,11 @@ class ParentsContoller extends Controller
         }
 
         $map = [
-            'present' => ['label' => 'Alikuwepo', 'icon' => 'bx-check', 'css_class' => 'att-cell-present'],
-            'absent' => ['label' => 'Alikosa', 'icon' => 'bx-x', 'css_class' => 'att-cell-absent'],
-            'permission' => ['label' => 'Ruhusa', 'icon' => 'bx-time-five', 'css_class' => 'att-cell-permission'],
-            'sick' => ['label' => 'Mgonjwa', 'icon' => 'bx-plus-medical', 'css_class' => 'att-cell-sick'],
-            'incomplete' => ['label' => 'Haijakamilika', 'icon' => 'bx-minus', 'css_class' => 'att-cell-incomplete'],
+            'present' => ['label' => __('parent.present'), 'icon' => 'bx-check', 'css_class' => 'att-cell-present'],
+            'absent' => ['label' => __('parent.missed'), 'icon' => 'bx-x', 'css_class' => 'att-cell-absent'],
+            'permission' => ['label' => __('parent.permission'), 'icon' => 'bx-time-five', 'css_class' => 'att-cell-permission'],
+            'sick' => ['label' => __('parent.sick'), 'icon' => 'bx-plus-medical', 'css_class' => 'att-cell-sick'],
+            'incomplete' => ['label' => __('parent.incomplete'), 'icon' => 'bx-minus', 'css_class' => 'att-cell-incomplete'],
         ];
 
         $meta = $map[$status] ?? $map['incomplete'];
@@ -1581,7 +1597,9 @@ class ParentsContoller extends Controller
 
     private function formatParentAttendanceDateLabel(string $dateStr): string
     {
-        return Carbon::parse($dateStr)->locale('sw')->isoFormat('dddd, D MMMM Y');
+        $locale = in_array(app()->getLocale(), ['en', 'sw'], true) ? app()->getLocale() : 'sw';
+
+        return Carbon::parse($dateStr)->locale($locale)->isoFormat('dddd, D MMMM Y');
     }
 
     public function parentFingerprintAttendance(Request $request)
@@ -1667,7 +1685,7 @@ class ParentsContoller extends Controller
         $stats = $calendar['stats'];
         $attendanceMode = 'fingerprint';
 
-        $monthLabel = Carbon::create($year, $month, 1)->locale('sw')->isoFormat('MMMM Y');
+        $monthLabel = Carbon::create($year, $month, 1)->locale(app()->getLocale())->isoFormat('MMMM Y');
         $prevMonth = Carbon::create($year, $month, 1)->subMonth();
         $nextMonth = Carbon::create($year, $month, 1)->addMonth();
 
@@ -1785,11 +1803,11 @@ class ParentsContoller extends Controller
             'stats' => $stats,
             'rows' => $rows,
             'legend' => [
-                ['key' => 'present', 'label' => 'Alikuwepo', 'class' => 'att-cell-present', 'icon' => 'bx-check'],
-                ['key' => 'absent', 'label' => 'Hayupo (hajaweka kidole)', 'class' => 'att-cell-absent', 'icon' => 'bx-x'],
-                ['key' => 'permission', 'label' => 'Ruhusa', 'class' => 'att-cell-permission', 'icon' => 'bx-time-five'],
-                ['key' => 'sick', 'label' => 'Mgonjwa', 'class' => 'att-cell-sick', 'icon' => 'bx-plus-medical'],
-                ['key' => 'non_school', 'label' => 'Sio siku ya shule', 'class' => 'att-cell-non-school', 'icon' => 'bx-calendar-x'],
+                ['key' => 'present', 'label' => __('parent.present'), 'class' => 'att-cell-present', 'icon' => 'bx-check'],
+                ['key' => 'absent', 'label' => __('parent.absent_fp'), 'class' => 'att-cell-absent', 'icon' => 'bx-x'],
+                ['key' => 'permission', 'label' => __('parent.permission'), 'class' => 'att-cell-permission', 'icon' => 'bx-time-five'],
+                ['key' => 'sick', 'label' => __('parent.sick'), 'class' => 'att-cell-sick', 'icon' => 'bx-plus-medical'],
+                ['key' => 'non_school', 'label' => __('parent.non_school'), 'class' => 'att-cell-non-school', 'icon' => 'bx-calendar-x'],
             ],
         ];
     }
@@ -1809,7 +1827,7 @@ class ParentsContoller extends Controller
                 'date' => $dateStr,
                 'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
                 'status' => 'non_school',
-                'label' => 'Sio siku ya shule',
+                'label' => __('parent.non_school'),
                 'icon' => 'bx-calendar-x',
                 'css_class' => 'att-cell-non-school',
                 'counts_toward_stats' => false,
@@ -1821,7 +1839,7 @@ class ParentsContoller extends Controller
                 'date' => $dateStr,
                 'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
                 'status' => 'sick',
-                'label' => 'Mgonjwa',
+                'label' => __('parent.sick'),
                 'icon' => 'bx-plus-medical',
                 'css_class' => 'att-cell-sick',
                 'counts_toward_stats' => true,
@@ -1833,7 +1851,7 @@ class ParentsContoller extends Controller
                 'date' => $dateStr,
                 'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
                 'status' => 'permission',
-                'label' => 'Ruhusa',
+                'label' => __('parent.permission'),
                 'icon' => 'bx-time-five',
                 'css_class' => 'att-cell-permission',
                 'counts_toward_stats' => true,
@@ -1845,7 +1863,7 @@ class ParentsContoller extends Controller
                 'date' => $dateStr,
                 'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
                 'status' => 'present',
-                'label' => 'Alikuwepo',
+                'label' => __('parent.present'),
                 'icon' => 'bx-check',
                 'css_class' => 'att-cell-present',
                 'counts_toward_stats' => true,
@@ -1857,7 +1875,7 @@ class ParentsContoller extends Controller
                 'date' => $dateStr,
                 'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
                 'status' => 'future',
-                'label' => 'Bado',
+                'label' => __('parent.future'),
                 'icon' => 'bx-minus',
                 'css_class' => 'att-cell-future',
                 'counts_toward_stats' => false,
@@ -1868,7 +1886,7 @@ class ParentsContoller extends Controller
             'date' => $dateStr,
             'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
             'status' => 'absent',
-            'label' => 'Hayupo (hajaweka kidole)',
+            'label' => __('parent.absent_fp'),
             'icon' => 'bx-x',
             'css_class' => 'att-cell-absent',
             'counts_toward_stats' => true,
@@ -4798,23 +4816,22 @@ class ParentsContoller extends Controller
             ->map(function (ParentResultNotification $n) {
                 $studentName = trim(
                     ($n->student->first_name ?? '') . ' ' . ($n->student->last_name ?? '')
-                ) ?: 'Mwanafunzi';
+                ) ?: __('parent.student');
                 $isReport = ($n->type ?? '') === 'report';
-                $examName = $n->examination->exam_name ?? 'Mtihani';
+                $examName = $n->examination->exam_name ?? __('parent.exam_generic');
                 $term = $n->term ?: ($n->examination->term ?? '');
                 $year = $n->year ?: ($n->examination->year ?? '');
-                $termYear = trim(($term ? 'Muhula ' . $term : '') . ($year ? ' · ' . $year : ''));
+                $termYear = trim(($term ? __('parent.term_word') . ' ' . $term : '') . ($year ? ' · ' . $year : ''));
+                $extra = $termYear ? ' (' . $termYear . ')' : '';
 
                 if ($isReport) {
-                    $message = 'Ripoti ya muhula imechapishwa kwa ' . $studentName
-                        . ($termYear ? ' (' . $termYear . ')' : '');
-                    $title = 'Ripoti ya Mwanafunzi';
+                    $message = __('parent.notif_report_msg', ['name' => $studentName, 'extra' => $extra]);
+                    $title = __('parent.notif_report_title');
                     $url = route('parentReport');
                     $icon = 'bx-book-open';
                 } else {
-                    $message = 'Matokeo ya ' . $examName . ' yamechapishwa kwa ' . $studentName
-                        . ($termYear ? ' (' . $termYear . ')' : '');
-                    $title = 'Matokeo ya Mtihani';
+                    $message = __('parent.notif_exam_msg', ['exam' => $examName, 'name' => $studentName, 'extra' => $extra]);
+                    $title = __('parent.notif_exam_title');
                     $url = route('parentResults');
                     $icon = 'bx-trophy';
                 }
@@ -4845,7 +4862,7 @@ class ParentsContoller extends Controller
             ->get()
             ->map(function (ParentHomePackageNotification $n) {
                 $p = $n->homePackage;
-                $subject = $p->subject->subject_name ?? 'somo';
+                $subject = $p->subject->subject_name ?? __('parent.subject');
                 $holiday = $p->holiday->holiday_name ?? '';
                 $mime = strtolower((string) ($p->mime_type ?? ''));
                 $filename = strtolower((string) ($p->original_filename ?? ''));
@@ -4864,10 +4881,10 @@ class ParentsContoller extends Controller
                     'is_viewed' => (bool) $n->is_viewed,
                     'created_at' => optional($n->created_at)->diffForHumans(),
                     'created_at_raw' => optional($n->created_at)->timestamp ?? 0,
-                    'title' => 'Home Package',
-                    'message' => 'Kifurushi kipya cha masomo ya nyumbani'
-                        . ($subject ? ' - ' . $subject : '')
-                        . ($holiday ? ' (' . $holiday . ')' : ''),
+                    'title' => __('parent.home_package'),
+                    'message' => __('parent.notif_hp_msg', [
+                        'extra' => ($subject ? ' - ' . $subject : '') . ($holiday ? ' (' . $holiday . ')' : ''),
+                    ]),
                     'icon' => 'bx-home-smile',
                     'url' => route('parentHomePackages'),
                     'holiday_name' => $holiday ?: '-',
@@ -4879,7 +4896,46 @@ class ParentsContoller extends Controller
                 ];
             });
 
-        $merged = $resultItems->concat($hpItems)
+        $noteItems = collect();
+        if (Schema::hasTable('subject_notes') && Schema::hasTable('parent_subject_note_notifications')) {
+            $noteItems = ParentSubjectNoteNotification::with([
+                'note.subject',
+                'student',
+            ])
+                ->where('schoolID', $schoolID)
+                ->where('parentID', $parentID)
+                ->orderByDesc('created_at')
+                ->limit(20)
+                ->get()
+                ->map(function (ParentSubjectNoteNotification $n) {
+                    $note = $n->note;
+                    $subject = $note->subject->subject_name ?? __('parent.subject');
+                    $title = $note->title ?? '';
+                    $studentName = trim(($n->student->first_name ?? '').' '.($n->student->last_name ?? ''));
+
+                    return [
+                        'id' => $n->id,
+                        'source' => 'note',
+                        'type' => 'note',
+                        'is_viewed' => (bool) $n->is_viewed,
+                        'created_at' => optional($n->created_at)->diffForHumans(),
+                        'created_at_raw' => optional($n->created_at)->timestamp ?? 0,
+                        'title' => __('parent.notes'),
+                        'message' => __('parent.notes_subject').': '.$subject
+                            . ($title ? "\n".__('parent.notes_title_label').': '.$title : '')
+                            . ($studentName ? "\n".$studentName : ''),
+                        'icon' => 'bx-note',
+                        'url' => route('parentNotes'),
+                        'subject_name' => $subject,
+                        'note_title' => $title,
+                        'student_name' => $studentName,
+                        'view_url' => $note ? route('subject_notes.view', $note->noteID) : null,
+                        'download_url' => $note ? route('subject_notes.download', $note->noteID) : null,
+                    ];
+                });
+        }
+
+        $merged = $resultItems->concat($hpItems)->concat($noteItems)
             ->sortByDesc('created_at_raw')
             ->take(30)
             ->values()
@@ -4896,12 +4952,20 @@ class ParentsContoller extends Controller
             ->where('parentID', $parentID)
             ->where('is_viewed', false)
             ->count();
+        $unreadNotes = 0;
+        if (Schema::hasTable('parent_subject_note_notifications')) {
+            $unreadNotes = ParentSubjectNoteNotification::where('schoolID', $schoolID)
+                ->where('parentID', $parentID)
+                ->where('is_viewed', false)
+                ->count();
+        }
 
         return response()->json([
             'success' => true,
-            'unread' => $unreadResults + $unreadHp,
+            'unread' => $unreadResults + $unreadHp + $unreadNotes,
             'unread_results' => $unreadResults,
             'unread_home_packages' => $unreadHp,
+            'unread_notes' => $unreadNotes,
             'notifications' => $merged,
         ]);
     }
@@ -4927,6 +4991,12 @@ class ParentsContoller extends Controller
                 ->where('parentID', $parentID)
                 ->where('is_viewed', false)
                 ->update(['is_viewed' => true]);
+            if (Schema::hasTable('parent_subject_note_notifications')) {
+                ParentSubjectNoteNotification::where('schoolID', $schoolID)
+                    ->where('parentID', $parentID)
+                    ->where('is_viewed', false)
+                    ->update(['is_viewed' => true]);
+            }
 
             return response()->json(['success' => true, 'message' => 'Arifa zote zimesomwa']);
         }
@@ -4951,6 +5021,18 @@ class ParentsContoller extends Controller
                     ->update(['is_viewed' => true]);
             } else {
                 ParentHomePackageNotification::where('id', $id)
+                    ->where('schoolID', $schoolID)
+                    ->where('parentID', $parentID)
+                    ->update(['is_viewed' => true]);
+            }
+        } elseif ($source === 'note' && Schema::hasTable('parent_subject_note_notifications')) {
+            if ($request->boolean('all') || $id === 'all') {
+                ParentSubjectNoteNotification::where('schoolID', $schoolID)
+                    ->where('parentID', $parentID)
+                    ->where('is_viewed', false)
+                    ->update(['is_viewed' => true]);
+            } else {
+                ParentSubjectNoteNotification::where('id', $id)
                     ->where('schoolID', $schoolID)
                     ->where('parentID', $parentID)
                     ->update(['is_viewed' => true]);

@@ -1,6 +1,6 @@
 @extends('layouts.parent_corp')
 
-@section('title', 'Home Package - ShuleXpert')
+@section('title', __('parent.hp_page_title') . ' - ShuleXpert')
 
 @section('content')
 <style>
@@ -34,10 +34,10 @@
 <div class="row">
     <div class="col-12">
         <div class="hp-section-title">
-            <i class="bx bx-home-smile"></i> Home Package (Masomo ya Nyumbani)
+            <i class="bx bx-home-smile"></i> {{ __('parent.hp_page_title') }}
         </div>
         <p class="text-muted mb-4">
-            Chagua holiday ili kuona home packages za <strong>masomo yote ya mtoto wako</strong>.
+            {{ __('parent.hp_page_hint') }}
         </p>
     </div>
 </div>
@@ -61,7 +61,7 @@
     </div>
 @empty
     <div class="alert alert-light border">
-        Hakuna home package iliyopakiwa kwa masomo ya mtoto wako katika academic year iliyochaguliwa.
+        {{ __('parent.hp_empty') }}
     </div>
 @endforelse
 </div>
@@ -72,16 +72,16 @@
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <div>
-                    <h5 class="modal-title mb-0" id="parentHpHolidayTitle">Home Packages</h5>
+                    <h5 class="modal-title mb-0" id="parentHpHolidayTitle">{{ __('parent.home_package') }}</h5>
                     <small id="parentHpHolidayDates" class="opacity-75"></small>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="parentHpHolidayBody">
-                <div class="text-center text-muted py-4">Inapakia...</div>
+                <div class="text-center text-muted py-4">{{ __('parent.loading') }}</div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Funga</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('parent.close') }}</button>
             </div>
         </div>
     </div>
@@ -91,14 +91,15 @@
 @push('scripts')
 <script>
 (function($) {
+    const P = @json(trans('parent'));
     const holidayPackagesUrl = @json(url('parentHomePackages'));
 
     $(document).on('click', '.parent-hp-holiday', function() {
         const id = $(this).data('holiday-id');
         const name = $(this).data('holiday-name');
-        $('#parentHpHolidayTitle').text(name || 'Home Packages');
+        $('#parentHpHolidayTitle').text(name || P.home_package);
         $('#parentHpHolidayDates').text('');
-        $('#parentHpHolidayBody').html('<div class="text-center text-muted py-4">Inapakia...</div>');
+        $('#parentHpHolidayBody').html('<div class="text-center text-muted py-4">' + P.loading + '</div>');
         bootstrap.Modal.getOrCreateInstance(document.getElementById('parentHpHolidayModal')).show();
 
         $.get(holidayPackagesUrl + '/' + id + '/packages')
@@ -108,12 +109,12 @@
                 }
                 const rows = res.packages || [];
                 if (!rows.length) {
-                    $('#parentHpHolidayBody').html('<div class="alert alert-light border mb-0">Hakuna package kwa holiday hii.</div>');
+                    $('#parentHpHolidayBody').html('<div class="alert alert-light border mb-0">' + P.hp_none_holiday + '</div>');
                     return;
                 }
 
                 let html = '<div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr>'
-                    + '<th>Somo</th><th>Kichwa / Faili</th><th>Mwalimu</th><th>Vitendo</th>'
+                    + '<th>' + P.subject + '</th><th>' + P.topic_file + '</th><th>' + P.teacher + '</th><th>' + P.actions + '</th>'
                     + '</tr></thead><tbody>';
                 rows.forEach(function(p) {
                     html += '<tr>'
@@ -123,22 +124,22 @@
                         + '<td>' + (p.title || p.original_filename || '') + '<br><small class="text-muted">' + (p.original_filename || '') + '</small></td>'
                         + '<td>' + (p.teacher_name || '-') + '</td>'
                         + '<td class="text-nowrap">'
-                        + '<button type="button" class="btn btn-sm btn-outline-primary parent-hp-view" data-url="' + p.view_url + '" data-dl="' + p.download_url + '" data-title="' + (p.subject_name || 'Home Package') + '"><i class="bx bx-show"></i> View</button> '
-                        + '<a class="btn btn-sm btn-primary" href="' + p.download_url + '"><i class="bx bx-download"></i> Download</a>'
+                        + '<button type="button" class="btn btn-sm btn-outline-primary parent-hp-view" data-url="' + p.view_url + '" data-dl="' + p.download_url + '" data-title="' + (p.subject_name || P.home_package) + '"><i class="bx bx-show"></i> ' + P.view + '</button> '
+                        + '<a class="btn btn-sm btn-primary" href="' + p.download_url + '"><i class="bx bx-download"></i> ' + P.download + '</a>'
                         + '</td></tr>';
                 });
                 html += '</tbody></table></div>';
                 $('#parentHpHolidayBody').html(html);
             })
             .fail(function() {
-                $('#parentHpHolidayBody').html('<div class="alert alert-danger mb-0">Imeshindikana kupakia.</div>');
+                $('#parentHpHolidayBody').html('<div class="alert alert-danger mb-0">' + P.load_failed + '</div>');
             });
     });
 
     $(document).on('click', '.parent-hp-view', function() {
         const url = $(this).data('url');
         const dl = $(this).data('dl');
-        const title = $(this).data('title') || 'Home Package';
+        const title = $(this).data('title') || P.home_package;
         if (window.openParentHomePackageView) {
             window.openParentHomePackageView(url, dl, title);
         }

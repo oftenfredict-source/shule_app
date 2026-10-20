@@ -1,6 +1,6 @@
 @extends('layouts.parent_corp')
 
-@section('title', 'Matokeo ya Mitihani - ShuleXpert')
+@section('title', __('parent.student_report_title') . ' - ShuleXpert')
 
 @section('content')
 <style>
@@ -423,16 +423,16 @@
                 <!-- Back Button - shown when results are displayed -->
                 <div id="backBtnWrapper" style="display:none; margin-bottom: 10px;">
                     <button class="btn btn-outline-danger btn-back-responsive" id="backToWizardBtn" style="border-radius: 20px; font-weight: bold;">
-                        <i class="bx bx-arrow-back mr-2"></i> Rudi Nyuma
+                        <i class="bx bx-arrow-back mr-2"></i> {{ __('parent.back_wizard') }}
                     </button>
                 </div>
                 <h4 class="mb-4 text-center font-weight-bold" style="color: var(--primary-red);">
-                    <i class="bx bx-book-open"></i> Ripoti ya Muhula ya Mwanafunzi
+                    <i class="bx bx-book-open"></i> {{ __('parent.term_report_heading') }}
                 </h4>
 
                 <div class="alert alert-light border mb-3" style="border-left:4px solid #940000 !important;border-radius:0;">
                     <i class="bx bx-info-circle"></i>
-                    Anza kwa kuchagua <strong>mwanafunzi</strong>, kisha academic year husika (O Level / A Level) itaonekana kiotomatiki.
+                    {{ __('parent.start_choose_student') }}
                 </div>
 
                 <!-- Step Progress Chain -->
@@ -440,15 +440,15 @@
                     <div class="step-chain-progress" id="stepProgress"></div>
                     <div class="step-item active" id="step1-tab">
                         <div class="step-circle">1</div>
-                        <div class="step-label">Mwanafunzi</div>
+                        <div class="step-label">{{ __('parent.step_student') }}</div>
                     </div>
                     <div class="step-item" id="step2-tab">
                         <div class="step-circle">2</div>
-                        <div class="step-label">Mwaka</div>
+                        <div class="step-label">{{ __('parent.step_year') }}</div>
                     </div>
                     <div class="step-item" id="step3-tab">
                         <div class="step-circle">3</div>
-                        <div class="step-label">Muhula</div>
+                        <div class="step-label">{{ __('parent.step_term') }}</div>
                     </div>
                 </div>
 
@@ -456,7 +456,7 @@
                 <div class="wizard-content">
                     <!-- Step 1: Student -->
                     <div class="wizard-step" id="step1">
-                        <h5 class="font-weight-bold mb-3">Hatua ya 1: Chagua Mwanafunzi</h5>
+                        <h5 class="font-weight-bold mb-3">{{ __('parent.step1_student') }}</h5>
                         <div class="selection-grid" id="studentGrid">
                             @foreach($students as $student)
                                 <div class="selection-card"
@@ -476,27 +476,27 @@
 
                     <!-- Step 2: Academic Year -->
                     <div class="wizard-step d-none" id="step2">
-                        <h5 class="font-weight-bold mb-3">Hatua ya 2: Chagua Academic Year</h5>
+                        <h5 class="font-weight-bold mb-3">{{ __('parent.step2_year') }}</h5>
                         <div class="small text-muted mb-2" id="yearLevelHint"></div>
                         <div class="selection-grid" id="yearGrid">
-                            <div class="col-12 text-muted small text-center py-3">Chagua mwanafunzi kwanza</div>
+                            <div class="col-12 text-muted small text-center py-3">{{ __('parent.choose_student_first') }}</div>
                         </div>
                         <div id="noYearsMessage" class="alert alert-warning d-none mt-3">
-                            Hakuna academic year husika kwa kiwango cha mwanafunzi huyu.
+                            {{ __('parent.no_year_for_level') }}
                         </div>
                     </div>
 
                     <!-- Step 3: Term Selection -->
                     <div class="wizard-step d-none" id="step3">
-                        <h5 class="font-weight-bold mb-3">Hatua ya 3: Chagua Muhula</h5>
+                        <h5 class="font-weight-bold mb-3">{{ __('parent.step3_term') }}</h5>
                         <div class="selection-grid" id="termGrid">
                             <div class="selection-card" data-value="first_term">
                                 <i class="bx bx-time-five"></i>
-                                <strong>Muhula wa Kwanza</strong>
+                                <strong>{{ __('parent.first_term') }}</strong>
                             </div>
                             <div class="selection-card" data-value="second_term">
                                 <i class="bx bx-time"></i>
-                                <strong>Muhula wa Pili</strong>
+                                <strong>{{ __('parent.second_term') }}</strong>
                             </div>
                         </div>
                     </div>
@@ -504,14 +504,14 @@
                     <!-- Navigation Buttons -->
                     <div class="nav-buttons mt-5">
                         <button class="btn btn-outline-secondary px-4 d-none" id="prevBtn">
-                            <i class="bx bx-chevron-left"></i> Rudia
+                            <i class="bx bx-chevron-left"></i> {{ __('parent.previous') }}
                         </button>
                         <div class="ms-auto">
                             <button class="btn btn-primary px-4 d-none" id="nextBtn">
-                                Endelea <i class="bx bx-chevron-right"></i>
+                                {{ __('parent.continue') }} <i class="bx bx-chevron-right"></i>
                             </button>
                             <button class="btn btn-success px-4 d-none" id="viewBtn">
-                                <i class="bx bx-show"></i> Angalia Ripoti
+                                <i class="bx bx-show"></i> {{ __('parent.view_report') }}
                             </button>
                         </div>
                     </div>
@@ -522,17 +522,17 @@
             <div id="resultDisplay" class="result-section" style="margin-top: -10px;">
                 <!-- Color Definition -->
                 <div class="color-def-container">
-                    <div class="color-def-title">Tafsiri ya Rangi za Matokeo</div>
+                    <div class="color-def-title">{{ __('parent.color_meaning') }}</div>
                     <div class="color-blocks">
-                        <div class="color-block bg-pass">Ufaulu</div>
-                        <div class="color-block bg-fail">Kufeli</div>
-                        <div class="color-block bg-inc">Haijakamilika</div>
+                        <div class="color-block bg-pass">{{ __('parent.pass') }}</div>
+                        <div class="color-block bg-fail">{{ __('parent.fail') }}</div>
+                        <div class="color-block bg-inc">{{ __('parent.incomplete') }}</div>
                     </div>
                 </div>
 
                 <!-- Summary Table -->
                 <div class="univ-summary-table">
-                    <div class="univ-summary-header">Muhtasari wa Ripoti</div>
+                    <div class="univ-summary-header">{{ __('parent.report_summary') }}</div>
                     <table style="width: 100%;">
                         <tbody id="overviewBody">
                             <!-- Loaded via JS -->
@@ -541,10 +541,10 @@
                 </div>
                 
                 <a href="#" id="univDownloadBtn" class="univ-dl-link btn-premium-download" style="text-align: center; display: block; padding: 12px; border-radius: 10px; text-decoration: none; margin: 20px 0;">
-                    <i class="bx bx-download mr-2"></i> Bofya hapa ku sevu ripoti (PDF)
+                    <i class="bx bx-download mr-2"></i> {{ __('parent.download_report_pdf') }}
                 </a>
 
-                <div class="univ-section-title" id="semesterTitle">Ripoti ya Maendeleo ya Mwanafunzi</div>
+                <div class="univ-section-title" id="semesterTitle">{{ __('parent.progress_report') }}</div>
 
                 <!-- Detail Table -->
                 <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch;">
@@ -577,6 +577,7 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+    const P = @json(trans('parent'));
     let currentStep = 1;
     let selections = {
         student: '',
@@ -598,7 +599,7 @@ $(document).ready(function() {
                 ? 'Mwanafunzi ni A Level, chagua academic year ya A Level.'
                 : 'Mwanafunzi ni O Level, chagua academic year ya O Level.');
         } else {
-            $('#yearLevelHint').text(levelLabel ? ('Kiwango: ' + levelLabel) : '');
+            $('#yearLevelHint').text(levelLabel ? (P.level + ': ' + levelLabel) : '');
         }
 
         if (!years.length && fallbackYears.length && ayMode !== 'secondary_dual') {
@@ -633,7 +634,7 @@ $(document).ready(function() {
             $('.step-chain, .wizard-content, h4.text-center').hide();
             $('#backBtnWrapper').show();
             $('#resultDisplay').show();
-            $('#overviewBody').html('<tr><td colspan="2" class="text-center py-5"><i class="bx bx-loader bx-spin text-danger" style="font-size: 30px;"></i><br>Inaleta Ripoti...</td></tr>');
+            $('#overviewBody').html('<tr><td colspan="2" class="text-center py-5"><i class="bx bx-loader bx-spin text-danger" style="font-size: 30px;"></i><br>' + P.loading_report + '</td></tr>');
             
             $.ajax({
                 url: '{{ route("fetch_term_report_ajax") }}',
@@ -646,7 +647,7 @@ $(document).ready(function() {
                         $('.step-chain, .wizard-content, h4.text-center').show();
                         $('#backBtnWrapper').hide();
                         $('#resultDisplay').hide();
-                        Swal.fire('Error', response.message || 'Haikuweza kupata ripoti.', 'error');
+                        Swal.fire(P.error, response.message || P.could_not_get_report, 'error');
                     }
                 },
                 error: function() {
@@ -654,7 +655,7 @@ $(document).ready(function() {
                     $('.step-chain, .wizard-content, h4.text-center').show();
                     $('#backBtnWrapper').hide();
                     $('#resultDisplay').hide();
-                    Swal.fire('Error', 'Tatizo la mtandao limetokea.', 'error');
+                    Swal.fire(P.error, P.network_error, 'error');
                 }
             });
         } catch(e) {}
@@ -743,13 +744,13 @@ $(document).ready(function() {
     });
 
     $('#viewBtn').click(function() {
-        $(this).html('<i class="bx bx-loader bx-spin"></i> Inatafuta...');
+        $(this).html('<i class="bx bx-loader bx-spin"></i> ' + P.searching);
         
         $.ajax({
             url: '{{ route("fetch_term_report_ajax") }}',
             data: selections,
             success: function(response) {
-                $('#viewBtn').html('<i class="bx bx-show"></i> Angalia Ripoti');
+                $('#viewBtn').html('<i class="bx bx-show"></i> ' + P.view_report);
                 if(response.success) {
                     sessionStorage.setItem('parent_report_selections', JSON.stringify(selections));
                     $('.step-chain, .wizard-content, h4.text-center').hide();
@@ -758,12 +759,12 @@ $(document).ready(function() {
                     $('#resultDisplay').fadeIn();
                     window.scrollTo(0, 0);
                 } else {
-                    Swal.fire('Error', response.message || 'Haikuweza kupata ripoti.', 'error');
+                    Swal.fire(P.error, response.message || P.could_not_get_report, 'error');
                 }
             },
             error: function() {
-                $('#viewBtn').html('<i class="bx bx-show"></i> Angalia Ripoti');
-                Swal.fire('Error', 'Tatizo la mtandao limetokea.', 'error');
+                $('#viewBtn').html('<i class="bx bx-show"></i> ' + P.view_report);
+                Swal.fire(P.error, P.network_error, 'error');
             }
         });
     });
@@ -780,34 +781,34 @@ $(document).ready(function() {
     const getParentSubjectRemark = (grade, isSecondary, isALevel) => {
         const g = String(grade || '').toUpperCase().trim();
         if (!grade || g === 'N/A' || g === 'INCOMPLETE' || g === '-') {
-            return { text: 'Incomplete', cssClass: 'bg-inc' };
+            return { text: P.incomplete, cssClass: 'bg-inc' };
         }
         if (isSecondary) {
             if (isALevel) {
                 const map = {
-                    A: 'Excellent', B: 'Very Good', C: 'Good',
-                    D: 'Average', E: 'Satisfactory', S: 'Subsidiary', F: 'Fail'
+                    A: P.excellent, B: P.very_good, C: P.good,
+                    D: P.average_grade, E: P.satisfactory, S: P.subsidiary, F: P.fail
                 };
                 if (map[g]) {
                     return { text: map[g], cssClass: g === 'F' ? 'bg-fail' : 'bg-pass' };
                 }
             } else {
                 const map = {
-                    A: 'Excellent', B: 'Very Good', C: 'Good', D: 'Pass', F: 'Fail'
+                    A: P.excellent, B: P.very_good, C: P.good, D: P.pass, F: P.fail
                 };
                 if (map[g]) {
                     return { text: map[g], cssClass: g === 'F' ? 'bg-fail' : 'bg-pass' };
                 }
             }
             if (/^(I|II|III|IV)\./.test(g)) {
-                return { text: 'Pass', cssClass: 'bg-pass' };
+                return { text: P.pass, cssClass: 'bg-pass' };
             }
-            return { text: 'Fail', cssClass: 'bg-fail' };
+            return { text: P.fail, cssClass: 'bg-fail' };
         }
         if (['A', 'B', 'C', 'D'].includes(g)) {
-            return { text: 'Pass', cssClass: 'bg-pass' };
+            return { text: P.pass, cssClass: 'bg-pass' };
         }
-        return { text: 'Fail', cssClass: 'bg-fail' };
+        return { text: P.fail, cssClass: 'bg-fail' };
     };
 
     const formatPaperLines = (papers) => {
@@ -816,32 +817,32 @@ $(document).ready(function() {
             const pm = (p.marks !== null && p.marks !== undefined && p.marks !== '')
                 ? `${Math.round(parseFloat(p.marks))}/${p.max_marks || ''}`
                 : '-';
-            return `<li class="exam-sub-item px-3" style="opacity:.9; padding-left:1.25rem !important;">${p.component_name || 'Paper'}: <strong>${pm}</strong></li>`;
+            return `<li class="exam-sub-item px-3" style="opacity:.9; padding-left:1.25rem !important;">${p.component_name || P.paper}: <strong>${pm}</strong></li>`;
         }).join('');
     };
 
     const renderResults = (data) => {
         const isSecondary = (data.school_type || '').toLowerCase() === 'secondary';
         const isALevel = !!data.is_a_level;
-        const overallLabel = isSecondary ? 'Divisheni ya Muhula:' : 'Daraja la Muhula:';
+        const overallLabel = isSecondary ? P.term_division : P.term_grade;
         const overallValue = isSecondary ? (data.overall_division || '-') : (data.overall_grade || '-');
         // Overview
         $('#overviewBody').html(`
-            <tr><td class="label">Jina la Mwanafunzi:</td><td>${data.student.first_name} ${data.student.last_name}</td></tr>
-            <tr><td class="label">Jumla ya Alama:</td><td>${data.total_marks ? parseFloat(data.total_marks).toFixed(0) : '-'}</td></tr>
-            <tr><td class="label">Wastani wa Muhula:</td><td>${data.average ? parseFloat(data.average).toFixed(0) : '-'}</td></tr>
-            <tr><td class="label">${overallLabel}</td><td>${overallValue}</td></tr>
-            <tr><td class="label">Nafasi:</td><td>${data.position || 'N/A'}</td></tr>
+            <tr><td class="label">${P.student_name}:</td><td>${data.student.first_name} ${data.student.last_name}</td></tr>
+            <tr><td class="label">${P.total_marks}:</td><td>${data.total_marks ? parseFloat(data.total_marks).toFixed(0) : '-'}</td></tr>
+            <tr><td class="label">${P.term_average}:</td><td>${data.average ? parseFloat(data.average).toFixed(0) : '-'}</td></tr>
+            <tr><td class="label">${overallLabel}:</td><td>${overallValue}</td></tr>
+            <tr><td class="label">${P.position}:</td><td>${data.position || P.na}</td></tr>
         `);
 
         // Marks Table Header
         let headHtml = `
             <tr>
-                <th class="col-somo">Somo</th>
-                <th class="col-mtihani">Mitihani</th>
-                <th class="col-small text-center">Wastani</th>
-                <th class="col-small text-center">${isSecondary ? 'Div/Grade' : 'Daraja'}</th>
-                <th class="col-small text-center">Remark</th>
+                <th class="col-somo">${P.subject}</th>
+                <th class="col-mtihani">${P.exams}</th>
+                <th class="col-small text-center">${P.average}</th>
+                <th class="col-small text-center">${isSecondary ? P.grade : P.grade}</th>
+                <th class="col-small text-center">${P.remark}</th>
             </tr>
         `;
         $('#marksHead').html(headHtml);
@@ -854,9 +855,9 @@ $(document).ready(function() {
             // Determine if average is null/empty → Incomplete
             const rawAvg = res.average ?? res.marks;
             const hasMarks = rawAvg !== null && rawAvg !== undefined && rawAvg !== '' && rawAvg !== '-';
-            const avgVal = hasMarks ? parseFloat(rawAvg).toFixed(0) : 'Incomplete';
+            const avgVal = hasMarks ? parseFloat(rawAvg).toFixed(0) : P.incomplete;
             const gradeText = (!hasMarks || String(res.grade || '').toLowerCase() === 'incomplete')
-                ? 'Incomplete'
+                ? P.incomplete
                 : (res.grade || 'F');
             const remarkInfo = getParentSubjectRemark(gradeText, isSecondary, isALevel);
             const remarkClass = remarkInfo.cssClass;
@@ -864,7 +865,7 @@ $(document).ready(function() {
 
             bodyHtml += `
                 <tr>
-                    <td class="align-middle"><strong>${res.subject_name || 'N/A'}</strong></td>
+                    <td class="align-middle"><strong>${res.subject_name || P.na}</strong></td>
                     <td class="col-mtihani p-0">
                         <ul class="exam-sub-list">
                             ${examsInTerm.map(ex => {
@@ -884,16 +885,16 @@ $(document).ready(function() {
         $('#marksBody').html(bodyHtml);
         
         // Update Title
-        const termName = selections.term === 'first_term' ? 'Muhula wa Kwanza' : 'Muhula wa Pili';
-        $('#semesterTitle').text(`Ripoti ya Maendeleo - ${termName} ${selections.year}`);
+        const termName = selections.term === 'first_term' ? P.first_term : P.second_term;
+        $('#semesterTitle').text(P.progress_report_term.replace(':term', termName).replace(':year', selections.year));
     };
     
     $('#univDownloadBtn').click(function(e) {
         e.preventDefault();
         
         Swal.fire({
-            title: 'Inatayarisha PDF...',
-            html: 'Tafadhali subiri kidogo wakati ripoti yako inatayarishwa.<br><br><b></b>%',
+            title: P.preparing_pdf,
+            html: P.preparing_report_wait + '<br><br><b></b>%',
             timer: 3500,
             timerProgressBar: true,
             didOpen: () => {

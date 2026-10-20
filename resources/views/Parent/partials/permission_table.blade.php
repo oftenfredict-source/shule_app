@@ -1,32 +1,32 @@
 @if($permissions->count() === 0)
-    <div class="alert alert-light text-muted border-0 py-4 text-center" style="border-radius:0;">Hakuna rekodi za ruksa kwa kategoria hii.</div>
+    <div class="alert alert-light text-muted border-0 py-4 text-center" style="border-radius:0;">{{ __('parent.no_permission_records') }}</div>
 @else
 
 @php
     $parentReasonSw = function ($type) {
         return match (strtolower((string) $type)) {
-            'permission', 'official', 'family', 'emergency', 'other' => 'Ruhusa',
-            'sick', 'medical' => 'Mgonjwa',
+            'permission', 'official', 'family', 'emergency', 'other' => __('parent.permission'),
+            'sick', 'medical' => __('parent.sick'),
             default => ucfirst((string) $type),
         };
     };
     $parentStatusSw = function ($status) {
         return match (strtolower((string) $status)) {
-            'approved' => 'Imekubaliwa',
-            'rejected' => 'Imekataliwa',
-            'pending' => 'Inasubiri',
+            'approved' => __('parent.approved'),
+            'rejected' => __('parent.rejected'),
+            'pending' => __('parent.pending_tab'),
             default => ucfirst((string) $status),
         };
     };
 @endphp
 
 <div class="d-flex align-items-center justify-content-between mb-3 px-1">
-    <small class="text-muted">{{ $permissions->count() }} rekodi</small>
-    <div class="btn-group btn-group-sm perm-view-toggle" role="group" aria-label="Badilisha mwonekano">
-        <button type="button" class="btn btn-outline-secondary perm-view-btn" data-view="list" title="Orodha">
+    <small class="text-muted">{{ __('parent.records_count', ['count' => $permissions->count()]) }}</small>
+    <div class="btn-group btn-group-sm perm-view-toggle" role="group" aria-label="{{ __('parent.toggle_view') }}">
+        <button type="button" class="btn btn-outline-secondary perm-view-btn" data-view="list" title="{{ __('parent.list_view') }}">
             <i class="bx bx-list-ul"></i>
         </button>
-        <button type="button" class="btn btn-outline-secondary perm-view-btn" data-view="grid" title="Kadi">
+        <button type="button" class="btn btn-outline-secondary perm-view-btn" data-view="grid" title="{{ __('parent.card_view') }}">
             <i class="bx bx-grid-alt"></i>
         </button>
     </div>
@@ -37,12 +37,12 @@
         <table class="table table-hover align-middle border">
             <thead class="bg-light">
                 <tr style="font-size: 11px; text-transform: uppercase; color: #940000; letter-spacing: 0.5px;">
-                    <th class="py-3 px-3">Tarehe ya Kuomba</th>
-                    <th class="py-3 px-3">Jina la Mwanafunzi</th>
-                    <th class="py-3 px-3">Kipindi na Muda</th>
-                    <th class="py-3 px-3">Aina</th>
-                    <th class="py-3 px-3 text-center">Hali</th>
-                    <th class="py-3 px-3 text-center">Vitendo</th>
+                    <th class="py-3 px-3">{{ __('parent.request_date') }}</th>
+                    <th class="py-3 px-3">{{ __('parent.student_name') }}</th>
+                    <th class="py-3 px-3">{{ __('parent.period_duration') }}</th>
+                    <th class="py-3 px-3">{{ __('parent.type') }}</th>
+                    <th class="py-3 px-3 text-center">{{ __('parent.status') }}</th>
+                    <th class="py-3 px-3 text-center">{{ __('parent.actions') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -60,11 +60,11 @@
                     <tr>
                         <td class="px-3" style="font-size: 13px;">{{ $permission->created_at ? $permission->created_at->format('d M Y, H:i') : '---' }}</td>
                         <td class="px-3">
-                            <div style="font-weight: 700; color: #333;">{{ $studentNames[$studentId] ?? 'Inachakatwa...' }}</div>
+                            <div style="font-weight: 700; color: #333;">{{ $studentNames[$studentId] ?? __('parent.processing_name') }}</div>
                         </td>
                         <td class="px-3" style="font-size: 13px;">
-                            <i class="bx bx-calendar text-muted me-1"></i> {{ \Carbon\Carbon::parse($permission->start_date)->format('j F Y') }} hadi {{ \Carbon\Carbon::parse($permission->end_date)->format('j F Y') }}
-                            <div class="badge bg-light text-dark border ms-0 mt-1" style="border-radius:0; font-weight:700;">{{ $permission->days_count }} SIKU</div>
+                            <i class="bx bx-calendar text-muted me-1"></i> {{ \Carbon\Carbon::parse($permission->start_date)->locale(app()->getLocale())->isoFormat('D MMMM Y') }} {{ __('parent.until') }} {{ \Carbon\Carbon::parse($permission->end_date)->locale(app()->getLocale())->isoFormat('D MMMM Y') }}
+                            <div class="badge bg-light text-dark border ms-0 mt-1" style="border-radius:0; font-weight:700;">{{ $permission->days_count }} {{ __('parent.days_upper') }}</div>
                         </td>
                         <td class="px-3"><span class="small font-weight-bold" style="color:#777;">{{ $parentReasonSw($permission->reason_type) }}</span></td>
                         <td class="px-3 text-center">
@@ -80,13 +80,13 @@
                                 <ul class="dropdown-menu dropdown-menu-end" style="border-radius:0; font-size: 13px;">
                                     <li>
                                         <a class="dropdown-item py-2" href="#" onclick="viewPermissionProgress({{ $permId }}, true); return false;">
-                                            <i class="bx bx-show text-info me-2"></i> Angalia Maendeleo
+                                            <i class="bx bx-show text-info me-2"></i> {{ __('parent.view_progress') }}
                                         </a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item py-2" href="#" onclick="viewPermissionDetails({{ json_encode([
                                             'id' => $permId,
-                                            'time_mode' => $permission->time_mode === 'days' ? 'Siku' : 'Masaa',
+                                            'time_mode' => $permission->time_mode === 'days' ? __('parent.days_mode') : __('parent.hours_mode'),
                                             'days_count' => $permission->days_count,
                                             'start_date' => $permission->start_date ? \Carbon\Carbon::parse($permission->start_date)->format('j F Y') : null,
                                             'end_date' => $permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->format('j F Y') : null,
@@ -99,13 +99,13 @@
                                             'admin_response' => $permission->admin_response ?? null,
                                             'requested_at' => $permission->created_at ? $permission->created_at->format('j F Y H:i') : 'N/A'
                                         ]) }}); return false;">
-                                            <i class="bx bx-list-ul text-secondary me-2"></i> Angalia Maelezo
+                                            <i class="bx bx-list-ul text-secondary me-2"></i> {{ __('parent.view_details') }}
                                         </a>
                                     </li>
                                     @if($permission->status === 'rejected')
                                     <li>
                                         <a class="dropdown-item py-2" href="{{ url()->current() }}?tab=request&edit_id={{ $permId }}">
-                                            <i class="bx bx-edit text-primary me-2"></i> Hariri na Tuma Tena
+                                            <i class="bx bx-edit text-primary me-2"></i> {{ __('parent.edit_resubmit_action') }}
                                         </a>
                                     </li>
                                     @endif
@@ -128,7 +128,7 @@
             $status = strtolower($permission->status);
             $badgeClass = match($status) { 'approved' => 'bg-success', 'rejected' => 'bg-danger', default => 'bg-warning text-dark' };
             $borderColor = match($status) { 'approved' => '#28a745', 'rejected' => '#dc3545', default => '#ffc107' };
-            $studentLabel = $studentNames[$studentId] ?? 'Inachakatwa...';
+            $studentLabel = $studentNames[$studentId] ?? __('parent.processing_name');
         @endphp
         <div class="col-12 col-sm-6">
             <div class="card h-100 shadow-sm" style="border-radius:0; border-left: 4px solid {{ $borderColor }};">
@@ -143,10 +143,10 @@
                                 <i class="bx bx-dots-vertical-rounded" style="font-size:20px; color:#666;"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" style="border-radius:0; font-size:13px;">
-                                <li><a class="dropdown-item py-2" href="#" onclick="viewPermissionProgress({{ $permId }}, true); return false;"><i class="bx bx-show text-info me-2"></i> Angalia Maendeleo</a></li>
+                                <li><a class="dropdown-item py-2" href="#" onclick="viewPermissionProgress({{ $permId }}, true); return false;"><i class="bx bx-show text-info me-2"></i> {{ __('parent.view_progress') }}</a></li>
                                 <li><a class="dropdown-item py-2" href="#" onclick="viewPermissionDetails({{ json_encode([
                                     'id' => $permId,
-                                    'time_mode' => $permission->time_mode === 'days' ? 'Siku' : 'Masaa',
+                                    'time_mode' => $permission->time_mode === 'days' ? __('parent.days_mode') : __('parent.hours_mode'),
                                     'days_count' => $permission->days_count,
                                     'start_date' => $permission->start_date ? \Carbon\Carbon::parse($permission->start_date)->format('j F Y') : null,
                                     'end_date' => $permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->format('j F Y') : null,
@@ -158,9 +158,9 @@
                                     'status' => $parentStatusSw($permission->status),
                                     'admin_response' => $permission->admin_response ?? null,
                                     'requested_at' => $permission->created_at ? $permission->created_at->format('j F Y H:i') : 'N/A'
-                                ]) }}); return false;"><i class="bx bx-list-ul text-secondary me-2"></i> Angalia Maelezo</a></li>
+                                ]) }}); return false;"><i class="bx bx-list-ul text-secondary me-2"></i> {{ __('parent.view_details') }}</a></li>
                                 @if($permission->status === 'rejected')
-                                <li><a class="dropdown-item py-2" href="{{ url()->current() }}?tab=request&edit_id={{ $permId }}"><i class="bx bx-edit text-primary me-2"></i> Hariri na Tuma Tena</a></li>
+                                <li><a class="dropdown-item py-2" href="{{ url()->current() }}?tab=request&edit_id={{ $permId }}"><i class="bx bx-edit text-primary me-2"></i> {{ __('parent.edit_resubmit_action') }}</a></li>
                                 @endif
                             </ul>
                         </div>
@@ -169,7 +169,7 @@
                     <div class="mb-1" style="font-size:12px; color:#555;">
                         <i class="bx bx-calendar" style="color:#940000;"></i>
                         {{ \Carbon\Carbon::parse($permission->start_date)->format('j M Y') }} &rarr; {{ \Carbon\Carbon::parse($permission->end_date)->format('j M Y') }}
-                        <span class="badge bg-light text-dark border ms-1" style="border-radius:0; font-size:10px;">{{ $permission->days_count }} siku</span>
+                        <span class="badge bg-light text-dark border ms-1" style="border-radius:0; font-size:10px;">{{ $permission->days_count }} {{ __('parent.days') }}</span>
                     </div>
 
                     <div class="d-flex align-items-center justify-content-between mt-2">
@@ -183,7 +183,7 @@
 
                     @if($permission->status === 'rejected' && !empty($permission->admin_response))
                     <div class="mt-2 p-2" style="background:#fff5f5; border-left: 3px solid #dc3545; font-size: 11px; color:#dc3545;">
-                        <i class="bx bx-x-circle"></i> <strong>Sababu:</strong> {{ $permission->admin_response }}
+                        <i class="bx bx-x-circle"></i> <strong>{{ __('parent.reason') }}:</strong> {{ $permission->admin_response }}
                     </div>
                     @endif
                 </div>

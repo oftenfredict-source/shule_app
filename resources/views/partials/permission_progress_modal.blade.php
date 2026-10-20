@@ -3,7 +3,7 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content" style="border-radius: 0;">
             <div class="modal-header bg-primary-custom text-white" style="background: #940000; color: white; border-radius: 0;">
-                <h5 class="modal-title"><i class="fa fa-tasks"></i> Approval Progress</h5>
+                <h5 class="modal-title"><i class="fa fa-tasks"></i> {{ __('parent.approval_progress') }}</h5>
                 <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -47,7 +47,7 @@
         }
         window.$ = $;
 
-        $('#progressContent').html('<div class="text-center p-4"><i class="fa fa-spinner fa-spin fa-2x spinner-custom"></i><p class="mt-2">Loading progress...</p></div>');
+                $('#progressContent').html('<div class="text-center p-4"><i class="fa fa-spinner fa-spin fa-2x spinner-custom"></i><p class="mt-2">{{ __('parent.loading_progress') }}</p></div>');
         $('#progressModal').modal('show');
 
         $.get("{{ route('admin.permissions.progress') }}", { permissionID: permissionID, is_student_permission: isStudentPermission ? 1 : 0 }, function(response) {
@@ -62,7 +62,7 @@
 
                 // Build the full chain steps
                 chain.forEach(step => {
-                    const name = step.role_name || step.profession_name || 'Approval Stage';
+                    const name = step.role_name || step.profession_name || @json(__('parent.approval_stage'));
                     const log = logs.find(l => l.approval_order == step.approval_order);
                     const isCompleted = !!log;
                     const isCurrent = !isCompleted && p.current_approval_order == step.approval_order && p.status === 'pending';
@@ -71,8 +71,8 @@
                         <div class="timeline-item ${isCompleted ? 'completed' : (isCurrent ? 'current' : '')}">
                             <div class="timeline-dot ${isCompleted ? 'completed' : (isCurrent ? 'current' : '')}"></div>
                             <div class="timeline-content">
-                                <span class="timeline-role">${name} (Stage ${step.approval_order})</span>
-                                <span class="timeline-status">${isCompleted ? 'Approved' : (isCurrent ? '<span class="text-warning fw-bold">Awaiting Action (Pending)</span>' : (p.status === 'rejected' ? 'Terminated' : 'Upcoming'))}</span>
+                                <span class="timeline-role">${name} ({{ __('parent.stage') }} ${step.approval_order})</span>
+                                <span class="timeline-status">${isCompleted ? @json(__('parent.approved')) : (isCurrent ? '<span class="text-warning fw-bold">' + @json(__('parent.awaiting_action')) + '</span>' : (p.status === 'rejected' ? @json(__('parent.terminated')) : @json(__('parent.upcoming'))))}</span>
                                 ${log ? `<span class="timeline-time"><i class="fa fa-clock"></i> ${new Date(log.created_at).toLocaleString()}</span>` : ''}
                             </div>
                         </div>
@@ -85,8 +85,8 @@
                         <div class="timeline-item">
                             <div class="timeline-dot bg-danger"></div>
                             <div class="timeline-content" style="border-left-color: #dc3545; background: #fff5f5;">
-                                <span class="timeline-role">Request Rejected</span>
-                                <span class="timeline-status text-danger">${p.admin_response || 'No reason provided'}</span>
+                                <span class="timeline-role">${@json(__('parent.request_rejected'))}</span>
+                                <span class="timeline-status text-danger">${p.admin_response || @json(__('parent.no_reason'))}</span>
                             </div>
                         </div>
                     `;
@@ -95,10 +95,10 @@
                 html += '</div>';
                 $('#progressContent').html(html);
             } else {
-                $('#progressContent').html('<div class="alert alert-danger">Failed to load progress details.</div>');
+                $('#progressContent').html('<div class="alert alert-danger">{{ __('parent.progress_load_failed') }}</div>');
             }
         }).fail(function() {
-            $('#progressContent').html('<div class="alert alert-danger">An error occurred while fetching progress.</div>');
+            $('#progressContent').html('<div class="alert alert-danger">{{ __('parent.progress_fetch_error') }}</div>');
         });
     }
 </script>

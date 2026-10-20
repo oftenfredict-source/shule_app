@@ -340,7 +340,7 @@
                         </div>
 
                         <div class="dropdown for-notification">
-                            <button class="btn btn-secondary dropdown-toggle" type="button" id="notification" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <button class="btn btn-secondary dropdown-toggle" type="button" id="notification" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="border: 2px solid #000; color: #940000;">
                                 <i class="fa fa-bell"></i>
                                 <span class="count bg-danger">{{ $unviewedResultNotifications > 0 ? $unviewedResultNotifications : 0 }}</span>
                             </button>

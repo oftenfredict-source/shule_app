@@ -1,0 +1,43 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (Schema::hasTable('subject_notes') && !Schema::hasColumn('subject_notes', 'level')) {
+            Schema::table('subject_notes', function (Blueprint $table) {
+                $table->string('level', 20)->nullable()->after('teacherID');
+            });
+        }
+
+        if (!Schema::hasTable('parent_subject_note_notifications')) {
+            Schema::create('parent_subject_note_notifications', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('schoolID');
+                $table->unsignedBigInteger('parentID');
+                $table->unsignedBigInteger('studentID')->nullable();
+                $table->unsignedBigInteger('noteID');
+                $table->boolean('is_viewed')->default(false);
+                $table->timestamps();
+
+                $table->unique(['parentID', 'studentID', 'noteID'], 'psnn_parent_student_note_unique');
+                $table->index(['parentID', 'is_viewed']);
+                $table->index('schoolID');
+                $table->index('noteID');
+            });
+        }
+    }
+
+    public function down(): void
+    {
+        if (Schema::hasTable('subject_notes') && Schema::hasColumn('subject_notes', 'level')) {
+            Schema::table('subject_notes', function (Blueprint $table) {
+                $table->dropColumn('level');
+            });
+        }
+    }
+};

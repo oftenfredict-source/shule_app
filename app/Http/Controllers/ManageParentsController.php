@@ -6,6 +6,7 @@ use App\Models\ParentModel;
 use App\Models\User;
 use App\Models\Student;
 use App\Services\SmsService;
+use App\Support\ParentUserAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
@@ -637,25 +638,27 @@ class ManageParentsController extends Controller
 
     public function register_parent_account(Request $request)
     {
+        $schoolID = Session::get('schoolID');
         $parentID = $request->parentID;
-        $parent = ParentModel::find($parentID);
+        $parent = ParentModel::where('parentID', $parentID)
+            ->when($schoolID, function ($q) use ($schoolID) {
+                $q->where('schoolID', $schoolID);
+            })
+            ->first();
         if (!$parent) {
             return response()->json(['success' => false, 'message' => 'Parent not found'], 404);
         }
 
-        $existingUser = User::where('name', $parent->phone)->first();
-        if ($existingUser) {
-            return response()->json(['success' => false, 'message' => 'User account already exists'], 400);
+        $result = ParentUserAccount::forceSync($parent);
+        if (!$result['ok']) {
+            return response()->json(['success' => false, 'message' => $result['message']], 400);
         }
 
-        User::create([
-            'name' => $parent->phone,
-            'email' => $parent->email ?: null,
-            'password' => Hash::make($parent->first_name),
-            'user_type' => 'parent'
+        return response()->json([
+            'success' => true,
+            'action' => $result['action'],
+            'message' => $result['message'],
         ]);
-
-        return response()->json(['success' => true, 'message' => 'User account created successfully']);
     }
 
     public function send_parent_password(Request $request)
@@ -718,24 +721,31 @@ class ManageParentsController extends Controller
         }
 
         $parents = ParentModel::where('schoolID', $schoolID)->get();
-        $registeredCount = 0;
+        $createdCount = 0;
+        $updatedCount = 0;
+        $skippedCount = 0;
 
         foreach ($parents as $parent) {
-            $existingUser = User::where('name', $parent->phone)->first();
-            if (!$existingUser) {
-                User::create([
-                    'name' => $parent->phone,
-                    'email' => $parent->email ?: null,
-                    'password' => Hash::make($parent->first_name),
-                    'user_type' => 'parent',
-                ]);
-                $registeredCount++;
+            $result = ParentUserAccount::forceSync($parent);
+            if (!$result['ok']) {
+                $skippedCount++;
+                continue;
+            }
+            if ($result['action'] === 'created') {
+                $createdCount++;
+            } else {
+                $updatedCount++;
             }
         }
 
         return response()->json([
             'success' => true,
-            'message' => "Successfully registered $registeredCount parents who didn't have accounts."
+            'created' => $createdCount,
+            'updated' => $updatedCount,
+            'skipped' => $skippedCount,
+            'message' => "Accounts ready: {$createdCount} created, {$updatedCount} updated"
+                . ($skippedCount > 0 ? ", {$skippedCount} skipped (missing phone or first name)." : ".")
+                . " Username is the phone number, password is the first name. No SMS was sent.",
         ]);
     }
 }

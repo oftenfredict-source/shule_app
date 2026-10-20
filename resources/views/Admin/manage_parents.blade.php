@@ -565,11 +565,9 @@ $(document).ready(function() {
                         '<i class="bi bi-eye-fill"></i>' +
                         '</button>';
                     
-                    if (!row.has_account) {
-                        actions += '<button class="btn btn-sm btn-success text-white register-account-btn" data-parent-id="' + row.parentID + '" title="Register Account">' +
-                                   '<i class="bi bi-person-plus-fill"></i>' +
-                                   '</button>';
-                    }
+                    actions += '<button class="btn btn-sm btn-success text-white register-account-btn" data-parent-id="' + row.parentID + '" title="Register / Update Account">' +
+                               '<i class="bi bi-person-plus-fill"></i>' +
+                               '</button>';
                     
                     actions += '<button class="btn btn-sm btn-primary-custom text-white send-password-btn" data-parent-id="' + row.parentID + '" title="Send Password">' +
                                '<i class="bi bi-key-fill"></i>' +
@@ -1051,15 +1049,20 @@ $(document).ready(function() {
         var parentID = $(this).data('parent-id');
         
         Swal.fire({
-            title: 'Register Account?',
-            text: "This will create a user account for this parent using their phone as username.",
+            title: 'Register / Update Account?',
+            text: "Username will be the phone number and password will be the first name. If the account already exists it will be reset. No SMS will be sent.",
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#28a745',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Yes, Register'
+            confirmButtonText: 'Yes, Save Account'
         }).then((result) => {
             if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Saving account...',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
                 $.ajax({
                     url: '{{ route("register_parent_account") }}',
                     type: 'POST',
@@ -1077,7 +1080,7 @@ $(document).ready(function() {
                         }
                     },
                     error: function(xhr) {
-                        Swal.fire('Error', xhr.responseJSON.message || 'Failed to register account', 'error');
+                        Swal.fire('Error', (xhr.responseJSON && xhr.responseJSON.message) || 'Failed to register account', 'error');
                     }
                 });
             }
@@ -1132,7 +1135,7 @@ $(document).ready(function() {
     $('#btnRegisterAll').on('click', function() {
         Swal.fire({
             title: 'Register All Accounts?',
-            text: "This will create user accounts for all parents who don't have one yet.",
+            text: "Every parent account will be created or reset. Username = phone number, password = first name. No SMS will be sent.",
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#940000',

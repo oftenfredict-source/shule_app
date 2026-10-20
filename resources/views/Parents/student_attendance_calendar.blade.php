@@ -1,6 +1,6 @@
 @extends('layouts.parent_corp')
 
-@section('title', 'Mahudhurio - ' . $student->first_name . ' - ShuleXpert')
+@section('title', __('parent.attendance') . ' - ' . $student->first_name . ' - ShuleXpert')
 
 @section('content')
 @php
@@ -8,8 +8,8 @@
     $isFingerprint = $attendanceMode === 'fingerprint';
     $overviewRoute = $isFingerprint ? 'parentFingerprintAttendance' : 'parentAttendance';
     $calendarRoute = $isFingerprint ? 'parentStudentFingerprintAttendance' : 'parentStudentAttendance';
-    $modeBadge = $isFingerprint ? 'Alama za Vidole' : 'Mahudhurio ya Mfumo';
-    $absentStatLabel = $isFingerprint ? 'Hayupo' : 'Alikosa';
+    $modeBadge = $isFingerprint ? __('parent.fingerprint_attendance') : __('parent.system_attendance');
+    $absentStatLabel = $isFingerprint ? __('parent.absent') : __('parent.missed');
 @endphp
 <style>
     .cal-wrap {
@@ -190,7 +190,7 @@
 <div class="row">
     <div class="col-12 mb-3">
         <a href="{{ route($overviewRoute, ['month' => $month, 'year' => $year]) }}" class="btn btn-sm btn-outline-secondary">
-            <i class="bx bx-arrow-back"></i> Rudi kwa Watoto
+            <i class="bx bx-arrow-back"></i> {{ __('parent.back_to_children') }}
         </a>
     </div>
 
@@ -201,24 +201,24 @@
                     <h5 class="mb-0 fw-bold">{{ $student->first_name }} {{ $student->last_name }}</h5>
                     <small class="text-muted">
                         {{ trim(($student->subclass->class->class_name ?? '') . ' ' . ($student->subclass->subclass_name ?? '')) }}
-                        &bull; Usajili: {{ $student->admission_number ?? '-' }}
+                        &bull; {{ __('parent.admission') }}: {{ $student->admission_number ?? '-' }}
                     </small>
                 </div>
                 <span class="badge bg-light text-dark border">{{ $modeBadge }}</span>
             </div>
 
             <div class="month-nav">
-                <a href="{{ route($calendarRoute, ['studentID' => $student->studentID, 'month' => $prevMonth->month, 'year' => $prevMonth->year]) }}" aria-label="Mwezi uliopita">
+                <a href="{{ route($calendarRoute, ['studentID' => $student->studentID, 'month' => $prevMonth->month, 'year' => $prevMonth->year]) }}" aria-label="{{ __('parent.prev_month') }}">
                     <i class="bx bx-chevron-left"></i>
                 </a>
                 <div class="month-title">{{ $monthLabel }}</div>
-                <a href="{{ route($calendarRoute, ['studentID' => $student->studentID, 'month' => $nextMonth->month, 'year' => $nextMonth->year]) }}" aria-label="Mwezi ujao">
+                <a href="{{ route($calendarRoute, ['studentID' => $student->studentID, 'month' => $nextMonth->month, 'year' => $nextMonth->year]) }}" aria-label="{{ __('parent.next_month') }}">
                     <i class="bx bx-chevron-right"></i>
                 </a>
             </div>
 
-            <p class="cal-hint mb-2 d-none d-md-block"><i class="bx bx-mouse"></i> Elekeza kipanya juu ya kisanduku kuona tarehe na hali</p>
-            <p class="cal-hint mb-2 d-md-none"><i class="bx bx-pointer"></i> Bofya kisanduku kuona tarehe na hali</p>
+            <p class="cal-hint mb-2 d-none d-md-block"><i class="bx bx-mouse"></i> {{ __('parent.hover_hint') }}</p>
+            <p class="cal-hint mb-2 d-md-none"><i class="bx bx-pointer"></i> {{ __('parent.tap_hint') }}</p>
 
             <div class="table-responsive">
                 <table class="att-grid">
@@ -265,7 +265,7 @@
             <div class="col-4 col-md-2">
                 <div class="stat-pill">
                     <div class="num text-success">{{ $stats['present'] }}</div>
-                    <div class="txt">Alikuwepo</div>
+                    <div class="txt">{{ __('parent.present') }}</div>
                 </div>
             </div>
             <div class="col-4 col-md-2">
@@ -277,32 +277,32 @@
             <div class="col-4 col-md-2">
                 <div class="stat-pill">
                     <div class="num" style="color:#fd7e14;">{{ $stats['sick'] }}</div>
-                    <div class="txt">Mgonjwa</div>
+                    <div class="txt">{{ __('parent.sick') }}</div>
                 </div>
             </div>
             <div class="col-4 col-md-2">
                 <div class="stat-pill">
                     <div class="num text-warning">{{ $stats['permission'] }}</div>
-                    <div class="txt">Ruhusa</div>
+                    <div class="txt">{{ __('parent.permission') }}</div>
                 </div>
             </div>
             @if(!$isFingerprint)
             <div class="col-4 col-md-2">
                 <div class="stat-pill">
                     <div class="num text-info">{{ $stats['incomplete'] ?? 0 }}</div>
-                    <div class="txt">Haijakamilika</div>
+                    <div class="txt">{{ __('parent.incomplete') }}</div>
                 </div>
             </div>
             @endif
             <div class="col-4 col-md-2">
                 <div class="stat-pill" style="border-bottom: 3px solid #940000;">
                     <div class="num">{{ $stats['attendance_rate'] }}%</div>
-                    <div class="txt">Kiwango</div>
+                    <div class="txt">{{ __('parent.rate') }}</div>
                 </div>
             </div>
         </div>
         <p class="small text-muted mb-0">
-            Takwimu zinahesabiwa kwa <strong>siku za kazi za shule</strong> tu ({{ $stats['working_days'] }} siku mwezi huu).
+            {!! __('parent.working_days_note_plain', ['days' => (int) $stats['working_days']]) !!}
         </p>
     </div>
 </div>
@@ -312,9 +312,9 @@
         <div class="modal-content shadow">
             <div class="modal-header border-0 pb-0">
                 <h6 class="modal-title fw-bold" id="attCellModalLabel" style="color:#940000;">
-                    <i class="bx bx-calendar-event"></i> Mahudhurio
+                    <i class="bx bx-calendar-event"></i> {{ __('parent.attendance') }}
                 </h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Funga"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('parent.close') }}"></button>
             </div>
             <div class="modal-body text-center pt-2 pb-4">
                 <div id="attModalDate" class="fw-bold" style="font-size:15px; color:#333;"></div>

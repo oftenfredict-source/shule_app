@@ -346,9 +346,17 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-       // Set locale from session for all views
+       // Parent portal default is Kiswahili. Persist if the session has no locale yet.
+       if (! Session::has('locale')) {
+           Session::put('locale', 'sw');
+       }
        $locale = Session::get('locale', 'sw');
+       if (! in_array($locale, ['en', 'sw'], true)) {
+           $locale = 'sw';
+           Session::put('locale', 'sw');
+       }
        app()->setLocale($locale);
+       Carbon::setLocale($locale);
 
        $isHOD = $isHOD ?? false;
 
