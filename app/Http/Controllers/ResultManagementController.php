@@ -43,6 +43,7 @@ use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -4400,11 +4401,14 @@ class ResultManagementController extends Controller
                 count($formattedResults) > 0
                     ? $totalSum / count($formattedResults)
                     : (float) ($studentReport["average_marks"] ?? $totalSum);
+            $requestDivision = $request->input("division");
+            $reportDivision = $studentReport["division"] ?? null;
             if (
-                empty($request->input("division")) &&
-                !empty($studentReport["division"])
+                ($requestDivision === null || $requestDivision === "") &&
+                $reportDivision !== null &&
+                $reportDivision !== ""
             ) {
-                $request->merge(["division" => $studentReport["division"]]);
+                $request->merge(["division" => $reportDivision]);
             }
             $resultsString = implode("\n", $formattedResults);
         } else {
@@ -4490,7 +4494,12 @@ class ResultManagementController extends Controller
                     : ($examTotalMarks !== null
                         ? (float) $examTotalMarks
                         : $totalSum);
-            if (empty($request->input("division")) && $examDivision) {
+            $requestDivision = $request->input("division");
+            if (
+                ($requestDivision === null || $requestDivision === "") &&
+                $examDivision !== null &&
+                $examDivision !== ""
+            ) {
                 $request->merge(["division" => $examDivision]);
             }
             $resultsString = implode("\n", $formattedResults);
@@ -6949,7 +6958,7 @@ class ResultManagementController extends Controller
         ) {
             // A-Level Form 5/6: points from combination subjects only
             // A=1, B=2, C=3, D=4, E=5, S=6, F=7
-            // Division I: 3-9, II: 10-12, III: 13-17, IV: 18-21, 0: 22-35
+            // Division I: 3-9, II: 10-12, III: 13-17, IV: 18-19, 0 from 20
 
             if ($totalPoints >= 3 && $totalPoints <= 9) {
                 return ["grade" => null, "division" => "I." . $totalPoints];
@@ -6960,7 +6969,7 @@ class ResultManagementController extends Controller
             if ($totalPoints >= 13 && $totalPoints <= 17) {
                 return ["grade" => null, "division" => "III." . $totalPoints];
             }
-            if ($totalPoints >= 18 && $totalPoints <= 21) {
+            if ($totalPoints >= 18 && $totalPoints <= 19) {
                 return ["grade" => null, "division" => "IV." . $totalPoints];
             }
 
@@ -7917,19 +7926,34 @@ class ResultManagementController extends Controller
 
     private function parseDivisionParts(?string $division, ?int $fallbackPoints = null): array
     {
-        if (!$division) {
+        // Do not use !$division / empty(): PHP treats string "0" as empty.
+        if ($division === null || $division === "") {
             return ["roman" => "", "points" => $fallbackPoints ?? ""];
         }
 
         if (preg_match("/^([0IVX]+)\.(\d+)/", $division, $m)) {
-            return ["roman" => $m[1], "points" => (int) $m[2]];
+            return ["roman" => (string) $m[1], "points" => (int) $m[2]];
         }
 
         if (preg_match("/^([0IVX]+)$/", $division, $m)) {
-            return ["roman" => $m[1], "points" => $fallbackPoints ?? ""];
+            return ["roman" => (string) $m[1], "points" => $fallbackPoints ?? ""];
         }
 
-        return ["roman" => $division, "points" => $fallbackPoints ?? ""];
+        return ["roman" => (string) $division, "points" => $fallbackPoints ?? ""];
+    }
+
+    private function hasDivisionRoman($roman): bool
+    {
+        return $roman !== null && $roman !== "";
+    }
+
+    private function displayDivisionRoman($roman): string
+    {
+        if (!$this->hasDivisionRoman($roman)) {
+            return "-";
+        }
+
+        return (string) $roman;
     }
 
     /**
@@ -8865,8 +8889,8 @@ class ResultManagementController extends Controller
                 $stats[$sex]["inc"]++;
             }
             if ($schoolType === "Secondary") {
-                $roman = $item["division_roman"];
-                if ($roman && isset($stats[$sex][$roman])) {
+                $roman = (string) $item["division_roman"];
+                if ($this->hasDivisionRoman($roman) && isset($stats[$sex][$roman])) {
                     $stats[$sex][$roman]++;
                 }
             }
@@ -9019,7 +9043,7 @@ class ResultManagementController extends Controller
                     $item["division_points"] !== ""
                         ? $item["division_points"]
                         : "-",
-                "division" => $item["division_roman"] ?: "-",
+                "division" => $this->displayDivisionRoman($item["division_roman"]),
                 "subjects" => $subjectCells,
                 "total" => $this->formatBoardTotalMarks($totalRaw),
                 "average" => $this->formatBoardAverageMarks($avgRaw),
@@ -9493,8 +9517,8 @@ class ResultManagementController extends Controller
             }
 
             if ($schoolType === "Secondary") {
-                $roman = $item["division_roman"];
-                if ($roman && isset($stats[$sex][$roman])) {
+                $roman = (string) $item["division_roman"];
+                if ($this->hasDivisionRoman($roman) && isset($stats[$sex][$roman])) {
                     $stats[$sex][$roman]++;
                 }
             }
@@ -9849,7 +9873,7 @@ class ResultManagementController extends Controller
                 $line[] = $item["division_points"] !== ""
                     ? $item["division_points"]
                     : "-";
-                $line[] = $item["division_roman"] ?: "-";
+                $line[] = $this->displayDivisionRoman($item["division_roman"]);
             }
 
             $subjectMapById = [];
@@ -9949,6 +9973,16 @@ class ResultManagementController extends Controller
             }
 
             $sheet->fromArray([$line], null, "A{$dataRow}");
+            if ($schoolType === "Secondary") {
+                $divColIndex = $isALevelClass ? 7 : 6;
+                $divLetter = Coordinate::stringFromColumnIndex($divColIndex);
+                $sheet
+                    ->getCell("{$divLetter}{$dataRow}")
+                    ->setValueExplicit(
+                        $this->displayDivisionRoman($item["division_roman"]),
+                        DataType::TYPE_STRING,
+                    );
+            }
 
             $avgRemarkClass = $this->boardRemarkClassFromAverage(
                 $avgRaw,

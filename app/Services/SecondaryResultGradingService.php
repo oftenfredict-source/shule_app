@@ -393,6 +393,7 @@ class SecondaryResultGradingService
         }
 
         if ($this->isALevelClassName($className)) {
+            // NECTA ACSEE: I 3-9, II 10-12, III 13-17, IV 18-19, 0 from 20
             if ($totalPoints >= 3 && $totalPoints <= 9) {
                 return ["grade" => null, "division" => "I." . $totalPoints];
             }
@@ -402,7 +403,7 @@ class SecondaryResultGradingService
             if ($totalPoints >= 13 && $totalPoints <= 17) {
                 return ["grade" => null, "division" => "III." . $totalPoints];
             }
-            if ($totalPoints >= 18 && $totalPoints <= 21) {
+            if ($totalPoints >= 18 && $totalPoints <= 19) {
                 return ["grade" => null, "division" => "IV." . $totalPoints];
             }
 

@@ -1211,7 +1211,7 @@
                                                         }
                                                         
                                                         // Count divisions (for Secondary)
-                                                        if ($schoolType === 'Secondary' && $division) {
+                                                        if ($schoolType === 'Secondary' && $division !== null && $division !== '') {
                                                             // Extract division number (e.g., "I.7" -> "I", "0.34" -> "0")
                                                             $divMatch = preg_match('/^([0IVX]+)\./', $division, $matches);
                                                             if ($divMatch) {
@@ -1225,7 +1225,7 @@
                                                         
                                                         // Extract total points from division for sorting (e.g., "I.7" -> 7, "0.34" -> 34)
                                                         $totalPoints = $examResult['total_points'] ?? null;
-                                                        if ($totalPoints === null && $division) {
+                                                        if ($totalPoints === null && $division !== null && $division !== '') {
                                                             $pointsMatch = preg_match('/\.(\d+)$/', $division, $pointsMatches);
                                                             if ($pointsMatch) {
                                                                 $totalPoints = (int)$pointsMatches[1];
@@ -1446,7 +1446,7 @@
                                                 }
                                                 $femaleGradeStats[$grade]++;
                                             }
-                                        } elseif ($schoolType === 'Secondary' && $division) {
+                                        } elseif ($schoolType === 'Secondary' && $division !== null && $division !== '') {
                                             // Secondary: Count by division
                                             $divMatch = preg_match('/^([0IVX]+)\./', $division, $matches);
                                             if ($divMatch) {
@@ -3952,8 +3952,16 @@
 
 <script>
     // System-wide automatic comment generator based on performance
+    function displayDivisionValue(value, fallback) {
+        if (fallback === undefined) fallback = 'N/A';
+        if (value === null || value === undefined || value === '') return fallback;
+        return String(value);
+    }
+
     function getAutomaticComment(gradeOrDivision) {
-        if (!gradeOrDivision) return 'Progress is satisfactory. Continue working hard.';
+        if (gradeOrDivision === null || gradeOrDivision === undefined || gradeOrDivision === '') {
+            return 'Progress is satisfactory. Continue working hard.';
+        }
         let val = gradeOrDivision.toString().toUpperCase();
         
         // Check if it's a division (I, II, III, IV, 0, FAIL)
