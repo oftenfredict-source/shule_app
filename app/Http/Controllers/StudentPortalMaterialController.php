@@ -298,12 +298,16 @@ class StudentPortalMaterialController extends Controller
                 $displayRight = $rightItems;
                 shuffle($displayRight);
 
+                $matchPoints = isset($section['points']) && is_numeric($section['points'])
+                    ? max(0.5, (float) $section['points'])
+                    : (float) count($leftItems);
+
                 $rows[] = [
                     'question_type' => 'matching',
                     'section_number' => $sectionNo,
                     'section_title' => $title ?: 'Matching',
                     'item_label' => null,
-                    'points' => (float) count($leftItems),
+                    'points' => $matchPoints,
                     'question_text' => $sectionInstructions ?: 'Match items in column A with column B.',
                     'option_a' => null,
                     'option_b' => null,

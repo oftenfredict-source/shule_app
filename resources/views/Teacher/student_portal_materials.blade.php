@@ -425,10 +425,19 @@
             });
         }
 
+        function marksField(name, defaultVal) {
+            return '<div class="row align-items-center mt-2">'
+                + '<div class="col-auto"><label class="mb-0" style="font-size:0.8rem;font-weight:700;color:#6b5c5c;">Marks</label></div>'
+                + '<div class="col-4 col-md-2">'
+                + '<input class="form-control" type="number" min="0.5" step="0.5" name="'+name+'" value="'+defaultVal+'" required title="Marks for this question">'
+                + '</div></div>';
+        }
+
         function addItemRow(sectionEl, type, si) {
             var items = sectionEl.querySelector('.lph-section-items');
             if (!items) return;
             var ii = items.querySelectorAll('.lph-item-row').length;
+            var ptsName = 'sections['+si+'][items]['+ii+'][points]';
             var html = '';
             if (type === 'multiple_choice') {
                 html = '<div class="lph-item-row lph-q">'
@@ -443,27 +452,34 @@
                     + '</div>'
                     + '<select class="form-control" name="sections['+si+'][items]['+ii+'][correct_option]" required>'
                     + '<option value="A">Correct: A</option><option value="B">Correct: B</option>'
-                    + '<option value="C">Correct: C</option><option value="D">Correct: D</option></select></div>';
+                    + '<option value="C">Correct: C</option><option value="D">Correct: D</option></select>'
+                    + marksField(ptsName, '1')
+                    + '</div>';
             } else if (type === 'true_false') {
                 html = '<div class="lph-item-row lph-q">'
                     + '<div class="lph-q-top"><small>Item (roman) '+(ii+1)+'</small>'
                     + '<button type="button" class="lph-btn lph-btn-danger remove-item" style="padding:2px 8px;">×</button></div>'
                     + '<input class="form-control mb-2" name="sections['+si+'][items]['+ii+'][question_text]" placeholder="Statement *" required>'
                     + '<select class="form-control" name="sections['+si+'][items]['+ii+'][correct_option]" required>'
-                    + '<option value="true">True</option><option value="false">False</option></select></div>';
+                    + '<option value="true">True</option><option value="false">False</option></select>'
+                    + marksField(ptsName, '1')
+                    + '</div>';
             } else if (type === 'fill_blank') {
                 html = '<div class="lph-item-row lph-q">'
                     + '<div class="lph-q-top"><small>Blank '+(ii+1)+'</small>'
                     + '<button type="button" class="lph-btn lph-btn-danger remove-item" style="padding:2px 8px;">×</button></div>'
                     + '<input class="form-control mb-2" name="sections['+si+'][items]['+ii+'][question_text]" placeholder="Sentence with blank e.g. The capital is ____ *" required>'
                     + '<input class="form-control mb-2" name="sections['+si+'][items]['+ii+'][correct_answer]" placeholder="Correct answer *" required>'
-                    + '<input class="form-control" name="sections['+si+'][items]['+ii+'][alt_answers]" placeholder="Alt answers (optional, separate with |)"></div>';
+                    + '<input class="form-control mb-2" name="sections['+si+'][items]['+ii+'][alt_answers]" placeholder="Alt answers (optional, separate with |)">'
+                    + marksField(ptsName, '1')
+                    + '</div>';
             } else if (type === 'short_answer' || type === 'essay') {
                 html = '<div class="lph-item-row lph-q">'
                     + '<div class="lph-q-top"><small>'+(type === 'essay' ? 'Essay' : 'Short')+' '+(ii+1)+'</small>'
                     + '<button type="button" class="lph-btn lph-btn-danger remove-item" style="padding:2px 8px;">×</button></div>'
                     + '<textarea class="form-control mb-2" name="sections['+si+'][items]['+ii+'][question_text]" rows="2" placeholder="Prompt *" required></textarea>'
-                    + '<input class="form-control" type="number" min="0.5" step="0.5" name="sections['+si+'][items]['+ii+'][points]" value="'+(type === 'essay' ? '5' : '2')+'" placeholder="Points"></div>';
+                    + marksField(ptsName, type === 'essay' ? '5' : '2')
+                    + '</div>';
             }
             if (html) items.insertAdjacentHTML('beforeend', html);
         }
@@ -497,13 +513,14 @@
 
             if (type === 'matching') {
                 body += '<div class="file-hint" style="background:#f8f4ef;border:1px solid #eadfdf;padding:10px;border-radius:8px;margin-bottom:10px;">'
-                    + '<strong>Jinsi matching inavyofanya kazi:</strong><br>'
-                    + '1) Andika <em>prompt</em> upande wa A na <em>jibu sahihi</em> upande wa B (jozi moja = majibu ya system).<br>'
-                    + '2) System huhifadhi jozi hizo kama majibu sahihi na <strong>hu-mark otomatiki</strong>.<br>'
-                    + '3) Mwanafunzi anaona A kwa mpangilio, na B zimechanganywa — anavuta B kwenda A.<br>'
-                    + 'Max 10 pairs. Partial credit: kila jozi sahihi inachukua sehemu ya alama.'
+                    + '<strong>How matching works:</strong><br>'
+                    + '1) Enter a <em>prompt</em> in column A and its <em>correct answer</em> in column B (one pair = the system answer key).<br>'
+                    + '2) The system stores those pairs as correct answers and <strong>marks automatically</strong>.<br>'
+                    + '3) Students see A in order, with B shuffled — they drag B onto A.<br>'
+                    + 'Max 10 pairs. Partial credit: each correct pair earns a share of the total marks below.'
                     + '</div>'
-                    + '<div class="row mb-1" style="font-size:0.78rem;font-weight:700;color:#6b5c5c;"><div class="col-5">Column A (prompt)</div><div class="col-5">Column B (correct answer)</div></div>'
+                    + marksField('sections['+si+'][points]', '5')
+                    + '<div class="row mb-1 mt-2" style="font-size:0.78rem;font-weight:700;color:#6b5c5c;"><div class="col-5">Column A (prompt)</div><div class="col-5">Column B (correct answer)</div></div>'
                     + '<div class="lph-match-pairs"></div>'
                     + '<button type="button" class="lph-btn lph-btn-soft mb-2 add-match-pair"><i class="fa fa-plus"></i> Add correct pair</button>';
             } else {
