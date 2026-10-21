@@ -45,21 +45,6 @@ class ParentsContoller extends Controller
     {
         $this->smsService = new SmsService();
         $this->grading = $grading;
-
-        $this->middleware(function ($request, $next) {
-            if (! Session::has('locale')) {
-                Session::put('locale', 'sw');
-            }
-            $locale = Session::get('locale', 'sw');
-            if (! in_array($locale, ['en', 'sw'], true)) {
-                $locale = 'sw';
-                Session::put('locale', 'sw');
-            }
-            app()->setLocale($locale);
-            Carbon::setLocale($locale);
-
-            return $next($request);
-        });
     }
 
     /**
@@ -4912,20 +4897,21 @@ class ParentsContoller extends Controller
                     $subject = $note->subject->subject_name ?? __('parent.subject');
                     $title = $note->title ?? '';
                     $studentName = trim(($n->student->first_name ?? '').' '.($n->student->last_name ?? ''));
+                    $isPaper = strtolower((string) ($note->kind ?? 'note')) === 'past_paper';
 
                     return [
                         'id' => $n->id,
-                        'source' => 'note',
-                        'type' => 'note',
+                        'source' => $isPaper ? 'past_paper' : 'note',
+                        'type' => $isPaper ? 'past_paper' : 'note',
                         'is_viewed' => (bool) $n->is_viewed,
                         'created_at' => optional($n->created_at)->diffForHumans(),
                         'created_at_raw' => optional($n->created_at)->timestamp ?? 0,
-                        'title' => __('parent.notes'),
+                        'title' => $isPaper ? __('parent.past_papers') : __('parent.notes'),
                         'message' => __('parent.notes_subject').': '.$subject
                             . ($title ? "\n".__('parent.notes_title_label').': '.$title : '')
                             . ($studentName ? "\n".$studentName : ''),
-                        'icon' => 'bx-note',
-                        'url' => route('parentNotes'),
+                        'icon' => $isPaper ? 'bx-file' : 'bx-note',
+                        'url' => $isPaper ? route('parentPastPapers') : route('parentNotes'),
                         'subject_name' => $subject,
                         'note_title' => $title,
                         'student_name' => $studentName,
@@ -4953,19 +4939,30 @@ class ParentsContoller extends Controller
             ->where('is_viewed', false)
             ->count();
         $unreadNotes = 0;
+        $unreadPastPapers = 0;
         if (Schema::hasTable('parent_subject_note_notifications')) {
-            $unreadNotes = ParentSubjectNoteNotification::where('schoolID', $schoolID)
+            $unreadBase = ParentSubjectNoteNotification::where('schoolID', $schoolID)
                 ->where('parentID', $parentID)
-                ->where('is_viewed', false)
-                ->count();
+                ->where('is_viewed', false);
+            if (Schema::hasTable('subject_notes') && Schema::hasColumn('subject_notes', 'kind')) {
+                $unreadNotes = (clone $unreadBase)->whereHas('note', function ($q) {
+                    $q->where('kind', 'note');
+                })->count();
+                $unreadPastPapers = (clone $unreadBase)->whereHas('note', function ($q) {
+                    $q->where('kind', 'past_paper');
+                })->count();
+            } else {
+                $unreadNotes = $unreadBase->count();
+            }
         }
 
         return response()->json([
             'success' => true,
-            'unread' => $unreadResults + $unreadHp + $unreadNotes,
+            'unread' => $unreadResults + $unreadHp + $unreadNotes + $unreadPastPapers,
             'unread_results' => $unreadResults,
             'unread_home_packages' => $unreadHp,
             'unread_notes' => $unreadNotes,
+            'unread_past_papers' => $unreadPastPapers,
             'notifications' => $merged,
         ]);
     }
@@ -5025,17 +5022,21 @@ class ParentsContoller extends Controller
                     ->where('parentID', $parentID)
                     ->update(['is_viewed' => true]);
             }
-        } elseif ($source === 'note' && Schema::hasTable('parent_subject_note_notifications')) {
+        } elseif (in_array($source, ['note', 'past_paper'], true) && Schema::hasTable('parent_subject_note_notifications')) {
+            $markQ = ParentSubjectNoteNotification::where('schoolID', $schoolID)
+                ->where('parentID', $parentID);
+            if (Schema::hasTable('subject_notes') && Schema::hasColumn('subject_notes', 'kind')) {
+                $kind = $source === 'past_paper' ? 'past_paper' : 'note';
+                $markQ->whereHas('note', function ($q) use ($kind) {
+                    $q->where('kind', $kind);
+                });
+            } elseif ($source === 'past_paper') {
+                return response()->json(['success' => true]);
+            }
             if ($request->boolean('all') || $id === 'all') {
-                ParentSubjectNoteNotification::where('schoolID', $schoolID)
-                    ->where('parentID', $parentID)
-                    ->where('is_viewed', false)
-                    ->update(['is_viewed' => true]);
+                $markQ->where('is_viewed', false)->update(['is_viewed' => true]);
             } else {
-                ParentSubjectNoteNotification::where('id', $id)
-                    ->where('schoolID', $schoolID)
-                    ->where('parentID', $parentID)
-                    ->update(['is_viewed' => true]);
+                $markQ->where('id', $id)->update(['is_viewed' => true]);
             }
         }
 

@@ -4,7 +4,7 @@
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title">
-                    <i class="bi bi-journal-text"></i> Notes
+                    <i class="bi bi-journal-text" id="snModalIcon"></i> <span id="snModalKindLabel">Notes</span>
                     <small class="d-block" style="font-size:13px;font-weight:500;" id="snSubjectLabel"></small>
                 </h5>
                 <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
@@ -14,6 +14,16 @@
             <div class="modal-body">
                 <input type="hidden" id="snClassSubjectId" value="">
                 <input type="hidden" id="snEditId" value="">
+                <input type="hidden" id="snKind" value="note">
+                <input type="hidden" id="snApplyAll" value="0">
+                <div id="snStreamsBox" class="mb-3" style="display:none;">
+                    <div class="d-flex flex-wrap align-items-center" style="gap:8px;">
+                        <strong>Streams:</strong>
+                        <span id="snStreamBadges"></span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="snApplyAllBtn">Apply to all streams</button>
+                    </div>
+                    <small class="text-muted d-block mt-1" id="snApplyAllHint"></small>
+                </div>
                 <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item">
                         <a class="nav-link active" id="sn-upload-tab" data-toggle="tab" href="#snUploadPane" role="tab">Upload</a>
@@ -92,6 +102,22 @@
         background: #ffeaea;
         border-style: solid;
     }
+    #snStreamsBox {
+        border: 1px solid #eadada;
+        background: #fff8f8;
+        padding: 10px 12px;
+    }
+    #snStreamBadges .badge {
+        border-radius: 0;
+        font-weight: 600;
+        font-size: 12px;
+        padding: 5px 8px;
+    }
+    #snApplyAllBtn.is-on {
+        background-color: #940000;
+        border-color: #940000;
+        color: #fff;
+    }
 </style>
 
 <script>
@@ -106,6 +132,35 @@
         const SN_MAX = 50 * 1024 * 1024;
         const SN_OK = /\.(pdf|doc|docx)$/i;
 
+        function currentKind() {
+            return $('#snKind').val() === 'past_paper' ? 'past_paper' : 'note';
+        }
+
+        function kindCopy() {
+            if (currentKind() === 'past_paper') {
+                return {
+                    title: 'Past Papers',
+                    list: 'My Past Papers',
+                    empty: 'No past papers for this subject yet',
+                    add: 'Add past papers',
+                    applyHint: 'You teach this subject in :label. Use Apply to all streams to save the same past papers on every stream.'
+                };
+            }
+            return {
+                title: 'Notes',
+                list: 'My Notes',
+                empty: 'No notes for this subject yet',
+                add: 'Add notes',
+                applyHint: 'You teach this subject in :label. Use Apply to all streams to save the same notes on every stream.'
+            };
+        }
+
+        function applyKindLabels() {
+            const copy = kindCopy();
+            $('#snModalKindLabel').text(copy.title);
+            $('#sn-list-tab').text(copy.list);
+        }
+
         function currentClassSubjectId() {
             return $('#snClassSubjectId').val() || '';
         }
@@ -114,13 +169,46 @@
             return !!$('#snEditId').val();
         }
 
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function setApplyAll(on) {
+            const active = !!on;
+            $('#snApplyAll').val(active ? '1' : '0');
+            $('#snApplyAllBtn').toggleClass('is-on', active)
+                .toggleClass('btn-outline-primary', !active)
+                .text(active ? 'Applying to all streams' : 'Apply to all streams');
+        }
+
+        function renderStreams(res) {
+            const streams = res.streams || [];
+            const canApply = !!res.apply_to_all_available && streams.length > 1 && !isEditMode();
+            if (!canApply) {
+                $('#snStreamsBox').hide();
+                setApplyAll(false);
+                return;
+            }
+            let badges = '';
+            streams.forEach(function(s) {
+                const cls = s.is_current ? 'badge-danger' : 'badge-light border';
+                badges += '<span class="badge ' + cls + '">' + escapeHtml(s.stream || '') + '</span> ';
+            });
+            $('#snStreamBadges').html(badges);
+            $('#snApplyAllHint').text(kindCopy().applyHint.replace(':label', res.streams_label || 'these streams'));
+            $('#snStreamsBox').show();
+        }
+
         function loadNotes() {
             const $tb = $('#snNotesTable tbody');
             $tb.html('<tr><td colspan="3" class="text-center text-muted">Loading...</td></tr>');
-            $.get(SN_URLS.index, { class_subjectID: currentClassSubjectId() }).done(function(res) {
+            $.get(SN_URLS.index, { class_subjectID: currentClassSubjectId(), kind: currentKind() }).done(function(res) {
+                renderStreams(res);
                 const rows = res.notes || [];
                 if (!rows.length) {
-                    $tb.html('<tr><td colspan="3" class="text-center text-muted">No notes for this subject yet<br><button type="button" class="btn btn-sm btn-primary-custom mt-2" id="snAddFirst">Add notes</button></td></tr>');
+                    $tb.html('<tr><td colspan="3" class="text-center text-muted">' + kindCopy().empty + '<br><button type="button" class="btn btn-sm btn-primary-custom mt-2" id="snAddFirst">' + kindCopy().add + '</button></td></tr>');
                     return;
                 }
                 let html = '';
@@ -189,6 +277,10 @@
             $('#snEditId').val('');
             $('#snForms').empty();
             $('#snSaveBtn').text('Save').prop('disabled', false);
+            setApplyAll(false);
+            if ($.trim($('#snStreamBadges').html() || '') !== '') {
+                $('#snStreamsBox').show();
+            }
             addNoteForm();
         }
 
@@ -213,14 +305,22 @@
             return true;
         }
 
-        window.openSubjectNotesModal = function(classSubjectID, subjectName) {
+        window.openSubjectNotesModal = function(classSubjectID, subjectName, kind) {
             $('#snClassSubjectId').val(classSubjectID);
+            $('#snKind').val(kind === 'past_paper' ? 'past_paper' : 'note');
             $('#snSubjectLabel').text(subjectName || 'Subject');
+            applyKindLabels();
+            setApplyAll(false);
             resetUploadForm();
             loadNotes();
             $('#sn-list-tab').tab('show');
             $('#subjectNotesModal').modal('show');
         };
+
+        $('#snApplyAllBtn').off('click.snall').on('click.snall', function() {
+            if (isEditMode()) return;
+            setApplyAll($('#snApplyAll').val() !== '1');
+        });
 
         $('#snAddAnother').off('click.sn').on('click.sn', function() {
             if (isEditMode()) return;
@@ -286,6 +386,10 @@
             const fd = new FormData();
             fd.append('_token', SN_URLS.csrf);
             fd.append('class_subjectID', classSubjectID);
+            fd.append('kind', currentKind());
+            if (!editId && $('#snApplyAll').val() === '1') {
+                fd.append('apply_to_all', '1');
+            }
 
             if (editId) {
                 const $form = $('#snForms .sn-note-form').first();
@@ -360,6 +464,8 @@
         $(document).off('click.sn', '.sn-edit-btn').on('click.sn', '.sn-edit-btn', function() {
             const $btn = $(this);
             $('#snEditId').val($btn.attr('data-id'));
+            setApplyAll(false);
+            $('#snStreamsBox').hide();
             $('#snForms').empty();
             addNoteForm({
                 title: $btn.attr('data-title') || '',
@@ -399,7 +505,7 @@
         });
     }
 
-    window.openSubjectNotesModal = window.openSubjectNotesModal || function(classSubjectID, subjectName) {
+    window.openSubjectNotesModal = window.openSubjectNotesModal || function(classSubjectID, subjectName, kind) {
         const ready = window.jQuery;
         if (!ready) {
             alert('Please wait, page is still loading...');
@@ -407,7 +513,7 @@
         }
         bootSn(ready);
         if (typeof window.openSubjectNotesModal === 'function') {
-            window.openSubjectNotesModal(classSubjectID, subjectName);
+            window.openSubjectNotesModal(classSubjectID, subjectName, kind);
         }
     };
 

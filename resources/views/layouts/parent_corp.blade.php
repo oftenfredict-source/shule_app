@@ -537,6 +537,9 @@
                         <a href="{{ route('parentNotes') }}" class="small" style="color:#940000;font-weight:700;">
                             <i class="bx bx-note"></i> {{ __('parent.notes_link') }} →
                         </a>
+                        <a href="{{ route('parentPastPapers') }}" class="small" style="color:#940000;font-weight:700;">
+                            <i class="bx bx-file"></i> {{ __('parent.past_papers_link') }} →
+                        </a>
                     </div>
                 </div>
             </div>
@@ -623,6 +626,10 @@
         <a href="{{ route('parentNotes') }}" class="sidebar-link {{ request()->routeIs('parentNotes') ? 'active' : '' }}">
             <i class="bx bx-note"></i> {{ __('parent.nav_notes') }}
             <span id="parentNotesSidebarBadge" class="badge bg-danger ms-auto" style="font-size:10px;display:none;">0</span>
+        </a>
+        <a href="{{ route('parentPastPapers') }}" class="sidebar-link {{ request()->routeIs('parentPastPapers') ? 'active' : '' }}">
+            <i class="bx bx-file"></i> {{ __('parent.nav_past_papers') }}
+            <span id="parentPastPapersSidebarBadge" class="badge bg-danger ms-auto" style="font-size:10px;display:none;">0</span>
         </a>
 
         <div class="sidebar-group-title">{{ __('parent.nav_finance') }}</div>
@@ -716,6 +723,7 @@
             var parentLbl = {
                 view: P.view,
                 notes: P.notes,
+                pastPapers: P.past_papers,
                 subject: P.notes_subject,
                 title: P.notes_title_label,
                 results: P.results,
@@ -738,6 +746,7 @@
                 var unreadResults = data.unread_results || 0;
                 var unreadHp = data.unread_home_packages || 0;
                 var unreadNotes = data.unread_notes || 0;
+                var unreadPastPapers = data.unread_past_papers || 0;
 
                 if (unread > 0) {
                     $('#parentHpNotifBadge').text(unread).show();
@@ -763,6 +772,12 @@
                     $('#parentNotesSidebarBadge').hide();
                 }
 
+                if (unreadPastPapers > 0) {
+                    $('#parentPastPapersSidebarBadge').text(unreadPastPapers).show();
+                } else {
+                    $('#parentPastPapersSidebarBadge').hide();
+                }
+
                 var list = data.notifications || [];
                 if (!list.length) {
                     $('#parentHpNotifList').html('<div class="p-3 text-muted small text-center">' + parentLbl.noNotifications + '</div>');
@@ -785,21 +800,23 @@
                         return;
                     }
 
-                    if (n.source === 'note') {
+                    if (n.source === 'note' || n.source === 'past_paper') {
+                        var noteLabel = n.source === 'past_paper' ? parentLbl.pastPapers : parentLbl.notes;
+                        var noteIcon = n.source === 'past_paper' ? 'bx-file' : 'bx-note';
                         html += '<div class="parent-hp-notif-item' + (n.is_viewed ? '' : ' unread') + '">'
-                            + '<div class="parent-hp-notif-icon" title="' + escapeHtml(parentLbl.notes) + '" style="background:#fff5f5;color:#940000;">'
-                            +   '<i class="bx bx-note"></i>'
+                            + '<div class="parent-hp-notif-icon" title="' + escapeHtml(noteLabel) + '" style="background:#fff5f5;color:#940000;">'
+                            +   '<i class="bx ' + noteIcon + '"></i>'
                             + '</div>'
                             + '<div class="parent-hp-notif-body">'
-                            +   '<div class="parent-hp-notif-title"><i class="bx bx-note"></i> ' + escapeHtml(parentLbl.notes) + '</div>'
+                            +   '<div class="parent-hp-notif-title"><i class="bx ' + noteIcon + '"></i> ' + escapeHtml(noteLabel) + '</div>'
                             +   '<div class="parent-hp-notif-msg">'
                             +     parentLbl.subject + ': <strong>' + escapeHtml(n.subject_name || '') + '</strong>'
                             +     (n.note_title ? ('<br>' + parentLbl.title + ': <strong>' + escapeHtml(n.note_title) + '</strong>') : '')
                             +   '</div>'
                             +   '<div class="parent-hp-notif-meta"><i class="bx bx-time-five"></i> ' + escapeHtml(n.created_at || '') + '</div>'
                             +   '<div class="mt-2 d-flex gap-2 flex-wrap">'
-                            +     (n.view_url ? ('<button type="button" class="btn btn-sm btn-outline-primary parent-note-notif-view" data-id="' + n.id + '" data-url="' + escapeHtml(n.view_url) + '" data-dl="' + escapeHtml(n.download_url || '') + '" data-title="' + escapeHtml(n.note_title || parentLbl.notes) + '"><i class="bx bx-show"></i> ' + parentLbl.view + '</button>') : '')
-                            +     (n.download_url ? ('<a class="btn btn-sm btn-primary parent-note-notif-dl" data-id="' + n.id + '" href="' + escapeHtml(n.download_url) + '" title="' + escapeHtml(parentLbl.download) + '"><i class="bx bx-download"></i></a>') : '')
+                            +     (n.view_url ? ('<button type="button" class="btn btn-sm btn-outline-primary parent-note-notif-view" data-id="' + n.id + '" data-source="' + n.source + '" data-url="' + escapeHtml(n.view_url) + '" data-dl="' + escapeHtml(n.download_url || '') + '" data-title="' + escapeHtml(n.note_title || noteLabel) + '"><i class="bx bx-show"></i> ' + parentLbl.view + '</button>') : '')
+                            +     (n.download_url ? ('<a class="btn btn-sm btn-primary parent-note-notif-dl" data-id="' + n.id + '" data-source="' + n.source + '" href="' + escapeHtml(n.download_url) + '" title="' + escapeHtml(parentLbl.download) + '"><i class="bx bx-download"></i></a>') : '')
                             +   '</div>'
                             + '</div>'
                             + '</div>';
@@ -879,24 +896,26 @@
                 markHpRead(id).always(loadHpNotifications);
             });
 
-            function markNoteRead(id) {
-                return markHeaderRead({ source: 'note', id: id || 'all', all: id === 'all' });
+            function markNoteRead(id, source) {
+                return markHeaderRead({ source: source || 'note', id: id || 'all', all: id === 'all' });
             }
 
             $(document).on('click', '.parent-note-notif-view', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
                 var id = $(this).data('id');
+                var source = $(this).attr('data-source') || 'note';
                 var url = $(this).data('url');
                 var dl = $(this).data('dl');
                 var title = $(this).data('title');
                 window.openParentHomePackageView(url, dl, title);
-                markNoteRead(id).always(loadHpNotifications);
+                markNoteRead(id, source).always(loadHpNotifications);
             });
 
             $(document).on('click', '.parent-note-notif-dl', function() {
                 var id = $(this).data('id');
-                markNoteRead(id).always(loadHpNotifications);
+                var source = $(this).attr('data-source') || 'note';
+                markNoteRead(id, source).always(loadHpNotifications);
             });
 
             $('#parentHpMarkAllRead').on('click', function(e) {

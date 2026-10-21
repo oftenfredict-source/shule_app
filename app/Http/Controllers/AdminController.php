@@ -7516,13 +7516,18 @@ class AdminController extends Controller
         }
 
         $permissionCount = $this->pendingParentPermissionNotes((int) $schoolID)["count"];
+        $materialCounts = $this->adminSubjectMaterialBellCounts((int) $schoolID);
+        $noteCount = (int) ($materialCounts["note"] ?? 0);
+        $pastPaperCount = (int) ($materialCounts["past_paper"] ?? 0);
 
         return response()->json([
             "success" => true,
-            "count" => $visitorCount + $onlineAdmissionCount + $permissionCount,
+            "count" => $visitorCount + $onlineAdmissionCount + $permissionCount + $noteCount + $pastPaperCount,
             "visitors" => $visitorCount,
             "online_admissions" => $onlineAdmissionCount,
             "parent_permissions" => $permissionCount,
+            "notes" => $noteCount,
+            "past_papers" => $pastPaperCount,
         ]);
     }
 
@@ -7544,6 +7549,7 @@ class AdminController extends Controller
             "bell_read_admissions",
             "bell_read_permissions",
         ]);
+        $this->markAdminSubjectMaterialsRead((int) Session::get("schoolID"));
         return response()->json(["success" => true]);
     }
 
@@ -7558,9 +7564,14 @@ class AdminController extends Controller
         }
 
         $validated = $request->validate([
-            "type" => "required|in:permission,admission,visitor",
+            "type" => "required|in:permission,admission,visitor,note,past_paper",
             "id" => "required|integer|min:1",
         ]);
+
+        if (in_array($validated["type"], ["note", "past_paper"], true)) {
+            $this->markAdminSubjectMaterialRead((int) Session::get("schoolID"), (int) $validated["id"]);
+            return response()->json(["success" => true]);
+        }
 
         $keys = [
             "permission" => "bell_read_permissions",
@@ -7727,6 +7738,10 @@ class AdminController extends Controller
             ];
         }
 
+        foreach ($this->adminSubjectMaterialBellItems((int) $schoolID, $window) as $material) {
+            $feed[] = $material;
+        }
+
         usort($feed, function ($a, $b) {
             return $b["sort"] <=> $a["sort"];
         });
@@ -7748,6 +7763,81 @@ class AdminController extends Controller
             "parent_permissions" => $permissionNotes["items"],
             "parent_permission_count" => $permissionNotes["count"],
         ]);
+    }
+
+    private function adminSubjectMaterialBellCounts(int $schoolID): array
+    {
+        return \App\Models\SubjectNote::unreadAdminCounts($schoolID);
+    }
+
+    private function markAdminSubjectMaterialsRead(int $schoolID): void
+    {
+        if ($schoolID < 1 || !Schema::hasTable("subject_notes") || !Schema::hasColumn("subject_notes", "is_read_by_admin")) {
+            return;
+        }
+        \App\Models\SubjectNote::where("schoolID", $schoolID)
+            ->where("is_read_by_admin", false)
+            ->update(["is_read_by_admin" => true]);
+    }
+
+    private function markAdminSubjectMaterialRead(int $schoolID, int $noteID): void
+    {
+        if ($schoolID < 1 || $noteID < 1 || !Schema::hasTable("subject_notes") || !Schema::hasColumn("subject_notes", "is_read_by_admin")) {
+            return;
+        }
+        \App\Models\SubjectNote::where("schoolID", $schoolID)
+            ->where("noteID", $noteID)
+            ->update(["is_read_by_admin" => true]);
+    }
+
+    private function adminSubjectMaterialBellItems(int $schoolID, int $limit = 10): array
+    {
+        if ($schoolID < 1 || !Schema::hasTable("subject_notes")) {
+            return [];
+        }
+
+        try {
+            $rows = \App\Models\SubjectNote::with(["subject", "teacher", "classSubject.subclass.class", "classSubject.class"])
+                ->where("schoolID", $schoolID)
+                ->orderByDesc("created_at")
+                ->limit(max(1, $limit))
+                ->get();
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        return $rows->map(function ($note) {
+            $kind = strtolower((string) ($note->kind ?? "note")) === "past_paper" ? "past_paper" : "note";
+            $created = $note->created_at ? Carbon::parse($note->created_at) : null;
+            $teacher = $note->teacher
+                ? trim(($note->teacher->first_name ?? "") . " " . ($note->teacher->last_name ?? ""))
+                : "Teacher";
+            $subject = $note->subject->subject_name ?? "Subject";
+            $cs = $note->classSubject;
+            $className = optional(optional($cs)->class)->class_name
+                ?? optional(optional(optional($cs)->subclass)->class)->class_name
+                ?? "";
+            $stream = trim((string) (optional(optional($cs)->subclass)->subclass_name ?? ""));
+            $classLabel = trim($className . ($stream !== "" ? " " . $stream : ""));
+            $unread = Schema::hasColumn("subject_notes", "is_read_by_admin")
+                ? empty($note->is_read_by_admin)
+                : false;
+
+            return [
+                "type" => $kind,
+                "id" => (int) $note->noteID,
+                "sort" => $created ? $created->timestamp : 0,
+                "title" => $kind === "past_paper" ? "New past paper" : "New notes",
+                "meta" => trim($subject . " | " . $teacher . ($classLabel !== "" ? " | " . $classLabel : "") . ($note->title ? " | " . $note->title : "")),
+                "time_label" => $created
+                    ? ($created->isToday() ? $created->diffForHumans() : $created->format("d M Y"))
+                    : "",
+                "is_unread" => $unread,
+                "url" => $kind === "past_paper"
+                    ? route("admin.past_papers")
+                    : route("admin.notes"),
+            ];
+        })->all();
     }
 
     /**

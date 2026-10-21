@@ -802,6 +802,17 @@ aside#left-panel {
     font-size: 0.85rem;
 }
 
+.dropdown-nav-item .submenu li a.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dropdown-nav-item .submenu li a.nav-link .badge {
+    margin-left: auto;
+    float: none;
+}
+
 /*
  * Collapsed sidebar (desktop) styles live in footer.blade.php.
  * Mobile uses off-canvas full menu, do not force 76px here.
@@ -1394,13 +1405,33 @@ html[data-sx-theme="dark"] .footer-area {
 
                         <!-- Academic Management -->
                         <li class="dropdown-nav-item">
-                            <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#academicManagement" aria-expanded="false">
-                                <i class="fa fa-graduation-cap"></i> Academic Management <i class="fa fa-chevron-down float-right"></i>
+                            @php
+                                $navNoteBell = \App\Models\SubjectNote::unreadAdminCounts((int) Session::get('schoolID'));
+                                $navUnreadNotes = (int) ($navNoteBell['note'] ?? 0);
+                                $navUnreadPastPapers = (int) ($navNoteBell['past_paper'] ?? 0);
+                                $navAcademicMaterialCount = $navUnreadNotes + $navUnreadPastPapers;
+                            @endphp
+                            <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#academicManagement" aria-expanded="{{ ($navAcademicMaterialCount > 0 || request()->routeIs('admin.notes*', 'admin.past_papers*')) ? 'true' : 'false' }}">
+                                <i class="fa fa-graduation-cap"></i> Academic Management
+                                <span class="badge badge-danger ml-1" id="navAcademicMaterialBadge" style="font-size: 10px; border-radius: 50%;{{ $navAcademicMaterialCount < 1 ? ' display:none;' : '' }}">{{ $navAcademicMaterialCount }}</span>
+                                <i class="fa fa-chevron-down float-right"></i>
                             </a>
-                            <ul id="academicManagement" class="collapse submenu" style="list-style: none; padding-left: 20px; margin: 0;">
+                            <ul id="academicManagement" class="collapse submenu {{ ($navAcademicMaterialCount > 0 || request()->routeIs('admin.notes*', 'admin.past_papers*')) ? 'show' : '' }}" style="list-style: none; padding-left: 20px; margin: 0;">
                                 <li><a href="{{ route('manageClasses') }}" class="nav-link"><i class="fa fa-columns"></i> Classes</a></li>
                                 <li><a href="{{ route('school.online_admission.index') }}" class="nav-link"><i class="fa fa-wpforms"></i> Online Admission</a></li>
                                 <li><a href="{{ route('manageSubjects') }}" class="nav-link"><i class="fa fa-bookmark"></i> Subjects</a></li>
+                                <li>
+                                    <a href="{{ route('admin.notes') }}" class="nav-link">
+                                        <i class="fa fa-sticky-note"></i> Notes
+                                        <span class="badge badge-danger ml-1" id="navNotesCountBadge" style="font-size: 10px; border-radius: 50%;{{ $navUnreadNotes < 1 ? ' display:none;' : '' }}">{{ $navUnreadNotes }}</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{{ route('admin.past_papers') }}" class="nav-link">
+                                        <i class="fa fa-file-text"></i> Past Papers
+                                        <span class="badge badge-danger ml-1" id="navPastPapersCountBadge" style="font-size: 10px; border-radius: 50%;{{ $navUnreadPastPapers < 1 ? ' display:none;' : '' }}">{{ $navUnreadPastPapers }}</span>
+                                    </a>
+                                </li>
                                 <li><a href="{{ route('manage_fees') }}" class="nav-link"><i class="fa fa-money"></i> Fees Structure</a></li>
                                 <li><a href="{{ route('view_payments') }}" class="nav-link"><i class="fa fa-credit-card"></i> Payments</a></li>
                                 <li><a href="{{ route('manage_fees') }}" class="nav-link" onclick="setTimeout(() => { $('#openAgreementModalBtn_Exp').click() }, 500);"><i class="fa fa-handshake-o"></i> Fee Agreements</a></li>
@@ -1796,9 +1827,12 @@ html[data-sx-theme="dark"] .footer-area {
                                 $newVisitorCount = 0;
                                 $newOnlineAdmissionCount = 0;
                                 $pendingParentPermissionCount = 0;
+                                $newNotesCount = 0;
+                                $newPastPapersCount = 0;
                                 $recentVisitors = collect();
                                 $recentOnlineAdmissions = collect();
                                 $pendingParentPermissions = collect();
+                                $recentSubjectMaterials = collect();
                                 $permBellClient = [];
 
                                 if ($isAdmin && $schoolID) {
@@ -1868,8 +1902,25 @@ html[data-sx-theme="dark"] .footer-area {
                                         $pendingParentPermissionCount = 0;
                                         $pendingParentPermissions = collect();
                                     }
+
+                                    try {
+                                        $materialCounts = \App\Models\SubjectNote::unreadAdminCounts((int) $schoolID);
+                                        $newNotesCount = (int) ($materialCounts['note'] ?? 0);
+                                        $newPastPapersCount = (int) ($materialCounts['past_paper'] ?? 0);
+                                        if (\Illuminate\Support\Facades\Schema::hasTable('subject_notes')) {
+                                            $recentSubjectMaterials = \App\Models\SubjectNote::with(['subject', 'teacher', 'classSubject.subclass.class', 'classSubject.class'])
+                                                ->where('schoolID', $schoolID)
+                                                ->orderByDesc('created_at')
+                                                ->limit(8)
+                                                ->get();
+                                        }
+                                    } catch (\Throwable $e) {
+                                        $newNotesCount = 0;
+                                        $newPastPapersCount = 0;
+                                        $recentSubjectMaterials = collect();
+                                    }
                                 }
-                                $headerNotificationCount = $newVisitorCount + $newOnlineAdmissionCount + $pendingParentPermissionCount;
+                                $headerNotificationCount = $newVisitorCount + $newOnlineAdmissionCount + $pendingParentPermissionCount + $newNotesCount + $newPastPapersCount;
                             @endphp
                             <button class="btn btn-secondary dropdown-toggle position-relative" type="button" id="notification" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <i class="fa fa-bell-o header-icon-muted"></i>
@@ -1887,6 +1938,12 @@ html[data-sx-theme="dark"] .footer-area {
                                         @if($newOnlineAdmissionCount > 0)
                                             <small class="d-block text-muted" style="font-weight:500;">Online applications: {{ $newOnlineAdmissionCount }}</small>
                                         @endif
+                                        @if($newNotesCount > 0)
+                                            <small class="d-block text-muted" style="font-weight:500;">Notes: {{ $newNotesCount }}</small>
+                                        @endif
+                                        @if($newPastPapersCount > 0)
+                                            <small class="d-block text-muted" style="font-weight:500;">Past papers: {{ $newPastPapersCount }}</small>
+                                        @endif
                                     </p>
                                     <button type="button" id="markAllNotificationsRead" @if($headerNotificationCount < 1) style="display:none;" @endif>Mark all as read</button>
                                 </div>
@@ -1894,7 +1951,8 @@ html[data-sx-theme="dark"] .footer-area {
                                     @php
                                         $hasBellItems = $pendingParentPermissions->isNotEmpty()
                                             || $recentOnlineAdmissions->isNotEmpty()
-                                            || $recentVisitors->isNotEmpty();
+                                            || $recentVisitors->isNotEmpty()
+                                            || $recentSubjectMaterials->isNotEmpty();
                                     @endphp
                                     @if(! $hasBellItems)
                                         <div class="bell-note is-read">
@@ -2008,6 +2066,46 @@ html[data-sx-theme="dark"] .footer-area {
                                                         <span class="bell-note-flag">{{ $visitorUnread ? 'Unread' : 'Read' }}</span>
                                                         @if($visitorUnread)
                                                             <button type="button" class="bell-mark-read" data-note-type="visitor" data-note-id="{{ (int) $visitor->visitorID }}">Mark as read</button>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                        @foreach($recentSubjectMaterials as $materialNote)
+                                            @php
+                                                $materialKind = strtolower((string) ($materialNote->kind ?? 'note')) === 'past_paper' ? 'past_paper' : 'note';
+                                                $materialUnread = empty($materialNote->is_read_by_admin);
+                                                $materialCreated = $materialNote->created_at ? \Carbon\Carbon::parse($materialNote->created_at) : null;
+                                                $materialTime = $materialCreated
+                                                    ? ($materialCreated->isToday() ? $materialCreated->diffForHumans() : $materialCreated->format('d M Y'))
+                                                    : '';
+                                                $materialTeacher = $materialNote->teacher
+                                                    ? trim(($materialNote->teacher->first_name ?? '') . ' ' . ($materialNote->teacher->last_name ?? ''))
+                                                    : 'Teacher';
+                                                $materialSubject = $materialNote->subject->subject_name ?? 'Subject';
+                                                $materialCs = $materialNote->classSubject;
+                                                $materialClass = optional(optional($materialCs)->class)->class_name
+                                                    ?? optional(optional(optional($materialCs)->subclass)->class)->class_name
+                                                    ?? '';
+                                                $materialStream = trim((string) (optional(optional($materialCs)->subclass)->subclass_name ?? ''));
+                                                $materialClassLabel = trim($materialClass . ($materialStream !== '' ? ' ' . $materialStream : ''));
+                                                $materialUrl = $materialKind === 'past_paper' ? route('admin.past_papers') : route('admin.notes');
+                                                $materialTitle = $materialKind === 'past_paper' ? 'New past paper' : 'New notes';
+                                                $materialMeta = trim($materialSubject . ' | ' . $materialTeacher . ($materialClassLabel !== '' ? ' | ' . $materialClassLabel : '') . ($materialNote->title ? ' | ' . $materialNote->title : ''));
+                                                $materialIcon = $materialKind === 'past_paper' ? 'fa-file-text' : 'fa-sticky-note';
+                                            @endphp
+                                            <div class="bell-note {{ $materialUnread ? 'is-unread' : 'is-read' }}" data-href="{{ $materialUrl }}" data-note-type="{{ $materialKind }}" data-note-id="{{ (int) $materialNote->noteID }}">
+                                                <div class="bell-note-icon"><i class="fa {{ $materialIcon }}"></i></div>
+                                                <div class="bell-note-main">
+                                                    <div class="bell-note-top">
+                                                        <span class="bell-note-title">{{ $materialTitle }}</span>
+                                                        <span class="bell-note-time">{{ $materialTime }}</span>
+                                                    </div>
+                                                    <div class="bell-note-meta">{{ $materialMeta }}</div>
+                                                    <div class="bell-note-status">
+                                                        <span class="bell-note-flag">{{ $materialUnread ? 'Unread' : 'Read' }}</span>
+                                                        @if($materialUnread)
+                                                            <button type="button" class="bell-mark-read" data-note-type="{{ $materialKind }}" data-note-id="{{ (int) $materialNote->noteID }}">Mark as read</button>
                                                         @endif
                                                     </div>
                                                 </div>
@@ -2831,6 +2929,8 @@ function updateVisitorNotificationCount() {
         const count = parseInt(response.count || 0, 10);
         const oaCount = parseInt(response.online_admissions || 0, 10);
         const permCount = parseInt(response.parent_permissions || 0, 10);
+        const notesCount = parseInt(response.notes || 0, 10);
+        const pastPaperCount = parseInt(response.past_papers || 0, 10);
         const $button = $('#notification');
         const $badge = $('#visitorNotificationCount');
 
@@ -2847,6 +2947,12 @@ function updateVisitorNotificationCount() {
             if (oaCount > 0) {
                 header += '<small class="d-block text-muted" style="font-weight:500;">Online applications: ' + oaCount + '</small>';
             }
+            if (notesCount > 0) {
+                header += '<small class="d-block text-muted" style="font-weight:500;">Notes: ' + notesCount + '</small>';
+            }
+            if (pastPaperCount > 0) {
+                header += '<small class="d-block text-muted" style="font-weight:500;">Past papers: ' + pastPaperCount + '</small>';
+            }
             $('#visitorNotificationHeader').html(header);
             $('#markAllNotificationsRead').show();
         } else {
@@ -2854,6 +2960,18 @@ function updateVisitorNotificationCount() {
             $('#visitorNotificationHeader').text('Notifications: 0');
             $('#markAllNotificationsRead').hide();
         }
+        function setSidebarCountBadge(id, n) {
+            var $el = $('#' + id);
+            if (!$el.length) return;
+            if (n > 0) {
+                $el.text(n).show();
+            } else {
+                $el.hide();
+            }
+        }
+        setSidebarCountBadge('navNotesCountBadge', notesCount);
+        setSidebarCountBadge('navPastPapersCountBadge', pastPaperCount);
+        setSidebarCountBadge('navAcademicMaterialBadge', notesCount + pastPaperCount);
         fetchRecentVisitors(1, false);
     });
 }
@@ -2861,7 +2979,10 @@ function updateVisitorNotificationCount() {
 function bellNoteHtml(item) {
     var unread = !!item.is_unread;
     var state = unread ? 'is-unread' : 'is-read';
-    var icon = item.type === 'permission' ? 'fa-calendar-check-o' : (item.type === 'admission' ? 'fa-wpforms' : 'fa-user');
+    var icon = item.type === 'permission' ? 'fa-calendar-check-o'
+        : (item.type === 'admission' ? 'fa-wpforms'
+        : (item.type === 'past_paper' ? 'fa-file-text'
+        : (item.type === 'note' ? 'fa-sticky-note' : 'fa-user')));
     var actions = '';
     if (item.type === 'permission' && item.permission) {
         actions = '<div class="perm-bell-actions">' +

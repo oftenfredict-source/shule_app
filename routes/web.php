@@ -858,6 +858,18 @@ Route::get("parentNotes/{studentID}/subjects/{classSubjectID}/notes", [
     SubjectNoteController::class,
     "parentSubjectNotes",
 ])->name("parentNotes.list");
+Route::get("parentPastPapers", [
+    SubjectNoteController::class,
+    "parentIndex",
+])->name("parentPastPapers");
+Route::get("parentPastPapers/{studentID}/subjects", [
+    SubjectNoteController::class,
+    "parentChildSubjects",
+])->name("parentPastPapers.subjects");
+Route::get("parentPastPapers/{studentID}/subjects/{classSubjectID}/notes", [
+    SubjectNoteController::class,
+    "parentSubjectNotes",
+])->name("parentPastPapers.list");
 Route::get("parentHomePackages/{holidayID}/packages", [
     HomePackageController::class,
     "parentHolidayPackages",
@@ -3845,6 +3857,30 @@ Route::get("subject-notes/{noteID}/download", [
     SubjectNoteController::class,
     "downloadFile",
 ])->name("subject_notes.download");
+Route::get("adminNotes", [
+    SubjectNoteController::class,
+    "adminIndex",
+])->name("admin.notes");
+Route::get("adminNotes/subjects", [
+    SubjectNoteController::class,
+    "adminSubjects",
+])->name("admin.notes.subjects");
+Route::get("adminNotes/subjects/{classSubjectID}/notes", [
+    SubjectNoteController::class,
+    "adminSubjectNotes",
+])->name("admin.notes.list");
+Route::get("adminPastPapers", [
+    SubjectNoteController::class,
+    "adminIndex",
+])->name("admin.past_papers");
+Route::get("adminPastPapers/subjects", [
+    SubjectNoteController::class,
+    "adminSubjects",
+])->name("admin.past_papers.subjects");
+Route::get("adminPastPapers/subjects/{classSubjectID}/notes", [
+    SubjectNoteController::class,
+    "adminSubjectNotes",
+])->name("admin.past_papers.list");
 
 //manage Attendance routes
 Route::get("manageAttendance", [

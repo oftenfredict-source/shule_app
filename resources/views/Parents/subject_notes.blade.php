@@ -1,25 +1,28 @@
 @extends('layouts.parent_corp')
 
-@section('title', __('parent.notes') . ' - ShuleXpert')
+@section('title', (($kind ?? 'note') === 'past_paper' ? __('parent.past_papers') : __('parent.notes')) . ' - ShuleXpert')
 
 @section('content')
 @php
+    $kind = $kind ?? 'note';
+    $isPaper = $kind === 'past_paper';
     $t = [
-        'page' => __('parent.notes'),
+        'page' => $isPaper ? __('parent.past_papers') : __('parent.notes'),
         'pick_child' => __('parent.pick_child'),
         'no_child' => __('parent.no_child'),
-        'notes' => __('parent.notes_count_label'),
+        'notes' => $isPaper ? __('parent.past_papers_count_label') : __('parent.notes_count_label'),
         'back' => __('parent.back'),
         'subjects' => __('parent.subjects'),
         'loading' => __('parent.loading'),
         'fail' => __('parent.load_failed'),
-        'no_notes' => __('parent.no_notes'),
+        'no_notes' => $isPaper ? __('parent.no_past_papers') : __('parent.no_notes'),
         'view' => __('parent.view'),
         'title' => __('parent.title'),
         'file' => __('parent.file'),
         'teacher' => __('parent.teacher'),
         'close' => __('parent.close'),
         'download' => __('parent.download'),
+        'icon' => $isPaper ? 'bx-file' : 'bx-note',
     ];
 @endphp
 <style>
@@ -115,7 +118,7 @@
 
 <div class="pn-page">
     <div class="pn-section-title">
-        <i class="bx bx-note"></i> {{ $t['notes'] }}
+        <i class="bx {{ $t['icon'] }}"></i> {{ $t['page'] }}
     </div>
     <p class="text-muted mb-3" id="pnStepHint">{{ $t['pick_child'] }}</p>
     <div id="pnBackWrap" class="mb-2" style="display:none;">
@@ -128,7 +131,7 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="parentNotesListTitle">{{ __('parent.notes') }}</h5>
+                <h5 class="modal-title" id="parentNotesListTitle">{{ $t['page'] }}</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="parentNotesListBody">
@@ -147,7 +150,7 @@
 (function($) {
     const T = @json($t);
     const children = @json($children);
-    const subjectsUrl = @json(url('parentNotes'));
+    const subjectsUrl = @json($isPaper ? url('parentPastPapers') : url('parentNotes'));
     let step = 'children';
     let currentStudent = null;
 

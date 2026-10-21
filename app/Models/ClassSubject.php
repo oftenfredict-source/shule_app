@@ -56,6 +56,11 @@ class ClassSubject extends Model
         return $this->hasMany(SchemeOfWork::class, 'class_subjectID', 'class_subjectID');
     }
 
+    public function notes()
+    {
+        return $this->hasMany(SubjectNote::class, 'class_subjectID', 'class_subjectID');
+    }
+
     /** Per-paper teachers for duo / multi-paper subjects */
     public function componentTeachers()
     {

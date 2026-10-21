@@ -491,8 +491,17 @@
                                                role="button"
                                                data-class-subject-id="{{ $classSubject->class_subjectID }}"
                                                data-subject-name="{{ e($classSubject->subject->subject_name ?? 'Somo') }}"
-                                               onclick="openSubjectNotesModal(this.getAttribute('data-class-subject-id'), this.getAttribute('data-subject-name'))"></i>
+                                               onclick="openSubjectNotesModal(this.getAttribute('data-class-subject-id'), this.getAttribute('data-subject-name'), 'note')"></i>
                                             <small class="d-block text-muted mt-1">Notes</small>
+                                        </div>
+                                        <div class="text-center mb-2" title="Past Papers">
+                                            <i class="bi bi-file-earmark-text action-icon"
+                                               style="color: #940000; cursor:pointer;"
+                                               role="button"
+                                               data-class-subject-id="{{ $classSubject->class_subjectID }}"
+                                               data-subject-name="{{ e($classSubject->subject->subject_name ?? 'Somo') }}"
+                                               onclick="openSubjectNotesModal(this.getAttribute('data-class-subject-id'), this.getAttribute('data-subject-name'), 'past_paper')"></i>
+                                            <small class="d-block text-muted mt-1">Past Papers</small>
                                         </div>
                                         <div class="text-center mb-2" title="View Students">
                                             <i class="bi bi-people-fill action-icon view-students" onclick="viewStudents({{ $classSubject->class_subjectID }})"></i>
