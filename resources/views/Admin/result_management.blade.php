@@ -8,6 +8,27 @@
 
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
+@php
+    if (!function_exists('sxNormalizeDivision')) {
+        function sxNormalizeDivision($division, $points = null): string {
+            $division = trim((string) ($division ?? ''));
+            if (preg_match('/^-?\.(\d+)$/', $division, $m)) {
+                return '0.' . $m[1];
+            }
+            if (preg_match('/^([0IVX]+)\.(\d+)$/i', $division, $m)) {
+                return strtoupper($m[1]) . '.' . $m[2];
+            }
+            if ($division === '0' && $points !== null && $points !== '' && (int) $points < 9000) {
+                return '0.' . (int) $points;
+            }
+            if ($division === '' || $division === '-') {
+                return 'N/A';
+            }
+            return $division;
+        }
+    }
+@endphp
+
 <style>
     /* 1. Global Font and Base Rule */
     body, .card, .modal-content, .table, h1, h2, h3, h4, h5, h6, p, div, span, button, input, select {
@@ -926,7 +947,7 @@
                                                         </td>
                                                     @else
                                                         <td>
-                                                            <span class="badge badge-warning">{{ $result['division'] ?? ($result['grade'] ?? 'N/A') }}</span>
+                                                            <span class="badge badge-warning">{{ sxNormalizeDivision($result['division'] ?? '', $result['total_points'] ?? null) }}</span>
                                                         </td>
                                                     @endif
                                                     <td>
@@ -2520,7 +2541,7 @@
                                                                         </span>
                                                                     </td>
                                                                 @else
-                                                                    <td><span class="badge badge-warning">{{ $topStudent['division'] ?? 'N/A' }}</span></td>
+                                                                    <td><span class="badge badge-warning">{{ sxNormalizeDivision($topStudent['division'] ?? '', $topStudent['total_points'] ?? null) }}</span></td>
                                                                 @endif
                                                             </tr>
                                                         @endforeach
@@ -2622,7 +2643,7 @@
                                                                 @if($schoolType === 'Primary')
                                                                     <td><span class="badge badge-info">{{ $examStudent['grade'] ?? 'N/A' }}</span></td>
                                                                 @else
-                                                                    <td><span class="badge badge-warning">{{ $examStudent['division'] ?? 'N/A' }}</span></td>
+                                                                    <td><span class="badge badge-warning">{{ sxNormalizeDivision($examStudent['division'] ?? '', $examStudent['total_points'] ?? null) }}</span></td>
                                                                 @endif
                                                                 <td>
                                                                     <button class="btn btn-sm btn-primary view-student-details"
@@ -2630,7 +2651,7 @@
                                                                             data-exam-id="{{ $filters['examID'] }}"
                                                                             data-board-position="{{ $examStudent['position'] ?? '' }}"
                                                                             data-board-total="{{ $examStudent['total_class_students'] ?? '' }}"
-                                                                            data-board-division="{{ $schoolType === 'Primary' ? ($examStudent['grade'] ?? '') : ($examStudent['division'] ?? '') }}"
+                                                                            data-board-division="{{ $schoolType === 'Primary' ? ($examStudent['grade'] ?? '') : sxNormalizeDivision($examStudent['division'] ?? '', $examStudent['total_points'] ?? null) }}"
                                                                             data-student-name="{{ trim(($st->first_name ?? '') . ' ' . ($st->middle_name ?? '') . ' ' . ($st->last_name ?? '')) }}"
                                                                             data-admission="{{ $st->admission_number ?? '' }}"
                                                                             title="View More Details">
@@ -3719,7 +3740,7 @@
                                                                         $examName = strtoupper($examData['exam_label'] ?? ($examData['exam']->exam_name ?? 'N/A'));
                                                                         $examAvg = number_format($examData['average'] ?? 0, 1);
                                                                         $examGrade = $schoolType === 'Secondary'
-                                                                            ? ($examData['division'] ?? $examData['grade'] ?? 'N/A')
+                                                                            ? sxNormalizeDivision($examData['division'] ?? '', $examData['total_points'] ?? null)
                                                                             : ($examData['grade'] ?? 'N/A');
                                                                         $examStrings[] = $examName . ' ' . $examAvg . '-' . $examGrade;
                                                                     }
@@ -3741,7 +3762,7 @@
                                                                 <td>{{ number_format($reportStudent['average_marks'], 1) }}</td>
                                                                 <td>
                                                                     <span class="badge badge-info">
-                                                                        {{ $schoolType === 'Secondary' ? ($reportStudent['division'] ?? 'N/A') : ($reportStudent['grade'] ?? 'N/A') }}
+                                                                        {{ $schoolType === 'Secondary' ? sxNormalizeDivision($reportStudent['division'] ?? '', $reportStudent['total_points'] ?? null) : ($reportStudent['grade'] ?? 'N/A') }}
                                                                     </span>
                                                                 </td>
                                                                 <td>
@@ -3841,7 +3862,7 @@
                                                                     </td>
                                                                 @else
                                                                     <td>
-                                                                        <span class="badge badge-warning">{{ $examResult['division'] ?? ($examResult['grade'] ?? 'N/A') }}</span>
+                                                                        <span class="badge badge-warning">{{ sxNormalizeDivision($examResult['division'] ?? '', $examResult['total_points'] ?? null) }}</span>
                                                                     </td>
                                                                 @endif
                                                                 <td>
@@ -3956,6 +3977,15 @@
         if (fallback === undefined) fallback = 'N/A';
         if (value === null || value === undefined || value === '') return fallback;
         return String(value);
+    }
+
+    function sxKeepDivision(value, fallback) {
+        if (value === null || value === undefined) return fallback;
+        const text = String(value).trim();
+        if (text === '') return fallback;
+        const dashed = text.match(/^-?\.(\d+)$/);
+        if (dashed) return '0.' + dashed[1];
+        return text;
     }
 
     function getAutomaticComment(gradeOrDivision) {
@@ -4477,7 +4507,7 @@ $(document).ready(function() {
                     totalStudentsCount: response.totalStudentsCount || 0,
                     averageMarks: response.averageMarks || 0,
                     grade: response.grade || gradeOrDivision,
-                    division: response.division || null,
+                    division: sxKeepDivision(response.division, null),
                     isALevel: !!response.isALevel,
                     subjects: response.subjects || [],
                     exams: response.exams || [],
@@ -4487,7 +4517,7 @@ $(document).ready(function() {
                 };
 
                 const reportPositionText = (response.position || position || 'N/A') + ' out of ' + (response.totalStudentsCount || 0);
-                const reportGradeText = response.division || response.grade || gradeOrDivision;
+                const reportGradeText = sxKeepDivision(response.division, response.grade || gradeOrDivision);
                 
                 // Build content
                 let content = `
@@ -4778,7 +4808,7 @@ $(document).ready(function() {
                         averageMarks: response.averageMarks || 0,
                         subjectCount: response.subjectCount || 0,
                         grade: response.grade || null,
-                        division: response.division || null,
+                        division: sxKeepDivision(response.division, null),
                         isALevel: !!response.isALevel,
                         totalStudentsCount: studentTotal,
                         subjects: response.subjects || [],
@@ -4789,7 +4819,7 @@ $(document).ready(function() {
                     };
                     
                     // Update Position and Division in content if response has them
-                    const displayGradeOrDivision = response.division || response.grade || gradeOrDivision;
+                    const displayGradeOrDivision = sxKeepDivision(response.division, response.grade || gradeOrDivision);
                     content = content.replace(
                         `<p><strong>Position:</strong> <span class="badge badge-success">${position}</span></p>`,
                         `<p><strong>Position:</strong> <span class="badge badge-success">${positionText}</span></p>`
@@ -5042,7 +5072,7 @@ $(document).ready(function() {
                     averageMarks: response.averageMarks,
                     grade: response.grade,
                     division: response.division,
-                    gradeOrDivision: response.division || response.grade,
+                    gradeOrDivision: sxKeepDivision(response.division, response.grade),
                     totalStudentsCount: response.totalStudentsCount,
                     subjects: response.subjects,
                     photo: response.student.photo,
@@ -7075,7 +7105,7 @@ $(document).ready(function() {
                 if (schoolType === 'Primary') {
                     summaryData.push(['Grade', grade || 'N/A']);
                 } else {
-                    summaryData.push(['Division', division || 'N/A']);
+                    summaryData.push(['Division', sxKeepDivision(division, 'N/A')]);
                 }
 
                 doc.autoTable({
@@ -7841,7 +7871,7 @@ $(document).ready(function() {
                 yPos += 7;
                 
                 const top5Data = data.top5Students.map(function(s) {
-                    return [s.position.toString(), s.studentName, s.divisionOrGrade];
+                    return [s.position.toString(), s.studentName, sxKeepDivision(s.divisionOrGrade, 'N/A')];
                 });
                 
                 doc.autoTable({
@@ -7920,7 +7950,7 @@ $(document).ready(function() {
                     if (schoolType === 'Primary') {
                         rowData.push((student.totalMarks || 0).toString(), student.grade || 'N/A');
                     } else {
-                        rowData.push(student.division || 'N/A');
+                        rowData.push(sxKeepDivision(student.division, 'N/A'));
                     }
                     
                     allStudentsData.push(rowData);
@@ -8610,7 +8640,7 @@ $(document).ready(function() {
             
             // Always show Division for Secondary school, even if empty (show N/A)
             if (schoolType === 'Secondary') {
-                const divisionValue = studentData.division || studentData.gradeOrDivision || 'N/A';
+                const divisionValue = sxKeepDivision(studentData.division, studentData.gradeOrDivision || 'N/A');
                 overviewData.push(['Division', divisionValue]);
             }
             
@@ -8779,7 +8809,7 @@ $(document).ready(function() {
             
             doc.setFont('helvetica', 'italic');
             doc.setFontSize(10);
-            const commentVal = studentData.division || studentData.grade || studentData.gradeOrDivision;
+            const commentVal = sxKeepDivision(studentData.division, studentData.grade || studentData.gradeOrDivision);
             const comment = getAutomaticComment(commentVal);
             doc.text(comment, 14, yPos);
             yPos += 10;
@@ -8855,7 +8885,7 @@ $(document).ready(function() {
         
         // Always show Division for Secondary school, even if empty (show N/A)
         if (schoolType === 'Secondary') {
-            const divisionValue = studentData.division || studentData.gradeOrDivision || 'N/A';
+            const divisionValue = sxKeepDivision(studentData.division, studentData.gradeOrDivision || 'N/A');
             data.push(['Division', divisionValue]);
         }
         
@@ -10614,7 +10644,7 @@ $(document).ready(function() {
                 window._smsBoardByStudent[String(studentId)] = {
                     subjects: subjectsForSms,
                     totalMarks: student.totalMarks != null ? student.totalMarks : (student.marks != null ? student.marks : ''),
-                    division: student.division || '',
+                    division: sxKeepDivision(student.division, ''),
                     position: (student.position != null && student.position !== '') ? student.position : '',
                     grade: student.grade || '',
                     week: context.week || '',
@@ -10642,7 +10672,7 @@ $(document).ready(function() {
                 dataAttrs += `data-rank-by="${context.rank_by || $('#rank_by').val() || 'average'}" `;
                 dataAttrs += `data-subject="${student.subject || context.subject || ''}" `;
                 dataAttrs += `data-marks="${student.marks || ''}" data-grade="${student.grade || ''}" `;
-                dataAttrs += `data-division="${student.division || ''}" data-position="${posVal}" `;
+                dataAttrs += `data-division="${sxKeepDivision(student.division, '')}" data-position="${posVal}" `;
                 dataAttrs += `data-total-count="${totalVal}" `;
                 
                 list.append(`
@@ -10861,7 +10891,7 @@ $(document).ready(function() {
                 term: row.attr('data-term') || board.term || '',
                 year: row.attr('data-year') || board.year || '',
                 rank_by: row.attr('data-rank-by') || board.rank_by || $('#rank_by').val() || 'average',
-                division: row.attr('data-division') || board.division || '',
+                division: sxKeepDivision(row.attr('data-division'), sxKeepDivision(board.division, '')),
                 position: posRaw,
                 totalStudentsCount: totalRaw,
                 totalMarks: board.totalMarks != null ? board.totalMarks : '',

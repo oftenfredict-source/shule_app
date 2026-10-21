@@ -239,6 +239,34 @@
             }
         }
 
+        if (!function_exists('pdfNormalizeDivision')) {
+            /**
+             * Keep Division 0 as 0.34. Never turn the leading 0 into a dash.
+             * PHP empty("0") and (0 ?: '-') both produce "-.34".
+             */
+            function pdfNormalizeDivision($division, $points = null): string {
+                $division = trim((string) ($division ?? ''));
+                if (preg_match('/^-?\.(\d+)$/', $division, $m)) {
+                    return '0.' . $m[1];
+                }
+                if (preg_match('/^([0IVX]+)\.(\d+)$/i', $division, $m)) {
+                    return strtoupper($m[1]) . '.' . $m[2];
+                }
+                if (
+                    ($division === '' || $division === '-' || $division === '0')
+                    && $points !== null
+                    && $points !== ''
+                    && (int) $points > 0
+                ) {
+                    return '0.' . (int) $points;
+                }
+                if ($division === '' || $division === '-') {
+                    return '-';
+                }
+                return $division;
+            }
+        }
+
         if (!function_exists('getAutomaticComment')) {
             function getAutomaticComment($gradeOrDivision, array $weakSubjects = []) {
                 $raw = strtoupper(trim((string) $gradeOrDivision));
@@ -1740,9 +1768,9 @@
 
                 {{-- Summary, same structure for A-Level & O-Level (processing differs in backend) --}}
                 @php
-                    $sumDivisionFull = (string) ($detailedSingleData['division'] ?? '');
+                    $sumDivisionFull = pdfNormalizeDivision($detailedSingleData['division'] ?? '', $detailedSingleData['totalPoints'] ?? null);
                     $sumDivisionRoman = $sumDivisionFull;
-                    if (preg_match('/^([0IVX]+)/i', $sumDivisionFull, $dm)) {
+                    if (preg_match('/^([0IVX]+)\./i', $sumDivisionFull, $dm)) {
                         $sumDivisionRoman = strtoupper($dm[1]);
                     }
                     $sumGradeLetter = $detailedSingleData['gradeLetter']
@@ -1788,7 +1816,7 @@
                         @if($isSecondaryPdf)
                             <td>
                                 <span class="sg-k">Daraja</span> :
-                                <span class="sg-v">{{ $sumDivisionRoman !== '' ? $sumDivisionRoman : '-' }}</span>
+                                <span class="sg-v">{{ $sumDivisionRoman !== '' ? $sumDivisionRoman : '0' }}</span>
                             </td>
                             <td>
                                 <span class="sg-k">Pointi</span> :
@@ -1997,7 +2025,7 @@
                     <strong>Wastani:</strong> {{ pdfFormatAverageMarks($detailedSingleData['averageMarks'] ?? 0) }} &nbsp;|&nbsp;
                     <strong>Daraja:</strong> {{ $detailedSingleData['grade'] ?? 'N/A' }}
                     @if(isset($detailedSingleData['division']))
-                        &nbsp;|&nbsp; <strong>Divisheni:</strong> {{ $detailedSingleData['division'] }}
+                        &nbsp;|&nbsp; <strong>Divisheni:</strong> {{ pdfNormalizeDivision($detailedSingleData['division'] ?? '', $detailedSingleData['totalPoints'] ?? null) }}
                     @endif
                     @if(isset($detailedSingleData['position']))
                         &nbsp;|&nbsp; <strong>Nafasi:</strong> {{ $detailedSingleData['position'] }} / {{ $detailedSingleData['totalStudentsCount'] ?? 0 }}
@@ -2029,7 +2057,7 @@
                         <td class="bold">{{ number_format($result['total_marks'], 0) }}</td>
                         <td class="tc bold">{{ pdfFormatAverageMarks($result['average_marks'] ?? 0) }}</td>
                         <td class="tc"><span class="badge-pale">{{ $result['grade'] ?? 'N/A' }}</span></td>
-                        <td class="tc"><span class="badge-red">{{ $result['division'] ?? 'N/A' }}</span></td>
+                        <td class="tc"><span class="badge-red">{{ pdfNormalizeDivision($result['division'] ?? '', $result['total_points'] ?? null) }}</span></td>
                         <td class="tc"><span class="badge-grn">{{ $result['position'] ?? 'N/A' }}</span></td>
                         <td class="tc">{{ $result['exam_count'] ?? 0 }}</td>
                     </tr>
@@ -2111,7 +2139,7 @@
                     <strong>Jumla:</strong> {{ number_format($examResult['total_marks'], 0) }} &nbsp;|&nbsp;
                     <strong>Wastani:</strong> {{ pdfFormatAverageMarks($examResult['average_marks'] ?? 0) }} &nbsp;|&nbsp;
                     <strong>Daraja:</strong> {{ $examResult['grade'] ?? 'N/A' }} &nbsp;|&nbsp;
-                    <strong>Divisheni:</strong> {{ $examResult['division'] ?? 'N/A' }}
+                    <strong>Divisheni:</strong> {{ pdfNormalizeDivision($examResult['division'] ?? '', $examResult['total_points'] ?? null) }}
                 </div>
             @endforeach
         @endif

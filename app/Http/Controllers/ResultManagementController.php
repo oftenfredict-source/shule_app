@@ -7957,6 +7957,33 @@ class ResultManagementController extends Controller
     }
 
     /**
+     * Division label is roman.points (0.34). A leading 0 must stay 0, never "-".
+     */
+    private function normalizeSecondaryDivisionLabel($division, $points = null): string
+    {
+        $division = trim((string) ($division ?? ""));
+        if (preg_match("/^-?\.(\d+)$/", $division, $m)) {
+            return "0." . $m[1];
+        }
+        if (preg_match("/^([0IVX]+)\.(\d+)$/i", $division, $m)) {
+            return strtoupper($m[1]) . "." . $m[2];
+        }
+        if (
+            ($division === "" || $division === "-" || strcasecmp($division, "0") === 0)
+            && $points !== null
+            && $points !== ""
+            && (int) $points > 0
+        ) {
+            return "0." . (int) $points;
+        }
+        if ($division === "" || $division === "-") {
+            return "-";
+        }
+
+        return $division;
+    }
+
+    /**
      * Normalize exam vs term-report payload into one row structure.
      */
     private function resolveStudentResultRow(
@@ -9043,7 +9070,10 @@ class ResultManagementController extends Controller
                     $item["division_points"] !== ""
                         ? $item["division_points"]
                         : "-",
-                "division" => $this->displayDivisionRoman($item["division_roman"]),
+                "division" => $this->normalizeSecondaryDivisionLabel(
+                    $row["division"] ?? null,
+                    $item["division_points"],
+                ),
                 "subjects" => $subjectCells,
                 "total" => $this->formatBoardTotalMarks($totalRaw),
                 "average" => $this->formatBoardAverageMarks($avgRaw),
@@ -9873,7 +9903,10 @@ class ResultManagementController extends Controller
                 $line[] = $item["division_points"] !== ""
                     ? $item["division_points"]
                     : "-";
-                $line[] = $this->displayDivisionRoman($item["division_roman"]);
+                $line[] = $this->normalizeSecondaryDivisionLabel(
+                    $row["division"] ?? null,
+                    $item["division_points"],
+                );
             }
 
             $subjectMapById = [];
@@ -9979,7 +10012,10 @@ class ResultManagementController extends Controller
                 $sheet
                     ->getCell("{$divLetter}{$dataRow}")
                     ->setValueExplicit(
-                        $this->displayDivisionRoman($item["division_roman"]),
+                        $this->normalizeSecondaryDivisionLabel(
+                            $row["division"] ?? null,
+                            $item["division_points"],
+                        ),
                         DataType::TYPE_STRING,
                     );
             }

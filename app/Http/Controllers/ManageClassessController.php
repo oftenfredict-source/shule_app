@@ -1825,14 +1825,14 @@ class ManageClassessController extends Controller
                     return ['grade' => null, 'division' => '0.' . $totalPoints];
                 }
             } elseif (in_array($classNameLower, ['form_five', 'form_six'])) {
-                // A-Level Division based on 3 best principal subjects points
-                if ($totalPoints >= 12 && $totalPoints <= 15) {
+                // A-Level: I 3-9, II 10-12, III 13-17, IV 18-19, 0 from 20
+                if ($totalPoints >= 3 && $totalPoints <= 9) {
                     return ['grade' => null, 'division' => 'I.' . $totalPoints];
-                } elseif ($totalPoints >= 9 && $totalPoints <= 11) {
+                } elseif ($totalPoints >= 10 && $totalPoints <= 12) {
                     return ['grade' => null, 'division' => 'II.' . $totalPoints];
-                } elseif ($totalPoints >= 6 && $totalPoints <= 8) {
+                } elseif ($totalPoints >= 13 && $totalPoints <= 17) {
                     return ['grade' => null, 'division' => 'III.' . $totalPoints];
-                } elseif ($totalPoints >= 3 && $totalPoints <= 5) {
+                } elseif ($totalPoints >= 18 && $totalPoints <= 19) {
                     return ['grade' => null, 'division' => 'IV.' . $totalPoints];
                 } else {
                     return ['grade' => null, 'division' => '0.' . $totalPoints];

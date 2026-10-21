@@ -3947,14 +3947,14 @@ class ManageExaminationController extends Controller
                 return ['division' => '0.'.$totalPoints, 'points' => $totalPoints];
             }
         } elseif ($schoolType === 'Secondary' && in_array(strtolower($className ?? ''), ['form_five', 'form_six'])) {
-            // A-Level divisions
-            if ($totalPoints >= 12 && $totalPoints <= 15) {
+            // A-Level: I 3-9, II 10-12, III 13-17, IV 18-19, 0 from 20
+            if ($totalPoints >= 3 && $totalPoints <= 9) {
                 return ['division' => 'I.'.$totalPoints, 'points' => $totalPoints];
-            } elseif ($totalPoints >= 9 && $totalPoints <= 11) {
+            } elseif ($totalPoints >= 10 && $totalPoints <= 12) {
                 return ['division' => 'II.'.$totalPoints, 'points' => $totalPoints];
-            } elseif ($totalPoints >= 6 && $totalPoints <= 8) {
+            } elseif ($totalPoints >= 13 && $totalPoints <= 17) {
                 return ['division' => 'III.'.$totalPoints, 'points' => $totalPoints];
-            } elseif ($totalPoints >= 3 && $totalPoints <= 5) {
+            } elseif ($totalPoints >= 18 && $totalPoints <= 19) {
                 return ['division' => 'IV.'.$totalPoints, 'points' => $totalPoints];
             } else {
                 return ['division' => '0.'.$totalPoints, 'points' => $totalPoints];

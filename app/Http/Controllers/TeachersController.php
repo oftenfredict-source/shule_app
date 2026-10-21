@@ -12537,14 +12537,14 @@ class TeachersController extends Controller
                 return "0." . $totalPoints;
             }
         } elseif (in_array($classNameLower, ["form_five", "form_six"])) {
-            // A-Level Division (matching ResultManagementController logic)
-            if ($totalPoints >= 12 && $totalPoints <= 15) {
+            // A-Level: I 3-9, II 10-12, III 13-17, IV 18-19, 0 from 20
+            if ($totalPoints >= 3 && $totalPoints <= 9) {
                 return "I." . $totalPoints;
-            } elseif ($totalPoints >= 9 && $totalPoints <= 11) {
+            } elseif ($totalPoints >= 10 && $totalPoints <= 12) {
                 return "II." . $totalPoints;
-            } elseif ($totalPoints >= 6 && $totalPoints <= 8) {
+            } elseif ($totalPoints >= 13 && $totalPoints <= 17) {
                 return "III." . $totalPoints;
-            } elseif ($totalPoints >= 3 && $totalPoints <= 5) {
+            } elseif ($totalPoints >= 18 && $totalPoints <= 19) {
                 return "IV." . $totalPoints;
             } else {
                 return "0." . $totalPoints;
