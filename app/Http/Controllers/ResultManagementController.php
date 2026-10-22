@@ -7931,12 +7931,16 @@ class ResultManagementController extends Controller
             return ["roman" => "", "points" => $fallbackPoints ?? ""];
         }
 
-        if (preg_match("/^([0IVX]+)\.(\d+)/", $division, $m)) {
-            return ["roman" => (string) $m[1], "points" => (int) $m[2]];
+        if (preg_match("/^-?\.(\d+)$/", $division, $m)) {
+            return ["roman" => "0", "points" => (int) $m[1]];
         }
 
-        if (preg_match("/^([0IVX]+)$/", $division, $m)) {
-            return ["roman" => (string) $m[1], "points" => $fallbackPoints ?? ""];
+        if (preg_match("/^([0IVX]+)\.(\d+)/i", $division, $m)) {
+            return ["roman" => strtoupper($m[1]), "points" => (int) $m[2]];
+        }
+
+        if (preg_match("/^([0IVX]+)$/i", $division, $m)) {
+            return ["roman" => strtoupper($m[1]), "points" => $fallbackPoints ?? ""];
         }
 
         return ["roman" => (string) $division, "points" => $fallbackPoints ?? ""];
@@ -8855,8 +8859,8 @@ class ResultManagementController extends Controller
             if ($isALevelClass) {
                 $leadingHeaders[] = $streamHeader;
             }
-            $leadingHeaders[] = "POINT";
             $leadingHeaders[] = "DIVISION";
+            $leadingHeaders[] = "POINT";
         } else {
             $leadingHeaders = ["S/N"];
             if ($showName) {
@@ -9070,10 +9074,7 @@ class ResultManagementController extends Controller
                     $item["division_points"] !== ""
                         ? $item["division_points"]
                         : "-",
-                "division" => $this->normalizeSecondaryDivisionLabel(
-                    $row["division"] ?? null,
-                    $item["division_points"],
-                ),
+                "division" => $this->displayDivisionRoman($item["division_roman"]),
                 "subjects" => $subjectCells,
                 "total" => $this->formatBoardTotalMarks($totalRaw),
                 "average" => $this->formatBoardAverageMarks($avgRaw),
@@ -9217,14 +9218,14 @@ class ResultManagementController extends Controller
         // O-Level (Form 1-4) / Primary: no STREAM. A-Level only: COMBIE.
         $streamHeader = $isALevelClass ? "COMBIE" : null;
 
-        // Leading: S/N, Name, Index No, Sex [, COMBIE for A-Level] [, Point, Division for Secondary]
+        // Leading: S/N, Name, Index No, Sex [, COMBIE for A-Level] [, Division, Point for Secondary]
         if ($schoolType === "Secondary") {
             $leadingHeaders = ["S/N", "STUDENT NAME", "INDEX NO", "SEX"];
             if ($isALevelClass) {
                 $leadingHeaders[] = $streamHeader;
             }
-            $leadingHeaders[] = "POINT";
             $leadingHeaders[] = "DIVISION";
+            $leadingHeaders[] = "POINT";
         } else {
             $leadingHeaders = ["S/N", "STUDENT NAME", "INDEX NO", "SEX"];
         }
@@ -9889,7 +9890,7 @@ class ResultManagementController extends Controller
                 "UTF-8",
             );
 
-            // S/N, Name, Index No, Sex [, COMBIE for A-Level] [, Point, Division]
+            // S/N, Name, Index No, Sex [, COMBIE for A-Level] [, Division, Point]
             $line = [
                 $serialNo,
                 $studentName,
@@ -9900,13 +9901,10 @@ class ResultManagementController extends Controller
                 $line[] = $this->resolveBoardStreamLabel($student, $className);
             }
             if ($schoolType === "Secondary") {
+                $line[] = $this->displayDivisionRoman($item["division_roman"]);
                 $line[] = $item["division_points"] !== ""
                     ? $item["division_points"]
                     : "-";
-                $line[] = $this->normalizeSecondaryDivisionLabel(
-                    $row["division"] ?? null,
-                    $item["division_points"],
-                );
             }
 
             $subjectMapById = [];
@@ -10007,15 +10005,12 @@ class ResultManagementController extends Controller
 
             $sheet->fromArray([$line], null, "A{$dataRow}");
             if ($schoolType === "Secondary") {
-                $divColIndex = $isALevelClass ? 7 : 6;
+                $divColIndex = $isALevelClass ? 6 : 5;
                 $divLetter = Coordinate::stringFromColumnIndex($divColIndex);
                 $sheet
                     ->getCell("{$divLetter}{$dataRow}")
                     ->setValueExplicit(
-                        $this->normalizeSecondaryDivisionLabel(
-                            $row["division"] ?? null,
-                            $item["division_points"],
-                        ),
+                        $this->displayDivisionRoman($item["division_roman"]),
                         DataType::TYPE_STRING,
                     );
             }

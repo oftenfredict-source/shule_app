@@ -607,7 +607,7 @@
         $nameFs = 12;
         $vFont = 12;
 
-        $vertLabels = ['SEX', 'POINT', 'DIVISION', 'TOTAL', 'AVERAGE', 'POSITION', 'GRADE'];
+        $vertLabels = ['SEX', 'DIVISION', 'POINT', 'TOTAL', 'AVERAGE', 'POSITION', 'GRADE'];
         $streamLabel = pdfBoardShortLabel($board['streamHeader'] ?? 'COMBINATION');
         if ($streamLabel !== '') {
             $vertLabels[] = $streamLabel;
@@ -689,8 +689,8 @@
             $colW[] = $wStreamCol;
         }
         if ($isSecondary) {
-            $colW[] = pdfBoardDataColPct(max($lenPoint, 2), 14, 6);
             $colW[] = pdfBoardDataColPct(max($lenDiv, 1), 14, 6);
+            $colW[] = pdfBoardDataColPct(max($lenPoint, 2), 14, 6);
         }
         for ($si = 0; $si < $nSubj; $si++) {
             $colW[] = pdfBoardDataColPct((int) ($lenMarks[$si] ?? 1), 14, 6);
@@ -952,8 +952,8 @@
                         <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION') !!}</th>
                     @endif
                     @if($isSecondary)
-                        <th class="v">{!! pdfBoardVerticalLabel('POINT') !!}</th>
                         <th class="v">{!! pdfBoardVerticalLabel('DIVISION') !!}</th>
+                        <th class="v">{!! pdfBoardVerticalLabel('POINT') !!}</th>
                     @endif
                     @foreach($subjects as $subj)
                         <th class="v-subj" colspan="2">{!! pdfBoardVerticalLabel($subj['subject_name'] ?? '') !!}</th>
@@ -982,8 +982,8 @@
                             <td class="stream-cell"><span class="stream-keep">{{ preg_replace('/\s+/', '', (string) ($r['stream'] ?? '')) }}</span></td>
                         @endif
                         @if($isSecondary)
-                            <td>{{ $r['point'] }}</td>
                             <td>{{ $r['division'] }}</td>
+                            <td>{{ $r['point'] }}</td>
                         @endif
                         @foreach($r['subjects'] as $cell)
                             <td class="{{ !empty($cell['empty']) ? 'empty-subj' : '' }}">{{ $cell['marks'] }}</td>
