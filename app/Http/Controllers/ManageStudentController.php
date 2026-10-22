@@ -2366,6 +2366,247 @@ class ManageStudentController extends Controller
     }
 
     /**
+     * Duplicate student names for the current enrollment / promotion filters.
+     * Match is case-insensitive (HASSANI = hassani).
+     */
+    public function get_duplicate_student_names(Request $request)
+    {
+        try {
+            $userType = Session::get('user_type');
+            $canView = $userType === 'Admin'
+                || $this->hasPermission('student_read_only')
+                || $this->hasPermission('student_create')
+                || $this->hasPermission('student_update')
+                || $this->hasPermission('student_delete')
+                || $this->hasPermission('view_students');
+
+            if (!$canView) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to view students.',
+                ], 403);
+            }
+
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'School ID not found',
+                ], 400);
+            }
+
+            $type = trim((string) $request->input('duplicate_type', 'fname_lname'));
+            if (!in_array($type, ['fname', 'fname_lname', 'all'], true)) {
+                $type = 'fname_lname';
+            }
+
+            $status = $request->input('status', 'Active');
+            $classID = $request->input('classID', '');
+            $subclassID = $request->input('subclassID', '');
+            $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($status);
+            $promotionStatus = $this->normalizePromotionStatusFilter($request->input('promotion_status', ''));
+            $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
+                (int) $schoolID,
+                $classID,
+                $request->input('academic_yearID', '')
+            );
+            $search = mb_strtolower(trim((string) $request->input('search', '')), 'UTF-8');
+            $summaryOnly = $request->boolean('summary');
+
+            $query = Student::query()->where('schoolID', $schoolID);
+            if (!$summaryOnly) {
+                $query->with(['subclass.class']);
+            }
+            $this->applyEnrollmentScopeToStudentsQuery(
+                $query,
+                (int) $schoolID,
+                $academicYearIDs,
+                $classID,
+                $subclassID,
+                $enrollmentStatus,
+                $promotionStatus
+            );
+
+            $studentsCollection = $query
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get([
+                    'studentID',
+                    'first_name',
+                    'middle_name',
+                    'last_name',
+                    'admission_number',
+                    'gender',
+                    'photo',
+                    'subclassID',
+                    'status',
+                ]);
+
+            $buckets = [];
+            foreach ($studentsCollection as $student) {
+                $key = $this->duplicateNameKey($student, $type);
+                if ($key === '') {
+                    continue;
+                }
+                if ($search !== '' && mb_stripos($key, $search, 0, 'UTF-8') === false) {
+                    continue;
+                }
+                if (!isset($buckets[$key])) {
+                    $buckets[$key] = [];
+                }
+                $buckets[$key][] = $student;
+            }
+
+            $duplicateBuckets = [];
+            foreach ($buckets as $key => $bucketStudents) {
+                if (count($bucketStudents) > 1) {
+                    $duplicateBuckets[$key] = $bucketStudents;
+                }
+            }
+
+            $studentTotal = 0;
+            foreach ($duplicateBuckets as $bucketStudents) {
+                $studentTotal += count($bucketStudents);
+            }
+
+            if ($summaryOnly) {
+                return response()->json([
+                    'success' => true,
+                    'duplicate_type' => $type,
+                    'groups' => [],
+                    'group_count' => count($duplicateBuckets),
+                    'student_count' => $studentTotal,
+                ]);
+            }
+
+            $allDupStudents = [];
+            foreach ($duplicateBuckets as $bucketStudents) {
+                foreach ($bucketStudents as $student) {
+                    $allDupStudents[$student->studentID] = $student;
+                }
+            }
+
+            $enrollmentMap = $this->resolveEnrollmentMapForStudentIDs(
+                (int) $schoolID,
+                array_keys($allDupStudents),
+                $academicYearIDs,
+                $classID,
+                $subclassID,
+                $enrollmentStatus,
+                $promotionStatus
+            );
+            $isNotEnrolledFilter = $this->isNotEnrolledStatusFilter($enrollmentStatus);
+
+            $groups = [];
+            foreach ($duplicateBuckets as $key => $bucketStudents) {
+                $mapped = [];
+                foreach ($bucketStudents as $student) {
+                    $mapped[] = $this->mapDuplicateNameStudent(
+                        $student,
+                        $enrollmentMap,
+                        $enrollmentStatus,
+                        $isNotEnrolledFilter
+                    );
+                }
+                $groups[] = [
+                    'name_key' => $key,
+                    'name' => mb_convert_case($key, MB_CASE_TITLE, 'UTF-8'),
+                    'count' => count($mapped),
+                    'students' => $mapped,
+                ];
+            }
+
+            usort($groups, function ($a, $b) {
+                if ($a['count'] === $b['count']) {
+                    return strcasecmp($a['name'], $b['name']);
+                }
+                return $b['count'] <=> $a['count'];
+            });
+
+            $studentTotal = 0;
+            foreach ($groups as $group) {
+                $studentTotal += (int) $group['count'];
+            }
+
+            return response()->json([
+                'success' => true,
+                'duplicate_type' => $type,
+                'groups' => $groups,
+                'group_count' => count($groups),
+                'student_count' => $studentTotal,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in get_duplicate_student_names: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading duplicate names: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function duplicateNameKey($student, string $type): string
+    {
+        $first = mb_strtolower(preg_replace('/\s+/', ' ', trim((string) ($student->first_name ?? ''))), 'UTF-8');
+        $middle = mb_strtolower(preg_replace('/\s+/', ' ', trim((string) ($student->middle_name ?? ''))), 'UTF-8');
+        $last = mb_strtolower(preg_replace('/\s+/', ' ', trim((string) ($student->last_name ?? ''))), 'UTF-8');
+
+        if ($type === 'fname') {
+            return $first;
+        }
+        if ($type === 'fname_lname') {
+            $parts = array_values(array_filter([$first, $last], fn ($p) => $p !== ''));
+            return implode(' ', $parts);
+        }
+
+        $parts = array_values(array_filter([$first, $middle, $last], fn ($p) => $p !== ''));
+        return implode(' ', $parts);
+    }
+
+    private function mapDuplicateNameStudent($student, $enrollmentMap, string $enrollmentStatus, bool $isNotEnrolledFilter): array
+    {
+        $enrollment = $enrollmentMap->get($student->studentID);
+        $classLabel = 'N/A';
+        $rowEnrollmentStatus = $isNotEnrolledFilter ? 'Not Enrolled' : $enrollmentStatus;
+        $rowPromotionStatus = null;
+
+        if ($isNotEnrolledFilter) {
+            $classLabel = 'Not Enrolled';
+        } elseif ($enrollment) {
+            $rowEnrollmentStatus = $enrollment->status ?: $enrollmentStatus;
+            $rowPromotionStatus = $enrollment->promotion_status ?: 'Pending';
+            $className = $enrollment->classModel->class_name
+                ?? $enrollment->subclass->class->class_name
+                ?? '';
+            $subName = $enrollment->subclass->subclass_name ?? '';
+            $classLabel = trim($className . ($subName ? ' ' . $subName : '')) ?: 'N/A';
+        } elseif ($student->subclass && $student->subclass->class) {
+            $classLabel = $student->subclass->class->class_name . ' ' . $student->subclass->subclass_name;
+        }
+
+        $fullName = trim(
+            ($student->first_name ?? '') . ' ' .
+            (($student->middle_name ?? '') !== '' ? $student->middle_name . ' ' : '') .
+            ($student->last_name ?? '')
+        );
+
+        return [
+            'studentID' => $student->studentID,
+            'admission_number' => $student->admission_number,
+            'full_name' => $fullName !== '' ? $fullName : 'N/A',
+            'first_name' => $student->first_name,
+            'middle_name' => $student->middle_name,
+            'last_name' => $student->last_name,
+            'gender' => $student->gender,
+            'photo' => \App\Support\UserImageUrl::forGender($student->photo, $student->gender),
+            'class' => $classLabel,
+            'enrollment_status' => $rowEnrollmentStatus,
+            'promotion_status' => $rowPromotionStatus,
+        ];
+    }
+
+    /**
      * Allowed student_enrollments.status values for manage_student filter.
      */
     private function normalizeEnrollmentStatusFilter($status): string

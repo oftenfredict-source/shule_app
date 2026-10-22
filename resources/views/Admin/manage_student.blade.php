@@ -839,6 +839,110 @@
         width: 18px;
         text-align: center;
     }
+    #duplicateNamesModal .form-select,
+    #duplicateNamesModal .form-control {
+        border-radius: 0 !important;
+    }
+    .dup-name-summary {
+        font-size: 0.9rem;
+        color: #555;
+        margin-bottom: 10px;
+    }
+    .dup-name-alert {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding: 10px 14px;
+        border: 1px solid #940000;
+        background: #fff5f5;
+        color: #940000;
+        font-weight: 700;
+        text-align: left;
+        cursor: pointer;
+        border-radius: 0;
+    }
+    .dup-name-alert.d-none {
+        display: none !important;
+    }
+    .dup-name-alert:hover {
+        background: #fdecec;
+    }
+    .dup-name-alert .badge {
+        background: #940000;
+        color: #fff;
+        border-radius: 10px;
+        min-width: 28px;
+        font-size: 0.8rem;
+    }
+    .dup-name-alert-action {
+        margin-left: auto;
+        font-size: 0.85rem;
+        text-decoration: underline;
+    }
+    #duplicateNamesMenuBadge {
+        margin-left: auto;
+    }
+    .dup-name-group {
+        border: 1px solid #dee2e6;
+        margin-bottom: 8px;
+        background: #fff;
+    }
+    .dup-name-toggle {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 0;
+        background: #f8f8f8;
+        text-align: left;
+        cursor: pointer;
+        font-weight: 700;
+        color: #333;
+    }
+    .dup-name-toggle:hover,
+    .dup-name-group.open .dup-name-toggle {
+        background: #f5f5f5;
+        color: #940000;
+    }
+    .dup-name-toggle .dup-name-label {
+        flex: 1;
+        min-width: 0;
+    }
+    .dup-name-toggle .badge {
+        background: #940000;
+        color: #fff;
+        border-radius: 10px;
+        min-width: 28px;
+        font-size: 0.8rem;
+    }
+    .dup-name-toggle .bi-chevron-down {
+        transition: transform 0.2s ease;
+    }
+    .dup-name-group.open .dup-name-toggle .bi-chevron-down {
+        transform: rotate(180deg);
+    }
+    .dup-name-students {
+        display: none;
+        padding: 0 8px 8px;
+        overflow-x: auto;
+    }
+    .dup-name-group.open .dup-name-students {
+        display: block;
+    }
+    .dup-name-students table {
+        margin: 0;
+        font-size: 0.85rem;
+    }
+    .dup-name-students img {
+        width: 32px;
+        height: 32px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 1px solid #dee2e6;
+    }
     @media (max-width: 767.98px) {
         .student-page-header h4 {
             font-size: 1.15rem;
@@ -1421,6 +1525,10 @@
                             <i class="bi bi-trash"></i> Delete All Not Enrolled
                         </button>
                         @endif
+                        <button class="dropdown-item" id="duplicateNamesBtn" type="button" role="menuitem">
+                            <i class="bi bi-people" style="color:#940000;"></i> Duplicate Names
+                            <span class="badge badge-danger ml-auto" id="duplicateNamesMenuBadge" style="display:none; font-size:10px; border-radius:50%;">0</span>
+                        </button>
                         <button class="dropdown-item" id="exportPdfBtn" type="button" role="menuitem" title="Export to PDF">
                             <i class="bi bi-file-pdf" style="color:#940000;"></i> Export PDF
                         </button>
@@ -1494,6 +1602,13 @@
                     </select>
                 </div>
     </div>
+
+            <button type="button" class="dup-name-alert d-none" id="duplicateNamesAlert">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <span id="duplicateNamesAlertText">Duplicate student names found</span>
+                <span class="badge" id="duplicateNamesAlertCount">0</span>
+                <span class="dup-name-alert-action">View</span>
+            </button>
 
             <!-- Statistics Display -->
             <div class="row g-3" id="statisticsSection">
@@ -2467,6 +2582,63 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Duplicate Student Names -->
+<div class="modal fade" id="duplicateNamesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title"><i class="bi bi-people"></i> Duplicate Student Names</h5>
+                <button type="button" class="btn-close btn-close-white" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold mb-1" for="dupTypeFilter">Duplicate type</label>
+                        <select class="form-select" id="dupTypeFilter">
+                            <option value="fname">First name only</option>
+                            <option value="fname_lname" selected>First name + Last name</option>
+                            <option value="all">First, Middle and Last name</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold mb-1" for="dupStatusFilter">Enrollment Status</label>
+                        <select class="form-select" id="dupStatusFilter">
+                            <option value="Active">Active</option>
+                            <option value="NotEnrolled">Not Enrolled</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Transferred">Transferred</option>
+                            <option value="Dropped">Dropped</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold mb-1" for="dupPromotionFilter">Promotion Status</label>
+                        <select class="form-select" id="dupPromotionFilter">
+                            <option value="">-- All --</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Promoted">Promoted</option>
+                            <option value="Repeated">Repeated</option>
+                            <option value="Graduated">Graduated</option>
+                            <option value="Transferred">Transferred</option>
+                            <option value="Truancy">Truancy</option>
+                            <option value="Dropout">Dropout</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold mb-1" for="dupNameSearch">Search name</label>
+                        <input type="text" class="form-control" id="dupNameSearch" placeholder="Search duplicate name">
+                    </div>
+                </div>
+                <div class="dup-name-summary" id="dupNameSummary">Select a duplicate type to load names.</div>
+                <div id="dupNameList"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>

@@ -1930,6 +1930,10 @@ Route::get("get_students_list", [
     ManageStudentController::class,
     "get_students",
 ])->name("get_students_list");
+Route::get("get_duplicate_student_names", [
+    ManageStudentController::class,
+    "get_duplicate_student_names",
+])->name("get_duplicate_student_names");
 Route::get("get_student_statistics", [
     ManageStudentController::class,
     "get_student_statistics",

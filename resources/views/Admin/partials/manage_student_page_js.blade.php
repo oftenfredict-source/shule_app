@@ -2232,6 +2232,7 @@
         function reloadData() {
             loadStudents();
             loadStatistics();
+            refreshDuplicateNameAlert();
         }
 
         // Filter change handlers
@@ -4436,7 +4437,168 @@ Would you like to try direct registration anyway, or use the manual method?`;
         setTimeout(function() {
             loadStudents();
             loadStatistics();
+            refreshDuplicateNameAlert();
         }, 500);
+
+        let dupNameGroups = [];
+        let dupNameSearchTimer = null;
+
+        function updateDuplicateNameAlert(groupCount, studentCount) {
+            const groups = parseInt(groupCount || 0, 10);
+            const students = parseInt(studentCount || 0, 10);
+            const $alert = $('#duplicateNamesAlert');
+            const $badge = $('#duplicateNamesMenuBadge');
+            if (groups > 0) {
+                const label = groups + ' duplicate name' + (groups === 1 ? '' : 's') +
+                    ', ' + students + ' student' + (students === 1 ? '' : 's') + '. Click to view.';
+                $('#duplicateNamesAlertText').text(label);
+                $('#duplicateNamesAlertCount').text(groups);
+                $alert.removeClass('d-none');
+                $badge.text(groups).show();
+            } else {
+                $alert.addClass('d-none');
+                $badge.hide();
+            }
+        }
+
+        function refreshDuplicateNameAlert() {
+            $.ajax({
+                url: '{{ route("get_duplicate_student_names") }}',
+                method: 'GET',
+                data: {
+                    duplicate_type: $('#dupTypeFilter').val() || 'fname_lname',
+                    status: $('#statusFilter').val() || 'Active',
+                    promotion_status: $('#promotionFilter').val() || '',
+                    classID: $('#classFilter').val() || '',
+                    subclassID: $('#subclassFilter').val() || '',
+                    summary: 1
+                },
+                success: function (res) {
+                    if (!res || !res.success) {
+                        updateDuplicateNameAlert(0, 0);
+                        return;
+                    }
+                    updateDuplicateNameAlert(res.group_count || 0, res.student_count || 0);
+                },
+                error: function () {
+                    updateDuplicateNameAlert(0, 0);
+                }
+            });
+        }
+
+        function showDuplicateNamesModal() {
+            const modal = document.getElementById('duplicateNamesModal');
+            if (!modal) return;
+            $('#dupStatusFilter').val($('#statusFilter').val() || 'Active');
+            $('#dupPromotionFilter').val($('#promotionFilter').val() || '');
+            $('#dupNameSearch').val('');
+            if (window.jQuery && typeof jQuery.fn.modal === 'function') {
+                jQuery(modal).modal('show');
+            } else if (window.bootstrap && bootstrap.Modal && typeof bootstrap.Modal.getOrCreateInstance === 'function') {
+                bootstrap.Modal.getOrCreateInstance(modal).show();
+            } else if (window.bootstrap && typeof bootstrap.Modal === 'function') {
+                new bootstrap.Modal(modal).show();
+            } else {
+                modal.style.display = 'block';
+                modal.classList.add('show');
+                document.body.classList.add('modal-open');
+            }
+            loadDuplicateNames();
+        }
+
+        function loadDuplicateNames() {
+            const $list = $('#dupNameList');
+            const $summary = $('#dupNameSummary');
+            $list.html('<div class="text-muted py-3"><i class="bi bi-hourglass-split"></i> Loading duplicate names...</div>');
+            $summary.text('Loading...');
+            $.ajax({
+                url: '{{ route("get_duplicate_student_names") }}',
+                method: 'GET',
+                data: {
+                    duplicate_type: $('#dupTypeFilter').val() || 'fname_lname',
+                    status: $('#dupStatusFilter').val() || 'Active',
+                    promotion_status: $('#dupPromotionFilter').val() || '',
+                    classID: $('#classFilter').val() || '',
+                    subclassID: $('#subclassFilter').val() || '',
+                    search: ($('#dupNameSearch').val() || '').trim()
+                },
+                success: function (res) {
+                    if (!res || !res.success) {
+                        $list.html('<div class="text-danger py-3">' + escapeHtmlStudent((res && res.message) || 'Failed to load duplicate names.') + '</div>');
+                        $summary.text('');
+                        return;
+                    }
+                    dupNameGroups = res.groups || [];
+                    renderDuplicateNameGroups();
+                    updateDuplicateNameAlert(res.group_count || dupNameGroups.length, res.student_count || 0);
+                },
+                error: function (xhr) {
+                    var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to load duplicate names.';
+                    $list.html('<div class="text-danger py-3">' + escapeHtmlStudent(msg) + '</div>');
+                    $summary.text('');
+                }
+            });
+        }
+
+        function renderDuplicateNameGroups() {
+            const groups = dupNameGroups;
+            const $list = $('#dupNameList');
+            const $summary = $('#dupNameSummary');
+            if (!groups.length) {
+                $summary.text('No duplicate names found for the selected filters.');
+                $list.html('<div class="text-muted py-3">No students share this name pattern.</div>');
+                return;
+            }
+            $summary.text(groups.length + ' duplicate name' + (groups.length === 1 ? '' : 's') + ', ' + (groups.reduce(function (n, g) { return n + (g.count || 0); }, 0)) + ' students');
+            let html = '';
+            groups.forEach(function (group, idx) {
+                const students = group.students || [];
+                html += '<div class="dup-name-group" data-dup-idx="' + idx + '">';
+                html += '<button type="button" class="dup-name-toggle">';
+                html += '<span class="dup-name-label">' + escapeHtmlStudent(group.name || '') + '</span>';
+                html += '<span class="badge">' + (group.count || students.length) + '</span>';
+                html += '<i class="bi bi-chevron-down"></i>';
+                html += '</button>';
+                html += '<div class="dup-name-students"><div class="table-responsive"><table class="table table-sm table-bordered mb-0"><thead class="bg-light"><tr>';
+                html += '<th></th><th>Student</th><th>Admission No</th><th>Class</th><th>Gender</th><th>Enrollment</th><th>Promotion</th>';
+                html += '</tr></thead><tbody>';
+                students.forEach(function (st) {
+                    html += '<tr>';
+                    html += '<td>' + studentPhotoImgHtml(st, '', st.full_name) + '</td>';
+                    html += '<td>' + escapeHtmlStudent(st.full_name || '') + '</td>';
+                    html += '<td>' + escapeHtmlStudent(st.admission_number || '-') + '</td>';
+                    html += '<td>' + escapeHtmlStudent(st.class || '-') + '</td>';
+                    html += '<td>' + escapeHtmlStudent(st.gender || '-') + '</td>';
+                    html += '<td>' + escapeHtmlStudent(st.enrollment_status || '-') + '</td>';
+                    html += '<td>' + escapeHtmlStudent(st.promotion_status ? promotionStatusLabel(st.promotion_status) : '-') + '</td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div></div></div>';
+            });
+            $list.html(html);
+        }
+
+        $(document).on('click', '#duplicateNamesBtn, #duplicateNamesAlert', function (e) {
+            e.preventDefault();
+            showDuplicateNamesModal();
+        });
+
+        $(document).on('change', '#dupTypeFilter, #dupStatusFilter, #dupPromotionFilter', function () {
+            if ($('#duplicateNamesModal').hasClass('show') || $('#duplicateNamesModal').is(':visible')) {
+                loadDuplicateNames();
+            }
+        });
+
+        $(document).on('input', '#dupNameSearch', function () {
+            clearTimeout(dupNameSearchTimer);
+            dupNameSearchTimer = setTimeout(function () {
+                loadDuplicateNames();
+            }, 350);
+        });
+
+        $(document).on('click', '.dup-name-toggle', function () {
+            $(this).closest('.dup-name-group').toggleClass('open');
+        });
     });
 
     // ===== Student Enrollment History (Details modal) =====
@@ -6014,5 +6176,5 @@ Would you like to try direct registration anyway, or use the manual method?`;
                 $btn.prop('disabled', false).html(originalHtml);
             }
         });
-        });
+    });
     })(window.jQuery || window.$);
