@@ -2197,27 +2197,7 @@ class ManageStudentController extends Controller
             }
         }
 
-        // Search (optional, for grid/list search)
-        $search = trim((string) $request->input('search', ''));
-        if ($search !== '') {
-            $like = '%' . $search . '%';
-            $query->where(function ($q) use ($like, $search) {
-                $q->where('admission_number', 'like', $like)
-                    ->orWhere('first_name', 'like', $like)
-                    ->orWhere('middle_name', 'like', $like)
-                    ->orWhere('last_name', 'like', $like)
-                    ->orWhere('fingerprint_id', 'like', $like)
-                    ->orWhereRaw("CONCAT(COALESCE(first_name,''),' ',COALESCE(middle_name,''),' ',COALESCE(last_name,'')) LIKE ?", [$like]);
-                // Parent search only when query looks useful (avoid full parent scan on every keystroke)
-                if (strlen($search) >= 3) {
-                    $q->orWhereHas('parent', function ($pq) use ($like) {
-                        $pq->where('first_name', 'like', $like)
-                            ->orWhere('last_name', 'like', $like)
-                            ->orWhere('phone', 'like', $like);
-                    });
-                }
-            });
-        }
+        $this->applyStudentSearchFilter($query, $request);
 
         $query->orderBy('first_name')->orderBy('last_name');
 
@@ -2252,7 +2232,7 @@ class ManageStudentController extends Controller
                 ->get();
         } else {
             // Cap unpaginated export-style loads to avoid timeouts
-            $studentsCollection = $query->take(2000)->get();
+            $studentsCollection = $query->take(5000)->get();
             $page = 1;
             $perPage = max(1, $studentsCollection->count());
         }
@@ -2622,6 +2602,31 @@ class ManageStudentController extends Controller
     private function isNotEnrolledStatusFilter(string $enrollmentStatus): bool
     {
         return $enrollmentStatus === 'NotEnrolled';
+    }
+
+    private function applyStudentSearchFilter($query, Request $request): void
+    {
+        $search = trim((string) $request->input('search', ''));
+        if ($search === '') {
+            return;
+        }
+
+        $like = '%' . $search . '%';
+        $query->where(function ($q) use ($like, $search) {
+            $q->where('admission_number', 'like', $like)
+                ->orWhere('first_name', 'like', $like)
+                ->orWhere('middle_name', 'like', $like)
+                ->orWhere('last_name', 'like', $like)
+                ->orWhere('fingerprint_id', 'like', $like)
+                ->orWhereRaw("CONCAT(COALESCE(first_name,''),' ',COALESCE(middle_name,''),' ',COALESCE(last_name,'')) LIKE ?", [$like]);
+            if (strlen($search) >= 3) {
+                $q->orWhereHas('parent', function ($pq) use ($like) {
+                    $pq->where('first_name', 'like', $like)
+                        ->orWhere('last_name', 'like', $like)
+                        ->orWhere('phone', 'like', $like);
+                });
+            }
+        });
     }
 
     /**
@@ -3062,6 +3067,8 @@ class ManageStudentController extends Controller
                 }
             }
 
+            $this->applyStudentSearchFilter($query, $request);
+
             $students = $query->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get();
@@ -3232,6 +3239,8 @@ class ManageStudentController extends Controller
                     });
                 }
             }
+
+            $this->applyStudentSearchFilter($query, $request);
 
             $students = $query->orderBy('first_name')
                 ->orderBy('last_name')

@@ -35,6 +35,7 @@ use App\Services\SelectedAcademicYearService;
 use App\Services\StudentEnrollmentService;
 use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
@@ -295,27 +296,32 @@ class ResultManagementController extends Controller
 
         // Check if coordinator view is requested
         $isCoordinatorResultsView = false;
-        if ($isCoordinatorView && !empty($classIDParam) && !empty($teacherID)) {
-            // Verify teacher is coordinator of this main class
-            $mainClass = \App\Models\ClassModel::find($classIDParam);
-            if (
-                $mainClass &&
-                ($mainClass->teacherID == $teacherID ||
-                    $hasBroadResultPermission) &&
-                $mainClass->schoolID == $schoolID
-            ) {
-                // Set default class filter for coordinator view
-                $classFilter = $classIDParam;
-                $isCoordinatorResultsView = true;
-                // Coordinator can only choose subclass, main class is pre-selected and locked
-            } else {
-                // Coordinator doesn't have access to this class
-                if ($userType === "Teacher" && !$hasBroadResultPermission) {
+        if ($isCoordinatorView && !empty($teacherID)) {
+            $resolvedCoordinatorClassID = $this->resolveResultsClassId(
+                $classIDParam,
+            );
+            if ($resolvedCoordinatorClassID) {
+                $mainClass = ClassModel::find($resolvedCoordinatorClassID);
+                if (
+                    $mainClass &&
+                    ((int) $mainClass->teacherID === (int) $teacherID ||
+                        $hasBroadResultPermission) &&
+                    (int) $mainClass->schoolID === (int) $schoolID
+                ) {
+                    $classFilter = (string) $resolvedCoordinatorClassID;
+                    $classIDParam = (string) $resolvedCoordinatorClassID;
+                    $isCoordinatorResultsView = true;
+                } elseif ($userType === "Teacher" && !$hasBroadResultPermission) {
                     return redirect()
                         ->route("AdmitedClasses", ["coordinator" => "true"])
                         ->with("error", "Unauthorized access to this class")
                         ->with("error_type", "unauthorized_access");
                 }
+            } elseif ($userType === "Teacher" && !$hasBroadResultPermission) {
+                return redirect()
+                    ->route("AdmitedClasses", ["coordinator" => "true"])
+                    ->with("error", "Please select a class to view results")
+                    ->with("error_type", "no_class_selected");
             }
         }
 
@@ -350,9 +356,11 @@ class ResultManagementController extends Controller
 
         // SECURITY: Class-teacher view (or teachers without school-wide access)
         // must stay on their assigned subclass.
+        // Coordinators are assigned to a MAIN class (all streams), not a subclass.
         if (
             $userType === "Teacher" &&
             !empty($teacherID) &&
+            !$isCoordinatorResultsView &&
             ($isTeacherView || !$hasBroadResultPermission)
         ) {
             // If subclassID param is provided, use it
@@ -438,7 +446,7 @@ class ResultManagementController extends Controller
             "status",
             "Active",
         );
-        if ($isTeacherView && $classFilter) {
+        if (($isTeacherView || $isCoordinatorResultsView) && $classFilter) {
             $classesQuery->where("classID", $classFilter);
         }
         $classes = $classesQuery->orderBy("class_name")->get();
@@ -2305,6 +2313,7 @@ class ResultManagementController extends Controller
         // SECURITY: For regular teachers without broad permissions, ensure they can only access their assigned subclass
         if (
             !empty($teacherID) &&
+            !$isCoordinatorResultsView &&
             ($isTeacherView ||
                 ($userType === "Teacher" && !$hasBroadResultPermission))
         ) {
@@ -5607,6 +5616,29 @@ class ResultManagementController extends Controller
         return app(SelectedAcademicYearService::class)->isALevelClassName(
             $className,
         );
+    }
+
+    /**
+     * Numeric classID from results URL (plain ID or encrypted ClassMangement token).
+     */
+    private function resolveResultsClassId($classIDParam): ?int
+    {
+        if ($classIDParam === null || $classIDParam === "") {
+            return null;
+        }
+        if (is_numeric($classIDParam)) {
+            return (int) $classIDParam;
+        }
+        try {
+            $decrypted = Crypt::decrypt($classIDParam);
+            if (is_numeric($decrypted)) {
+                return (int) $decrypted;
+            }
+        } catch (\Exception $e) {
+            // Not an encrypted class ID
+        }
+
+        return null;
     }
 
     /**

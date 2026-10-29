@@ -304,6 +304,26 @@
             };
         }
 
+        function getCurrentStudentSearch() {
+            const view = $('#studentsDataWrapper').attr('data-active-view') || 'list';
+            if (view === 'grid') {
+                return ($('#studentGridSearch').val() || '').trim();
+            }
+            if (studentsTable && $.fn.DataTable.isDataTable('#studentsTable')) {
+                return String(studentsTable.search() || '').trim();
+            }
+            return ($('#studentGridSearch').val() || '').trim();
+        }
+
+        function getExportFilterParams() {
+            return getStudentFilterParams({
+                paginate: 0,
+                page: 1,
+                per_page: 5000,
+                search: getCurrentStudentSearch()
+            });
+        }
+
         function applyPaginationMeta(meta) {
             studentsPage = meta.page || 1;
             studentsLastPage = meta.last_page || 1;
@@ -4129,7 +4149,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
             });
         }
 
-        // Export PDF using JavaScript
+        // Export PDF using JavaScript — fetch ALL filtered students, not the current DataTable page
         $('#exportPdfBtn').on('click', function() {
             // Check if jsPDF is loaded
             if (typeof window.jspdf === 'undefined') {
@@ -4142,6 +4162,47 @@ Would you like to try direct registration anyway, or use the manual method?`;
                 return;
             }
 
+            Swal.fire({
+                title: 'Generating PDF...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            $.ajax({
+                url: {!! json_encode(route("get_students_list")) !!},
+                type: 'GET',
+                dataType: 'json',
+                data: getExportFilterParams(),
+                success: function(response) {
+                    const exportStudents = (response && response.success) ? (response.students || []) : [];
+                    if (!exportStudents.length) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'No Data',
+                            text: 'No students data to export for the selected filters.',
+                            confirmButtonColor: '#940000'
+                        });
+                        return;
+                    }
+                    downloadFilteredStudentsPdf(exportStudents);
+                },
+                error: function(xhr) {
+                    const msg = (xhr.responseJSON && xhr.responseJSON.message)
+                        ? xhr.responseJSON.message
+                        : 'Failed to load students for PDF export.';
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: msg,
+                        confirmButtonColor: '#940000'
+                    });
+                }
+            });
+        });
+
+        function downloadFilteredStudentsPdf(exportStudents) {
             const { jsPDF } = window.jspdf;
             let status = $('#statusFilter').val() || 'Active';
             let promotionStatus = $('#promotionFilter').val() || '';
@@ -4150,17 +4211,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
             let gender = $('#genderFilter').val() || '';
             let health = $('#healthFilter').val() || '';
 
-            if (!currentStudentsData || currentStudentsData.length === 0) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'No Data',
-                    text: 'No students data to export. Please load students first.',
-                    confirmButtonColor: '#940000'
-                });
-                return;
-            }
-
-            let tableData = currentStudentsData.map(function(student) {
+            let tableData = exportStudents.map(function(student) {
                 return [
                     student.admission_number || '',
                     student.full_name || '',
@@ -4169,15 +4220,6 @@ Would you like to try direct registration anyway, or use the manual method?`;
                     student.parent_name || '',
                     student.fingerprint_id || ''
                 ];
-            });
-
-            // Show loading
-            Swal.fire({
-                title: 'Generating PDF...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
             });
 
             try {
@@ -4306,9 +4348,11 @@ Would you like to try direct registration anyway, or use the manual method?`;
 
                 doc.setFontSize(9);
                 doc.setTextColor(0, 0, 0);
-                doc.text('Total Students: ' + $('#statTotalStudents').text(), 14, finalY);
+                const exportedMale = exportStudents.filter(function(s) { return s.gender === 'Male'; }).length;
+                const exportedFemale = exportStudents.filter(function(s) { return s.gender === 'Female'; }).length;
+                doc.text('Total Students: ' + exportStudents.length, 14, finalY);
                 finalY += 5;
-                doc.text('Male: ' + $('#statMaleCount').text() + ' | Female: ' + $('#statFemaleCount').text(), 14, finalY);
+                doc.text('Male: ' + exportedMale + ' | Female: ' + exportedFemale, 14, finalY);
                 finalY += 5;
                 doc.text('Good Health: ' + $('#statGoodHealth').text() + ' | Bad Health: ' + $('#statBadHealth').text(), 14, finalY);
 
@@ -4336,24 +4380,11 @@ Would you like to try direct registration anyway, or use the manual method?`;
                     confirmButtonColor: '#940000'
                 });
             }
-        });
+        }
 
-        // Export Excel
+        // Export Excel — same filters as the table, all matching students (not one page)
         $('#exportExcelBtn').on('click', function() {
-            let status = $('#statusFilter').val() || currentStatus;
-            let promotionStatus = $('#promotionFilter').val() || '';
-            let classID = $('#classFilter').val() || '';
-            let subclassID = $('#subclassFilter').val() || '';
-            let gender = $('#genderFilter').val() || '';
-            let health = $('#healthFilter').val() || '';
-
-            let url = {!! json_encode(route("export_students_excel")) !!} + '?status=' + encodeURIComponent(status) +
-                '\u0026promotion_status=' + encodeURIComponent(promotionStatus) +
-                '\u0026classID=' + encodeURIComponent(classID) +
-                '\u0026subclassID=' + encodeURIComponent(subclassID) +
-                '\u0026gender=' + encodeURIComponent(gender) +
-                '\u0026health=' + encodeURIComponent(health);
-
+            const url = {!! json_encode(route("export_students_excel")) !!} + '?' + $.param(getExportFilterParams());
             window.open(url, '_blank');
         });
 

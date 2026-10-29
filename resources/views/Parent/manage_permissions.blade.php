@@ -358,8 +358,8 @@
                 var btns = scope.querySelectorAll('.perm-view-btn');
                 if (!listEl || !gridEl) return;
                 if (window.innerWidth > 991) {
-                    listEl.style.display = view === 'list' ? 'block' : 'none';
-                    gridEl.style.display = view === 'grid' ? 'block' : 'none';
+                listEl.style.display = view === 'list' ? 'block' : 'none';
+                gridEl.style.display = view === 'grid' ? 'block' : 'none';
                 }
                 btns.forEach(function(btn) {
                     var isActive = btn.getAttribute('data-view') === view;

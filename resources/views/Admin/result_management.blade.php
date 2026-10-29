@@ -474,6 +474,10 @@
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body">
                     <form id="filterForm" method="GET" action="{{ route('manageResults') }}">
+                        @if(isset($isCoordinatorResultsView) && $isCoordinatorResultsView)
+                            <input type="hidden" name="coordinator" value="true">
+                            <input type="hidden" name="classID" value="{{ $filters['class'] ?? '' }}">
+                        @endif
                         <!-- Filtering Description Display -->
                         <div id="filteringText" class="mb-3 text-dark font-weight-bold border-bottom pb-2">
                             @if(isset($filteringDescription))
@@ -611,7 +615,7 @@
                                             </option>
                                         @endforeach
                                     </select>
-                                    <small class="text-muted"><i class="bi bi-info-circle"></i> Select subclass to view results</small>
+                                    <small class="text-muted"><i class="bi bi-info-circle"></i> All streams of this class, or pick one subclass</small>
                                 @else
                                     <select class="form-control" id="subclass" name="subclass">
                                         <option value="">All Subclasses</option>

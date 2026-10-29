@@ -2441,9 +2441,9 @@
             // View Results Button - Redirect to manageResults
             $('#viewResultsBtn').on('click', function () {
                 if (isCoordinatorView && classID) {
-                    // Coordinator view - redirect with classID, default main class will be pre-selected
-                    // Coordinator can only choose subclass to view results
-                    window.location.href = '{{ route("manageResults") }}?payload=' + btoa('classID=' + classID + '&coordinator=true');
+                    // Coordinator: all streams of this main class (not class-teacher subclass lock)
+                    const coordinatorQs = 'classID=' + encodeURIComponent(classID) + '&coordinator=true';
+                    window.location.href = '{{ route("manageResults") }}?' + coordinatorQs + '&payload=' + btoa(coordinatorQs);
                 } else if (subclassID) {
                     // Class teacher view - redirect with subclassID parameter
                     window.location.href = '{{ route("manageResults") }}?payload=' + btoa('subclassID=' + subclassID);

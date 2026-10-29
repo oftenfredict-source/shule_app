@@ -10,6 +10,7 @@ use App\Models\OtherStaff;
 use App\Models\User;
 use App\Models\Watchman;
 use App\Services\SmsService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Session;
@@ -26,6 +27,41 @@ use Illuminate\Support\Facades\Storage;
 
 class Auth extends Controller
 {
+    /**
+     * Create the default SuperAdmin only when both username and email are unused.
+     * If the email already exists (e.g. leftover Admin.ShuleFox.com), reuse that row.
+     */
+    private function ensureDefaultSuperAdmin(): void
+    {
+        $username = 'Admin.ShuleXpert.com';
+        $email = 'superadmin@shulexpert.local';
+
+        $byName = User::where('name', $username)->first();
+        if ($byName) {
+            return;
+        }
+
+        $byEmail = User::where('email', $email)->first();
+        if ($byEmail) {
+            if ($byEmail->user_type === 'SuperAdmin' && $byEmail->name !== $username) {
+                $byEmail->name = $username;
+                $byEmail->save();
+            }
+            return;
+        }
+
+        try {
+            User::create([
+                'name' => $username,
+                'email' => $email,
+                'password' => Hash::make('Admin@3345'),
+                'user_type' => 'SuperAdmin',
+            ]);
+        } catch (QueryException $e) {
+            // Concurrent login or unique constraint: do not block authentication.
+        }
+    }
+
     private function checkIpBlocked(Request $request)
     {
         $ip = $request->ip();
@@ -373,17 +409,7 @@ class Auth extends Controller
         // Check if IP is blocked
         if ($resp = $this->checkIpBlocked($request)) return $resp;
 
-        // Ensure default SuperAdmin exists
-        $defaultSuperAdminUsername = 'Admin.ShuleXpert.com';
-        $defaultSuperAdminPassword = 'Admin@3345';
-        User::firstOrCreate(
-            ['name' => $defaultSuperAdminUsername],
-            [
-                'email' => 'superadmin@shulexpert.local',
-                'password' => Hash::make($defaultSuperAdminPassword),
-                'user_type' => 'SuperAdmin',
-            ]
-        );
+        $this->ensureDefaultSuperAdmin();
 
         // Validation
         $validator = Validator::make($request->all(), [
