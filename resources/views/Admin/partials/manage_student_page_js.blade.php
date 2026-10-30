@@ -4218,6 +4218,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
                     student.class || '',
                     student.gender || '',
                     student.parent_name || '',
+                    student.parent_phone || '',
                     student.fingerprint_id || ''
                 ];
             });
@@ -4299,7 +4300,8 @@ Would you like to try direct registration anyway, or use the manual method?`;
                     let className = extractText(rowData[2] || '');
                     let genderVal = extractText(rowData[3] || '');
                     let parentName = extractText(rowData[4] || '');
-                    let fingerprintId = extractText(rowData[5] || '');
+                    let parentPhone = extractText(rowData[5] || '');
+                    let fingerprintId = extractText(rowData[6] || '');
 
                     tableRows.push([
                         index + 1,
@@ -4308,13 +4310,14 @@ Would you like to try direct registration anyway, or use the manual method?`;
                         className || 'N/A',
                         genderVal || 'N/A',
                         parentName || 'N/A',
+                        parentPhone || 'N/A',
                         fingerprintId || 'N/A'
                     ]);
                 });
 
                 // Add table using autoTable
                 doc.autoTable({
-                    head: [['#', 'Admission No', 'Full Name', 'Class', 'Gender', 'Parent', 'Fingerprint ID']],
+                    head: [['#', 'Admission No', 'Full Name', 'Class', 'Gender', 'Parent', 'Parent Phone', 'Fingerprint ID']],
                     body: tableRows,
                     startY: yPos,
                     theme: 'grid',
@@ -4324,17 +4327,18 @@ Would you like to try direct registration anyway, or use the manual method?`;
                         fontStyle: 'bold'
                     },
                     styles: {
-                        fontSize: 8,
+                        fontSize: 7,
                         cellPadding: 2
                     },
                     columnStyles: {
-                        0: { cellWidth: 15 },
-                        1: { cellWidth: 40 },
-                        2: { cellWidth: 60 },
-                        3: { cellWidth: 40 },
-                        4: { cellWidth: 25 },
-                        5: { cellWidth: 50 },
-                        6: { cellWidth: 35 }
+                        0: { cellWidth: 12 },
+                        1: { cellWidth: 32 },
+                        2: { cellWidth: 48 },
+                        3: { cellWidth: 32 },
+                        4: { cellWidth: 18 },
+                        5: { cellWidth: 40 },
+                        6: { cellWidth: 38 },
+                        7: { cellWidth: 28 }
                     },
                     margin: { top: yPos }
                 });
