@@ -4217,7 +4217,6 @@ Would you like to try direct registration anyway, or use the manual method?`;
                     student.full_name || '',
                     student.class || '',
                     student.gender || '',
-                    student.parent_name || '',
                     student.parent_phone || '',
                     student.fingerprint_id || ''
                 ];
@@ -4299,9 +4298,8 @@ Would you like to try direct registration anyway, or use the manual method?`;
                     let fullName = extractText(rowData[1] || '');
                     let className = extractText(rowData[2] || '');
                     let genderVal = extractText(rowData[3] || '');
-                    let parentName = extractText(rowData[4] || '');
-                    let parentPhone = extractText(rowData[5] || '');
-                    let fingerprintId = extractText(rowData[6] || '');
+                    let parentPhone = extractText(rowData[4] || '');
+                    let fingerprintId = extractText(rowData[5] || '');
 
                     tableRows.push([
                         index + 1,
@@ -4309,7 +4307,6 @@ Would you like to try direct registration anyway, or use the manual method?`;
                         fullName || 'N/A',
                         className || 'N/A',
                         genderVal || 'N/A',
-                        parentName || 'N/A',
                         parentPhone || 'N/A',
                         fingerprintId || 'N/A'
                     ]);
@@ -4317,7 +4314,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
 
                 // Add table using autoTable
                 doc.autoTable({
-                    head: [['#', 'Admission No', 'Full Name', 'Class', 'Gender', 'Parent', 'Parent Phone', 'Fingerprint ID']],
+                    head: [['#', 'Admission No', 'Full Name', 'Class', 'Gender', 'Parent Phone', 'Fingerprint ID']],
                     body: tableRows,
                     startY: yPos,
                     theme: 'grid',
@@ -4327,18 +4324,17 @@ Would you like to try direct registration anyway, or use the manual method?`;
                         fontStyle: 'bold'
                     },
                     styles: {
-                        fontSize: 7,
+                        fontSize: 8,
                         cellPadding: 2
                     },
                     columnStyles: {
-                        0: { cellWidth: 12 },
-                        1: { cellWidth: 32 },
-                        2: { cellWidth: 48 },
-                        3: { cellWidth: 32 },
-                        4: { cellWidth: 18 },
-                        5: { cellWidth: 40 },
-                        6: { cellWidth: 38 },
-                        7: { cellWidth: 28 }
+                        0: { cellWidth: 15 },
+                        1: { cellWidth: 40 },
+                        2: { cellWidth: 55 },
+                        3: { cellWidth: 40 },
+                        4: { cellWidth: 22 },
+                        5: { cellWidth: 42 },
+                        6: { cellWidth: 35 }
                     },
                     margin: { top: yPos }
                 });
