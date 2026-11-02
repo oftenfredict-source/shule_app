@@ -383,7 +383,20 @@ class ExamAttendanceController extends Controller
 
         $school   = School::find(Session::get('schoolID'));
 
-        $students = $this->getStudentsWithExamNumbers($request->examID, $request->classID, $subclassRaw);
+        $subclassForRoster = ($subclassRaw && $subclassRaw !== '' && $subclassRaw !== 'all')
+            ? $subclassRaw
+            : null;
+        $students = $this->getStudentsWithExamNumbers($request->examID, $request->classID, $subclassForRoster);
+        $students = $students->map(function ($student) {
+            return (object) [
+                'studentID' => $student->studentID,
+                'examination_number' => (string) ($student->examination_number ?? ''),
+                'first_name' => (string) ($student->first_name ?? ''),
+                'middle_name' => (string) ($student->middle_name ?? ''),
+                'last_name' => (string) ($student->last_name ?? ''),
+                'gender' => (string) ($student->gender ?? ''),
+            ];
+        });
 
         $records = [];
         if ($request->with_data) {
@@ -407,9 +420,26 @@ class ExamAttendanceController extends Controller
                          : (($exam->term === 'second_term') ? 'Second Term' : 'All Terms'),
         ];
 
-        $pdf      = PDF::loadView('Admin.pdf.exam_attendance_template', $data);
-        $filename = $request->with_data ? 'Attendance_Report' : 'Attendance_Template';
-        return $pdf->download("{$filename}_{$subject->subject_name}_{$class->class_name}.pdf");
+        try {
+            @ini_set('memory_limit', '512M');
+            $pdf = PDF::loadView('Admin.pdf.exam_attendance_template', $data);
+            $filename = $request->with_data ? 'Attendance_Report' : 'Attendance_Template';
+            $safeName = preg_replace('/[^\w.\- ]+/u', '_', "{$filename}_{$subject->subject_name}_{$class->class_name}") ?: 'Attendance';
+
+            return $pdf->download($safeName . '.pdf');
+        } catch (\Throwable $e) {
+            Log::error('Exam attendance template failed', [
+                'examID' => $request->examID,
+                'subjectID' => $request->subjectID,
+                'classID' => $request->classID,
+                'subclassID' => $subclassRaw,
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'Could not build the attendance PDF. ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
 

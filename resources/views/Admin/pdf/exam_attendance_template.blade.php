@@ -18,32 +18,19 @@
         table.data-table th, table.data-table td { border: 1px solid #eee; padding: 8px; text-align: left; }
         table.data-table th { background-color: #f8f9fa; font-weight: bold; color: #940000; text-transform: uppercase; font-size: 10px; }
 
-        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #777; border-top: 1px solid #eee; padding-top: 5px; }
+        .footer { width: 100%; text-align: center; font-size: 9px; color: #777; border-top: 1px solid #eee; padding-top: 5px; margin-top: 20px; }
 
         /* ── SIGNATURE AND STAMP ─────────────────── */
-        .sig-table { width: 100%; margin-top: 30px; border-collapse: collapse; page-break-inside: avoid; }
+        .sig-table { width: 100%; margin-top: 30px; border-collapse: collapse; }
         .sig-table td { border: none; padding: 10px; vertical-align: top; }
         .stamp-cell { width: 40%; text-align: center; }
         .stamp-cell img { max-width: 100px; opacity: 0.8; }
         .sign-cell { width: 30%; text-align: center; }
-        .sig-line { border-top: 1.5px solid #940000; width: 140px; margin: 10px auto 0; display: block; }
+        .sig-line { border-top: 1.5px solid #940000; width: 140px; margin: 10px auto 0; }
         .sig-label { font-size: 8.5px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase; }
 
         /* ── WATERMARK ─────────────────── */
-        .watermark {
-            position: fixed;
-            top: 45%;
-            left: 5%;
-            width: 100%;
-            text-align: center;
-            opacity: 0.05;
-            transform: rotate(-45deg);
-            font-size: 100px;
-            font-weight: bold;
-            color: #000;
-            z-index: 1000;
-            text-transform: uppercase;
-        }
+        .watermark { display: none; }
 
         .status-present { color: #28a745; font-weight: bold; }
         .status-absent { color: #dc3545; font-weight: bold; }
@@ -150,7 +137,7 @@
                 <tr @if($loop->even) style="background-color: #fcfcfc;" @endif>
                     <td style="text-align: center; font-family: monospace; font-size: 10px; font-weight: bold;">{{ $student->examination_number }}</td>
                     <td style="font-weight: bold;">{{ $student->first_name }} {{ $student->middle_name }} {{ $student->last_name }}</td>
-                    <td style="text-align: center;">{{ substr($student->gender, 0, 1) }}</td>
+                    <td style="text-align: center;">{{ strtoupper(substr((string) ($student->gender ?? ''), 0, 1)) }}</td>
                     <td></td>
                     @if(isset($with_data) && $with_data)
                         <td style="text-align: center;">
