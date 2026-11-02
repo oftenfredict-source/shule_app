@@ -1,3 +1,7 @@
+<IfModule mod_setenvif.c>
+    SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
@@ -8,6 +12,12 @@
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # PHP-FPM drops Authorization, so keep the same URL and attach the Bearer
+    # token as a query parameter. The school-agent API already reads "token".
+    RewriteCond %{HTTP:Authorization} ^Bearer[[:space:]]+([A-Fa-f0-9]{32,128})$ [NC]
+    RewriteCond %{QUERY_STRING} !(^|&)token=
+    RewriteRule ^api/school-agent %{REQUEST_URI}?token=%1 [QSA,NE,L]
 
     # Handle X-XSRF-Token Header
     RewriteCond %{HTTP:x-xsrf-token} .

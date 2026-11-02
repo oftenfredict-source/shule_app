@@ -1285,7 +1285,7 @@ class Auth extends Controller
             'registration_number' => (string) ($school->registration_number ?? ''),
             'issued_at' => now()->toIso8601String(),
             'expires_at' => now()->addMinutes($ttlMinutes)->toIso8601String(),
-        ], now()->addMinutes($ttlMinutes));
+        ], $ttlMinutes * 60);
 
         return response()->json([
             'success' => true,
