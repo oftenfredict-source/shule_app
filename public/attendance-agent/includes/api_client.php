@@ -92,10 +92,6 @@ function sx_api_request(string $method, string $endpoint, array $payload = [], ?
     $url = $base . '/' . ltrim($endpoint, '/');
     $method = strtoupper($method);
 
-    if ($token) {
-        $url .= (str_contains($url, '?') ? '&' : '?') . 'token=' . rawurlencode($token);
-    }
-
     $ch = curl_init($url);
     if ($ch === false) {
         return [
@@ -116,7 +112,6 @@ function sx_api_request(string $method, string $endpoint, array $payload = [], ?
 
     if ($token) {
         $headers[] = 'Authorization: Bearer ' . $token;
-        $headers[] = 'X-School-Agent-Token: ' . $token;
     }
 
     $sslVerify = (bool) sx_config('ssl_verify', true);
