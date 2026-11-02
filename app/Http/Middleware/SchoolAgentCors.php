@@ -35,7 +35,7 @@ class SchoolAgentCors
         return [
             'Access-Control-Allow-Origin' => '*',
             'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, Accept, X-Requested-With',
+            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, Accept, X-Requested-With, X-School-Agent-Token',
             'Access-Control-Max-Age' => '86400',
         ];
     }

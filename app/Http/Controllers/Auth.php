@@ -1353,8 +1353,18 @@ class Auth extends Controller
     private function extractSchoolAgentBearerToken(Request $request): ?string
     {
         $header = (string) $request->header('Authorization', '');
+        if ($header === '') {
+            $header = (string) ($request->server('REDIRECT_HTTP_AUTHORIZATION')
+                ?: $request->server('HTTP_AUTHORIZATION')
+                ?: '');
+        }
         if (preg_match('/^Bearer\s+(.+)$/i', $header, $matches)) {
             return trim($matches[1]);
+        }
+
+        $custom = $request->header('X-School-Agent-Token');
+        if (is_string($custom) && trim($custom) !== '') {
+            return trim($custom);
         }
 
         $token = $request->input('token');
