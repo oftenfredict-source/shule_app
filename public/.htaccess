@@ -1,5 +1,9 @@
+# Hand the Authorization header to PHP-FPM. Without this, Live login
+# succeeds and the desktop verify call is rejected.
+CGIPassAuth On
+
 <IfModule mod_setenvif.c>
-    SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
+    SetEnvIf Authorization "^Bearer[[:space:]]+([A-Fa-f0-9]{32,128})$" HTTP_AUTHORIZATION=$0 SX_AGENT_TOKEN=$1
 </IfModule>
 
 <IfModule mod_rewrite.c>
@@ -13,11 +17,14 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # PHP-FPM drops Authorization, so keep the same URL and attach the Bearer
-    # token as a query parameter. The school-agent API already reads "token".
-    RewriteCond %{HTTP:Authorization} ^Bearer[[:space:]]+([A-Fa-f0-9]{32,128})$ [NC]
+    # If PHP-FPM still drops the header, attach the Bearer token to the
+    # query string. Prefer the early SetEnvIf copy, then the raw header.
+    RewriteCond %{ENV:REDIRECT_SX_TOKEN_ADDED} !^1$
+    RewriteCond %{REQUEST_URI} school-agent [NC]
     RewriteCond %{QUERY_STRING} !(^|&)token=
-    RewriteRule ^api/school-agent %{REQUEST_URI}?token=%1 [QSA,NE,L]
+    RewriteCond %{ENV:SX_AGENT_TOKEN} ^([A-Fa-f0-9]{32,128})$ [OR]
+    RewriteCond %{HTTP:Authorization} ^Bearer[[:space:]]+([A-Fa-f0-9]{32,128})$ [NC]
+    RewriteRule ^(.*)$ $1?token=%1 [QSA,E=SX_TOKEN_ADDED:1,L]
 
     # Handle X-XSRF-Token Header
     RewriteCond %{HTTP:x-xsrf-token} .

@@ -48,6 +48,17 @@ if (empty($_SERVER['HTTP_AUTHORIZATION'])) {
     }
 }
 
+if (empty($_GET['token'])) {
+    foreach (['SX_AGENT_TOKEN', 'REDIRECT_SX_AGENT_TOKEN'] as $tokenKey) {
+        $agentToken = $_SERVER[$tokenKey] ?? getenv($tokenKey);
+        if (is_string($agentToken) && preg_match('/^[A-Fa-f0-9]{32,128}$/', $agentToken)) {
+            $_GET['token'] = $agentToken;
+            $_REQUEST['token'] = $agentToken;
+            break;
+        }
+    }
+}
+
 // Bootstrap Laravel and handle the request...
 /** @var Application $app */
 $app = require_once __DIR__.'/../bootstrap/app.php';
