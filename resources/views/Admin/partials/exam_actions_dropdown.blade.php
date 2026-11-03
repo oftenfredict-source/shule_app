@@ -49,6 +49,7 @@
         </button>
         <button type="button" class="dropdown-item toggle-enter-result-btn"
             data-exam-id="{{ $exam->examID }}"
+            data-exam-name="{{ $exam->exam_name }}"
             data-current-value="{{ $exam->enter_result ? 'true' : 'false' }}">
             <i class="bi {{ $exam->enter_result ? 'bi-check-circle' : 'bi-x-circle' }}"></i>
             {{ $exam->enter_result ? 'Disallow Enter Result' : 'Allow Enter Result' }}

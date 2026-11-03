@@ -3190,30 +3190,43 @@ jQuery(document).ready(function($) {
         const currentValueStr = $(this).attr('data-current-value');
         const currentValue = currentValueStr === 'true' || currentValueStr === true;
         const newValue = !currentValue;
-        const examName = $(this).closest('.card').find('h6').text() || 'this examination';
+        const examName = $(this).data('exam-name') || 'this examination';
+        const popupContent = document.createElement('div');
+        const description = document.createElement('p');
+        description.textContent = newValue
+            ? `Allow teachers to enter results for "${examName}"?`
+            : `Disallow result entry for "${examName}"?`;
+        popupContent.appendChild(description);
+
+        const smsOption = document.createElement('div');
+        smsOption.className = 'form-check form-switch d-flex align-items-center justify-content-center gap-2 mt-3';
+        smsOption.style.paddingLeft = '0';
+        const smsLabel = document.createElement('label');
+        smsLabel.className = 'mb-0';
+        smsLabel.htmlFor = 'send-result-sms';
+        smsLabel.textContent = 'Notify teachers';
+        const smsSwitch = document.createElement('input');
+        smsSwitch.type = 'checkbox';
+        smsSwitch.id = 'send-result-sms';
+        smsSwitch.className = 'form-check-input mt-0';
+        smsSwitch.style.cssFloat = 'none';
+        smsSwitch.style.margin = '0';
+        smsSwitch.setAttribute('role', 'switch');
+        smsOption.append(smsLabel, smsSwitch);
+        popupContent.appendChild(smsOption);
 
         Swal.fire({
             title: newValue ? 'Allow Enter Result?' : 'Disallow Enter Result?',
-            text: newValue
-                ? `Allow teachers to enter results for "${examName}"?`
-                : `Disallow result entry for "${examName}"?`,
+            html: popupContent,
             icon: 'question',
-            input: 'checkbox',
-            inputValue: 0,
-            inputPlaceholder: 'Tuma SMS kwa walimu',
             showCancelButton: true,
             confirmButtonColor: '#940000',
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Yes',
-            didOpen: () => {
-                const smsSwitch = Swal.getInput();
-                smsSwitch.classList.add('form-check-input');
-                smsSwitch.parentElement.classList.add('form-check', 'form-switch');
-                smsSwitch.setAttribute('role', 'switch');
-            }
+            preConfirm: () => document.getElementById('send-result-sms').checked
         }).then((result) => {
             if (result.isConfirmed) {
-                const sendSms = Boolean(result.value);
+                const sendSms = result.value === true;
                 // Show loading message
                 const loadingTitle = newValue ? 'Enabling Enter Result...' : 'Disabling Enter Result...';
                 const loadingText = sendSms
