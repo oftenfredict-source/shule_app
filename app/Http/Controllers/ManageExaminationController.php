@@ -7437,6 +7437,7 @@ class ManageExaminationController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'enter_result' => 'required',
+                'send_sms' => 'sometimes|boolean',
             ]);
 
             if ($validator->fails()) {
@@ -7445,6 +7446,7 @@ class ManageExaminationController extends Controller
 
             // Convert to boolean
             $enterResult = filter_var($request->enter_result, FILTER_VALIDATE_BOOLEAN);
+            $sendSms = $request->boolean('send_sms');
 
             $exam->update([
                 'enter_result' => $enterResult,
@@ -7454,7 +7456,7 @@ class ManageExaminationController extends Controller
             $globalPermission = \App\Models\TeacherResultPermission::where('schoolID', $schoolID)->first();
             $canSendSms = $globalPermission ? $globalPermission->result_button_status : true;
 
-            if ($canSendSms) {
+            if ($sendSms && $canSendSms) {
                 // Get all teachers involved in this examination and send SMS
                 try {
                     $smsService = new SmsService();

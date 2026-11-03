@@ -3194,21 +3194,31 @@ jQuery(document).ready(function($) {
 
         Swal.fire({
             title: newValue ? 'Allow Enter Result?' : 'Disallow Enter Result?',
-            text: newValue 
+            text: newValue
                 ? `Allow teachers to enter results for "${examName}"?`
                 : `Disallow result entry for "${examName}"?`,
             icon: 'question',
+            input: 'checkbox',
+            inputValue: 0,
+            inputPlaceholder: 'Tuma SMS kwa walimu',
             showCancelButton: true,
             confirmButtonColor: '#940000',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Yes'
+            confirmButtonText: 'Yes',
+            didOpen: () => {
+                const smsSwitch = Swal.getInput();
+                smsSwitch.classList.add('form-check-input');
+                smsSwitch.parentElement.classList.add('form-check', 'form-switch');
+                smsSwitch.setAttribute('role', 'switch');
+            }
         }).then((result) => {
             if (result.isConfirmed) {
+                const sendSms = Boolean(result.value);
                 // Show loading message
                 const loadingTitle = newValue ? 'Enabling Enter Result...' : 'Disabling Enter Result...';
-                const loadingText = newValue 
-                    ? 'Please wait while we enable result entry and notify teachers via SMS. This may take a few minutes...'
-                    : 'Please wait while we disable result entry and notify teachers via SMS. This may take a few minutes...';
+                const loadingText = sendSms
+                    ? 'Please wait while we update result entry and send SMS to teachers...'
+                    : 'Please wait while we update result entry...';
                 
                 Swal.fire({
                     title: loadingTitle,
@@ -3231,6 +3241,7 @@ jQuery(document).ready(function($) {
                     method: 'POST',
                     data: {
                         enter_result: newValue ? 1 : 0,
+                        send_sms: sendSms ? 1 : 0,
                         _token: $('meta[name="csrf-token"]').attr('content')
                     },
                     success: function(response) {
