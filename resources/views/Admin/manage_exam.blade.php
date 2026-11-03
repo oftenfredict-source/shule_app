@@ -3199,7 +3199,7 @@ jQuery(document).ready(function($) {
         popupContent.appendChild(description);
 
         const smsOption = document.createElement('div');
-        smsOption.className = 'form-check form-switch d-flex align-items-center justify-content-center gap-2 mt-3';
+        smsOption.className = 'd-flex flex-column align-items-center gap-2 mt-3';
         smsOption.style.paddingLeft = '0';
         const smsLabel = document.createElement('label');
         smsLabel.className = 'mb-0';
@@ -3208,9 +3208,8 @@ jQuery(document).ready(function($) {
         const smsSwitch = document.createElement('input');
         smsSwitch.type = 'checkbox';
         smsSwitch.id = 'send-result-sms';
-        smsSwitch.className = 'form-check-input mt-0';
+        smsSwitch.className = 'form-check-input m-0';
         smsSwitch.style.cssFloat = 'none';
-        smsSwitch.style.margin = '0';
         smsSwitch.setAttribute('role', 'switch');
         smsOption.append(smsLabel, smsSwitch);
         popupContent.appendChild(smsOption);
