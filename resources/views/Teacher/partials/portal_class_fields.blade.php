@@ -1,10 +1,16 @@
+@php
+    $requireSubject = $requireSubject ?? false;
+    $subjectClassMap = $subjectClassMap ?? [];
+@endphp
 <div class="lph-field">
     <label class="lph-label">Class *</label>
     <select class="form-control portal-class" name="classID" required>
         <option value="">Select class</option>
-        @foreach($classes as $class)
+        @forelse($classes as $class)
             <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
-        @endforeach
+        @empty
+            <option value="" disabled>No teaching classes assigned</option>
+        @endforelse
     </select>
 </div>
 <div class="lph-field">
@@ -18,11 +24,16 @@
 </div>
 @if(isset($subjects) && $subjects->count())
 <div class="lph-field">
-    <label class="lph-label">Subject</label>
-    <select class="form-control" name="subjectID">
-        <option value="">Optional</option>
+    <label class="lph-label">Subject{{ $requireSubject ? ' *' : '' }}</label>
+    <select class="form-control portal-subject" name="subjectID" @if($requireSubject) required @endif>
+        <option value="">{{ $requireSubject ? 'Select subject' : 'Optional' }}</option>
         @foreach($subjects as $subject)
-            <option value="{{ $subject->subjectID }}">{{ $subject->subject_name }}@if($subject->subject_code) ({{ $subject->subject_code }})@endif</option>
+            @php
+                $classIds = $subjectClassMap[(int) $subject->subjectID] ?? [];
+            @endphp
+            <option value="{{ $subject->subjectID }}" data-classes="{{ implode(',', $classIds) }}">
+                {{ $subject->subject_name }}@if($subject->subject_code) ({{ $subject->subject_code }})@endif
+            </option>
         @endforeach
     </select>
 </div>

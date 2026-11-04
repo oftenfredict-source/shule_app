@@ -664,6 +664,7 @@ Route::post("student-portal-materials/books", [\App\Http\Controllers\StudentPort
 Route::post("student-portal-materials/books/{id}/toggle", [\App\Http\Controllers\StudentPortalMaterialController::class, "toggleBook"])->name("student_portal.materials.books.toggle");
 Route::delete("student-portal-materials/books/{id}", [\App\Http\Controllers\StudentPortalMaterialController::class, "deleteBook"])->name("student_portal.materials.books.delete");
 Route::post("student-portal-materials/quizzes", [\App\Http\Controllers\StudentPortalMaterialController::class, "storeQuiz"])->name("student_portal.materials.quizzes.store");
+Route::put("student-portal-materials/quizzes/{id}", [\App\Http\Controllers\StudentPortalMaterialController::class, "updateQuiz"])->name("student_portal.materials.quizzes.update");
 Route::post("student-portal-materials/quizzes/{id}/toggle", [\App\Http\Controllers\StudentPortalMaterialController::class, "toggleQuiz"])->name("student_portal.materials.quizzes.toggle");
 Route::delete("student-portal-materials/quizzes/{id}", [\App\Http\Controllers\StudentPortalMaterialController::class, "deleteQuiz"])->name("student_portal.materials.quizzes.delete");
 Route::get("student-portal-materials/results/export", [\App\Http\Controllers\StudentPortalMaterialController::class, "exportResults"])->name("student_portal.materials.results.export");

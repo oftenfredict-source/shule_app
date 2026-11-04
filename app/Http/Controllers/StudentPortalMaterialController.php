@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
+use App\Models\ClassSubject;
 use App\Models\School;
 use App\Models\SchoolSubject;
 use App\Models\Student;
@@ -30,15 +31,18 @@ class StudentPortalMaterialController extends Controller
 
         $school = School::find($schoolID);
         $enabled = $school && $school->isStudentPortalEnabled();
-        $classes = $enabled
-            ? ClassModel::where('schoolID', $schoolID)->where('status', 'Active')->orderBy('class_name')->get()
-            : collect();
-        $subclasses = $enabled
-            ? Subclass::whereIn('classID', $classes->pluck('classID'))->orderBy('subclass_name')->get()
-            : collect();
-        $subjects = $enabled
-            ? SchoolSubject::where('schoolID', $schoolID)->where('status', 'Active')->orderBy('subject_name')->get()
-            : collect();
+        $placement = $enabled
+            ? $this->placementOptionsForUser($userType, (int) $schoolID)
+            : [
+                'classes' => collect(),
+                'subclasses' => collect(),
+                'subjects' => collect(),
+                'subjectClassMap' => [],
+            ];
+        $classes = $placement['classes'];
+        $subclasses = $placement['subclasses'];
+        $subjects = $placement['subjects'];
+        $subjectClassMap = $placement['subjectClassMap'];
 
         $notes = $enabled ? StudentPortalNote::where('schoolID', $schoolID)->latest()->get() : collect();
         $books = $enabled ? StudentPortalBook::where('schoolID', $schoolID)->latest()->get() : collect();
@@ -51,15 +55,26 @@ class StudentPortalMaterialController extends Controller
             ? Student::where('schoolID', $schoolID)->whereIn('studentID', $attemptStudentIds)->get()->keyBy('studentID')
             : collect();
 
+        $editingQuiz = null;
+        $editId = (int) request()->query('edit', 0);
+        if ($enabled && $editId > 0) {
+            $found = $quizzes->firstWhere('id', $editId);
+            if ($found) {
+                $editingQuiz = $this->quizEditorPayload($found);
+            }
+        }
+
         return view('Teacher.student_portal_materials', [
             'school' => $school,
             'enabled' => $enabled,
             'classes' => $classes,
             'subclasses' => $subclasses,
             'subjects' => $subjects,
+            'subjectClassMap' => $subjectClassMap,
             'notes' => $notes,
             'books' => $books,
             'quizzes' => $quizzes,
+            'editingQuiz' => $editingQuiz,
             'studentsById' => $studentsById,
             'user_type' => $userType,
             'uploadLimit' => ini_get('upload_max_filesize') ?: '2M',
@@ -196,7 +211,7 @@ class StudentPortalMaterialController extends Controller
     public function storeQuiz(Request $request)
     {
         [$school] = $this->guard();
-        $data = $this->validatePlacement($request);
+        $data = $this->validatePlacement($request, Session::get('user_type') === 'Teacher');
         $request->validate([
             'title' => 'required|string|max:180',
             'instructions' => 'nullable|string|max:5000',
@@ -244,6 +259,149 @@ class StudentPortalMaterialController extends Controller
 
         return back()->with('success', $message)
             ->with('portal_tab', 'quizzes');
+    }
+
+    public function updateQuiz(Request $request, $id)
+    {
+        [$school] = $this->guard();
+        $quiz = StudentPortalQuiz::where('schoolID', $school->schoolID)->where('id', $id)->firstOrFail();
+        $data = $this->validatePlacement($request, Session::get('user_type') === 'Teacher');
+        $request->validate([
+            'title' => 'required|string|max:180',
+            'instructions' => 'nullable|string|max:5000',
+            'opens_at' => 'nullable|date|required_with:closes_at',
+            'closes_at' => 'nullable|date|required_with:opens_at|after:opens_at',
+            'sections' => 'required|array|min:1|max:20',
+            'sections.*.question_type' => 'required|in:multiple_choice,true_false,matching,fill_blank,short_answer,essay',
+            'sections.*.section_title' => 'nullable|string|max:200',
+            'sections.*.instructions' => 'nullable|string|max:2000',
+        ]);
+
+        $rows = $this->buildQuizQuestionRows($request->input('sections', []));
+        if ($rows === []) {
+            throw ValidationException::withMessages([
+                'sections' => 'Add at least one question item in your sections.',
+            ]);
+        }
+        if (count($rows) > 80) {
+            throw ValidationException::withMessages([
+                'sections' => 'Too many items (max 80 across all sections).',
+            ]);
+        }
+
+        DB::transaction(function () use ($request, $quiz, $data, $rows) {
+            $quiz->update(array_merge($data, [
+                'title' => $request->title,
+                'instructions' => $request->instructions,
+                'opens_at' => $request->filled('opens_at') ? $request->opens_at : null,
+                'closes_at' => $request->filled('closes_at') ? $request->closes_at : null,
+            ]));
+
+            StudentPortalQuizQuestion::where('quiz_id', $quiz->id)->delete();
+            foreach ($rows as $index => $row) {
+                $row['quiz_id'] = $quiz->id;
+                $row['sort_order'] = $index + 1;
+                StudentPortalQuizQuestion::create($row);
+            }
+        });
+
+        return redirect()
+            ->route('student_portal.materials')
+            ->with('success', 'Quiz updated. Schedule, marks, and questions were saved.')
+            ->with('portal_tab', 'quizzes');
+    }
+
+    /**
+     * Payload for the teacher quiz editor (create/edit form).
+     *
+     * @return array<string, mixed>
+     */
+    private function quizEditorPayload(StudentPortalQuiz $quiz): array
+    {
+        $sections = [];
+        $grouped = $quiz->questions->groupBy('section_number');
+
+        foreach ($grouped as $items) {
+            $first = $items->first();
+            $type = $first->question_type ?: 'multiple_choice';
+            $config = is_array($first->config) ? $first->config : [];
+            $section = [
+                'question_type' => $type,
+                'section_title' => $first->section_title,
+                'instructions' => $config['section_instructions'] ?? null,
+                'points' => (float) ($first->points ?: 1),
+                'items' => [],
+                'left' => [],
+                'right' => [],
+            ];
+
+            if ($type === 'matching') {
+                $left = $config['left'] ?? [];
+                $right = $config['right'] ?? [];
+                $answers = $config['answers'] ?? [];
+                $rightByKey = [];
+                foreach ((array) $right as $r) {
+                    if (is_array($r) && isset($r['key'])) {
+                        $rightByKey[(string) $r['key']] = (string) ($r['text'] ?? '');
+                    }
+                }
+                foreach ((array) $left as $l) {
+                    if (!is_array($l)) {
+                        continue;
+                    }
+                    $leftKey = (string) ($l['key'] ?? '');
+                    $rightKey = (string) ($answers[$leftKey] ?? '');
+                    $section['left'][] = (string) ($l['text'] ?? '');
+                    $section['right'][] = $rightByKey[$rightKey] ?? '';
+                }
+                if (($config['section_instructions'] ?? null) === null
+                    && $first->question_text
+                    && $first->question_text !== 'Match items in column A with column B.') {
+                    $section['instructions'] = $first->question_text;
+                }
+            } else {
+                foreach ($items as $q) {
+                    $qConfig = is_array($q->config) ? $q->config : [];
+                    if (empty($section['instructions']) && !empty($qConfig['section_instructions'])) {
+                        $section['instructions'] = $qConfig['section_instructions'];
+                    }
+                    $item = [
+                        'question_text' => $q->question_text,
+                        'points' => (float) ($q->points ?: 1),
+                        'option_a' => $q->option_a,
+                        'option_b' => $q->option_b,
+                        'option_c' => $q->option_c,
+                        'option_d' => $q->option_d,
+                        'correct_option' => $q->correct_option,
+                        'correct_answer' => null,
+                        'alt_answers' => null,
+                    ];
+                    if ($type === 'fill_blank') {
+                        $item['correct_answer'] = $qConfig['answer'] ?? $q->correct_option;
+                        $alts = (array) ($qConfig['answers'] ?? []);
+                        $main = (string) ($item['correct_answer'] ?? '');
+                        $alts = array_values(array_filter($alts, fn ($a) => (string) $a !== $main));
+                        $item['alt_answers'] = $alts !== [] ? implode(' | ', $alts) : null;
+                    }
+                    $section['items'][] = $item;
+                }
+            }
+
+            $sections[] = $section;
+        }
+
+        return [
+            'id' => $quiz->id,
+            'classID' => $quiz->classID,
+            'subclassID' => $quiz->subclassID,
+            'subjectID' => $quiz->subjectID,
+            'title' => $quiz->title,
+            'instructions' => $quiz->instructions,
+            'opens_at' => $quiz->opens_at ? $quiz->opens_at->format('Y-m-d\TH:i') : '',
+            'closes_at' => $quiz->closes_at ? $quiz->closes_at->format('Y-m-d\TH:i') : '',
+            'attempts_count' => $quiz->attempts->count(),
+            'sections' => $sections,
+        ];
     }
 
     /**
@@ -689,19 +847,172 @@ class StudentPortalMaterialController extends Controller
         return [$school];
     }
 
-    private function validatePlacement(Request $request): array
+    private function validatePlacement(Request $request, bool $requireSubject = false): array
     {
-        $data = $request->validate([
+        $rules = [
             'classID' => 'required|integer',
             'subclassID' => 'nullable|integer',
-            'subjectID' => 'nullable|integer',
-        ]);
+            'subjectID' => $requireSubject ? 'required|integer' : 'nullable|integer',
+        ];
+        $data = $request->validate($rules);
 
-        return [
+        $placement = [
             'classID' => (int) $data['classID'],
             'subclassID' => !empty($data['subclassID']) ? (int) $data['subclassID'] : null,
             'subjectID' => !empty($data['subjectID']) ? (int) $data['subjectID'] : null,
         ];
+
+        $this->assertTeacherCanPlace(
+            $placement['classID'],
+            $placement['subclassID'],
+            $placement['subjectID'],
+            $requireSubject
+        );
+
+        return $placement;
+    }
+
+    /**
+     * Classes / streams / subjects available for portal placement.
+     * Teachers only see what they teach (class_subjects + component papers).
+     *
+     * @return array{classes: \Illuminate\Support\Collection, subclasses: \Illuminate\Support\Collection, subjects: \Illuminate\Support\Collection, subjectClassMap: array<int, list<int>>}
+     */
+    private function placementOptionsForUser(string $userType, int $schoolID): array
+    {
+        if ($userType === 'Teacher') {
+            $teacherID = (int) Session::get('teacherID');
+            $assignments = $teacherID > 0
+                ? $this->teacherTeachingAssignments($teacherID)
+                : collect();
+
+            $classIds = $assignments->pluck('classID')->unique()->filter()->values();
+            $classes = $classIds->isNotEmpty()
+                ? ClassModel::where('schoolID', $schoolID)
+                    ->where('status', 'Active')
+                    ->whereIn('classID', $classIds)
+                    ->orderBy('class_name')
+                    ->get()
+                : collect();
+
+            $allowedSubclassIds = $assignments->pluck('subclassID')->filter()->unique()->values();
+            $classesWithAllStreams = $assignments
+                ->filter(fn ($row) => empty($row->subclassID))
+                ->pluck('classID')
+                ->unique()
+                ->values();
+
+            $subclasses = $classes->isNotEmpty()
+                ? Subclass::whereIn('classID', $classes->pluck('classID'))
+                    ->where(function ($q) use ($allowedSubclassIds, $classesWithAllStreams) {
+                        if ($allowedSubclassIds->isNotEmpty()) {
+                            $q->whereIn('subclassID', $allowedSubclassIds);
+                        } else {
+                            $q->whereRaw('1 = 0');
+                        }
+                        if ($classesWithAllStreams->isNotEmpty()) {
+                            $q->orWhereIn('classID', $classesWithAllStreams);
+                        }
+                    })
+                    ->orderBy('subclass_name')
+                    ->get()
+                : collect();
+
+            $subjectIds = $assignments->pluck('subjectID')->unique()->filter()->values();
+            $subjects = $subjectIds->isNotEmpty()
+                ? SchoolSubject::where('schoolID', $schoolID)
+                    ->where('status', 'Active')
+                    ->whereIn('subjectID', $subjectIds)
+                    ->orderBy('subject_name')
+                    ->get()
+                : collect();
+
+            $subjectClassMap = [];
+            foreach ($assignments as $row) {
+                $sid = (int) $row->subjectID;
+                $cid = (int) $row->classID;
+                if ($sid <= 0 || $cid <= 0) {
+                    continue;
+                }
+                if (!isset($subjectClassMap[$sid])) {
+                    $subjectClassMap[$sid] = [];
+                }
+                if (!in_array($cid, $subjectClassMap[$sid], true)) {
+                    $subjectClassMap[$sid][] = $cid;
+                }
+            }
+
+            return compact('classes', 'subclasses', 'subjects', 'subjectClassMap');
+        }
+
+        $classes = ClassModel::where('schoolID', $schoolID)->where('status', 'Active')->orderBy('class_name')->get();
+        $subclasses = Subclass::whereIn('classID', $classes->pluck('classID'))->orderBy('subclass_name')->get();
+        $subjects = SchoolSubject::where('schoolID', $schoolID)->where('status', 'Active')->orderBy('subject_name')->get();
+        $subjectClassMap = [];
+        foreach ($subjects as $subject) {
+            $subjectClassMap[(int) $subject->subjectID] = $classes->pluck('classID')->map(fn ($id) => (int) $id)->all();
+        }
+
+        return compact('classes', 'subclasses', 'subjects', 'subjectClassMap');
+    }
+
+    private function teacherTeachingAssignments(int $teacherID)
+    {
+        return ClassSubject::query()
+            ->where('status', 'Active')
+            ->where(function ($q) use ($teacherID) {
+                $q->where('teacherID', $teacherID)
+                    ->orWhereHas('componentTeachers', function ($cq) use ($teacherID) {
+                        $cq->where('teacherID', $teacherID);
+                    });
+            })
+            ->get(['classID', 'subclassID', 'subjectID']);
+    }
+
+    private function assertTeacherCanPlace(int $classID, ?int $subclassID, ?int $subjectID, bool $requireSubject = false): void
+    {
+        if (Session::get('user_type') !== 'Teacher') {
+            return;
+        }
+
+        $teacherID = (int) Session::get('teacherID');
+        if ($teacherID <= 0) {
+            throw ValidationException::withMessages([
+                'classID' => 'Teacher session is missing. Please sign in again.',
+            ]);
+        }
+
+        if ($requireSubject && !$subjectID) {
+            throw ValidationException::withMessages([
+                'subjectID' => 'Select the subject you teach for this quiz.',
+            ]);
+        }
+
+        $query = ClassSubject::query()
+            ->where('status', 'Active')
+            ->where('classID', $classID)
+            ->where(function ($q) use ($teacherID) {
+                $q->where('teacherID', $teacherID)
+                    ->orWhereHas('componentTeachers', function ($cq) use ($teacherID) {
+                        $cq->where('teacherID', $teacherID);
+                    });
+            });
+
+        if ($subjectID) {
+            $query->where('subjectID', $subjectID);
+        }
+
+        if ($subclassID) {
+            $query->where(function ($q) use ($subclassID) {
+                $q->whereNull('subclassID')->orWhere('subclassID', $subclassID);
+            });
+        }
+
+        if (!$query->exists()) {
+            throw ValidationException::withMessages([
+                'classID' => 'You can only publish to a class and subject you teach.',
+            ]);
+        }
     }
 
     private function rejectBadUpload(Request $request, string $tab)
