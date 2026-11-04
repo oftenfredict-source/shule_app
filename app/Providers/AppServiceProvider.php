@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Session;
 use App\Models\School;
@@ -30,6 +31,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Keep asset()/url() aligned with the live host + subdirectory
+        // (e.g. /repositories/shulexpert) so CSS works on every domain.
+        if (!$this->app->runningInConsole()) {
+            $request = request();
+            $root = rtrim($request->getSchemeAndHttpHost() . $request->getBasePath(), '/');
+            if ($root !== '') {
+                URL::forceRootUrl($root);
+            }
+            if ($request->isSecure() || $request->header('X-Forwarded-Proto') === 'https') {
+                URL::forceScheme('https');
+            }
+        }
+
         View::composer('*', function ($view) {
         // View::composer('*') runs for EVERY Blade include. Without memoization,
         // one page can re-run heavy teacher/admin DB queries dozens of times and

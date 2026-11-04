@@ -50,13 +50,19 @@
 
     @include('includes.site_favicon')
 
+    @php
+        $sxCssVer = static function (string $rel): string {
+            $path = public_path($rel);
+            return is_file($path) ? (string) filemtime($path) : (string) time();
+        };
+    @endphp
     <link rel="stylesheet" href="{{ asset('css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="https://cdn.linearicons.com/free/1.0.0/icon-font.min.css">
     <link rel="stylesheet" href="{{ asset('lib/animate/animate.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/site-base.css') }}?v={{ filemtime(public_path('css/site-base.css')) }}">
-    <link rel="stylesheet" href="{{ asset('css/shulexpert-site.css') }}?v={{ filemtime(public_path('css/shulexpert-site.css')) }}">
-    <link rel="stylesheet" href="{{ asset('css/shulexpert-theme.css') }}?v={{ filemtime(public_path('css/shulexpert-theme.css')) }}">
+    <link rel="stylesheet" href="{{ asset('css/site-base.css') }}?v={{ $sxCssVer('css/site-base.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/shulexpert-site.css') }}?v={{ $sxCssVer('css/shulexpert-site.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/shulexpert-theme.css') }}?v={{ $sxCssVer('css/shulexpert-theme.css') }}">
 
     <style>
         html[data-sx-theme="light"],
