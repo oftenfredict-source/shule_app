@@ -11,118 +11,142 @@
 @extends('layouts.site')
 
 @section('content')
-<section class="sx-auth-stage">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-10 col-xl-9">
-                <div class="sx-auth-panel">
-                    <aside class="sx-auth-art sx-auth-art-bg" style="--sx-auth-art-bg: url('{{ asset('img/carousel-1.jpg') }}')">
-                        <div>
-                            <h2>Welcome back</h2>
-                            <p>Sign in to manage fees, attendance, exams, SMS alerts, and every module that runs your school, all in one place.</p>
+<section class="sx-auth-stage sx-login-stage" style="--sx-auth-art-bg: url('{{ asset('img/shulexpert-login-bg.jpg') }}')">
+    <div class="sx-login-stage__bg" aria-hidden="true"></div>
+    <div class="sx-login-stage__glow sx-login-stage__glow--a" aria-hidden="true"></div>
+    <div class="sx-login-stage__glow sx-login-stage__glow--b" aria-hidden="true"></div>
+
+    <div class="container sx-login-container">
+        <div class="sx-auth-panel sx-login-panel">
+            <aside class="sx-auth-art sx-login-art">
+                <div class="sx-login-art__top">
+                    <div class="sx-login-brand">
+                        <img class="sx-auth-logo" src="{{ asset('images/shuleXpert.jpg') }}" alt="ShuleXpert">
+                        <div class="sx-login-brand__text">
+                            <span class="sx-login-brand__name">ShuleXpert</span>
+                            <span class="sx-login-brand__sub">School Management Platform</span>
                         </div>
-                        <div class="sx-auth-powered">Powered by EmCa Techonology</div>
-                    </aside>
+                    </div>
+                    <h2 class="sx-login-art__title">Welcome back</h2>
+                    <p class="sx-login-art__lead">Sign in to run fees, attendance, exams, SMS alerts, and every module that keeps your school moving.</p>
+                </div>
 
-                    <div class="sx-auth-form-wrap">
-                        <h3><i class="fa fa-lock" style="margin-right:8px;"></i>School Member Login</h3>
-                        <p class="sx-auth-sub">Enter your username and password to continue.</p>
-                        <p class="sx-auth-sub"><a href="{{ route('student_portal.login') }}">Student portal - sign in with admission number</a></p>
+                <ul class="sx-login-points" aria-label="What you can manage">
+                    <li><i class="fa fa-check" aria-hidden="true"></i><span>Fees, results &amp; parent alerts</span></li>
+                    <li><i class="fa fa-check" aria-hidden="true"></i><span>Attendance &amp; classroom tools</span></li>
+                    <li><i class="fa fa-check" aria-hidden="true"></i><span>Secure OTP-protected access</span></li>
+                </ul>
 
-                        <div id="loginAlert"></div>
-                        @if (session('success'))
-                            <div class="alert alert-success">{{ session('success') }}</div>
-                        @endif
-                        @if (session('error'))
-                            <div class="alert alert-danger">{{ session('error') }}</div>
-                        @endif
-                        @if ($errors->any())
-                            <div class="alert alert-danger">
-                                <ul class="mb-0 pl-3">
-                                    @foreach ($errors->all() as $error)
-                                        <li>{{ $error }}</li>
-                                    @endforeach
-                                </ul>
+                <div class="sx-auth-powered">Powered by EmCa Techonology</div>
+            </aside>
+
+            <div class="sx-auth-form-wrap sx-login-form">
+                <div class="sx-login-form__head">
+                    <p class="sx-login-kicker">School portal</p>
+                    <h3>Member Login</h3>
+                    <p class="sx-auth-sub">Enter your username and password to continue.</p>
+                </div>
+
+                <div class="sx-login-switch">
+                    <span class="sx-login-switch__current"><i class="fa fa-building-o" aria-hidden="true"></i> School staff</span>
+                    <a href="{{ route('student_portal.login') }}" class="sx-login-switch__alt">Student portal <i class="fa fa-angle-right" aria-hidden="true"></i></a>
+                </div>
+
+                <div id="loginAlert"></div>
+                @if (session('success'))
+                    <div class="alert alert-success">{{ session('success') }}</div>
+                @endif
+                @if (session('error'))
+                    <div class="alert alert-danger">{{ session('error') }}</div>
+                @endif
+                @if ($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0 pl-3">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <form id="schoolForm" method="POST" action="{{ route('auth') }}" enctype="multipart/form-data">
+                    @csrf
+                    <label class="required" for="school_name">Username</label>
+                    <div class="sx-input-wrap">
+                        <i class="fa fa-user sx-field-icon"></i>
+                        <input type="text" id="school_name" name="username" class="form-control @error('username') is-invalid @enderror" placeholder="Username" value="{{ old('username') }}" required autocomplete="username">
+                        @error('username')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="sx-login-pass-row">
+                        <label class="required mb-0" for="registration_number">Password</label>
+                        <a href="{{ route('forgot_password') }}" class="sx-login-forgot">Forgot Password?</a>
+                    </div>
+                    <div class="sx-input-wrap">
+                        <i class="fa fa-key sx-field-icon"></i>
+                        <input type="password" id="registration_number" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="Password" required autocomplete="current-password">
+                        <i class="fa fa-eye-slash sx-toggle-pass" id="togglePassword" title="Show password" role="button" tabindex="0" aria-label="Show password"></i>
+                        @error('password')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="sx-auth-links">
+                        <label class="sx-login-remember mb-0" for="remember_me">
+                            <input type="checkbox" name="remember_me" id="remember_me">
+                            <span>Remember Me</span>
+                        </label>
+                        <a href="{{ route('site.contact') }}">Need help?</a>
+                    </div>
+
+                    <input type="hidden" name="latitude" id="lat">
+                    <input type="hidden" name="longitude" id="lng">
+                    <input type="hidden" name="photo_data" id="photo_data">
+                    @if (!empty($loginPhotoCaptureEnabled))
+                    <video id="video" width="320" height="240" style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1;" playsinline muted></video>
+                    <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+                    @endif
+
+                    <button type="submit" class="btn btn-sx-auth">
+                        <i class="fa fa-sign-in" style="margin-right:8px;"></i>Login
+                    </button>
+                </form>
+
+                <div id="otpWrap" class="mt-3" style="display:none;">
+                    <div class="sx-otp-panel">
+                        <div class="sx-otp-head">
+                            <h6><i class="fa fa-shield" style="margin-right:8px;"></i>OTP Verification</h6>
+                            <span class="small" style="opacity:.92;">ShuleXpert</span>
+                        </div>
+                        <div class="p-3">
+                            <div class="small mb-2" id="otpTitle" style="color:#2f2f2f;">ENTER 6 DIGITS CODE WE SENT TO YOUR PHONE</div>
+                            <input type="hidden" id="otpToken" value="">
+                            <input type="hidden" id="otpMaskedPhone" value="">
+                            <label class="required" for="otpBox0">OTP</label>
+                            <div class="d-flex sx-otp-boxes mb-2" style="gap:10px;">
+                                <input type="text" id="otpBox0" class="form-control" inputmode="numeric" maxlength="1" autocomplete="one-time-code">
+                                <input type="text" id="otpBox1" class="form-control" inputmode="numeric" maxlength="1">
+                                <input type="text" id="otpBox2" class="form-control" inputmode="numeric" maxlength="1">
+                                <input type="text" id="otpBox3" class="form-control" inputmode="numeric" maxlength="1">
+                                <input type="text" id="otpBox4" class="form-control" inputmode="numeric" maxlength="1">
+                                <input type="text" id="otpBox5" class="form-control" inputmode="numeric" maxlength="1">
                             </div>
-                        @endif
-
-                        <form id="schoolForm" method="POST" action="{{ route('auth') }}" enctype="multipart/form-data">
-                            @csrf
-                            <label class="required" for="school_name">Username</label>
-                            <div class="sx-input-wrap">
-                                <i class="fa fa-user sx-field-icon"></i>
-                                <input type="text" id="school_name" name="username" class="form-control @error('username') is-invalid @enderror" placeholder="Username" value="{{ old('username') }}" required autocomplete="username">
-                                @error('username')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
+                            <div class="small text-danger" id="otpHint"></div>
+                            <div class="d-flex align-items-center justify-content-between mt-2">
+                                <div id="otpStatus" class="small text-muted">Waiting OTP...</div>
+                                <div class="small text-muted" id="otpTimer"></div>
                             </div>
-
-                            <div class="d-flex justify-content-between align-items-center">
-                                <label class="required mb-0" for="registration_number">Password</label>
-                                <a href="{{ route('forgot_password') }}" class="small" style="color:#940000;font-weight:700;">Forgot Password?</a>
-                            </div>
-                            <div class="sx-input-wrap">
-                                <i class="fa fa-key sx-field-icon"></i>
-                                <input type="password" id="registration_number" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="Password" required autocomplete="current-password" style="padding-right:42px;">
-                                <i class="fa fa-eye-slash sx-toggle-pass" id="togglePassword" title="Show password"></i>
-                                @error('password')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <div class="sx-auth-links">
-                                <label class="mb-0" style="font-weight:600;">
-                                    <input type="checkbox" name="remember_me" id="remember_me" style="margin-right:6px;"> Remember Me
-                                </label>
-                                <a href="{{ route('site.contact') }}">Need help?</a>
-                            </div>
-
-                            <input type="hidden" name="latitude" id="lat">
-                            <input type="hidden" name="longitude" id="lng">
-                            <input type="hidden" name="photo_data" id="photo_data">
-                            @if (!empty($loginPhotoCaptureEnabled))
-                            <video id="video" width="320" height="240" style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1;" playsinline muted></video>
-                            <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
-                            @endif
-
-                            <button type="submit" class="btn btn-sx-auth">
-                                <i class="fa fa-sign-in" style="margin-right:8px;"></i>Login
-                            </button>
-                        </form>
-
-                        <div id="otpWrap" class="mt-3" style="display:none;">
-                            <div class="sx-otp-panel">
-                                <div class="sx-otp-head">
-                                    <h6><i class="fa fa-shield" style="margin-right:8px;"></i>OTP Verification</h6>
-                                    <span class="small" style="opacity:.92;">ShuleXpert</span>
-                                </div>
-                                <div class="p-3">
-                                    <div class="small mb-2" id="otpTitle" style="color:#2f2f2f;">ENTER 6 DIGITS CODE WE SENT TO YOUR PHONE</div>
-                                    <input type="hidden" id="otpToken" value="">
-                                    <input type="hidden" id="otpMaskedPhone" value="">
-                                    <label class="required" for="otpBox0">OTP</label>
-                                    <div class="d-flex sx-otp-boxes mb-2" style="gap:10px;">
-                                        <input type="text" id="otpBox0" class="form-control" inputmode="numeric" maxlength="1" autocomplete="one-time-code">
-                                        <input type="text" id="otpBox1" class="form-control" inputmode="numeric" maxlength="1">
-                                        <input type="text" id="otpBox2" class="form-control" inputmode="numeric" maxlength="1">
-                                        <input type="text" id="otpBox3" class="form-control" inputmode="numeric" maxlength="1">
-                                        <input type="text" id="otpBox4" class="form-control" inputmode="numeric" maxlength="1">
-                                        <input type="text" id="otpBox5" class="form-control" inputmode="numeric" maxlength="1">
-                                    </div>
-                                    <div class="small text-danger" id="otpHint"></div>
-                                    <div class="d-flex align-items-center justify-content-between mt-2">
-                                        <div id="otpStatus" class="small text-muted">Waiting OTP...</div>
-                                        <div class="small text-muted" id="otpTimer"></div>
-                                    </div>
-                                    <div class="mt-3 d-flex" style="gap:10px;">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnBackLogin">Back Login</button>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" id="btnResendOtp">Resend OTP</button>
-                                    </div>
-                                </div>
+                            <div class="mt-3 d-flex" style="gap:10px;">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnBackLogin">Back Login</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" id="btnResendOtp">Resend OTP</button>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <p class="sx-login-secure"><i class="fa fa-lock" aria-hidden="true"></i> Encrypted session · OTP when required</p>
             </div>
         </div>
     </div>
@@ -528,11 +552,20 @@
     const togglePassword = document.getElementById('togglePassword');
     const passwordField = document.getElementById('registration_number');
     if (togglePassword && passwordField) {
-        togglePassword.addEventListener('click', function () {
+        const togglePass = function () {
             const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordField.setAttribute('type', type);
-            this.classList.toggle('fa-eye');
-            this.classList.toggle('fa-eye-slash');
+            togglePassword.classList.toggle('fa-eye');
+            togglePassword.classList.toggle('fa-eye-slash');
+            togglePassword.setAttribute('title', type === 'password' ? 'Show password' : 'Hide password');
+            togglePassword.setAttribute('aria-label', type === 'password' ? 'Show password' : 'Hide password');
+        };
+        togglePassword.addEventListener('click', togglePass);
+        togglePassword.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                togglePass();
+            }
         });
     }
 })();
