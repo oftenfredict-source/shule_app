@@ -30,7 +30,6 @@ class SchemeOfWorkItem extends Model
     ];
 
     protected $casts = [
-        'week' => 'integer',
         'number_of_periods' => 'integer',
         'row_order' => 'integer',
     ];

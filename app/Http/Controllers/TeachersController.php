@@ -5173,7 +5173,7 @@ class TeachersController extends Controller
                             $item["learning_activities"] ?? "",
                         "specific_activities" =>
                             $item["specific_activities"] ?? "",
-                        "week" => !empty($item["week"]) ? $item["week"] : null,
+                        "week" => !empty($item["week"]) ? trim((string) $item["week"]) : null,
                         "number_of_periods" => !empty(
                             $item["number_of_periods"]
                         )
@@ -5456,7 +5456,7 @@ class TeachersController extends Controller
                             "specific_activities" =>
                                 $itemData["specific_activities"] ?? "",
                             "week" => !empty($itemData["week"])
-                                ? $itemData["week"]
+                                ? trim((string) $itemData["week"])
                                 : null,
                             "number_of_periods" => !empty(
                                 $itemData["number_of_periods"]
@@ -5505,7 +5505,7 @@ class TeachersController extends Controller
                                 "specific_activities" =>
                                     $itemData["specific_activities"] ?? "",
                                 "week" => !empty($itemData["week"])
-                                    ? $itemData["week"]
+                                    ? trim((string) $itemData["week"])
                                     : null,
                                 "number_of_periods" => !empty(
                                     $itemData["number_of_periods"]
