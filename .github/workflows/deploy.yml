@@ -44,7 +44,14 @@ jobs:
         key: ${{ secrets.CPANEL_SSH_KEY }}
         port: ${{ secrets.CPANEL_SSH_PORT || 22 }}
         script: |
-          cd ~/repositories/ShuleXpert
+          set -e
+          REPO="${{ secrets.CPANEL_APP_PATH }}"
+          if [ -z "$REPO" ]; then
+            REPO="$HOME/repositories/ShuleXpert"
+          fi
+          REPO="${REPO/\$HOME/$HOME}"
+          echo "Deploy repo path: $REPO"
+          cd "$REPO"
           
           # Install/update composer dependencies
           composer install --no-dev --optimize-autoloader --no-interaction
@@ -52,12 +59,64 @@ jobs:
           # Run database migrations (optional - uncomment if needed)
           # php artisan migrate --force
           
-          # Clear & cache Laravel config/routes/views
+          # Always clear first so new blades/CSS are not masked by old caches
+          php artisan optimize:clear || true
+          php artisan view:clear || true
+          php artisan config:clear || true
+          php artisan cache:clear || true
+          
+          # Rebuild caches
           php artisan config:cache
           php artisan route:cache
           php artisan view:cache
           
-          # Clear application cache
-          php artisan cache:clear
+          # Softaculous/cPanel often serves the live domain from public_html
+          # while GitHub Actions deploys to ~/repositories/ShuleXpert.
+          # Sync public assets + views so CSS/images reach the live site.
+          sync_public() {
+            local DEST="$1"
+            local DEST_PUBLIC="$1"
+            local DEST_ROOT="$1"
+            if [ -f "$DEST/index.php" ] && [ -d "$DEST/css" ]; then
+              DEST_PUBLIC="$DEST"
+              DEST_ROOT="$(dirname "$DEST")"
+            elif [ -d "$DEST/public/css" ]; then
+              DEST_PUBLIC="$DEST/public"
+              DEST_ROOT="$DEST"
+            else
+              return 0
+            fi
+            # Skip if destination is the same as repo public
+            if [ "$(realpath "$DEST_PUBLIC" 2>/dev/null || echo "$DEST_PUBLIC")" = "$(realpath "$REPO/public" 2>/dev/null || echo "$REPO/public")" ]; then
+              echo "Skip sync (same as repo public): $DEST_PUBLIC"
+              return 0
+            fi
+            echo "Syncing public assets -> $DEST_PUBLIC"
+            mkdir -p "$DEST_PUBLIC/css" "$DEST_PUBLIC/img" "$DEST_PUBLIC/js" "$DEST_PUBLIC/lib" "$DEST_PUBLIC/images"
+            rsync -a --delete "$REPO/public/css/" "$DEST_PUBLIC/css/"
+            rsync -a "$REPO/public/img/" "$DEST_PUBLIC/img/"
+            rsync -a "$REPO/public/images/" "$DEST_PUBLIC/images/" 2>/dev/null || true
+            rsync -a "$REPO/public/js/" "$DEST_PUBLIC/js/" 2>/dev/null || true
+            rsync -a "$REPO/public/lib/" "$DEST_PUBLIC/lib/" 2>/dev/null || true
+            if [ -d "$DEST_ROOT/resources/views" ]; then
+              echo "Syncing views -> $DEST_ROOT/resources/views"
+              rsync -a "$REPO/resources/views/" "$DEST_ROOT/resources/views/"
+            fi
+            if [ -d "$DEST_ROOT/app" ]; then
+              rsync -a "$REPO/app/" "$DEST_ROOT/app/"
+            fi
+            if [ -f "$DEST_ROOT/artisan" ]; then
+              (cd "$DEST_ROOT" && php artisan optimize:clear || true && php artisan view:clear || true && php artisan config:cache || true && php artisan view:cache || true)
+            fi
+          }
+          
+          sync_public "$HOME/public_html"
+          sync_public "$HOME/public_html/public"
+          # Optional extra live path via secret (full path to Laravel root or public)
+          if [ -n "${{ secrets.CPANEL_LIVE_PATH }}" ]; then
+            LIVE="${{ secrets.CPANEL_LIVE_PATH }}"
+            LIVE="${LIVE/\$HOME/$HOME}"
+            sync_public "$LIVE"
+          fi
           
           echo "Deployment complete!"
