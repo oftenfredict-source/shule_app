@@ -1020,18 +1020,24 @@
                         else if (type === 'staff') recipientType = 'all_staff';
                         else if (type === 'board') recipientType = 'school_board';
                         else if (type === 'pending_parent') recipientType = 'pending_parents';
+                        else if (window.currentSmsType === 'class_parents') recipientType = 'class_parents';
+
+                        const payload = {
+                            _token: '{{ csrf_token() }}',
+                            message: message,
+                            recipient_type: recipientType,
+                            selected_ids: [id],
+                            is_sync: true
+                        };
+                        if (recipientType === 'class_parents') {
+                            payload.classID = $('#modalClassSelect').val();
+                        }
 
                         try {
                             const res = await $.ajax({
                                 url: '{{ route("send_sms") }}',
                                 type: 'POST',
-                                data: {
-                                    _token: '{{ csrf_token() }}',
-                                    message: message,
-                                    recipient_type: recipientType,
-                                    selected_ids: [id],
-                                    is_sync: true
-                                }
+                                data: payload
                             });
 
                             if (res.success && res.results && res.results.success > 0) {

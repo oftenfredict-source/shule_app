@@ -881,6 +881,14 @@ class SMS_InformationController extends Controller
 
             $results['total'] = count($recipients);
 
+            if ($results['total'] === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No valid recipients found for the selection.',
+                    'results' => $results,
+                ], 422);
+            }
+
             // If sync is requested, don't use fastcgi_finish_request
             $isSync = $request->input('is_sync', false);
 
@@ -949,21 +957,25 @@ class SMS_InformationController extends Controller
                         ];
                     }
 
-                    // Log to DB
-                    SmsLog::create([
-                        'schoolID'       => $schoolID,
-                        'message_id'     => $messageId,
-                        'message_type'   => $messageType,
-                        'recipient_name' => $recipient['name'],
-                        'recipient_phone'=> $recipient['phone'],
-                        'recipient_role' => $recipient['type'] ?? 'unknown',
-                        'sent_by_name'   => $sentByName,
-                        'sent_by_role'   => $sentByRole,
-                        'message'        => $fullMessage,
-                        'status'         => $status,
-                        'sent_date'      => $sentDate,
-                        'sent_time'      => $sentTime,
-                    ]);
+                    // Log to DB (never treat log failure as send failure)
+                    try {
+                        SmsLog::create([
+                            'schoolID'       => $schoolID,
+                            'message_id'     => $messageId,
+                            'message_type'   => $messageType,
+                            'recipient_name' => $recipient['name'],
+                            'recipient_phone'=> $recipient['phone'],
+                            'recipient_role' => $recipient['type'] ?? 'unknown',
+                            'sent_by_name'   => $sentByName,
+                            'sent_by_role'   => $sentByRole,
+                            'message'        => $fullMessage,
+                            'status'         => $status,
+                            'sent_date'      => $sentDate,
+                            'sent_time'      => $sentTime,
+                        ]);
+                    } catch (\Exception $logEx) {
+                        Log::warning('SmsLog create failed after send: ' . $logEx->getMessage());
+                    }
 
                 } catch (\Exception $e) {
                     $results['failed']++;

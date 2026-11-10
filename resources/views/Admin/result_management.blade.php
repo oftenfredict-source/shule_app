@@ -983,8 +983,8 @@
                         @else
                             <div class="alert alert-info text-center" id="noResultsAlert">
                                 <i class="bi bi-info-circle"></i> 
-                                @if(empty($filters['term']) || empty($filters['year']))
-                                    <strong>Please select both Term and Year to view results.</strong>
+                                @if(empty($filters['year']) || (($filters['type'] ?? 'exam') === 'report' && empty($filters['term'])) || (($filters['type'] ?? 'exam') === 'exam' && empty($filters['term']) && empty($filters['examID'])))
+                                    <strong>Please select Term (or a specific Exam) to view results.</strong>
                                 @else
                                     <div>
                                         <strong>No results found for the selected filters.</strong>

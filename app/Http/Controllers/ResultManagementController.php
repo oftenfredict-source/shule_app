@@ -2422,8 +2422,34 @@ class ResultManagementController extends Controller
         $resultsData = [];
         $debugInfo = [];
 
-        // Only process if we have term and year (required for results)
-        if ($termFilter && $yearFilter) {
+        // Exam filter does not require Term in the UI ("All Terms").
+        // Resolve term from the selected exam when missing so SMS/board data loads.
+        if (
+            $typeFilter === "exam" &&
+            $examFilter &&
+            !$termFilter
+        ) {
+            $examForTerm = Examination::where("schoolID", $schoolID)
+                ->where("examID", $examFilter)
+                ->first();
+            if (
+                $examForTerm &&
+                !empty($examForTerm->term) &&
+                $examForTerm->term !== "all_terms"
+            ) {
+                $termFilter = $examForTerm->term;
+            }
+        }
+
+        // Exam: need year + (examID or term). Report: need year + term.
+        $canLoadExamResults =
+            $typeFilter === "exam" &&
+            $yearFilter &&
+            ($examFilter || $termFilter);
+        $canLoadTermReport =
+            $typeFilter === "report" && $yearFilter && $termFilter;
+
+        if ($canLoadExamResults || $canLoadTermReport) {
             if ($typeFilter === "exam") {
                 // Handle CA Definitions for exam filtering
                 $caExamIDs = $examFilter;
@@ -7407,7 +7433,33 @@ class ResultManagementController extends Controller
 
         // Get results data
         $resultsData = [];
-        if ($termFilter && ($yearFilter || !empty($academicYearIDs))) {
+        if (
+            $typeFilter === "exam" &&
+            $examFilter &&
+            !$termFilter
+        ) {
+            $examForTerm = Examination::where("schoolID", $schoolID)
+                ->where("examID", $examFilter)
+                ->first();
+            if (
+                $examForTerm &&
+                !empty($examForTerm->term) &&
+                $examForTerm->term !== "all_terms"
+            ) {
+                $termFilter = $examForTerm->term;
+            }
+        }
+
+        $canLoadExamResults =
+            $typeFilter === "exam" &&
+            ($yearFilter || !empty($academicYearIDs)) &&
+            ($examFilter || $termFilter);
+        $canLoadTermReport =
+            $typeFilter !== "exam" &&
+            $termFilter &&
+            ($yearFilter || !empty($academicYearIDs));
+
+        if ($canLoadExamResults || $canLoadTermReport) {
             if ($typeFilter === "exam") {
                 // Handle CA Definitions for exam filtering
                 $caExamIDs = $examFilter;
