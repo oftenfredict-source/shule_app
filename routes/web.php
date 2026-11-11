@@ -1844,6 +1844,7 @@ Route::prefix("admin/pending-students")->name("admin.pending_students.")->group(
     Route::post("/delete", [\App\Http\Controllers\PendingStudentRegistrationController::class, "delete"])->name("delete");
     Route::get("/template", [\App\Http\Controllers\PendingStudentRegistrationController::class, "downloadTemplate"])->name("template");
     Route::post("/import", [\App\Http\Controllers\PendingStudentRegistrationController::class, "import"])->name("import");
+    Route::post("/record-payment", [\App\Http\Controllers\PendingStudentRegistrationController::class, "recordPayment"])->name("record_payment");
     Route::post("/confirm", [\App\Http\Controllers\PendingStudentRegistrationController::class, "confirm"])->name("confirm");
     Route::post("/confirm-batch", [\App\Http\Controllers\PendingStudentRegistrationController::class, "confirmBatch"])->name("confirm_batch");
 });

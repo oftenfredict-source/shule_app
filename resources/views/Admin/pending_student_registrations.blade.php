@@ -36,13 +36,15 @@
 <div class="sx-pending-wrap">
     <div class="sx-pending-hero">
         <h1><i class="fa fa-user-plus"></i> Pending Student Registrations</h1>
-        <p>Pre-register students for the next intake. They stay separate until you Confirm &amp; Enroll.</p>
+        <p>Pre-register students, record payment when paid, then Enroll as the final step.</p>
     </div>
 
     <div class="info-banner">
-        <strong><i class="fa fa-info-circle"></i> Important:</strong>
-        Pending records are <strong>not enrolled students</strong>. They do not affect current class sizes or official student counts.
-        When the term/intake starts, select them and use <strong>Confirm &amp; Enroll</strong>.
+        <strong><i class="fa fa-info-circle"></i> Workflow:</strong>
+        <strong>1. Pending</strong> → register student &nbsp;|&nbsp;
+        <strong>2. Paid</strong> → record payment (still not in class) &nbsp;|&nbsp;
+        <strong>3. Enroll</strong> → final step into the class/stream.
+        Pending/Paid records are <strong>not enrolled students</strong>.
     </div>
 
     <div class="stat-row">
@@ -51,7 +53,11 @@
             <div class="value">{{ $pendingCount }}</div>
         </div>
         <div class="stat-box">
-            <div class="label">Confirmed</div>
+            <div class="label">Paid</div>
+            <div class="value">{{ $paidCount ?? 0 }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">Enrolled</div>
             <div class="value">{{ $confirmedCount }}</div>
         </div>
         <div class="stat-box">
@@ -76,7 +82,7 @@
                     <i class="fa fa-plus"></i> Add Manually
                 </button>
                 <button type="button" class="btn btn-success btn-sm" id="openBatchConfirmBtn">
-                    <i class="fa fa-check-double"></i> Confirm Selected
+                    <i class="fa fa-check-double"></i> Enroll Selected
                 </button>
             </div>
         </div>
@@ -104,7 +110,7 @@
                         @forelse($pending as $i => $row)
                             <tr>
                                 <td>
-                                    @if($row->status === 'Pending')
+                                    @if(in_array($row->status, ['Pending', 'Paid'], true))
                                         <input type="checkbox" class="pending-check" value="{{ $row->pendingID }}">
                                     @endif
                                 </td>
@@ -149,24 +155,35 @@
                                 <td>
                                     @if($row->status === 'Pending')
                                         <span class="badge bg-warning text-dark">Pending</span>
+                                    @elseif($row->status === 'Paid')
+                                        <span class="badge" style="background:#0d6efd;color:#fff;">Paid</span>
                                     @elseif($row->status === 'Confirmed')
-                                        <span class="badge bg-success">Confirmed</span>
+                                        <span class="badge bg-success">Enrolled</span>
                                     @else
                                         <span class="badge bg-secondary">{{ $row->status }}</span>
                                     @endif
                                 </td>
                                 <td class="text-nowrap">
-                                    @if($row->status === 'Pending')
-                                        <button type="button" class="btn btn-sm btn-success confirm-one-btn"
+                                    @if(in_array($row->status, ['Pending', 'Paid'], true))
+                                        <button type="button" class="btn btn-sm btn-info text-white record-pay-btn"
+                                            title="Record payment"
                                             data-id="{{ $row->pendingID }}"
                                             data-name="{{ $row->full_name }}"
-                                            data-subclass="{{ $row->intended_subclassID }}"
                                             data-pay="{{ $row->pay_amount !== null ? $row->pay_amount : '' }}"
                                             data-pref="{{ $row->payment_reference }}"
                                             data-pmethod="{{ $row->payment_method }}">
-                                            <i class="fa fa-check"></i>
+                                            <i class="fa fa-money"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-success confirm-one-btn"
+                                            title="Enroll into class"
+                                            data-id="{{ $row->pendingID }}"
+                                            data-name="{{ $row->full_name }}"
+                                            data-subclass="{{ $row->intended_subclassID }}"
+                                            data-status="{{ $row->status }}">
+                                            <i class="fa fa-user-plus"></i>
                                         </button>
                                         <button type="button" class="btn btn-sm btn-warning edit-btn"
+                                            title="Edit details"
                                             data-id="{{ $row->pendingID }}"
                                             data-first="{{ $row->first_name }}"
                                             data-middle="{{ $row->middle_name }}"
@@ -186,19 +203,17 @@
                                             data-pemail="{{ $row->parent_email }}"
                                             data-prel="{{ $row->parent_relationship }}"
                                             data-phone="{{ $row->phone }}"
-                                            data-notes="{{ $row->notes }}"
-                                            data-pay="{{ $row->pay_amount !== null ? $row->pay_amount : '' }}"
-                                            data-pref="{{ $row->payment_reference }}"
-                                            data-pmethod="{{ $row->payment_method }}">
+                                            data-notes="{{ $row->notes }}">
                                             <i class="fa fa-pencil"></i>
                                         </button>
                                         <button type="button" class="btn btn-sm btn-danger delete-btn"
+                                            title="Remove"
                                             data-id="{{ $row->pendingID }}"
                                             data-name="{{ $row->full_name }}">
                                             <i class="fa fa-trash"></i>
                                         </button>
                                     @else
-                                        <span class="small text-muted">-</span>
+                                        <span class="small text-muted">Enrolled</span>
                                     @endif
                                 </td>
                             </tr>
@@ -315,27 +330,6 @@
                             <label>Notes</label>
                             <textarea class="form-control" name="notes" id="notes" rows="2"></textarea>
                         </div>
-                        <div class="col-12"><hr><strong>Pre-admission Payment</strong>
-                            <div class="small text-muted mb-2">Record amount paid before Confirm &amp; Enroll into class.</div>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label>Pay Amount</label>
-                            <input type="number" min="0" step="0.01" class="form-control" name="pay_amount" id="pay_amount" placeholder="0">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label>Payment Method</label>
-                            <select class="form-control" name="payment_method" id="payment_method">
-                                <option value="">-</option>
-                                <option value="Cash">Cash</option>
-                                <option value="Bank">Bank</option>
-                                <option value="Mobile Money">Mobile Money</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label>Payment Reference</label>
-                            <input type="text" class="form-control" name="payment_reference" id="payment_reference" placeholder="Receipt / control no.">
-                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -370,12 +364,56 @@
     </div>
 </div>
 
-{{-- Confirm Modal --}}
+{{-- Record Payment Modal (does NOT enroll) --}}
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title">Record Payment</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="paymentForm">
+                @csrf
+                <input type="hidden" id="paymentPendingID">
+                <div class="modal-body">
+                    <p id="paymentText" class="mb-3"></p>
+                    <div class="alert mb-3" style="border-radius:0;background:#e7f1ff;border:1px solid #b6d4fe;color:#084298;">
+                        Recording payment marks status as <strong>Paid</strong>. Student stays off class until you use <strong>Enroll</strong>.
+                    </div>
+                    <div class="mb-3">
+                        <label>Pay Amount <span class="text-danger">*</span></label>
+                        <input type="number" min="0.01" step="0.01" class="form-control" id="pay_amount" required placeholder="0">
+                    </div>
+                    <div class="mb-3">
+                        <label>Payment Method</label>
+                        <select class="form-control" id="payment_method">
+                            <option value="">-</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Bank">Bank</option>
+                            <option value="Mobile Money">Mobile Money</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label>Payment Reference</label>
+                        <input type="text" class="form-control" id="payment_reference" placeholder="Receipt / control no.">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info text-white">Save Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- Enroll Modal (final step only) --}}
 <div class="modal fade" id="confirmModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
-                <h5 class="modal-title">Confirm &amp; Enroll</h5>
+                <h5 class="modal-title">Enroll Student</h5>
                 <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <form id="confirmForm">
@@ -395,34 +433,11 @@
                             @endforeach
                         @endforeach
                     </select>
-                    <div class="mt-3 p-2" style="background:#fff8f0;border:1px solid #ffe0a3;">
-                        <strong class="d-block mb-2">Pre-admission payment (optional)</strong>
-                        <div class="row">
-                            <div class="col-md-4 mb-2">
-                                <label class="small mb-1">Pay Amount</label>
-                                <input type="number" min="0" step="0.01" class="form-control" id="confirmPayAmount" placeholder="0">
-                            </div>
-                            <div class="col-md-4 mb-2">
-                                <label class="small mb-1">Method</label>
-                                <select class="form-control" id="confirmPaymentMethod">
-                                    <option value="">-</option>
-                                    <option value="Cash">Cash</option>
-                                    <option value="Bank">Bank</option>
-                                    <option value="Mobile Money">Mobile Money</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4 mb-2">
-                                <label class="small mb-1">Reference</label>
-                                <input type="text" class="form-control" id="confirmPaymentReference" placeholder="Receipt / control no.">
-                            </div>
-                        </div>
-                    </div>
-                    <p class="small text-muted mt-2 mb-0">This creates a real student record and Active enrollment.</p>
+                    <p class="small text-muted mt-2 mb-0">Final step: creates a real student record and Active enrollment.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Confirm &amp; Enroll</button>
+                    <button type="submit" class="btn btn-success">Enroll</button>
                 </div>
             </form>
         </div>
@@ -515,9 +530,6 @@
             document.getElementById('parent_email').value = btn.dataset.pemail || '';
             document.getElementById('parent_relationship').value = btn.dataset.prel || '';
             document.getElementById('notes').value = btn.dataset.notes || '';
-            document.getElementById('pay_amount').value = btn.dataset.pay || '';
-            document.getElementById('payment_method').value = btn.dataset.pmethod || '';
-            document.getElementById('payment_reference').value = btn.dataset.pref || '';
             document.getElementById('pendingModalTitle').textContent = 'Edit Pending Student';
             document.getElementById('pendingSubmitBtn').textContent = 'Update';
             openModal(document.getElementById('pendingModal'));
@@ -565,40 +577,69 @@
         .catch(() => Swal.fire('Error', 'Network error', 'error'));
     });
 
-    function openConfirm(mode, id, name, subclass, pay, pref, pmethod) {
+    document.querySelectorAll('.record-pay-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.getElementById('paymentPendingID').value = btn.dataset.id || '';
+            document.getElementById('paymentText').textContent = 'Record payment for: ' + (btn.dataset.name || 'student');
+            document.getElementById('pay_amount').value = btn.dataset.pay || '';
+            document.getElementById('payment_method').value = btn.dataset.pmethod || '';
+            document.getElementById('payment_reference').value = btn.dataset.pref || '';
+            openModal(document.getElementById('paymentModal'));
+        });
+    });
+
+    document.getElementById('paymentForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const amount = document.getElementById('pay_amount').value;
+        if (!amount || Number(amount) <= 0) {
+            Swal.fire('Required', 'Enter a valid pay amount.', 'warning');
+            return;
+        }
+        const fd = new FormData();
+        fd.append('_token', csrf);
+        fd.append('pendingID', document.getElementById('paymentPendingID').value);
+        fd.append('pay_amount', amount);
+        fd.append('payment_method', document.getElementById('payment_method').value || '');
+        fd.append('payment_reference', document.getElementById('payment_reference').value || '');
+        fetch(@json(route('admin.pending_students.record_payment')), {
+            method: 'POST', headers: headers(), body: fd, credentials: 'same-origin'
+        })
+        .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+        .then(res => {
+            if (!res.ok || !res.data.success) {
+                Swal.fire('Error', errMsg(res.data, 'Payment failed'), 'error');
+                return;
+            }
+            closeModal(document.getElementById('paymentModal'));
+            Swal.fire({ icon: 'success', title: res.data.message, timer: 1600, showConfirmButton: false })
+                .then(() => location.reload());
+        })
+        .catch(() => Swal.fire('Error', 'Network error', 'error'));
+    });
+
+    function openConfirm(mode, id, name, subclass) {
         document.getElementById('confirmMode').value = mode;
         document.getElementById('confirmPendingID').value = id || '';
         document.getElementById('confirmSubclassID').value = subclass || '';
-        document.getElementById('confirmPayAmount').value = pay || '';
-        document.getElementById('confirmPaymentReference').value = pref || '';
-        document.getElementById('confirmPaymentMethod').value = pmethod || '';
         document.getElementById('confirmText').textContent = mode === 'batch'
-            ? 'Confirm & enroll all selected pending students into one stream.'
-            : ('Confirm & enroll: ' + (name || 'student'));
+            ? 'Enroll all selected students into one stream (final step).'
+            : ('Enroll into class: ' + (name || 'student'));
         openModal(document.getElementById('confirmModal'));
     }
 
     document.querySelectorAll('.confirm-one-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            openConfirm(
-                'one',
-                btn.dataset.id,
-                btn.dataset.name,
-                btn.dataset.subclass,
-                btn.dataset.pay,
-                btn.dataset.pref,
-                btn.dataset.pmethod
-            );
+            openConfirm('one', btn.dataset.id, btn.dataset.name, btn.dataset.subclass);
         });
     });
 
     document.getElementById('openBatchConfirmBtn').addEventListener('click', function () {
         const ids = Array.from(document.querySelectorAll('.pending-check:checked')).map(cb => cb.value);
         if (!ids.length) {
-            Swal.fire('Select students', 'Tick one or more pending students first.', 'info');
+            Swal.fire('Select students', 'Tick one or more Pending/Paid students first.', 'info');
             return;
         }
-        openConfirm('batch', ids.join(','), null, null, '', '', '');
+        openConfirm('batch', ids.join(','), null, null);
         document.getElementById('confirmPendingID').value = ids.join(',');
     });
 
@@ -613,12 +654,6 @@
         const fd = new FormData();
         fd.append('_token', csrf);
         fd.append('subclassID', subclassID);
-        const payAmount = document.getElementById('confirmPayAmount').value;
-        const payMethod = document.getElementById('confirmPaymentMethod').value;
-        const payRef = document.getElementById('confirmPaymentReference').value;
-        if (payAmount !== '') fd.append('pay_amount', payAmount);
-        if (payMethod !== '') fd.append('payment_method', payMethod);
-        if (payRef !== '') fd.append('payment_reference', payRef);
         let url;
         if (mode === 'batch') {
             url = @json(route('admin.pending_students.confirm_batch'));
@@ -633,7 +668,7 @@
             .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
             .then(res => {
                 if (!res.ok || !res.data.success) {
-                    Swal.fire('Error', errMsg(res.data, 'Confirm failed'), 'error');
+                    Swal.fire('Error', errMsg(res.data, 'Enroll failed'), 'error');
                     return;
                 }
                 closeModal(document.getElementById('confirmModal'));
