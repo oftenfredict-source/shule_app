@@ -33,6 +33,12 @@ Schedule::command('attendance:send-auto-fingerprint-sms')
     ->withoutOverlapping()
     ->runInBackground();
 
+// One-off scheduled SMS from SMS Notification page
+Schedule::command('sms:send-scheduled')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 Artisan::command('students:import-template {file : Path to TSV file} {--school=7 : schoolID} {--dry-run : Validate only; do not write to DB}', function () {
     $file = (string) $this->argument('file');
     $schoolID = (int) $this->option('school');

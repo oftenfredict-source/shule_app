@@ -530,11 +530,20 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label class="font-weight-bold mb-2"><i class="fa fa-edit text-primary-custom"></i> Type Your Message</label>
-                                <textarea class="form-control shadow-sm" id="modalMessageText" rows="12" placeholder="Type message here..."></textarea>
+                                <div id="joiningIntroHint" class="alert py-2 px-3 mb-2 d-none" style="border-radius:0;background:#e7f1ff;border:1px solid #b6d4fe;color:#084298;font-size:0.85rem;">
+                                    <i class="fa fa-lock"></i>
+                                    Intro <strong>Mzazi wa (student name).</strong> is added automatically per parent and stays hidden here. Type only your message body.
+                                </div>
+                                <textarea class="form-control shadow-sm" id="modalMessageText" rows="10" placeholder="Type message here..."></textarea>
                                 <div class="d-flex justify-content-between mt-2">
                                     <span class="small text-muted"><i class="fa fa-info-circle"></i> SMS is typically 160 chars</span>
                                     <span class="small font-weight-bold text-primary-custom"><span id="modalCharCount">0</span> chars</span>
                                 </div>
+                            </div>
+                            <div class="form-group mt-3" id="smsScheduleBlock">
+                                <label class="font-weight-bold mb-2"><i class="fa fa-calendar text-primary-custom"></i> Schedule SMS (optional)</label>
+                                <input type="datetime-local" class="form-control shadow-sm" id="modalScheduleAt">
+                                <small class="text-muted d-block mt-1">Leave empty to send now. Schedule uses server time.</small>
                             </div>
                         </div>
                         
@@ -593,8 +602,11 @@
             </div>
             <div class="modal-footer bg-light">
                 <button type="button" class="btn btn-secondary shadow-sm" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-outline-primary px-4 shadow-sm" id="modalScheduleBtn" style="border-color:#940000;color:#940000;">
+                    <i class="fa fa-clock-o"></i> Schedule SMS
+                </button>
                 <button type="button" class="btn btn-primary-custom px-4 shadow-sm" id="modalStartSendingBtn">
-                    <i class="fa fa-paper-plane"></i> Send SMS
+                    <i class="fa fa-paper-plane"></i> Send Now
                 </button>
             </div>
         </div>
@@ -728,9 +740,14 @@
             $('#smsModal').modal('show');
             $('#modalProgressArea').addClass('d-none');
             $('#modalStartSendingBtn').prop('disabled', false);
+            $('#modalScheduleBtn').prop('disabled', false);
             $('#modalRecipientsList').html('<tr><td colspan="5" class="text-center py-4"><i class="fa fa-spinner fa-spin text-primary"></i> Loading recipients...</td></tr>');
             $('#modalSelectAll').prop('checked', false);
             $('#modalSelectedCount').text('Selected: 0');
+            $('#modalMessageText').val('');
+            $('#modalCharCount').text('0');
+            $('#modalScheduleAt').val('');
+            $('#joiningIntroHint').toggleClass('d-none', type !== 'pending_parents');
             
             let title = "Send SMS";
             $('#classSelectionRow').hide();
@@ -758,7 +775,7 @@
                     fetchRecipients('{{ route("get_school_board_sms") }}');
                     break;
                 case 'pending_parents':
-                    title = "Send to Parents Registering Children";
+                    title = "Send to Joining Parents";
                     fetchRecipients('{{ route("get_pending_parents_sms") }}');
                     break;
                 case 'all_users': 
@@ -970,6 +987,88 @@
                 $('#modalCharCount').text(this.value.length);
             });
 
+            function resolveRecipientType(type) {
+                let recipientType = 'all_parents';
+                if (type === 'teacher') recipientType = 'all_teachers';
+                else if (type === 'staff') recipientType = 'all_staff';
+                else if (type === 'board') recipientType = 'school_board';
+                else if (type === 'pending_parent') recipientType = 'pending_parents';
+                else if (window.currentSmsType === 'class_parents') recipientType = 'class_parents';
+                else if (window.currentSmsType === 'pending_parents') recipientType = 'pending_parents';
+                return recipientType;
+            }
+
+            $('#modalScheduleBtn').on('click', async function() {
+                const message = $('#modalMessageText').val();
+                const scheduledAt = $('#modalScheduleAt').val();
+                const selected = $('.recipient-checkbox:checked');
+
+                if (!message) {
+                    Swal.fire('Error', 'Please type a message', 'error');
+                    return;
+                }
+                if (selected.length === 0) {
+                    Swal.fire('Error', 'Please select at least one recipient', 'error');
+                    return;
+                }
+                if (!scheduledAt) {
+                    Swal.fire('Required', 'Choose date and time to schedule the SMS.', 'warning');
+                    return;
+                }
+
+                const ids = [];
+                let recipientType = 'all_parents';
+                selected.each(function() {
+                    ids.push($(this).val());
+                    recipientType = resolveRecipientType($(this).data('type'));
+                });
+
+                const confirmResult = await Swal.fire({
+                    title: 'Schedule SMS?',
+                    text: `Schedule for ${selected.length} recipient(s) at ${scheduledAt}?`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#940000',
+                    confirmButtonText: 'Yes, Schedule'
+                });
+                if (!confirmResult.isConfirmed) return;
+
+                let scheduledValue = scheduledAt.replace('T', ' ');
+                if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(scheduledValue)) {
+                    scheduledValue += ':00';
+                }
+                const payload = {
+                    _token: '{{ csrf_token() }}',
+                    message: message,
+                    recipient_type: recipientType,
+                    selected_ids: ids,
+                    scheduled_at: scheduledValue
+                };
+                if (recipientType === 'class_parents') {
+                    payload.classID = $('#modalClassSelect').val();
+                }
+
+                $('#modalScheduleBtn').prop('disabled', true);
+                try {
+                    const res = await $.ajax({
+                        url: '{{ route("schedule_sms") }}',
+                        type: 'POST',
+                        data: payload
+                    });
+                    if (res.success) {
+                        Swal.fire('Scheduled', res.message, 'success');
+                        $('#smsModal').modal('hide');
+                    } else {
+                        Swal.fire('Error', res.message || 'Could not schedule SMS', 'error');
+                    }
+                } catch (err) {
+                    const msg = (err.responseJSON && err.responseJSON.message) ? err.responseJSON.message : 'Could not schedule SMS';
+                    Swal.fire('Error', msg, 'error');
+                } finally {
+                    $('#modalScheduleBtn').prop('disabled', false);
+                }
+            });
+
             $('#modalStartSendingBtn').on('click', async function() {
                 let message = $('#modalMessageText').val();
                 let selected = $('.recipient-checkbox:checked');
@@ -983,9 +1082,19 @@
                     return;
                 }
 
+                const scheduleAt = $('#modalScheduleAt').val();
+                if (scheduleAt) {
+                    Swal.fire('Tip', 'You set a schedule time. Use "Schedule SMS" instead of Send Now, or clear the schedule field.', 'info');
+                    return;
+                }
+
+                const confirmText = window.currentSmsType === 'pending_parents'
+                    ? `Send to ${selected.length} joining parent(s)? Each SMS will start with "Mzazi wa (student name)".`
+                    : `Send this message to ${selected.length} recipient(s)?`;
+
                 const confirmResult = await Swal.fire({
                     title: 'Confirm Sending',
-                    text: `Send this message to ${selected.length} recipient(s)?`,
+                    text: confirmText,
                     icon: 'question',
                     showCancelButton: true,
                     confirmButtonColor: '#940000',
@@ -994,6 +1103,7 @@
 
                 if (confirmResult.isConfirmed) {
                     $('#modalStartSendingBtn').prop('disabled', true);
+                    $('#modalScheduleBtn').prop('disabled', true);
                     $('#modalProgressArea').removeClass('d-none');
                     
                     let total = selected.length;
@@ -1007,20 +1117,12 @@
                         let id = checkbox.val();
                         let type = checkbox.data('type');
                         
-                        // Update progress bar
                         let percent = Math.round(((i) / total) * 100);
                         $('#modalProgressBar').css('width', percent + '%').text(percent + '%');
                         
-                        // Show spinner in row
                         statusCell.html('<i class="fa fa-spinner fa-spin text-primary"></i>');
                         
-                        // Determine recipient type for API
-                        let recipientType = 'all_parents';
-                        if (type === 'teacher') recipientType = 'all_teachers';
-                        else if (type === 'staff') recipientType = 'all_staff';
-                        else if (type === 'board') recipientType = 'school_board';
-                        else if (type === 'pending_parent') recipientType = 'pending_parents';
-                        else if (window.currentSmsType === 'class_parents') recipientType = 'class_parents';
+                        let recipientType = resolveRecipientType(type);
 
                         const payload = {
                             _token: '{{ csrf_token() }}',
@@ -1052,7 +1154,6 @@
                             failCount++;
                         }
                         
-                        // Small delay to prevent hitting rate limits too hard
                         await new Promise(resolve => setTimeout(resolve, 300));
                     }
 
@@ -1064,6 +1165,7 @@
                         icon: 'info'
                     }).then(() => {
                         $('#modalStartSendingBtn').prop('disabled', false);
+                        $('#modalScheduleBtn').prop('disabled', false);
                         $('#modalProgressArea').addClass('d-none');
                     });
                 }

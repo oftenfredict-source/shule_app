@@ -4345,6 +4345,10 @@ Route::get("get_sms_balance", [
 Route::post("send_sms", [SMS_InformationController::class, "send_sms"])->name(
     "send_sms",
 );
+Route::post("schedule_sms", [
+    SMS_InformationController::class,
+    "schedule_sms",
+])->name("schedule_sms");
 
 //Accomodation routes
 Route::get("manage_accomodation", [

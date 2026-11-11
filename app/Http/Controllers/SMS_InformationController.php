@@ -15,6 +15,7 @@ use App\Models\ParentModel;
 use App\Models\OtherStaff;
 use App\Models\SchoolBoardMember;
 use App\Models\PendingStudentRegistration;
+use App\Models\ScheduledSms;
 use App\Models\SmsLog;
 use App\Services\SmsService;
 use App\Services\SelectedAcademicYearService;
@@ -317,7 +318,7 @@ class SMS_InformationController extends Controller
     }
 
     /**
-     * Parents of students still pending admission (not yet confirmed).
+     * Parents of students still joining (Pending/Paid, not yet enrolled).
      * One row per phone, so a parent registering more than one child is listed once.
      */
     public function get_pending_registration_parents()
@@ -328,50 +329,17 @@ class SMS_InformationController extends Controller
                 return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
             }
 
-            $rows = PendingStudentRegistration::where('schoolID', $schoolID)
-                ->where('status', 'Pending')
-                ->whereNotNull('parent_phone')
-                ->where('parent_phone', '!=', '')
-                ->orderBy('parent_first_name')
-                ->orderBy('first_name')
-                ->get();
+            $groups = $this->pendingParentGroups((int) $schoolID);
 
-            $grouped = [];
-            foreach ($rows as $row) {
-                $phoneKey = preg_replace('/\s+/', '', trim((string) $row->parent_phone));
-                if ($phoneKey === '') {
-                    continue;
-                }
-
-                $child = $row->full_name !== '' ? $row->full_name : 'Student';
-                if (!isset($grouped[$phoneKey])) {
-                    $parentName = trim(implode(' ', array_filter([
-                        $row->parent_first_name,
-                        $row->parent_middle_name,
-                        $row->parent_last_name,
-                    ])));
-                    $grouped[$phoneKey] = [
-                        'id' => $row->pendingID,
-                        'phone' => trim((string) $row->parent_phone),
-                        'parent_name' => $parentName !== '' ? $parentName : 'Parent',
-                        'relationship' => $row->parent_relationship,
-                        'children' => [],
-                    ];
-                }
-
-                if (!in_array($child, $grouped[$phoneKey]['children'], true)) {
-                    $grouped[$phoneKey]['children'][] = $child;
-                }
-            }
-
-            $parents = collect($grouped)->map(function ($item) {
+            $parents = collect($groups)->map(function ($item) {
                 $relation = $item['relationship'] ? $item['relationship'] : 'Parent';
 
                 return [
                     'id' => $item['id'],
                     'phone' => $item['phone'],
                     'display_name' => $item['parent_name'] . ' - ' . $relation . ' of ' . implode(', ', $item['children']),
-                    'role_label' => 'Pending Join',
+                    'student_names' => $item['children'],
+                    'role_label' => 'Joining Parent',
                 ];
             })->values();
 
@@ -379,10 +347,11 @@ class SMS_InformationController extends Controller
                 'success' => true,
                 'count' => $parents->count(),
                 'recipients' => $parents,
-                'role' => 'Pending Join',
+                'role' => 'Joining Parent',
                 'recipient_kind' => 'pending_parent',
+                'auto_intro' => 'Mzazi wa (student name)',
                 'message' => $parents->isEmpty()
-                    ? 'No parents of pending student registrations with a phone number.'
+                    ? 'No joining parents (Pending/Paid) with a phone number.'
                     : null,
             ]);
         } catch (\Exception $e) {
@@ -823,35 +792,21 @@ class SMS_InformationController extends Controller
                     break;
 
                 case 'pending_parents':
-                    $pendingQuery = PendingStudentRegistration::where('schoolID', $schoolID)
-                        ->where('status', 'Pending')
-                        ->whereNotNull('parent_phone')
-                        ->where('parent_phone', '!=', '');
-
-                    if (!empty($selectedIds)) {
-                        $pendingQuery->whereIn('pendingID', array_map('intval', $selectedIds));
-                    }
-
-                    $seenPhones = [];
-                    foreach ($pendingQuery->get() as $row) {
-                        $phoneKey = preg_replace('/\s+/', '', trim((string) $row->parent_phone));
-                        if ($phoneKey === '' || isset($seenPhones[$phoneKey])) {
-                            continue;
-                        }
-                        $seenPhones[$phoneKey] = true;
-
-                        $parentName = trim(implode(' ', array_filter([
-                            $row->parent_first_name,
-                            $row->parent_middle_name,
-                            $row->parent_last_name,
-                        ])));
-                        $childName = $row->full_name !== '' ? $row->full_name : 'Student';
-
+                    $groups = $this->pendingParentGroups(
+                        (int) $schoolID,
+                        !empty($selectedIds) ? array_map('intval', $selectedIds) : null
+                    );
+                    foreach ($groups as $group) {
+                        $intro = 'Mzazi wa ' . implode(', ', $group['children']) . '. ';
+                        $body = $intro . ltrim((string) $message);
                         $recipients[] = [
                             'type' => 'pending_parent',
-                            'phone' => trim((string) $row->parent_phone),
-                            'name' => ($parentName !== '' ? $parentName : 'Parent') . ' (Parent of ' . $childName . ')',
-                            'id' => $row->pendingID,
+                            'phone' => $group['phone'],
+                            'name' => $group['parent_name'] . ' (Parent of ' . implode(', ', $group['children']) . ')',
+                            'id' => $group['id'],
+                            'message' => $school->senderID
+                                ? $body
+                                : ($school->school_name . '. ' . $body),
                         ];
                     }
                     break;
@@ -918,76 +873,295 @@ class SMS_InformationController extends Controller
         }
     }
 
-    private function sendSmsBatch(array $recipients, string $fullMessage, array &$results, string $messageType = 'general'): void
+    /**
+     * Queue an SMS to send later (schedule).
+     */
+    public function schedule_sms(Request $request)
     {
-        $schoolID   = Session::get('schoolID');
-        $sentDate   = now()->toDateString();
-        $sentTime   = now()->toTimeString();
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+            }
 
-        // Determine who sent the SMS
-        $sentByName = Session::get('name', 'System');
-        $sentByRole = Session::get('role', 'admin');
+            $validator = Validator::make($request->all(), [
+                'message' => 'required|string|min:1',
+                'recipient_type' => 'required|in:all_parents,class_parents,all_parents_teachers,all_teachers,specific_parent,specific_teacher,all_staff,specific_staff,school_board,pending_parents',
+                'scheduled_at' => 'required|date|after:now',
+                'selected_ids' => 'nullable',
+                'classID' => 'nullable|integer',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['success' => false, 'message' => $validator->errors()->first()], 400);
+            }
+
+            $selectedIds = $request->input('selected_ids');
+            if ($selectedIds && !is_array($selectedIds)) {
+                $selectedIds = explode(',', (string) $selectedIds);
+            }
+            $selectedIds = $selectedIds
+                ? array_values(array_filter(array_map('intval', $selectedIds)))
+                : null;
+
+            if (empty($selectedIds)) {
+                return response()->json(['success' => false, 'message' => 'Select at least one recipient to schedule.'], 422);
+            }
+
+            $job = ScheduledSms::create([
+                'schoolID' => $schoolID,
+                'recipient_type' => $request->input('recipient_type'),
+                'message' => $request->input('message'),
+                'selected_ids' => $selectedIds,
+                'classID' => $request->input('classID'),
+                'scheduled_at' => Carbon::parse($request->input('scheduled_at')),
+                'status' => 'pending',
+                'created_by' => Session::get('userID') ?? Session::get('staffID'),
+                'created_by_name' => Session::get('user_name') ?? Session::get('fullname') ?? Session::get('name') ?? Session::get('user_type'),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'SMS scheduled for ' . $job->scheduled_at->format('Y-m-d H:i'),
+                'scheduled' => [
+                    'id' => $job->id,
+                    'scheduled_at' => $job->scheduled_at->toDateTimeString(),
+                    'recipient_count' => count($selectedIds),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error scheduling SMS: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Used by the scheduler command (no HTTP session).
+     */
+    public function dispatchScheduledSms(ScheduledSms $job): array
+    {
+        $school = School::find($job->schoolID);
+        if (!$school) {
+            return ['success' => false, 'message' => 'School not found', 'total' => 0, 'success_count' => 0, 'failed' => 0];
+        }
+
+        $message = (string) $job->message;
+        $recipientType = (string) $job->recipient_type;
+        $selectedIds = is_array($job->selected_ids) ? $job->selected_ids : [];
+
+        $fullMessage = $school->senderID
+            ? $message
+            : ($school->school_name . '. ' . $message);
+
+        $recipients = [];
+        if ($recipientType === 'pending_parents') {
+            $groups = $this->pendingParentGroups((int) $job->schoolID, $selectedIds ?: null);
+            foreach ($groups as $group) {
+                $intro = 'Mzazi wa ' . implode(', ', $group['children']) . '. ';
+                $body = $intro . ltrim($message);
+                $recipients[] = [
+                    'type' => 'pending_parent',
+                    'phone' => $group['phone'],
+                    'name' => $group['parent_name'] . ' (Parent of ' . implode(', ', $group['children']) . ')',
+                    'id' => $group['id'],
+                    'message' => $school->senderID
+                        ? $body
+                        : ($school->school_name . '. ' . $body),
+                ];
+            }
+        } else {
+            // Generic fallback: rebuild using send_sms recipient rules via temporary session.
+            Session::put('schoolID', $job->schoolID);
+            $request = Request::create('/send_sms', 'POST', [
+                'message' => $message,
+                'recipient_type' => $recipientType,
+                'selected_ids' => $selectedIds,
+                'classID' => $job->classID,
+                'is_sync' => true,
+            ]);
+            $response = $this->send_sms($request);
+            $payload = method_exists($response, 'getData') ? (array) $response->getData(true) : [];
+            return [
+                'success' => (bool) ($payload['success'] ?? false),
+                'message' => $payload['message'] ?? 'Scheduled send finished',
+                'total' => $payload['results']['total'] ?? 0,
+                'success_count' => $payload['results']['success'] ?? 0,
+                'failed' => $payload['results']['failed'] ?? 0,
+            ];
+        }
+
+        $results = [
+            'total' => count($recipients),
+            'success' => 0,
+            'failed' => 0,
+            'details' => [],
+        ];
+
+        if ($results['total'] === 0) {
+            return [
+                'success' => false,
+                'message' => 'No valid recipients found for the scheduled SMS.',
+                'total' => 0,
+                'success_count' => 0,
+                'failed' => 0,
+            ];
+        }
+
+        $this->sendSmsBatch(
+            $recipients,
+            $fullMessage,
+            $results,
+            $recipientType,
+            (int) $job->schoolID,
+            $job->created_by_name ?: 'Scheduler',
+            'system'
+        );
+
+        return [
+            'success' => $results['success'] > 0,
+            'message' => 'Scheduled SMS processed',
+            'total' => $results['total'],
+            'success_count' => $results['success'],
+            'failed' => $results['failed'],
+        ];
+    }
+
+    /**
+     * @return array<int, array{id:int,phone:string,parent_name:string,relationship:?string,children:array<int,string>}>
+     */
+    private function pendingParentGroups(int $schoolID, ?array $selectedIds = null): array
+    {
+        $query = PendingStudentRegistration::where('schoolID', $schoolID)
+            ->whereIn('status', ['Pending', 'Paid'])
+            ->whereNotNull('parent_phone')
+            ->where('parent_phone', '!=', '')
+            ->orderBy('parent_first_name')
+            ->orderBy('first_name');
+
+        $rows = $query->get();
+
+        // If specific rows were selected, keep phones belonging to those rows,
+        // then include all joining children under those same phones for the intro.
+        if (!empty($selectedIds)) {
+            $selectedPhones = $rows
+                ->whereIn('pendingID', $selectedIds)
+                ->map(fn ($row) => preg_replace('/\s+/', '', trim((string) $row->parent_phone)))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            $rows = $rows->filter(function ($row) use ($selectedPhones) {
+                $phoneKey = preg_replace('/\s+/', '', trim((string) $row->parent_phone));
+                return $phoneKey !== '' && in_array($phoneKey, $selectedPhones, true);
+            })->values();
+        }
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $phoneKey = preg_replace('/\s+/', '', trim((string) $row->parent_phone));
+            if ($phoneKey === '') {
+                continue;
+            }
+
+            $child = $row->full_name !== '' ? $row->full_name : 'Student';
+            if (!isset($grouped[$phoneKey])) {
+                $parentName = trim(implode(' ', array_filter([
+                    $row->parent_first_name,
+                    $row->parent_middle_name,
+                    $row->parent_last_name,
+                ])));
+                $grouped[$phoneKey] = [
+                    'id' => (int) $row->pendingID,
+                    'phone' => trim((string) $row->parent_phone),
+                    'parent_name' => $parentName !== '' ? $parentName : 'Parent',
+                    'relationship' => $row->parent_relationship,
+                    'children' => [],
+                ];
+            }
+
+            if (!in_array($child, $grouped[$phoneKey]['children'], true)) {
+                $grouped[$phoneKey]['children'][] = $child;
+            }
+        }
+
+        return array_values($grouped);
+    }
+
+    private function sendSmsBatch(
+        array $recipients,
+        string $fullMessage,
+        array &$results,
+        string $messageType = 'general',
+        ?int $schoolID = null,
+        ?string $sentByName = null,
+        ?string $sentByRole = null
+    ): void {
+        $schoolID = $schoolID ?? Session::get('schoolID');
+        $sentDate = now()->toDateString();
+        $sentTime = now()->toTimeString();
+        $sentByName = $sentByName ?? Session::get('name', 'System');
+        $sentByRole = $sentByRole ?? Session::get('role', 'admin');
 
         $batchSize = 50;
-        $batches   = array_chunk($recipients, $batchSize);
+        $batches = array_chunk($recipients, $batchSize);
 
         foreach ($batches as $batchIndex => $batch) {
             foreach ($batch as $recipient) {
+                $outgoing = $recipient['message'] ?? $fullMessage;
                 try {
-                    $smsResult = $this->smsService->sendSms($recipient['phone'], $fullMessage);
+                    $smsResult = $this->smsService->sendSms($recipient['phone'], $outgoing);
 
-                    $status    = $smsResult['success'] ? 'PENDING' : 'FAILED';
+                    $status = $smsResult['success'] ? 'PENDING' : 'FAILED';
                     $messageId = $smsResult['message_id'] ?? null;
 
                     if ($smsResult['success']) {
                         $results['success']++;
                         $results['details'][] = [
-                            'phone'  => $recipient['phone'],
-                            'name'   => $recipient['name'],
+                            'phone' => $recipient['phone'],
+                            'name' => $recipient['name'],
                             'status' => 'success',
-                            'message'=> 'SMS sent successfully'
+                            'message' => 'SMS sent successfully',
                         ];
                     } else {
                         $results['failed']++;
                         $results['details'][] = [
-                            'phone'  => $recipient['phone'],
-                            'name'   => $recipient['name'],
+                            'phone' => $recipient['phone'],
+                            'name' => $recipient['name'],
                             'status' => 'failed',
-                            'message'=> $smsResult['message'] ?? 'Failed to send SMS'
+                            'message' => $smsResult['message'] ?? 'Failed to send SMS',
                         ];
                     }
 
-                    // Log to DB (never treat log failure as send failure)
                     try {
                         SmsLog::create([
-                            'schoolID'       => $schoolID,
-                            'message_id'     => $messageId,
-                            'message_type'   => $messageType,
+                            'schoolID' => $schoolID,
+                            'message_id' => $messageId,
+                            'message_type' => $messageType,
                             'recipient_name' => $recipient['name'],
-                            'recipient_phone'=> $recipient['phone'],
+                            'recipient_phone' => $recipient['phone'],
                             'recipient_role' => $recipient['type'] ?? 'unknown',
-                            'sent_by_name'   => $sentByName,
-                            'sent_by_role'   => $sentByRole,
-                            'message'        => $fullMessage,
-                            'status'         => $status,
-                            'sent_date'      => $sentDate,
-                            'sent_time'      => $sentTime,
+                            'sent_by_name' => $sentByName,
+                            'sent_by_role' => $sentByRole,
+                            'message' => $outgoing,
+                            'status' => $status,
+                            'sent_date' => $sentDate,
+                            'sent_time' => $sentTime,
                         ]);
                     } catch (\Exception $logEx) {
                         Log::warning('SmsLog create failed after send: ' . $logEx->getMessage());
                     }
-
                 } catch (\Exception $e) {
                     $results['failed']++;
                     $results['details'][] = [
-                        'phone'  => $recipient['phone'],
-                        'name'   => $recipient['name'],
+                        'phone' => $recipient['phone'],
+                        'name' => $recipient['name'],
                         'status' => 'failed',
-                        'message'=> 'Exception: ' . $e->getMessage()
+                        'message' => 'Exception: ' . $e->getMessage(),
                     ];
                 }
 
-                usleep(100000); // 0.1 second delay
+                usleep(100000);
             }
 
             if ($batchIndex < count($batches) - 1) {
