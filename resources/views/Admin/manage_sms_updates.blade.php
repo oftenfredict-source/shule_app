@@ -1083,11 +1083,9 @@
                     return;
                 }
 
-                const confirmText = `Send this message to ${selected.length} recipient(s)?`;
-
                 const confirmResult = await Swal.fire({
                     title: 'Confirm Sending',
-                    text: confirmText,
+                    text: 'Send this message to ' + selected.length + ' recipient(s)?',
                     icon: 'question',
                     showCancelButton: true,
                     confirmButtonColor: '#940000',
