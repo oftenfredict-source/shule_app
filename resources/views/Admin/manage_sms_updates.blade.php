@@ -530,10 +530,6 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label class="font-weight-bold mb-2"><i class="fa fa-edit text-primary-custom"></i> Type Your Message</label>
-                                <div id="joiningIntroHint" class="alert py-2 px-3 mb-2 d-none" style="border-radius:0;background:#e7f1ff;border:1px solid #b6d4fe;color:#084298;font-size:0.85rem;">
-                                    <i class="fa fa-lock"></i>
-                                    Auto format (hidden): <strong>Mzazi wa (student).</strong> your message <strong>Karibu {school}</strong>. Type only the middle message body.
-                                </div>
                                 <textarea class="form-control shadow-sm" id="modalMessageText" rows="10" placeholder="Type message here..."></textarea>
                                 <div class="d-flex justify-content-between mt-2">
                                     <span class="small text-muted"><i class="fa fa-info-circle"></i> SMS is typically 160 chars</span>
@@ -747,7 +743,6 @@
             $('#modalMessageText').val('');
             $('#modalCharCount').text('0');
             $('#modalScheduleAt').val('');
-            $('#joiningIntroHint').toggleClass('d-none', type !== 'pending_parents');
             
             let title = "Send SMS";
             $('#classSelectionRow').hide();
@@ -1088,9 +1083,7 @@
                     return;
                 }
 
-                const confirmText = window.currentSmsType === 'pending_parents'
-                    ? `Send to ${selected.length} joining parent(s)? Format: "Mzazi wa (student). {your message} Karibu {school}".`
-                    : `Send this message to ${selected.length} recipient(s)?`;
+                const confirmText = `Send this message to ${selected.length} recipient(s)?`;
 
                 const confirmResult = await Swal.fire({
                     title: 'Confirm Sending',

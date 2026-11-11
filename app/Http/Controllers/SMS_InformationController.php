@@ -793,14 +793,14 @@ class SMS_InformationController extends Controller
                         !empty($selectedIds) ? array_map('intval', $selectedIds) : null
                     );
                     foreach ($groups as $group) {
-                        $intro = 'Mzazi wa ' . implode(', ', $group['children']) . '. ';
+                        $intro = 'Mzazi wa ' . implode(', ', $group['children']) . ', ';
                         $body = $intro . ltrim((string) $message);
                         $recipients[] = [
                             'type' => 'pending_parent',
                             'phone' => $group['phone'],
                             'name' => $group['parent_name'] . ' (Parent of ' . implode(', ', $group['children']) . ')',
                             'id' => $group['id'],
-                            // Always end with Karibu {school} for joining-parent SMS
+                            // Always end with Karibu {school} on a new line for joining-parent SMS
                             'message' => $this->applySchoolSignOff($school, $body, true),
                         ];
                     }
@@ -950,7 +950,7 @@ class SMS_InformationController extends Controller
         if ($recipientType === 'pending_parents') {
             $groups = $this->pendingParentGroups((int) $job->schoolID, $selectedIds ?: null);
             foreach ($groups as $group) {
-                $intro = 'Mzazi wa ' . implode(', ', $group['children']) . '. ';
+                $intro = 'Mzazi wa ' . implode(', ', $group['children']) . ', ';
                 $body = $intro . ltrim($message);
                 $recipients[] = [
                     'type' => 'pending_parent',
@@ -1018,7 +1018,7 @@ class SMS_InformationController extends Controller
     }
 
     /**
-     * Put school identity at the end: "{body} Karibu {school_name}".
+     * Put school identity on a new line: "{body}\nKaribu {school_name}".
      * When a custom senderID is configured, skip unless $force is true
      * (joining-parent SMS always ends with Karibu + school).
      */
@@ -1039,7 +1039,8 @@ class SMS_InformationController extends Controller
             return $body;
         }
 
-        return ($body === '' ? '' : $body . ' ') . $signOff;
+        // New paragraph/line so Karibu {school} is not glued to the message body
+        return ($body === '' ? '' : $body . "\n") . $signOff;
     }
 
     /**
