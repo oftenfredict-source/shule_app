@@ -33,6 +33,10 @@ class PendingStudentRegistration extends Model
         'parent_relationship',
         'phone',
         'notes',
+        'pay_amount',
+        'payment_reference',
+        'payment_method',
+        'payment_recorded_at',
         'status',
         'confirmed_studentID',
         'confirmed_at',
@@ -43,6 +47,8 @@ class PendingStudentRegistration extends Model
     protected $casts = [
         'date_of_birth' => 'date',
         'confirmed_at' => 'datetime',
+        'pay_amount' => 'decimal:2',
+        'payment_recorded_at' => 'datetime',
     ];
 
     public function getFullNameAttribute(): string

@@ -649,8 +649,10 @@ Route::post("student-portal/login", [\App\Http\Controllers\StudentPortalControll
 Route::get("student-portal/logout", [\App\Http\Controllers\StudentPortalController::class, "logout"])->name("student_portal.logout");
 Route::get("student-portal/home", [\App\Http\Controllers\StudentPortalController::class, "home"])->name("student_portal.home");
 Route::get("student-portal/notes", [\App\Http\Controllers\StudentPortalController::class, "notes"])->name("student_portal.notes");
+Route::get("student-portal/notes/{id}/download", [\App\Http\Controllers\StudentPortalController::class, "downloadNote"])->name("student_portal.note.download");
 Route::get("student-portal/notes/{id}", [\App\Http\Controllers\StudentPortalController::class, "note"])->name("student_portal.note");
 Route::get("student-portal/books", [\App\Http\Controllers\StudentPortalController::class, "books"])->name("student_portal.books");
+Route::get("student-portal/books/{id}/download", [\App\Http\Controllers\StudentPortalController::class, "downloadBook"])->name("student_portal.book.download");
 Route::get("student-portal/books/{id}", [\App\Http\Controllers\StudentPortalController::class, "book"])->name("student_portal.book");
 Route::get("student-portal/quizzes", [\App\Http\Controllers\StudentPortalController::class, "quizzes"])->name("student_portal.quizzes");
 Route::get("student-portal/quizzes/{id}", [\App\Http\Controllers\StudentPortalController::class, "quiz"])->name("student_portal.quiz");
