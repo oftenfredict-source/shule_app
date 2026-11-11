@@ -579,12 +579,8 @@ class SMS_InformationController extends Controller
                 $selectedIds = explode(',', $selectedIds);
             }
             
-            // Prepend school name to message only if custom senderID is NOT used
-            if ($school->senderID) {
-                $fullMessage = $message;
-            } else {
-                $fullMessage = $school->school_name . '. ' . $message;
-            }
+            // School branding goes at the end: "... Karibu {school}"
+            $fullMessage = $this->applySchoolSignOff($school, (string) $message);
 
             $recipients = [];
             $results = [
@@ -804,9 +800,8 @@ class SMS_InformationController extends Controller
                             'phone' => $group['phone'],
                             'name' => $group['parent_name'] . ' (Parent of ' . implode(', ', $group['children']) . ')',
                             'id' => $group['id'],
-                            'message' => $school->senderID
-                                ? $body
-                                : ($school->school_name . '. ' . $body),
+                            // Always end with Karibu {school} for joining-parent SMS
+                            'message' => $this->applySchoolSignOff($school, $body, true),
                         ];
                     }
                     break;
@@ -949,9 +944,7 @@ class SMS_InformationController extends Controller
         $recipientType = (string) $job->recipient_type;
         $selectedIds = is_array($job->selected_ids) ? $job->selected_ids : [];
 
-        $fullMessage = $school->senderID
-            ? $message
-            : ($school->school_name . '. ' . $message);
+        $fullMessage = $this->applySchoolSignOff($school, $message);
 
         $recipients = [];
         if ($recipientType === 'pending_parents') {
@@ -964,9 +957,7 @@ class SMS_InformationController extends Controller
                     'phone' => $group['phone'],
                     'name' => $group['parent_name'] . ' (Parent of ' . implode(', ', $group['children']) . ')',
                     'id' => $group['id'],
-                    'message' => $school->senderID
-                        ? $body
-                        : ($school->school_name . '. ' . $body),
+                    'message' => $this->applySchoolSignOff($school, $body, true),
                 ];
             }
         } else {
@@ -1024,6 +1015,31 @@ class SMS_InformationController extends Controller
             'success_count' => $results['success'],
             'failed' => $results['failed'],
         ];
+    }
+
+    /**
+     * Put school identity at the end: "{body} Karibu {school_name}".
+     * When a custom senderID is configured, skip unless $force is true
+     * (joining-parent SMS always ends with Karibu + school).
+     */
+    private function applySchoolSignOff(School $school, string $body, bool $force = false): string
+    {
+        $body = rtrim($body);
+        $schoolName = trim((string) ($school->school_name ?? ''));
+        if ($schoolName === '') {
+            return $body;
+        }
+
+        if ($school->senderID && !$force) {
+            return $body;
+        }
+
+        $signOff = 'Karibu ' . $schoolName;
+        if ($body !== '' && str_ends_with(mb_strtolower($body), mb_strtolower($signOff))) {
+            return $body;
+        }
+
+        return ($body === '' ? '' : $body . ' ') . $signOff;
     }
 
     /**
