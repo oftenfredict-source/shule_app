@@ -41,8 +41,8 @@
 
     @if($book->file_path)
         <p class="mt-4 mb-0">
-            <a class="sp-btn" href="{{ asset($book->file_path) }}" target="_blank" rel="noopener">
-                <i class="fa fa-download" aria-hidden="true"></i> Open file{{ $book->original_name ? ': '.$book->original_name : '' }}
+            <a class="sp-btn" href="{{ route('student_portal.book.download', $book->id) }}" rel="noopener">
+                <i class="fa fa-download" aria-hidden="true"></i> Download file{{ $book->original_name ? ': '.$book->original_name : '' }}
             </a>
         </p>
     @endif

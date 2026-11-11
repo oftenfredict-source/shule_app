@@ -21,7 +21,9 @@ class CharacterAssessmentTimetable extends Model
     ];
 
     protected $casts = [
-        'target_classes' => 'array'
+        'target_classes' => 'array',
+        'start_date' => 'date',
+        'end_date' => 'date',
     ];
 
     public function assignments()

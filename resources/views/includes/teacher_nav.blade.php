@@ -897,13 +897,17 @@ html[data-sx-theme="dark"] #header .admin-header-brand img {
                         @endif
 
                         @php
-                            $activeAssessmentAssignment = \App\Models\CharacterAssessmentAssignment::where('teacherID', $teacherID)
-                                ->whereHas('timetable', function($q) {
-                                    $today = \Carbon\Carbon::now();
-                                    $q->where('start_date', '<=', $today)
-                                      ->where('end_date', '>=', $today);
-                                })
-                                ->exists();
+                            $activeAssessmentAssignment = false;
+                            if ($teacherID && $schoolID) {
+                                $assessmentToday = \Carbon\Carbon::today()->toDateString();
+                                $activeAssessmentAssignment = \App\Models\CharacterAssessmentAssignment::where('teacherID', $teacherID)
+                                    ->whereHas('timetable', function ($q) use ($assessmentToday, $schoolID) {
+                                        $q->where('schoolID', $schoolID)
+                                          ->whereDate('start_date', '<=', $assessmentToday)
+                                          ->whereDate('end_date', '>=', $assessmentToday);
+                                    })
+                                    ->exists();
+                            }
                         @endphp
 
                         @if($activeAssessmentAssignment)

@@ -40,8 +40,8 @@
 
     @if($note->file_path)
         <p class="mt-4 mb-0">
-            <a class="sp-btn" href="{{ asset($note->file_path) }}" target="_blank" rel="noopener">
-                <i class="fa fa-download" aria-hidden="true"></i> Open file{{ $note->original_name ? ': '.$note->original_name : '' }}
+            <a class="sp-btn" href="{{ route('student_portal.note.download', $note->id) }}" rel="noopener">
+                <i class="fa fa-download" aria-hidden="true"></i> Download file{{ $note->original_name ? ': '.$note->original_name : '' }}
             </a>
         </p>
     @endif

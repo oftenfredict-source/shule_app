@@ -100,6 +100,14 @@ class StudentPortalController extends Controller
         return view('StudentPortal.note', compact('student', 'school', 'classLabel', 'note'));
     }
 
+    public function downloadNote($id)
+    {
+        [$student, $school] = array_slice($this->requireStudent(), 0, 2);
+        $note = $this->notesQuery($school->schoolID, $this->scopeIds($student))->where('id', $id)->firstOrFail();
+
+        return $this->downloadPortalFile($note->file_path, $note->original_name);
+    }
+
     public function books()
     {
         [$student, $school, $classLabel] = $this->requireStudent();
@@ -114,6 +122,14 @@ class StudentPortalController extends Controller
         $book = $this->booksQuery($school->schoolID, $this->scopeIds($student))->where('id', $id)->firstOrFail();
 
         return view('StudentPortal.book', compact('student', 'school', 'classLabel', 'book'));
+    }
+
+    public function downloadBook($id)
+    {
+        [$student, $school] = array_slice($this->requireStudent(), 0, 2);
+        $book = $this->booksQuery($school->schoolID, $this->scopeIds($student))->where('id', $id)->firstOrFail();
+
+        return $this->downloadPortalFile($book->file_path, $book->original_name);
     }
 
     public function quizzes()
@@ -259,5 +275,50 @@ class StudentPortalController extends Controller
     private function quizzesQuery(int $schoolID, array $scope)
     {
         return $this->applyScope(StudentPortalQuiz::where('schoolID', $schoolID), $scope);
+    }
+
+    /**
+     * Stream a portal attachment through Laravel so downloads work even when
+     * static /uploads URLs 404 under public_html / subdirectory deploys.
+     */
+    private function downloadPortalFile(?string $path, ?string $originalName)
+    {
+        $absolute = $this->resolvePortalFilePath($path);
+        if (!$absolute) {
+            abort(404, 'File not found.');
+        }
+
+        $downloadName = $originalName ?: basename($absolute);
+
+        return response()->download($absolute, $downloadName, [
+            'Content-Type' => mime_content_type($absolute) ?: 'application/octet-stream',
+        ]);
+    }
+
+    private function resolvePortalFilePath(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        $normalized = ltrim(str_replace('\\', '/', $path), '/');
+        $candidates = [
+            public_path($normalized),
+            base_path('public/' . $normalized),
+            base_path($normalized),
+        ];
+
+        // Absolute path already stored in DB (legacy).
+        if (preg_match('~^[A-Za-z]:[\\\\/]|^/~', $path) === 1) {
+            array_unshift($candidates, $path);
+        }
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && is_file($candidate) && is_readable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 }

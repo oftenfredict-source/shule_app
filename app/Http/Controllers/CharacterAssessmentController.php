@@ -380,13 +380,13 @@ class CharacterAssessmentController extends Controller
         $schoolID = Session::get('schoolID');
         if (!$teacherID) return redirect()->route('login');
 
-        // Fetch active assignments for this teacher
-        $today = \Carbon\Carbon::now();
+        // Fetch active assignments for this teacher (date-only so end day stays valid all day)
+        $today = \Carbon\Carbon::today()->toDateString();
         $assignments = CharacterAssessmentAssignment::where('teacherID', $teacherID)
-            ->whereHas('timetable', function($q) use ($today, $schoolID) {
+            ->whereHas('timetable', function ($q) use ($today, $schoolID) {
                 $q->where('schoolID', $schoolID)
-                  ->where('start_date', '<=', $today)
-                  ->where('end_date', '>=', $today);
+                  ->whereDate('start_date', '<=', $today)
+                  ->whereDate('end_date', '>=', $today);
             })
             ->with(['class', 'subclass', 'timetable'])
             ->get();

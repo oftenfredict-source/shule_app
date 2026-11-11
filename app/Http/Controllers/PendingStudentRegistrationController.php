@@ -50,6 +50,7 @@ class PendingStudentRegistrationController extends Controller
             'intended_classID', 'intended_subclassID', 'intended_academic_yearID',
             'parent_first_name', 'parent_middle_name', 'parent_last_name', 'parent_gender',
             'parent_phone', 'parent_email', 'parent_relationship', 'phone', 'notes', 'subclassID',
+            'pay_amount', 'payment_reference', 'payment_method',
         ] as $key) {
             if (!array_key_exists($key, $data)) {
                 continue;
@@ -132,11 +133,16 @@ class PendingStudentRegistrationController extends Controller
                 'parent_relationship' => 'nullable|string|max:50',
                 'phone' => 'nullable|string|max:40',
                 'notes' => 'nullable|string|max:2000',
+                'pay_amount' => 'nullable|numeric|min:0',
+                'payment_reference' => 'nullable|string|max:120',
+                'payment_method' => 'nullable|string|max:40',
             ])->validate();
 
             if (!$this->ownsClassSubclassYear($schoolID, $validated)) {
                 return response()->json(['success' => false, 'message' => 'Invalid class or academic year.'], 422);
             }
+
+            $validated = $this->applyPaymentFields($validated);
 
             $row = PendingStudentRegistration::create(array_merge($validated, [
                 'schoolID' => $schoolID,
@@ -193,7 +199,12 @@ class PendingStudentRegistrationController extends Controller
                 'parent_relationship' => 'nullable|string|max:50',
                 'phone' => 'nullable|string|max:40',
                 'notes' => 'nullable|string|max:2000',
+                'pay_amount' => 'nullable|numeric|min:0',
+                'payment_reference' => 'nullable|string|max:120',
+                'payment_method' => 'nullable|string|max:40',
             ])->validate();
+
+            $validated = $this->applyPaymentFields($validated);
 
             $row = PendingStudentRegistration::where('schoolID', $schoolID)
                 ->where('pendingID', $validated['pendingID'])
@@ -513,17 +524,27 @@ class PendingStudentRegistrationController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
-        $validated = $request->validate([
+        $validated = validator($this->normalizePayload($request), [
             'pendingIDs' => 'required|array|min:1',
             'pendingIDs.*' => 'integer',
             'subclassID' => 'required|integer',
-        ]);
+            'pay_amount' => 'nullable|numeric|min:0',
+            'payment_reference' => 'nullable|string|max:120',
+            'payment_method' => 'nullable|string|max:40',
+        ])->validate();
+
+        $paymentOverride = $this->extractPaymentOverride($validated);
 
         $ok = 0;
         $fail = [];
         foreach ($validated['pendingIDs'] as $id) {
             try {
-                $result = $this->confirmPendingRecord((int) $schoolID, (int) $id, (int) $validated['subclassID']);
+                $result = $this->confirmPendingRecord(
+                    (int) $schoolID,
+                    (int) $id,
+                    (int) $validated['subclassID'],
+                    $paymentOverride
+                );
                 if ($result['success']) {
                     $ok++;
                 } else {
@@ -557,12 +578,16 @@ class PendingStudentRegistrationController extends Controller
             $validated = validator($this->normalizePayload($request), [
                 'pendingID' => 'required|integer',
                 'subclassID' => 'required|integer',
+                'pay_amount' => 'nullable|numeric|min:0',
+                'payment_reference' => 'nullable|string|max:120',
+                'payment_method' => 'nullable|string|max:40',
             ])->validate();
 
             $result = $this->confirmPendingRecord(
                 (int) $schoolID,
                 (int) $validated['pendingID'],
-                (int) $validated['subclassID']
+                (int) $validated['subclassID'],
+                $this->extractPaymentOverride($validated)
             );
 
             $status = $result['success'] ? 200 : 422;
@@ -578,7 +603,7 @@ class PendingStudentRegistrationController extends Controller
         }
     }
 
-    private function confirmPendingRecord(int $schoolID, int $pendingID, int $subclassID): array
+    private function confirmPendingRecord(int $schoolID, int $pendingID, int $subclassID, array $paymentOverride = []): array
     {
         $pending = PendingStudentRegistration::where('schoolID', $schoolID)
             ->where('pendingID', $pendingID)
@@ -603,6 +628,10 @@ class PendingStudentRegistrationController extends Controller
 
         DB::beginTransaction();
         try {
+            if ($paymentOverride !== []) {
+                $pending->fill($this->applyPaymentFields($paymentOverride));
+                $pending->save();
+            }
             $parentID = null;
             if ($pending->parent_phone || ($pending->parent_first_name && $pending->parent_last_name)) {
                 $parent = null;
@@ -677,13 +706,23 @@ class PendingStudentRegistrationController extends Controller
                 'Confirmed from pending registration #' . $pending->pendingID
             );
 
-            $pending->update([
+            $confirmPayload = [
                 'status' => 'Confirmed',
                 'confirmed_studentID' => $student->studentID,
                 'confirmed_at' => now(),
                 'intended_classID' => $subclass->classID,
                 'intended_subclassID' => $subclass->subclassID,
-            ]);
+            ];
+
+            $payNote = $this->formatPaymentNote($pending);
+            if ($payNote !== '') {
+                $existingNotes = trim((string) ($pending->notes ?? ''));
+                $confirmPayload['notes'] = $existingNotes !== ''
+                    ? ($existingNotes . "\n" . $payNote)
+                    : $payNote;
+            }
+
+            $pending->update($confirmPayload);
 
             DB::commit();
 
@@ -697,6 +736,71 @@ class PendingStudentRegistrationController extends Controller
             DB::rollBack();
             return ['success' => false, 'message' => $e->getMessage()];
         }
+    }
+
+    private function applyPaymentFields(array $data): array
+    {
+        if (!array_key_exists('pay_amount', $data) && !array_key_exists('payment_reference', $data) && !array_key_exists('payment_method', $data)) {
+            return $data;
+        }
+
+        $amount = array_key_exists('pay_amount', $data) && $data['pay_amount'] !== null && $data['pay_amount'] !== ''
+            ? round((float) $data['pay_amount'], 2)
+            : null;
+
+        $data['pay_amount'] = $amount;
+        $data['payment_reference'] = isset($data['payment_reference']) && trim((string) $data['payment_reference']) !== ''
+            ? trim((string) $data['payment_reference'])
+            : null;
+        $data['payment_method'] = isset($data['payment_method']) && trim((string) $data['payment_method']) !== ''
+            ? trim((string) $data['payment_method'])
+            : null;
+
+        if ($amount !== null || $data['payment_reference'] || $data['payment_method']) {
+            $data['payment_recorded_at'] = now();
+        } else {
+            $data['payment_recorded_at'] = null;
+        }
+
+        return $data;
+    }
+
+    private function extractPaymentOverride(array $validated): array
+    {
+        $keys = ['pay_amount', 'payment_reference', 'payment_method'];
+        $hasAny = false;
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $validated) && $validated[$key] !== null && $validated[$key] !== '') {
+                $hasAny = true;
+                break;
+            }
+        }
+
+        if (!$hasAny) {
+            return [];
+        }
+
+        return array_intersect_key($validated, array_flip($keys));
+    }
+
+    private function formatPaymentNote(PendingStudentRegistration $pending): string
+    {
+        if ($pending->pay_amount === null && !$pending->payment_reference && !$pending->payment_method) {
+            return '';
+        }
+
+        $parts = ['Pre-admission payment recorded'];
+        if ($pending->pay_amount !== null) {
+            $parts[] = 'amount: ' . number_format((float) $pending->pay_amount, 2);
+        }
+        if ($pending->payment_method) {
+            $parts[] = 'method: ' . $pending->payment_method;
+        }
+        if ($pending->payment_reference) {
+            $parts[] = 'ref: ' . $pending->payment_reference;
+        }
+
+        return implode(' | ', $parts);
     }
 
     private function ownsClassSubclassYear(int $schoolID, array $validated): bool

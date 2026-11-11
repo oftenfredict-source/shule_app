@@ -95,6 +95,7 @@
                             <th>Previous Level</th>
                             <th>Intended Class</th>
                             <th>Parent / Phone</th>
+                            <th>Pay Amount</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -132,6 +133,19 @@
                                         <br>{{ $row->parent_phone }}
                                     @endif
                                 </td>
+                                <td class="small">
+                                    @if($row->pay_amount !== null)
+                                        <strong>{{ number_format((float) $row->pay_amount, 0) }}</strong>
+                                        @if($row->payment_method)
+                                            <div class="text-muted">{{ $row->payment_method }}</div>
+                                        @endif
+                                        @if($row->payment_reference)
+                                            <div class="text-muted">Ref: {{ $row->payment_reference }}</div>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
                                 <td>
                                     @if($row->status === 'Pending')
                                         <span class="badge bg-warning text-dark">Pending</span>
@@ -146,7 +160,10 @@
                                         <button type="button" class="btn btn-sm btn-success confirm-one-btn"
                                             data-id="{{ $row->pendingID }}"
                                             data-name="{{ $row->full_name }}"
-                                            data-subclass="{{ $row->intended_subclassID }}">
+                                            data-subclass="{{ $row->intended_subclassID }}"
+                                            data-pay="{{ $row->pay_amount !== null ? $row->pay_amount : '' }}"
+                                            data-pref="{{ $row->payment_reference }}"
+                                            data-pmethod="{{ $row->payment_method }}">
                                             <i class="fa fa-check"></i>
                                         </button>
                                         <button type="button" class="btn btn-sm btn-warning edit-btn"
@@ -169,7 +186,10 @@
                                             data-pemail="{{ $row->parent_email }}"
                                             data-prel="{{ $row->parent_relationship }}"
                                             data-phone="{{ $row->phone }}"
-                                            data-notes="{{ $row->notes }}">
+                                            data-notes="{{ $row->notes }}"
+                                            data-pay="{{ $row->pay_amount !== null ? $row->pay_amount : '' }}"
+                                            data-pref="{{ $row->payment_reference }}"
+                                            data-pmethod="{{ $row->payment_method }}">
                                             <i class="fa fa-pencil"></i>
                                         </button>
                                         <button type="button" class="btn btn-sm btn-danger delete-btn"
@@ -184,7 +204,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center text-muted py-4">
+                                <td colspan="10" class="text-center text-muted py-4">
                                     No pending registrations yet. Download the Excel template or add manually.
                                 </td>
                             </tr>
@@ -295,6 +315,27 @@
                             <label>Notes</label>
                             <textarea class="form-control" name="notes" id="notes" rows="2"></textarea>
                         </div>
+                        <div class="col-12"><hr><strong>Pre-admission Payment</strong>
+                            <div class="small text-muted mb-2">Record amount paid before Confirm &amp; Enroll into class.</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label>Pay Amount</label>
+                            <input type="number" min="0" step="0.01" class="form-control" name="pay_amount" id="pay_amount" placeholder="0">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label>Payment Method</label>
+                            <select class="form-control" name="payment_method" id="payment_method">
+                                <option value="">-</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Bank">Bank</option>
+                                <option value="Mobile Money">Mobile Money</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label>Payment Reference</label>
+                            <input type="text" class="form-control" name="payment_reference" id="payment_reference" placeholder="Receipt / control no.">
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -354,6 +395,29 @@
                             @endforeach
                         @endforeach
                     </select>
+                    <div class="mt-3 p-2" style="background:#fff8f0;border:1px solid #ffe0a3;">
+                        <strong class="d-block mb-2">Pre-admission payment (optional)</strong>
+                        <div class="row">
+                            <div class="col-md-4 mb-2">
+                                <label class="small mb-1">Pay Amount</label>
+                                <input type="number" min="0" step="0.01" class="form-control" id="confirmPayAmount" placeholder="0">
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <label class="small mb-1">Method</label>
+                                <select class="form-control" id="confirmPaymentMethod">
+                                    <option value="">-</option>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Bank">Bank</option>
+                                    <option value="Mobile Money">Mobile Money</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <label class="small mb-1">Reference</label>
+                                <input type="text" class="form-control" id="confirmPaymentReference" placeholder="Receipt / control no.">
+                            </div>
+                        </div>
+                    </div>
                     <p class="small text-muted mt-2 mb-0">This creates a real student record and Active enrollment.</p>
                 </div>
                 <div class="modal-footer">
@@ -451,6 +515,9 @@
             document.getElementById('parent_email').value = btn.dataset.pemail || '';
             document.getElementById('parent_relationship').value = btn.dataset.prel || '';
             document.getElementById('notes').value = btn.dataset.notes || '';
+            document.getElementById('pay_amount').value = btn.dataset.pay || '';
+            document.getElementById('payment_method').value = btn.dataset.pmethod || '';
+            document.getElementById('payment_reference').value = btn.dataset.pref || '';
             document.getElementById('pendingModalTitle').textContent = 'Edit Pending Student';
             document.getElementById('pendingSubmitBtn').textContent = 'Update';
             openModal(document.getElementById('pendingModal'));
@@ -498,10 +565,13 @@
         .catch(() => Swal.fire('Error', 'Network error', 'error'));
     });
 
-    function openConfirm(mode, id, name, subclass) {
+    function openConfirm(mode, id, name, subclass, pay, pref, pmethod) {
         document.getElementById('confirmMode').value = mode;
         document.getElementById('confirmPendingID').value = id || '';
         document.getElementById('confirmSubclassID').value = subclass || '';
+        document.getElementById('confirmPayAmount').value = pay || '';
+        document.getElementById('confirmPaymentReference').value = pref || '';
+        document.getElementById('confirmPaymentMethod').value = pmethod || '';
         document.getElementById('confirmText').textContent = mode === 'batch'
             ? 'Confirm & enroll all selected pending students into one stream.'
             : ('Confirm & enroll: ' + (name || 'student'));
@@ -510,7 +580,15 @@
 
     document.querySelectorAll('.confirm-one-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            openConfirm('one', btn.dataset.id, btn.dataset.name, btn.dataset.subclass);
+            openConfirm(
+                'one',
+                btn.dataset.id,
+                btn.dataset.name,
+                btn.dataset.subclass,
+                btn.dataset.pay,
+                btn.dataset.pref,
+                btn.dataset.pmethod
+            );
         });
     });
 
@@ -520,7 +598,7 @@
             Swal.fire('Select students', 'Tick one or more pending students first.', 'info');
             return;
         }
-        openConfirm('batch', ids.join(','), null, null);
+        openConfirm('batch', ids.join(','), null, null, '', '', '');
         document.getElementById('confirmPendingID').value = ids.join(',');
     });
 
@@ -535,6 +613,12 @@
         const fd = new FormData();
         fd.append('_token', csrf);
         fd.append('subclassID', subclassID);
+        const payAmount = document.getElementById('confirmPayAmount').value;
+        const payMethod = document.getElementById('confirmPaymentMethod').value;
+        const payRef = document.getElementById('confirmPaymentReference').value;
+        if (payAmount !== '') fd.append('pay_amount', payAmount);
+        if (payMethod !== '') fd.append('payment_method', payMethod);
+        if (payRef !== '') fd.append('payment_reference', payRef);
         let url;
         if (mode === 'batch') {
             url = @json(route('admin.pending_students.confirm_batch'));
