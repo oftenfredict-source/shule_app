@@ -376,34 +376,66 @@ class CharacterAssessmentController extends Controller
     // --- TEACHER ACTIONS ---
     public function teacher_index()
     {
-        $teacherID = Session::get('teacherID');
-        $schoolID = Session::get('schoolID');
-        if (!$teacherID) return redirect()->route('login');
+        $teacherID = (int) Session::get('teacherID');
+        $schoolID = (int) Session::get('schoolID');
+        if (!$teacherID) {
+            return redirect()->route('login');
+        }
 
-        // Fetch active assignments for this teacher (date-only so end day stays valid all day)
-        $today = \Carbon\Carbon::today()->toDateString();
-        $assignments = CharacterAssessmentAssignment::where('teacherID', $teacherID)
-            ->whereHas('timetable', function ($q) use ($today, $schoolID) {
-                $q->where('schoolID', $schoolID)
-                  ->whereDate('start_date', '<=', $today)
-                  ->whereDate('end_date', '>=', $today);
-            })
+        // Prefer open periods (active + upcoming). If none, still show any assignment
+        // so a teacher who was assigned can open the task from the menu.
+        $assignments = CharacterAssessmentAssignment::visibleToTeacher($teacherID, $schoolID)
             ->with(['class', 'subclass', 'timetable'])
             ->get();
 
         if ($assignments->isEmpty()) {
-            return redirect()->route('teachersDashboard')->with('error', 'No active character assessment period found.');
+            $assignments = CharacterAssessmentAssignment::where('teacherID', $teacherID)
+                ->whereHas('timetable', function ($q) use ($schoolID) {
+                    $q->where('schoolID', $schoolID);
+                })
+                ->with(['class', 'subclass', 'timetable'])
+                ->orderByDesc('assignmentID')
+                ->get();
+        }
+
+        $today = \Carbon\Carbon::today();
+        $periodStatus = 'none';
+        if ($assignments->isNotEmpty()) {
+            $hasActivePeriod = $assignments->contains(function ($assignment) use ($today) {
+                $tt = $assignment->timetable;
+                if (!$tt || !$tt->start_date || !$tt->end_date) {
+                    return true;
+                }
+
+                return $tt->start_date->lte($today) && $tt->end_date->gte($today);
+            });
+            $periodStatus = $hasActivePeriod ? 'active' : 'upcoming';
+
+            $allEnded = $assignments->every(function ($assignment) use ($today) {
+                $tt = $assignment->timetable;
+                return $tt && $tt->end_date && $tt->end_date->lt($today);
+            });
+            if ($allEnded) {
+                $periodStatus = 'ended';
+            }
         }
 
         // Global choices for reference
         $globalChoices = CharacterAssessmentChoice::where('schoolID', $schoolID)->orderBy('weight', 'asc')->get();
         $categories = CharacterAssessmentCategory::where('schoolID', $schoolID)->get();
-        $subclasses = \App\Models\Subclass::whereHas('class', function($q) use ($schoolID) {
+        $subclasses = \App\Models\Subclass::whereHas('class', function ($q) use ($schoolID) {
             $q->where('schoolID', $schoolID);
         })->get();
         $classes = \App\Models\ClassModel::where('schoolID', $schoolID)->get();
 
-        return view('Teacher.student_character_assessment', compact('assignments', 'globalChoices', 'categories', 'subclasses', 'classes'));
+        return view('Teacher.student_character_assessment', compact(
+            'assignments',
+            'globalChoices',
+            'categories',
+            'subclasses',
+            'classes',
+            'periodStatus'
+        ));
     }
 
     public function get_assessment_students(Request $request)

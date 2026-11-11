@@ -896,23 +896,7 @@ html[data-sx-theme="dark"] #header .admin-header-brand img {
                         <li><a href="{{ route('teacher.student_permission') }}" class="nav-link"><i class="fa fa-user-plus"></i> Student Permission</a></li>
                         @endif
 
-                        @php
-                            $activeAssessmentAssignment = false;
-                            if ($teacherID && $schoolID) {
-                                $assessmentToday = \Carbon\Carbon::today()->toDateString();
-                                $activeAssessmentAssignment = \App\Models\CharacterAssessmentAssignment::where('teacherID', $teacherID)
-                                    ->whereHas('timetable', function ($q) use ($assessmentToday, $schoolID) {
-                                        $q->where('schoolID', $schoolID)
-                                          ->whereDate('start_date', '<=', $assessmentToday)
-                                          ->whereDate('end_date', '>=', $assessmentToday);
-                                    })
-                                    ->exists();
-                            }
-                        @endphp
-
-                        @if($activeAssessmentAssignment)
-                            <li><a href="{{ route('teacher.character_assessment') }}" class="nav-link"><i class="fa fa-shield"></i> Character Assessment</a></li>
-                        @endif
+                        <li><a href="{{ route('teacher.character_assessment') }}" class="nav-link"><i class="fa fa-shield"></i> Character Assessment</a></li>
 
                         <li><a href="{{ route('black_book.report_student') }}" class="nav-link"><i class="fa fa-exclamation-triangle"></i> Report Student</a></li>
                         @php

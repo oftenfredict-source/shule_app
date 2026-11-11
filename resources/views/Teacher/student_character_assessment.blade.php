@@ -20,10 +20,28 @@
                                         personality development for your assigned classes</p>
                                 </div>
                                 <div class="text-right">
-                                    <span class="badge badge-danger p-2 px-3"
-                                        style="border-radius: 0; font-weight: 700; background: #940000;">
-                                        <i class="fa fa-calendar-check-o"></i> ACTIVE PERIOD
-                                    </span>
+                                    @php $periodStatus = $periodStatus ?? 'active'; @endphp
+                                    @if($periodStatus === 'active')
+                                        <span class="badge badge-danger p-2 px-3"
+                                            style="border-radius: 0; font-weight: 700; background: #940000;">
+                                            <i class="fa fa-calendar-check-o"></i> ACTIVE PERIOD
+                                        </span>
+                                    @elseif($periodStatus === 'upcoming')
+                                        <span class="badge p-2 px-3"
+                                            style="border-radius: 0; font-weight: 700; background: #856404; color: #fff;">
+                                            <i class="fa fa-clock-o"></i> UPCOMING PERIOD
+                                        </span>
+                                    @elseif($periodStatus === 'ended')
+                                        <span class="badge p-2 px-3"
+                                            style="border-radius: 0; font-weight: 700; background: #6c757d; color: #fff;">
+                                            <i class="fa fa-calendar-times-o"></i> PERIOD ENDED
+                                        </span>
+                                    @else
+                                        <span class="badge p-2 px-3"
+                                            style="border-radius: 0; font-weight: 700; background: #6c757d; color: #fff;">
+                                            <i class="fa fa-info-circle"></i> NOT ASSIGNED
+                                        </span>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -31,9 +49,21 @@
                 </div>
             </div>
 
+            @if($assignments->isEmpty())
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="alert mb-0" style="border-radius:0;border:1px solid #ffe0a3;background:#fff8f0;color:#856404;">
+                        <strong><i class="fa fa-info-circle"></i> No assignment yet.</strong>
+                        You are not assigned on any character assessment timetable.
+                        Ask the admin to open <em>Character Assessment → Timetable</em> and assign your name to a class.
+                    </div>
+                </div>
+            </div>
+            @endif
+
             <!-- Class Selection & Search -->
             <div class="row mb-4 sticky-top pt-2 pb-3"
-                style="background: rgba(255,255,255,0.98); z-index: 1020; top: -1px; border-bottom: 2px solid #f0f0f0;">
+                style="background: rgba(255,255,255,0.98); z-index: 1020; top: -1px; border-bottom: 2px solid #f0f0f0; {{ $assignments->isEmpty() ? 'opacity:0.55;pointer-events:none;' : '' }}">
                 <div class="col-12 col-md-3 mb-2 mb-md-0">
                     <label class="small font-weight-bold text-muted" style="letter-spacing: 1px;">SELECT MAIN
                         CLASS</label>
@@ -42,9 +72,11 @@
                         @php
                             $uniqueClasses = $assignments->unique('classID');
                         @endphp
-                        @foreach($uniqueClasses as $asgn)
-                            <option value="{{ $asgn->classID }}">{{ $asgn->class->class_name }}</option>
-                        @endforeach
+                        @forelse($uniqueClasses as $asgn)
+                            <option value="{{ $asgn->classID }}">{{ optional($asgn->class)->class_name ?? ('Class #'.$asgn->classID) }}</option>
+                        @empty
+                            <option value="">No assigned class</option>
+                        @endforelse
                     </select>
                 </div>
                 <div class="col-12 col-md-4 mb-2 mb-md-0">
@@ -236,6 +268,11 @@
     const ALL_SUBCLASSES = @json($subclasses);
 
     $(document).ready(function () {
+        if (!ALL_ASSIGNMENTS || !ALL_ASSIGNMENTS.length) {
+            $('#studentList').html('<div class="col-12 text-center py-5 text-muted">No assigned classes to assess yet.</div>');
+            return;
+        }
+
         // Initial subclass population and loading
         updateSubclassOptions();
         loadStudents();
@@ -279,6 +316,10 @@
 
     function updateSubclassOptions() {
         const classID = $('#mainClassSelector').val();
+        if (!classID) {
+            $('#subclassSelector').html('<option value="">No Groups Assigned</option>');
+            return;
+        }
         const assignmentsForClass = ALL_ASSIGNMENTS.filter(a => a.classID == classID);
 
         if (assignmentsForClass.length === 0) {
