@@ -13,6 +13,7 @@ class SchoolSocialMedia
             'instagram' => [
                 'label' => 'Instagram',
                 'icon' => 'bxl-instagram',
+                'logo' => 'https://cdn.simpleicons.org/instagram/E4405F',
                 'color' => '#E4405F',
                 'type' => 'url',
                 'placeholder' => 'https://instagram.com/...',
@@ -20,6 +21,7 @@ class SchoolSocialMedia
             'threads' => [
                 'label' => 'Threads',
                 'icon' => 'bx-at',
+                'logo' => 'https://cdn.simpleicons.org/threads/000000',
                 'color' => '#000000',
                 'type' => 'url',
                 'placeholder' => 'https://www.threads.com/@...',
@@ -27,6 +29,7 @@ class SchoolSocialMedia
             'facebook' => [
                 'label' => 'Facebook',
                 'icon' => 'bxl-facebook-circle',
+                'logo' => 'https://cdn.simpleicons.org/facebook/1877F2',
                 'color' => '#1877F2',
                 'type' => 'url',
                 'placeholder' => 'https://facebook.com/...',
@@ -34,6 +37,7 @@ class SchoolSocialMedia
             'whatsapp' => [
                 'label' => 'WhatsApp',
                 'icon' => 'bxl-whatsapp',
+                'logo' => 'https://cdn.simpleicons.org/whatsapp/25D366',
                 'color' => '#25D366',
                 'type' => 'phone',
                 'placeholder' => '+255 7XX XXX XXX',
@@ -41,6 +45,7 @@ class SchoolSocialMedia
             'youtube' => [
                 'label' => 'YouTube',
                 'icon' => 'bxl-youtube',
+                'logo' => 'https://cdn.simpleicons.org/youtube/FF0000',
                 'color' => '#FF0000',
                 'type' => 'url',
                 'placeholder' => 'https://youtube.com/...',
@@ -48,6 +53,7 @@ class SchoolSocialMedia
             'twitter' => [
                 'label' => 'X (Twitter)',
                 'icon' => 'bxl-twitter',
+                'logo' => 'https://cdn.simpleicons.org/x/000000',
                 'color' => '#000000',
                 'type' => 'url',
                 'placeholder' => 'https://x.com/...',
@@ -55,6 +61,7 @@ class SchoolSocialMedia
             'tiktok' => [
                 'label' => 'TikTok',
                 'icon' => 'bxl-tiktok',
+                'logo' => 'https://cdn.simpleicons.org/tiktok/000000',
                 'color' => '#010101',
                 'type' => 'url',
                 'placeholder' => 'https://tiktok.com/@...',
@@ -62,6 +69,7 @@ class SchoolSocialMedia
             'linkedin' => [
                 'label' => 'LinkedIn',
                 'icon' => 'bxl-linkedin-square',
+                'logo' => 'https://cdn.simpleicons.org/linkedin/0A66C2',
                 'color' => '#0A66C2',
                 'type' => 'url',
                 'placeholder' => 'https://linkedin.com/in/...',
@@ -69,6 +77,7 @@ class SchoolSocialMedia
             'telegram' => [
                 'label' => 'Telegram',
                 'icon' => 'bxl-telegram',
+                'logo' => 'https://cdn.simpleicons.org/telegram/26A5E4',
                 'color' => '#26A5E4',
                 'type' => 'url',
                 'placeholder' => 'https://t.me/...',
@@ -89,6 +98,7 @@ class SchoolSocialMedia
                 'key' => $key,
                 'label' => $p['label'],
                 'icon' => $p['icon'],
+                'logo' => $p['logo'] ?? '',
                 'color' => $p['color'],
                 'type' => $p['type'],
                 'placeholder' => $p['placeholder'],

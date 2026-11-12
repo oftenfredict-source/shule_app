@@ -106,8 +106,17 @@
         </div>
 
         <div class="sx-school-landing__hero">
-            @if($school->school_logo)
-                <img src="{{ asset($school->school_logo) }}" alt="{{ $schoolName }} logo" class="sx-school-landing__logo" width="96" height="96">
+            @php $landingLogoUrl = \App\Models\School::publicAssetUrl($school->school_logo); @endphp
+            @if($landingLogoUrl)
+                <img src="{{ $landingLogoUrl }}"
+                     alt="{{ $schoolName }} logo"
+                     class="sx-school-landing__logo"
+                     width="96"
+                     height="96"
+                     onerror="this.style.display='none'; var p=this.nextElementSibling; if(p){ p.hidden=false; p.removeAttribute('hidden'); }">
+                <div class="sx-school-landing__logo sx-school-landing__logo--placeholder" hidden aria-hidden="true">
+                    <i class="fa fa-university"></i>
+                </div>
             @else
                 <div class="sx-school-landing__logo sx-school-landing__logo--placeholder" aria-hidden="true">
                     <i class="fa fa-university"></i>
@@ -121,11 +130,6 @@
                     @if($school->region) · {{ $school->region }} @endif
                     @if($school->district) · {{ $school->district }} @endif
                 </p>
-                <div class="sx-school-landing__stats">
-                    <span><strong>{{ $card['classesCount'] }}</strong> Classes</span>
-                    <span><strong>{{ $card['subclassesCount'] }}</strong> Subclasses</span>
-                    <span><strong>{{ $card['activeStudentsCount'] }}</strong> Students</span>
-                </div>
             </div>
         </div>
 
@@ -153,29 +157,36 @@
                     @endif
                 </dl>
 
-                <h3 class="sx-school-details__heading" id="sx-school-classes">Available classes</h3>
-                @if($card['classesWithSpaces']->count() === 0)
-                    <div class="sx-apply-empty sx-apply-empty--warn">
-                        <i class="fa fa-info-circle"></i>
-                        <h5>No classes open for application</h5>
-                        <p>Please check back later or contact the school.</p>
+                <h3 class="sx-school-details__heading" id="sx-school-classes">{{ __('site.apply_available_classes') }}</h3>
+                @guest('online_application')
+                    <div class="sx-apply-login-gate">
+                        <div class="sx-apply-login-gate__icon" aria-hidden="true"><i class="fa fa-lock"></i></div>
+                        <h4>{{ __('site.apply_login_to_apply') }}</h4>
+                        <p>{{ __('site.apply_login_gate_text') }}</p>
+                        <a href="{{ route('online_application.auth.login', ['redirect' => $schoolUrl ?? url()->current()]) }}"
+                           class="sx-apply-btn-sm sx-apply-btn-sm--block">
+                            <i class="fa fa-sign-in" aria-hidden="true"></i>
+                            <span>{{ __('site.apply_login_to_apply') }}</span>
+                        </a>
                     </div>
                 @else
-                    <div class="sx-school-landing__classes">
-                        @foreach($card['classesWithSpaces'] as $class)
-                            @include('partials.online_application_class_row', [
-                                'class' => $class,
-                                'requireAuth' => false,
-                            ])
-                        @endforeach
-                    </div>
-                    @guest('online_application')
-                        <p class="sx-school-landing__hint mt-3 mb-0">
-                            <i class="fa fa-lock"></i>
-                            To apply, please login or create an account first. After login you will continue with your selected class.
-                        </p>
-                    @endguest
-                @endif
+                    @if($card['classesWithSpaces']->count() === 0)
+                        <div class="sx-apply-empty sx-apply-empty--warn">
+                            <i class="fa fa-info-circle"></i>
+                            <h5>{{ __('site.apply_no_classes') }}</h5>
+                        </div>
+                    @else
+                        <div class="sx-school-landing__classes">
+                            @foreach($card['classesWithSpaces'] as $class)
+                                @include('partials.online_application_class_row', [
+                                    'class' => $class,
+                                    'requireAuth' => false,
+                                    'hideSpaces' => true,
+                                ])
+                            @endforeach
+                        </div>
+                    @endif
+                @endguest
             </div>
 
             <div class="col-lg-5 mb-4" id="sx-school-fees">

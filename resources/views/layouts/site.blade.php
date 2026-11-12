@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="no-js" data-sx-theme="light" data-sx-site="public">
+<html dir="ltr" lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="no-js" data-sx-theme="light" data-sx-site="public">
 <head>
     @include('includes.theme_init')
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
     <meta name="google-site-verification" content="hhr5zKuMzQymlmmZu5nBjh5tHwlJY_-qEk_7i9Uzo0Q" />
     <meta name="author" content="EmCa Techonology">
     <meta name="robots" content="{{ $seo['robots'] ?? 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' }}">
@@ -18,6 +19,11 @@
         $canonical = $seo['canonical'] ?? url()->current();
         $ogType = $seo['type'] ?? 'website';
         $ogImage = $seo['image'] ?? url('/images/shuleXpert.jpg');
+        $sp = asset('studypresshtml-62/studypresshtml-62/studypress-client-files-v6.2/studypress-bootstrap5-new-version');
+        $sxCssVer = static function (string $rel): string {
+            $path = public_path($rel);
+            return is_file($path) ? (string) filemtime($path) : (string) time();
+        };
     @endphp
 
     <title>{{ $pageTitle }}</title>
@@ -50,225 +56,171 @@
 
     @include('includes.site_favicon')
 
-    @php
-        $sxCssVer = static function (string $rel): string {
-            $path = public_path($rel);
-            return is_file($path) ? (string) filemtime($path) : (string) time();
-        };
-    @endphp
-    <link rel="stylesheet" href="{{ asset('css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
-    <link rel="stylesheet" href="https://cdn.linearicons.com/free/1.0.0/icon-font.min.css">
-    <link rel="stylesheet" href="{{ asset('lib/animate/animate.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/site-base.css') }}?v={{ $sxCssVer('css/site-base.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/shulexpert-site.css') }}?v={{ $sxCssVer('css/shulexpert-site.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/shulexpert-theme.css') }}?v={{ $sxCssVer('css/shulexpert-theme.css') }}">
+    {{-- StudyPress multipage layout2 assets (exact) --}}
+    <link href="{{ $sp }}/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+    <link href="{{ $sp }}/css/animate.min.css" rel="stylesheet" type="text/css">
+    <link href="{{ $sp }}/css/javascript-plugins-bundle.css" rel="stylesheet">
+    <link href="{{ $sp }}/js/menuzord/css/menuzord.css" rel="stylesheet">
+    <link href="{{ $sp }}/css/style-main.css" rel="stylesheet" type="text/css">
+    <link id="menuzord-menu-skins" href="{{ $sp }}/css/menuzord-skins/menuzord-rounded-boxed.css" rel="stylesheet">
+    <link href="{{ $sp }}/css/responsive.css" rel="stylesheet" type="text/css">
+    <link href="{{ $sp }}/css/colors/theme-skin-color-set1.css" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/v4-shims.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="{{ asset('css/shulexpert-studypress.css') }}?v={{ $sxCssVer('css/shulexpert-studypress.css') }}">
 
-    <style>
-        html[data-sx-theme="light"],
-        html[data-sx-theme="light"] body { background:#fff!important }
-        html[data-sx-theme="light"] #main-content { background:#fff!important }
-        html[data-sx-theme="dark"][data-sx-site="public"],
-        html[data-sx-theme="dark"][data-sx-site="public"] body { background:#160d10!important }
-        html[data-sx-theme="dark"][data-sx-site="public"] #main-content { background:#160d10!important }
-        /* Critical header prefs - keeps EN/SW styled even if CSS file is stale/cached */
-        .sx-header-top-tools{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
-        .sx-header-top-link{color:#fff!important;font-size:13px}
-        .sx-site-prefs{display:inline-flex;align-items:center;gap:8px}
-        .sx-lang-switch{display:inline-flex;border:1px solid rgba(255,255,255,.35);overflow:hidden;background:rgba(0,0,0,.15)}
-        .sx-lang-btn{border:0;background:transparent;color:#fff;font-size:11px;font-weight:800;letter-spacing:.04em;padding:6px 10px;cursor:pointer;line-height:1;min-width:36px}
-        .sx-lang-btn.is-active{background:#fff;color:#940000}
-        .sx-site-header .header-top .sx-theme-toggle{width:32px;height:32px;border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:#fff}
-    </style>
-    @unless(!empty($skipSplash))
-    <style>
-        #sx-splash{position:fixed;inset:0;z-index:99999;background:#fff!important;display:flex;align-items:center;justify-content:center;transition:opacity .45s ease,visibility .45s ease}
-        html[data-sx-theme="dark"] #sx-splash{background:#000!important}
-        #sx-splash.hide{opacity:0;visibility:hidden;pointer-events:none}
-        #sx-splash .sx-splash-inner{text-align:center;width:min(280px,82vw);background:transparent!important;border:none!important;box-shadow:none!important;padding:0}
-        #sx-splash .sx-splash-logo{display:block!important;width:auto!important;height:auto!important;max-width:140px;max-height:140px;margin:0 auto 28px;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;filter:none!important;-webkit-filter:none!important;animation:none!important;transition:none!important;transform:none!important;object-fit:contain!important}
-        #sx-splash .sx-splash-bar{width:100%;height:4px;margin:0 auto 16px;background:rgba(148,0,0,.12);border-radius:999px;overflow:hidden}
-        #sx-splash .sx-splash-bar-fill{display:block;height:100%;width:0;background:#940000;border-radius:999px;animation:sxSplashLoad 1.35s ease-out forwards}
-        #sx-splash .sx-splash-powered{margin:0;font-size:12px;font-weight:600;color:#666}
-        html[data-sx-theme="dark"] #sx-splash .sx-splash-powered{color:#ddd}
-        @keyframes sxSplashLoad{from{width:0}to{width:100%}}
-        body.sx-splash-lock{overflow:hidden}
-        body.sx-splash-lock #main-content,
-        body.sx-splash-lock #header,
-        body.sx-splash-lock .footer-area,
-        body.sx-splash-lock #sx-mobile-nav,
-        body.sx-splash-lock #sx-mobile-nav-backdrop{visibility:hidden!important}
-    </style>
-    @endunless
+    <script src="{{ $sp }}/js/jquery.js"></script>
+    <script src="{{ $sp }}/js/popper.min.js"></script>
+    <script src="{{ $sp }}/js/bootstrap.min.js"></script>
+    <script src="{{ $sp }}/js/javascript-plugins-bundle.js"></script>
+    <script src="{{ $sp }}/js/menuzord/js/menuzord.js"></script>
+
+    {{-- Revolution Slider (layout2) --}}
+    <link rel="stylesheet" type="text/css" href="{{ $sp }}/js/revolution-slider/css/rs6.css">
+    <link rel="stylesheet" type="text/css" href="{{ $sp }}/js/revolution-slider/extra-rev-slider1.css">
+    <script src="{{ $sp }}/js/revolution-slider/js/revolution.tools.min.js"></script>
+    <script src="{{ $sp }}/js/revolution-slider/js/rs6.min.js"></script>
+    <script src="{{ $sp }}/js/revolution-slider/extra-rev-slider1.js"></script>
 
     @stack('styles')
-
+    {{-- Dark mode last so it overrides page-local light colors --}}
+    <link rel="stylesheet" href="{{ asset('css/shulexpert-studypress-dark.css') }}?v={{ $sxCssVer('css/shulexpert-studypress-dark.css') }}">
     @include('site.partials.schema')
 </head>
-<body class="sx-public-site{{ empty($skipSplash) ? ' sx-splash-lock' : '' }}">
-    @unless(!empty($skipSplash))
-        @include('site.partials.splash')
-    @endunless
+<body class="tm-container-1340px has-side-panel side-panel-right sx-public-site">
+@php $sp = asset('studypresshtml-62/studypresshtml-62/studypress-client-files-v6.2/studypress-bootstrap5-new-version'); @endphp
+
+{{-- preloader (layout2) --}}
+<div id="preloader">
+  <div id="spinner">
+    <div class="preloader-dot-loading">
+      <div class="cssload-loading"><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+  <div id="disable-preloader" class="btn btn-default btn-sm bg-white-f5">Disable Preloader</div>
+</div>
+
+<div class="side-panel-body-overlay"></div>
+<div id="side-panel-container" class="sx-side-panel dark">
+  <div class="side-panel-wrap sx-side-panel__wrap">
+    <div id="side-panel-trigger-close" class="side-panel-trigger sx-side-panel__close">
+      <a href="#" aria-label="Close"><i class="fa fa-times side-panel-trigger-icon" aria-hidden="true"></i></a>
+    </div>
+
+    <div class="sx-side-panel__brand">
+      <div class="sx-side-panel__logo-wrap">
+        <img class="logo sx-site-logo-side" src="{{ asset('shule.png') }}" alt="ShuleXpert" width="180" height="72">
+      </div>
+      <p class="sx-side-panel__tagline">{{ __('site.footer_tagline') }}</p>
+    </div>
+
+    <div class="sx-side-panel__section">
+      <h5 class="sx-side-panel__heading">{{ __('site.contact') }}</h5>
+      <ul class="sx-side-panel__contacts">
+        <li>
+          <a href="tel:{{ config('shulexpert.phone_e164') }}">
+            <span class="sx-side-panel__icon" aria-hidden="true"><i class="fa fa-phone"></i></span>
+            <span>
+              <small>{{ __('site.footer_call_us') }}</small>
+              <strong>{{ config('shulexpert.phone_display') }}</strong>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="mailto:{{ config('shulexpert.email', 'emca@emcatech.co.tz') }}">
+            <span class="sx-side-panel__icon" aria-hidden="true"><i class="fa fa-envelope"></i></span>
+            <span>
+              <small>{{ __('site.footer_email_us') }}</small>
+              <strong>{{ config('shulexpert.email', 'emca@emcatech.co.tz') }}</strong>
+            </span>
+          </a>
+        </li>
+        <li>
+          <span class="sx-side-panel__static">
+            <span class="sx-side-panel__icon" aria-hidden="true"><i class="fa fa-map-marker"></i></span>
+            <span>
+              <small>{{ __('site.office') }}</small>
+              <strong>Moshi, Kilimanjaro</strong>
+            </span>
+          </span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="sx-side-panel__section sx-side-panel__section--links">
+      <h5 class="sx-side-panel__heading">{{ __('site.quick_links') }}</h5>
+      <div class="sx-side-panel__links">
+        <a href="{{ route('site.download') }}"><i class="fab fa-android" aria-hidden="true"></i>{{ __('site.download_app') }}</a>
+        <a href="{{ route('site.contact') }}"><i class="fa fa-headset" aria-hidden="true"></i>{{ __('site.contact_us') }}</a>
+        <a href="{{ route('online_application') }}"><i class="fa fa-graduation-cap" aria-hidden="true"></i>{{ __('site.online_application') }}</a>
+      </div>
+    </div>
+
+    <div class="sx-side-panel__prefs">
+      <span class="sx-side-panel__prefs-label">{{ __('site.language') }} / {{ __('site.dark_mode') }}</span>
+      @include('site.partials.prefs')
+    </div>
+  </div>
+</div>
+
+<div id="wrapper" class="clearfix">
     @include('site.partials.header')
 
-    <main id="main-content">
+    <div class="main-content-area" id="main-content">
         @yield('content')
-    </main>
+    </div>
 
     @include('site.partials.footer')
-    @include('site.partials.ask-float')
+    <a class="scrollToTop" href="#"><i class="fa fa-angle-up"></i></a>
+</div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        (function ($) {
-            if (!$ || !$('#header').length) return;
-            $(window).on('scroll', function () {
-                if ($(this).scrollTop() > 100) {
-                    $('#header').addClass('header-scrolled');
-                } else {
-                    $('#header').removeClass('header-scrolled');
-                }
-            }).trigger('scroll');
-        })(window.jQuery);
-    </script>
-    <script>
-        (function () {
-            var splash = document.getElementById('sx-splash');
-            function hideSplash() {
-                if (!splash) return;
-                splash.classList.add('hide');
-                document.body.classList.remove('sx-splash-lock');
-                setTimeout(function () {
-                    if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
-                }, 750);
-            }
-            window.addEventListener('load', function () {
-                setTimeout(hideSplash, 1600);
-            });
-            setTimeout(hideSplash, 4200);
-        })();
-    </script>
-    <script>
-        (function () {
-            var mega = document.querySelector('.sx-modules-mega');
-            if (!mega) return;
-            var panel = mega.querySelector('.sx-mega-panel');
-            var timer = null;
-            function openMega() {
-                if (timer) clearTimeout(timer);
-                mega.classList.add('is-open');
-            }
-            function closeMega() {
-                timer = setTimeout(function () {
-                    mega.classList.remove('is-open');
-                }, 120);
-            }
-            mega.addEventListener('mouseenter', openMega);
-            mega.addEventListener('mouseleave', closeMega);
-            if (panel) {
-                panel.addEventListener('mouseenter', openMega);
-                panel.addEventListener('mouseleave', closeMega);
-            }
-            document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') mega.classList.remove('is-open');
-            });
-        })();
-    </script>
-    <script>
-        (function () {
-            var toggle = document.getElementById('sx-mobile-nav-toggle');
-            var panel = document.getElementById('sx-mobile-nav');
-            var backdrop = document.getElementById('sx-mobile-nav-backdrop');
-            if (!toggle || !panel) return;
+{{-- Tawk.to live chat (public site) --}}
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/6af194d1427f7a3c40c3eefd/1k6vqqllf';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
 
-            function setOpen(open) {
-                toggle.classList.toggle('is-open', open);
-                panel.classList.toggle('is-open', open);
-                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-                panel.setAttribute('aria-hidden', open ? 'false' : 'true');
-                document.body.classList.toggle('sx-mobile-nav-open', open);
-                if (backdrop) backdrop.hidden = !open;
-            }
-
-            toggle.addEventListener('click', function () {
-                setOpen(!panel.classList.contains('is-open'));
-            });
-
-            if (backdrop) {
-                backdrop.addEventListener('click', function () {
-                    setOpen(false);
-                });
-            }
-
-            panel.addEventListener('click', function (e) {
-                var submenuBtn = e.target.closest('.sx-mobile-submenu-toggle');
-                if (submenuBtn) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    var parent = submenuBtn.closest('.sx-mobile-has-children');
-                    if (!parent) return;
-                    var expanded = parent.classList.toggle('is-expanded');
-                    submenuBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-                    return;
-                }
-
-                var link = e.target.closest('a');
-                if (link && panel.contains(link)) {
-                    setOpen(false);
-                }
-            });
-
-            document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') setOpen(false);
-            });
-
-            window.addEventListener('resize', function () {
-                if (window.innerWidth > 991) setOpen(false);
-            });
-        })();
-    </script>
-    @stack('scripts')
-    <script>
-        (function () {
-            if (window.__sxSiteLangBound) return;
-            window.__sxSiteLangBound = true;
-            var csrf = document.querySelector('meta[name="csrf-token"]');
-            var token = csrf ? csrf.getAttribute('content') : '';
-
-            function setLocale(locale) {
-                fetch('{{ route('change_language') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': token,
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({ locale: locale })
-                })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    if (data && data.success) {
-                        window.location.reload();
-                        return;
-                    }
-                    alert((data && data.message) ? data.message : 'Failed to change language.');
-                })
-                .catch(function () {
-                    alert('Failed to change language. Please try again.');
-                });
-            }
-
-            document.addEventListener('click', function (e) {
-                var btn = e.target.closest('.sx-lang-btn');
-                if (!btn) return;
-                e.preventDefault();
-                var locale = btn.getAttribute('data-locale');
-                if (!locale || btn.classList.contains('is-active')) return;
-                setLocale(locale);
-            });
-        })();
-    </script>
+<script src="{{ $sp }}/js/custom.js"></script>
+@stack('scripts')
+<script>
+    (function () {
+        if (window.__sxSiteLangBound) return;
+        window.__sxSiteLangBound = true;
+        var csrf = document.querySelector('meta[name="csrf-token"]');
+        var token = csrf ? csrf.getAttribute('content') : '';
+        function setLocale(locale) {
+            fetch('{{ route('change_language') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ locale: locale })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data && data.success) { window.location.reload(); return; }
+                alert((data && data.message) ? data.message : 'Failed to change language.');
+            })
+            .catch(function () { alert('Failed to change language. Please try again.'); });
+        }
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('.sx-lang-btn');
+            if (!btn) return;
+            e.preventDefault();
+            var locale = btn.getAttribute('data-locale');
+            if (!locale || btn.classList.contains('is-active')) return;
+            setLocale(locale);
+        });
+    })();
+</script>
 </body>
 </html>

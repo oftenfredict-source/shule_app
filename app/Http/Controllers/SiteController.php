@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ContactCaptchaService;
 use App\Services\OnlineApplicationApplyTokenService;
 use App\Services\SmsService;
 use App\Models\OtpPhoneBlock;
@@ -185,16 +186,14 @@ class SiteController extends Controller
                 'icon' => 'fa-file-text-o',
                 'image' => 'images/time_table.png',
                 'hero' => 'images/timetable.jpg',
-                'body' => 'ShuleXpert Lesson Plans is a complete digital lesson plan system for schools. Teachers create lesson plans from class sessions (competence, objectives, teaching/learning activities, resources, reflection and evaluation), reuse previous plans, save drafts, filter and manage plans by subject/class/date, send plans to administrators for review, and download individual or bulk PDF lesson plans. Admins and supervisors open Lesson Plans Management, filter by teacher/class/subject, view full plans, and Sign Lesson Plan digitally. Built for Tanzanian and African schools that need accountable, printable, curriculum-aligned lesson planning, not paper folders.',
+                'body' => 'Teachers create lesson plans from class sessions, reuse previous plans, send them to admin for review, get a digital supervisor signature, and download PDF. Built for accountable, curriculum-aligned planning without paper folders.',
                 'points' => [
-                    'Create lesson plans from timetable sessions (date, subject, class)',
-                    'Competence, objectives, activities, resources, reflection & evaluation',
-                    'Reuse previous lesson plans and restore unsaved drafts',
-                    'Manage, filter and search lesson plans by subject/class/year',
-                    'Send lesson plan to admin for supervisor review',
-                    'Admin Sign Lesson Plan with digital supervisor signature',
-                    'Download single lesson plan PDF or bulk PDF export',
-                    'Works with Active academic-year enrollments and teacher portal',
+                    'Create plans from timetable sessions',
+                    'Competence, objectives, activities & reflection',
+                    'Reuse previous plans and drafts',
+                    'Send to admin for supervisor signature',
+                    'Download single or bulk PDF',
+                    'Works with teacher portal & active enrollments',
                 ],
                 'keywords' => 'lesson plan software, lesson plan system, digital lesson plan Tanzania, teacher lesson plan, school lesson plan PDF, lesson plan for teachers, create lesson plan online, lesson plan management system, mpango wa somo, lesson plan template school, supervisor sign lesson plan, best lesson plan software Africa, ShuleXpert lesson plans, EmCa Techonology lesson plan',
                 'seo_priority' => 'highest',
@@ -220,15 +219,14 @@ class SiteController extends Controller
                 'icon' => 'fa-book',
                 'image' => 'images/time_table.png',
                 'hero' => 'images/timetable.jpg',
-                'body' => 'ShuleXpert Scheme of Work is a dedicated module for termly and yearly teaching schemes. Teachers create a scheme of work per subject/class, fill month-ordered topic rows, manage and update schemes, reuse an existing scheme for a new year, add remarks, and export PDF or Excel. Admins open Scheme of Work Progress to see completion percentage per teacher and subject, then open detailed schemes for supervision. Separate from Lesson Plans, scheme sets the long-range plan; lesson plans deliver each period.',
+                'body' => 'Teachers create a scheme of work per subject and class, fill month-ordered topics, reuse last year’s scheme, and export PDF or Excel. Admins track Scheme of Work Progress. Separate from Lesson Plans: scheme is the long-range plan; lesson plans deliver each period.',
                 'points' => [
-                    'Create scheme of work per subject and class',
-                    'Month-ordered scheme table with topics and coverage rows',
-                    'Use existing scheme / copy into a new academic year',
-                    'Manage, update, remark and delete schemes',
-                    'Admin Scheme of Work Progress (% complete) dashboard',
-                    'Export scheme of work to PDF and Excel',
-                    'Teacher portal + admin supervision views',
+                    'Create scheme per subject and class',
+                    'Month-ordered topics and coverage',
+                    'Reuse / copy into a new academic year',
+                    'Admin progress (% complete) dashboard',
+                    'Export PDF and Excel',
+                    'Teacher portal + admin supervision',
                 ],
                 'keywords' => 'scheme of work software, scheme of work system, digital scheme of work Tanzania, teacher scheme of work, school scheme of work PDF, create scheme of work online, scheme of work template, scheme of work progress, mpango wa kazi wa mwaka, best scheme of work software Africa, ShuleXpert scheme of work, EmCa Techonology scheme of work',
                 'seo_priority' => 'high',
@@ -664,7 +662,7 @@ class SiteController extends Controller
                 'image' => 'images/B.jpg',
                 'featured' => false,
                 'phone' => null,
-                'email' => 'emca@emca.tech',
+                'email' => 'emca@emcatech.co.tz',
                 'location' => 'Moshi, Kilimanjaro, Tanzania',
                 'skills' => [
                     'Requirements',
@@ -679,7 +677,7 @@ class SiteController extends Controller
                 ],
                 'social' => [
                     ['icon' => 'fa-linkedin', 'label' => 'LinkedIn', 'url' => 'https://linkedin.com/'],
-                    ['icon' => 'fa-envelope', 'label' => 'Email', 'url' => 'mailto:emca@emca.tech'],
+                    ['icon' => 'fa-envelope', 'label' => 'Email', 'url' => 'mailto:emca@emcatech.co.tz'],
                 ],
             ],
             [
@@ -692,7 +690,7 @@ class SiteController extends Controller
                 'image' => 'images/L.jpg',
                 'featured' => false,
                 'phone' => null,
-                'email' => 'emca@emca.tech',
+                'email' => 'emca@emcatech.co.tz',
                 'location' => 'Moshi, Kilimanjaro, Tanzania',
                 'skills' => [
                     'UI design',
@@ -708,7 +706,7 @@ class SiteController extends Controller
                 'social' => [
                     ['icon' => 'fa-dribbble', 'label' => 'Dribbble', 'url' => 'https://dribbble.com/'],
                     ['icon' => 'fa-behance', 'label' => 'Behance', 'url' => 'https://behance.net/'],
-                    ['icon' => 'fa-envelope', 'label' => 'Email', 'url' => 'mailto:emca@emca.tech'],
+                    ['icon' => 'fa-envelope', 'label' => 'Email', 'url' => 'mailto:emca@emcatech.co.tz'],
                 ],
             ],
         ];
@@ -845,9 +843,9 @@ class SiteController extends Controller
     {
         return view('site.about', [
             'seo' => [
-                'title' => 'About ShuleXpert | EmCa Techonology',
-                'description' => 'Learn about ShuleXpert, the school management platform built by EmCa Techonology for schools worldwide, from preschool to advanced level.',
-                'keywords' => 'About ShuleXpert, EmCa Techonology, school software worldwide',
+                'title' => 'About ShuleXpert | EmCa Techonologies',
+                'description' => 'Learn about ShuleXpert, the school management platform built by EmCa Techonologies for schools worldwide, from preschool to advanced level.',
+                'keywords' => 'About ShuleXpert, EmCa Techonologies, school software worldwide',
                 'canonical' => $this->publicUrl('/about'),
                 'type' => 'website',
             ],
@@ -898,7 +896,10 @@ class SiteController extends Controller
         $module = $all[$slug];
         $keywordBase = $module['keywords'] ?? ($module['title'] . ', ShuleXpert, school management');
         $canonical = $this->publicUrl('/modules/' . $slug);
-        $imagePath = $module['hero'] ?? $module['image'] ?? 'images/shuleXpert.jpg';
+        $imagePath = 'images/modules-school-hero.jpg';
+        if (!is_file(public_path($imagePath))) {
+            $imagePath = $module['hero'] ?? $module['image'] ?? 'images/shuleXpert.jpg';
+        }
         $ogImage = str_starts_with($imagePath, 'http') ? $imagePath : $this->publicUrl('/' . ltrim($imagePath, '/'));
 
         // Lesson Plans: strongest SEO page on the site. Scheme of Work: very strong.
@@ -948,8 +949,8 @@ class SiteController extends Controller
         return view('site.pricing', [
             'seo' => [
                 'title' => 'ShuleXpert Pricing | TZS 1,000,000 Installation + TZS 500/Student/Month',
-                'description' => 'ShuleXpert pricing by EmCa Techonology: one-time installation fee of TZS 1,000,000 (training, experts, cloud storage, setup) and monthly TZS 500 per student for SMS, support and platform services.',
-                'keywords' => 'ShuleXpert pricing, school management cost Tanzania, installation fee 1000000, 500 TZS per student, EmCa Techonology',
+                'description' => 'ShuleXpert pricing by EmCa Techonologies: one-time installation fee of TZS 1,000,000 (training, experts, cloud storage, setup) and monthly TZS 500 per student for SMS, support and platform services.',
+                'keywords' => 'ShuleXpert pricing, school management cost Tanzania, installation fee 1000000, 500 TZS per student, EmCa Techonologies',
                 'canonical' => $this->publicUrl('/pricing'),
                 'type' => 'website',
                 'breadcrumb_name' => 'Pricing',
@@ -966,8 +967,8 @@ class SiteController extends Controller
         return view('site.services', [
             'seo' => [
                 'title' => 'ShuleXpert Services | Implementation, Training & Support',
-                'description' => 'ShuleXpert services by EmCa Techonology: school digitization, training, biometric support, SMS communication, hosting and continuous user support.',
-                'keywords' => 'ShuleXpert services, school software training worldwide, biometric attendance support, EmCa Techonology',
+                'description' => 'ShuleXpert services by EmCa Techonologies: school digitization, training, biometric support, SMS communication, hosting and continuous user support.',
+                'keywords' => 'ShuleXpert services, school software training worldwide, biometric attendance support, EmCa Techonologies',
                 'canonical' => $this->publicUrl('/services'),
                 'type' => 'website',
             ],
@@ -979,8 +980,8 @@ class SiteController extends Controller
         return view('site.faq', [
             'seo' => [
                 'title' => 'ShuleXpert FAQ | Pricing, Modules & Support',
-                'description' => 'Frequently asked questions about ShuleXpert installation fee (TZS 1,000,000), monthly TZS 500 per student, control numbers, biometric attendance and EmCa Techonology support.',
-                'keywords' => 'ShuleXpert FAQ, school software pricing worldwide, control number fees, EmCa Techonology support',
+                'description' => 'Frequently asked questions about ShuleXpert installation fee (TZS 1,000,000), monthly TZS 500 per student, control numbers, biometric attendance and EmCa Techonologies support.',
+                'keywords' => 'ShuleXpert FAQ, school software pricing worldwide, control number fees, EmCa Techonologies support',
                 'canonical' => $this->publicUrl('/faq'),
                 'type' => 'website',
             ],
@@ -1006,9 +1007,9 @@ class SiteController extends Controller
     {
         return view('site.contact', [
             'seo' => [
-                'title' => 'Contact ShuleXpert | EmCa Techonology',
-                'description' => 'Contact ShuleXpert / EmCa Techonology in Moshi, Kilimanjaro. Call '.config('shulexpert.phone_display').' or email emca@emca.tech.',
-                'keywords' => 'Contact ShuleXpert, EmCa Techonology Moshi, school software support',
+                'title' => 'Contact ShuleXpert | EmCa Techonologies',
+                'description' => 'Contact ShuleXpert / EmCa Techonologies in Moshi, Kilimanjaro. Call '.config('shulexpert.phone_display').' or email emca@emcatech.co.tz.',
+                'keywords' => 'Contact ShuleXpert, EmCa Techonologies Moshi, school software support',
                 'canonical' => $this->publicUrl('/contact'),
                 'type' => 'website',
             ],
@@ -1023,10 +1024,12 @@ class SiteController extends Controller
         return view('site.register-school', [
             'seo' => [
                 'title' => 'Register Your School | ShuleXpert',
-                'description' => 'Register your school on ShuleXpert. Fill the form, submit, then verify your phone with OTP. Our team verifies before account setup.',
-                'keywords' => 'Register school Tanzania, sajili shule, ShuleXpert onboarding',
+                'description' => 'Register your school on ShuleXpert. Fill the form, submit, then verify your phone with OTP. Our team verifies before account setup. Powered by EmCa Techonologies.',
+                'keywords' => 'Register school Tanzania, sajili shule, ShuleXpert onboarding, EmCa Techonologies',
                 'canonical' => $this->publicUrl('/register-school'),
                 'type' => 'website',
+                'image' => $this->publicUrl('/images/modules-school-hero.jpg'),
+                'image_alt' => 'Register your school on ShuleXpert',
             ],
         ]);
     }
@@ -1692,15 +1695,34 @@ class SiteController extends Controller
         ]);
     }
 
-    public function contactSubmit(Request $request)
+    public function contactCaptcha(ContactCaptchaService $captcha)
     {
+        $code = $captcha->currentCodeForImage();
+        $png = $captcha->renderPng($code);
+
+        return response($png, 200, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+        ]);
+    }
+
+    public function contactSubmit(Request $request, ContactCaptchaService $captcha)
+    {
+        // Honeypot — bots fill this; humans never see it.
+        if (filled($request->input('website'))) {
+            return back()->with('success', 'Thank you! Your message has been received. We will contact you soon.');
+        }
+
         $request->validate([
             'name' => 'required|string|max:120',
             'email' => 'required|email|max:160',
             'phone' => 'required|string|max:30',
             'subject' => 'required|string|max:200',
             'message' => 'required|string|max:5000',
-            'otp_token' => 'required|string|max:100',
+            'captcha' => 'required|string|min:4|max:12',
+        ], [
+            'captcha.required' => __('contact.captcha_required'),
         ]);
 
         $phone = $this->normalizeContactPhone($request->input('phone'));
@@ -1710,23 +1732,12 @@ class SiteController extends Controller
                 ->withErrors(['phone' => 'Enter a valid Tanzania mobile number starting with 255.']);
         }
 
-        $verified = session('contact_otp_verified');
-        $pending = session('contact_otp');
-
-        $ok = $verified
-            && ($verified['phone'] ?? null) === $phone
-            && (string) ($verified['token'] ?? '') === (string) $request->otp_token
-            && !empty($verified['expires_at'])
-            && time() <= (int) $verified['expires_at']
-            && !empty($pending['verified']);
-
-        if (!$ok) {
+        if (!$captcha->validate($request->input('captcha'))) {
             return back()
                 ->withInput()
-                ->withErrors(['phone' => 'Verify your phone number with OTP before sending the message.']);
+                ->withErrors(['captcha' => __('contact.captcha_invalid')]);
         }
 
-        // Extra guard: one contact submission per verified phone/IP window
         $submitKey = 'contact-submit:' . $request->ip() . ':' . $phone;
         if (RateLimiter::tooManyAttempts($submitKey, 2)) {
             return back()

@@ -139,6 +139,76 @@ class School extends Model
         return implode(' / ', $this->phoneNumbers());
     }
 
+    /**
+     * Normalize a stored school asset path to a public-relative path (e.g. logos/foo.png).
+     */
+    public static function normalizePublicAssetPath(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        $path = trim(str_replace('\\', '/', $path));
+        if ($path === '' || str_starts_with($path, 'data:image')) {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $path)) {
+            $urlPath = parse_url($path, PHP_URL_PATH);
+            $path = is_string($urlPath) && $urlPath !== '' ? $urlPath : '';
+        }
+
+        $relative = ltrim($path, '/');
+        if (str_starts_with($relative, 'public/')) {
+            $relative = substr($relative, 7);
+        }
+
+        return $relative !== '' ? $relative : null;
+    }
+
+    /**
+     * Public URL for a school logo/stamp/signature path. Encodes spaces safely.
+     * Returns a URL whenever a path is stored so UI can render <img> + onerror fallback.
+     */
+    public static function publicAssetUrl(?string $path): ?string
+    {
+        $relative = self::normalizePublicAssetPath($path);
+        if (!$relative) {
+            return null;
+        }
+
+        $candidates = [
+            public_path($relative),
+            public_path('uploads/' . $relative),
+        ];
+
+        if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+            $docRoot = rtrim((string) $_SERVER['DOCUMENT_ROOT'], '/\\');
+            $candidates[] = $docRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+        }
+
+        if (!empty($_SERVER['SCRIPT_FILENAME'])) {
+            $candidates[] = dirname((string) $_SERVER['SCRIPT_FILENAME']) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+        }
+
+        foreach ($candidates as $fullPath) {
+            if (@is_file($fullPath)) {
+                $publicRoot = realpath(public_path()) ?: public_path();
+                $real = realpath($fullPath);
+                if ($real && str_starts_with($real, $publicRoot)) {
+                    $relative = ltrim(str_replace('\\', '/', substr($real, strlen($publicRoot))), '/');
+                }
+                break;
+            }
+        }
+
+        $encoded = collect(explode('/', $relative))
+            ->map(static fn (string $segment) => rawurlencode($segment))
+            ->implode('/');
+
+        return asset($encoded);
+    }
+
     public static function imageToDataUrl(?string $path): ?string
     {
         if (!$path) {

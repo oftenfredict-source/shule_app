@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\AcademicYear;
 use App\Models\ClassModel;
+use App\Models\OnlineAdmission;
+use App\Models\OnlineAdmissionSpace;
 use App\Models\School;
 use App\Models\Student;
 use App\Models\Subclass;
@@ -11,10 +14,11 @@ use Illuminate\Support\Facades\DB;
 
 class OnlineApplicationSchoolService
 {
+    private const DEFAULT_PUBLIC_SPACES = 50;
+
     public function __construct(
-        private OnlineApplicationCapacityService $capacity,
         private OnlineApplicationApplyTokenService $applyTokens,
-        private OnlineAdmissionSpaceService $spaces
+        private SelectedAcademicYearService $yearService
     ) {
     }
 
@@ -50,8 +54,7 @@ class OnlineApplicationSchoolService
             $schoolModels = $schoolModels->take($fetch);
         }
 
-        $schools = $schoolModels
-            ->map(fn ($school) => $this->buildSchoolCard($school))
+        $schools = $this->buildSchoolCards($schoolModels)
             ->filter(fn ($school) => $school['hasAnySpaces'])
             ->take($perPage)
             ->values();
@@ -63,68 +66,174 @@ class OnlineApplicationSchoolService
         ];
     }
 
+    /**
+     * Build cards for many schools with batched queries (public listing).
+     */
+    public function buildSchoolCards(Collection $schools): Collection
+    {
+        if ($schools->isEmpty()) {
+            return collect();
+        }
+
+        $schoolIDs = $schools->pluck('schoolID')->map(fn ($id) => (int) $id)->unique()->values()->all();
+
+        $classesBySchool = ClassModel::whereIn('schoolID', $schoolIDs)
+            ->where('status', 'Active')
+            ->get(['classID', 'schoolID', 'class_name'])
+            ->groupBy('schoolID');
+
+        $allClassIDs = $classesBySchool->flatten(1)->pluck('classID')->map(fn ($id) => (int) $id)->all();
+
+        $subclassesByClass = empty($allClassIDs)
+            ? collect()
+            : Subclass::whereIn('classID', $allClassIDs)
+                ->where('status', 'Active')
+                ->get(['subclassID', 'classID'])
+                ->groupBy('classID');
+
+        $yearsBySchool = AcademicYear::whereIn('schoolID', $schoolIDs)
+            ->orderByDesc('is_current')
+            ->orderByDesc('year')
+            ->orderByDesc('academic_yearID')
+            ->get()
+            ->groupBy('schoolID');
+
+        $spacesByKey = OnlineAdmissionSpace::whereIn('schoolID', $schoolIDs)
+            ->get(['schoolID', 'classID', 'academic_yearID', 'spaces'])
+            ->keyBy(fn ($row) => $this->spaceKey((int) $row->schoolID, (int) $row->classID, (int) $row->academic_yearID));
+
+        $usedByKey = OnlineAdmission::whereIn('schoolID', $schoolIDs)
+            ->whereIn('status', [OnlineAdmission::STATUS_PENDING, OnlineAdmission::STATUS_CONFIRMED])
+            ->select('schoolID', 'classID', 'academic_yearID', DB::raw('COUNT(*) as used_count'))
+            ->groupBy('schoolID', 'classID', 'academic_yearID')
+            ->get()
+            ->keyBy(fn ($row) => $this->spaceKey((int) $row->schoolID, (int) $row->classID, (int) $row->academic_yearID));
+
+        $studentCountsBySchool = Student::whereIn('schoolID', $schoolIDs)
+            ->where('status', 'Active')
+            ->select('schoolID', DB::raw('COUNT(*) as count'))
+            ->groupBy('schoolID')
+            ->pluck('count', 'schoolID');
+
+        return $schools->map(function (School $school) use (
+            $classesBySchool,
+            $subclassesByClass,
+            $yearsBySchool,
+            $spacesByKey,
+            $usedByKey,
+            $studentCountsBySchool
+        ) {
+            $schoolID = (int) $school->schoolID;
+            $classes = $classesBySchool->get($schoolID, collect());
+
+            if ($classes->isEmpty()) {
+                return $this->emptySchoolCard($school);
+            }
+
+            $years = $yearsBySchool->get($schoolID, collect());
+            $subclassesCount = 0;
+
+            $classesWithSpaces = $classes->map(function ($class) use (
+                $schoolID,
+                $years,
+                $subclassesByClass,
+                $spacesByKey,
+                $usedByKey,
+                &$subclassesCount
+            ) {
+                $classID = (int) $class->classID;
+                $classSubs = $subclassesByClass->get($classID, collect());
+                $subclassesCount += $classSubs->count();
+
+                $yearId = $this->resolveYearIdFromCollection($years, $class->class_name);
+                $year = $yearId ? $years->firstWhere('academic_yearID', $yearId) : null;
+
+                if (!$yearId) {
+                    return [
+                        'classID' => $classID,
+                        'className' => $class->class_name,
+                        'subclassesCount' => $classSubs->count(),
+                        'currentStudents' => 0,
+                        'totalCapacity' => 0,
+                        'availableSpaces' => 0,
+                        'hasSpaces' => false,
+                        'academicYearID' => null,
+                        'academicYearName' => null,
+                        'applyUrl' => null,
+                    ];
+                }
+
+                $key = $this->spaceKey($schoolID, $classID, $yearId);
+                $allocated = $spacesByKey->has($key)
+                    ? (int) $spacesByKey->get($key)->spaces
+                    : self::DEFAULT_PUBLIC_SPACES;
+                $used = $usedByKey->has($key) ? (int) $usedByKey->get($key)->used_count : 0;
+                $available = $allocated > 0 ? max(0, $allocated - $used) : 0;
+                $hasSpaces = $available > 0;
+
+                return [
+                    'classID' => $classID,
+                    'className' => $class->class_name,
+                    'subclassesCount' => $classSubs->count(),
+                    'currentStudents' => $used,
+                    'totalCapacity' => $allocated,
+                    'availableSpaces' => $available,
+                    'hasSpaces' => $hasSpaces,
+                    'academicYearID' => $yearId,
+                    'academicYearName' => $year?->year_name ?? $year?->year,
+                    'applyUrl' => $hasSpaces
+                        ? $this->applyTokens->applyUrl($schoolID, $classID, $yearId)
+                        : null,
+                ];
+            });
+
+            return [
+                'schoolID' => $schoolID,
+                'schoolName' => $school->school_name,
+                'schoolType' => $school->school_type,
+                'region' => $school->region,
+                'district' => $school->district,
+                'schoolLogo' => School::normalizePublicAssetPath($school->school_logo),
+                'schoolLogoUrl' => School::publicAssetUrl($school->school_logo),
+                'schoolUrl' => $this->applyTokens->localSchoolUrl($schoolID),
+                'schoolShareUrl' => $this->applyTokens->schoolUrl($schoolID),
+                'classesCount' => $classes->count(),
+                'subclassesCount' => $subclassesCount,
+                'activeStudentsCount' => (int) ($studentCountsBySchool[$schoolID] ?? 0),
+                'classesWithSpaces' => $classesWithSpaces,
+                'hasAnySpaces' => $classesWithSpaces->where('hasSpaces', true)->count() > 0,
+            ];
+        })->values();
+    }
+
     public function buildSchoolCard(School $school): array
     {
-        $classes = ClassModel::where('schoolID', $school->schoolID)
-            ->where('status', 'Active')
-            ->get();
+        return $this->buildSchoolCards(collect([$school]))->first() ?? $this->emptySchoolCard($school);
+    }
 
-        $classIDs = $classes->pluck('classID')->toArray();
+    private function spaceKey(int $schoolID, int $classID, int $academicYearID): string
+    {
+        return $schoolID . ':' . $classID . ':' . $academicYearID;
+    }
 
-        if (empty($classIDs)) {
-            return $this->emptySchoolCard($school);
+    private function resolveYearIdFromCollection(Collection $years, ?string $className): ?int
+    {
+        if ($years->isEmpty()) {
+            return null;
         }
 
-        // Seed default 50 spaces per class/year so public listing matches admin defaults.
-        $this->spaces->ensureDefaultSpacesForSchool((int) $school->schoolID, 50);
+        $isA = $this->yearService->isALevelClassName($className);
+        $pool = $years->filter(function ($y) use ($isA) {
+            return $isA ? $this->yearService->isALevelYear($y) : !$this->yearService->isALevelYear($y);
+        })->values();
 
-        $allSubclasses = Subclass::whereIn('classID', $classIDs)
-            ->where('status', 'Active')
-            ->get()
-            ->groupBy('classID');
-
-        $subclassIDs = $allSubclasses->flatten()->pluck('subclassID')->toArray();
-        $studentCounts = [];
-
-        if (!empty($subclassIDs)) {
-            $studentCounts = Student::whereIn('subclassID', $subclassIDs)
-                ->where('status', 'Active')
-                ->select(DB::raw('subclassID, COUNT(*) as count'))
-                ->groupBy('subclassID')
-                ->pluck('count', 'subclassID')
-                ->toArray();
+        if ($pool->isEmpty()) {
+            $pool = $years;
         }
 
-        $activeStudentsCount = Student::where('schoolID', $school->schoolID)
-            ->where('status', 'Active')
-            ->count();
+        $pick = $pool->firstWhere('is_current', true) ?: $pool->first();
 
-        $classesWithSpaces = $classes->map(function ($class) use ($allSubclasses, $studentCounts) {
-            $classSubclasses = $allSubclasses->get($class->classID, collect());
-            $stats = $this->capacity->calculateForClass($class, $classSubclasses, $studentCounts);
-
-            return array_merge($stats, [
-                'applyUrl' => $stats['hasSpaces']
-                    ? $this->applyTokens->applyUrl($class->schoolID, $class->classID, $stats['academicYearID'] ?? null)
-                    : null,
-            ]);
-        });
-
-        return [
-            'schoolID' => $school->schoolID,
-            'schoolName' => $school->school_name,
-            'schoolType' => $school->school_type,
-            'region' => $school->region,
-            'district' => $school->district,
-            'schoolLogo' => $school->school_logo,
-            'schoolUrl' => $this->applyTokens->localSchoolUrl((int) $school->schoolID),
-            'schoolShareUrl' => $this->applyTokens->schoolUrl((int) $school->schoolID),
-            'classesCount' => $classes->count(),
-            'subclassesCount' => $allSubclasses->flatten()->count(),
-            'activeStudentsCount' => $activeStudentsCount,
-            'classesWithSpaces' => $classesWithSpaces,
-            'hasAnySpaces' => $classesWithSpaces->where('hasSpaces', true)->count() > 0,
-        ];
+        return $pick ? (int) $pick->academic_yearID : null;
     }
 
     private function emptySchoolCard(School $school): array
@@ -135,7 +244,8 @@ class OnlineApplicationSchoolService
             'schoolType' => $school->school_type,
             'region' => $school->region,
             'district' => $school->district,
-            'schoolLogo' => $school->school_logo,
+            'schoolLogo' => School::normalizePublicAssetPath($school->school_logo),
+            'schoolLogoUrl' => School::publicAssetUrl($school->school_logo),
             'schoolUrl' => $this->applyTokens->localSchoolUrl((int) $school->schoolID),
             'schoolShareUrl' => $this->applyTokens->schoolUrl((int) $school->schoolID),
             'classesCount' => 0,

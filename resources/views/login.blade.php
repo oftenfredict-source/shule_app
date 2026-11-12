@@ -2,156 +2,326 @@
     $skipSplash = true;
     $seo = [
         'title' => 'School Login | ShuleXpert',
-        'description' => 'Secure school member login to ShuleXpert. Powered by EmCa Techonology.',
-        'keywords' => 'ShuleXpert login, school portal, EmCa Techonology',
+        'description' => 'Secure school member login to ShuleXpert. Powered by EmCa Techonologies.',
+        'keywords' => 'ShuleXpert login, school portal, EmCa Techonologies',
         'canonical' => url('/login'),
         'robots' => 'noindex, follow',
+        'image' => url('/images/login-school-night.jpg'),
+        'image_alt' => 'ShuleXpert school login',
     ];
 @endphp
 @extends('layouts.site')
 
 @section('content')
-<section class="sx-auth-stage sx-login-stage" style="--sx-auth-art-bg: url('{{ asset('img/shulexpert-login-bg.jpg') }}')">
-    <div class="sx-login-stage__bg" aria-hidden="true"></div>
-    <div class="sx-login-stage__glow sx-login-stage__glow--a" aria-hidden="true"></div>
-    <div class="sx-login-stage__glow sx-login-stage__glow--b" aria-hidden="true"></div>
+<section class="sx-login-unique" style="--sx-login-bg: url('{{ asset('images/login-school-night.jpg') }}')">
+    <div class="sx-login-unique__shell">
+        <div class="sx-login-unique__card">
+            <div class="sx-login-unique__brand">
+                <img src="{{ asset('shule.png') }}" alt="ShuleXpert">
+            </div>
 
-    <div class="container sx-login-container">
-        <div class="sx-auth-panel sx-login-panel">
-            <aside class="sx-auth-art sx-login-art">
-                <div class="sx-login-art__top">
-                    <div class="sx-login-brand">
-                        <img class="sx-auth-logo" src="{{ asset('images/shuleXpert.jpg') }}" alt="ShuleXpert">
-                        <div class="sx-login-brand__text">
-                            <span class="sx-login-brand__name">ShuleXpert</span>
-                            <span class="sx-login-brand__sub">School Management Platform</span>
+            <h1 class="sx-login-unique__title">{{ __('site.login_form_title') }}</h1>
+            <p class="sx-login-unique__desc">{{ __('site.login_form_desc') }}</p>
+
+            <div class="sx-login-switch">
+                <span class="sx-login-switch__current"><i class="fa fa-building-o" aria-hidden="true"></i> {{ __('site.login_staff') }}</span>
+                <a href="{{ route('student_portal.login') }}" class="sx-login-switch__alt">{{ __('site.login_student_portal') }} <i class="fa fa-angle-right" aria-hidden="true"></i></a>
+            </div>
+
+            <div id="loginAlert"></div>
+            @if (session('success'))
+                <div class="alert alert-success">{{ session('success') }}</div>
+            @endif
+            @if (session('error'))
+                <div class="alert alert-danger">{{ session('error') }}</div>
+            @endif
+            @if ($errors->any())
+                <div class="alert alert-danger">
+                    <ul class="mb-0 pl-3">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <form id="schoolForm" method="POST" action="{{ route('auth') }}" enctype="multipart/form-data">
+                @csrf
+                <label class="sx-login-label required" for="school_name">{{ __('site.login_username') }}</label>
+                <div class="sx-input-wrap">
+                    <i class="fa fa-user sx-field-icon"></i>
+                    <input type="text" id="school_name" name="username" class="form-control @error('username') is-invalid @enderror" placeholder="{{ __('site.login_username') }}" value="{{ old('username') }}" required autocomplete="username">
+                    @error('username')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="sx-login-pass-row">
+                    <label class="sx-login-label required mb-0" for="registration_number">{{ __('site.login_password') }}</label>
+                    <a href="{{ route('forgot_password') }}" class="sx-login-forgot">{{ __('site.login_forgot') }}</a>
+                </div>
+                <div class="sx-input-wrap">
+                    <i class="fa fa-key sx-field-icon"></i>
+                    <input type="password" id="registration_number" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="{{ __('site.login_password') }}" required autocomplete="current-password">
+                    <i class="fa fa-eye-slash sx-toggle-pass" id="togglePassword" title="Show password" role="button" tabindex="0" aria-label="Show password"></i>
+                    @error('password')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="sx-auth-links">
+                    <label class="sx-login-remember mb-0" for="remember_me">
+                        <input type="checkbox" name="remember_me" id="remember_me">
+                        <span>{{ __('site.login_remember') }}</span>
+                    </label>
+                    <a href="{{ route('site.contact') }}">{{ __('site.login_need_help') }}</a>
+                </div>
+
+                <input type="hidden" name="latitude" id="lat">
+                <input type="hidden" name="longitude" id="lng">
+                <input type="hidden" name="photo_data" id="photo_data">
+                @if (!empty($loginPhotoCaptureEnabled))
+                <video id="video" width="320" height="240" style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1;" playsinline muted></video>
+                <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+                @endif
+
+                <button type="submit" class="btn btn-sx-auth">
+                    <i class="fa fa-sign-in" style="margin-right:8px;"></i>{{ __('site.login_button') }}
+                </button>
+            </form>
+
+            <div id="otpWrap" class="mt-3" style="display:none;">
+                <div class="sx-otp-panel">
+                    <div class="sx-otp-head">
+                        <h6><i class="fa fa-shield" style="margin-right:8px;"></i>{{ __('site.login_otp_title') }}</h6>
+                        <span class="small" style="opacity:.92;">ShuleXpert</span>
+                    </div>
+                    <div class="p-3">
+                        <div class="small mb-2" id="otpTitle" style="color:#2f2f2f;">{{ __('site.login_otp_enter') }}</div>
+                        <input type="hidden" id="otpToken" value="">
+                        <input type="hidden" id="otpMaskedPhone" value="">
+                        <label class="sx-login-label required" for="otpBox0">{{ __('site.login_otp_label') }}</label>
+                        <div class="d-flex sx-otp-boxes mb-2" style="gap:10px;">
+                            <input type="text" id="otpBox0" class="form-control" inputmode="numeric" maxlength="1" autocomplete="one-time-code">
+                            <input type="text" id="otpBox1" class="form-control" inputmode="numeric" maxlength="1">
+                            <input type="text" id="otpBox2" class="form-control" inputmode="numeric" maxlength="1">
+                            <input type="text" id="otpBox3" class="form-control" inputmode="numeric" maxlength="1">
+                            <input type="text" id="otpBox4" class="form-control" inputmode="numeric" maxlength="1">
+                            <input type="text" id="otpBox5" class="form-control" inputmode="numeric" maxlength="1">
                         </div>
-                    </div>
-                    <h2 class="sx-login-art__title">Welcome back</h2>
-                    <p class="sx-login-art__lead">Sign in to run fees, attendance, exams, SMS alerts, and every module that keeps your school moving.</p>
-                </div>
-
-                <ul class="sx-login-points" aria-label="What you can manage">
-                    <li><i class="fa fa-check" aria-hidden="true"></i><span>Fees, results &amp; parent alerts</span></li>
-                    <li><i class="fa fa-check" aria-hidden="true"></i><span>Attendance &amp; classroom tools</span></li>
-                    <li><i class="fa fa-check" aria-hidden="true"></i><span>Secure OTP-protected access</span></li>
-                </ul>
-
-                <div class="sx-auth-powered">Powered by EmCa Techonology</div>
-            </aside>
-
-            <div class="sx-auth-form-wrap sx-login-form">
-                <div class="sx-login-form__head">
-                    <p class="sx-login-kicker">School portal</p>
-                    <h3>Member Login</h3>
-                    <p class="sx-auth-sub">Enter your username and password to continue.</p>
-                </div>
-
-                <div class="sx-login-switch">
-                    <span class="sx-login-switch__current"><i class="fa fa-building-o" aria-hidden="true"></i> School staff</span>
-                    <a href="{{ route('student_portal.login') }}" class="sx-login-switch__alt">Student portal <i class="fa fa-angle-right" aria-hidden="true"></i></a>
-                </div>
-
-                <div id="loginAlert"></div>
-                @if (session('success'))
-                    <div class="alert alert-success">{{ session('success') }}</div>
-                @endif
-                @if (session('error'))
-                    <div class="alert alert-danger">{{ session('error') }}</div>
-                @endif
-                @if ($errors->any())
-                    <div class="alert alert-danger">
-                        <ul class="mb-0 pl-3">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-
-                <form id="schoolForm" method="POST" action="{{ route('auth') }}" enctype="multipart/form-data">
-                    @csrf
-                    <label class="required" for="school_name">Username</label>
-                    <div class="sx-input-wrap">
-                        <i class="fa fa-user sx-field-icon"></i>
-                        <input type="text" id="school_name" name="username" class="form-control @error('username') is-invalid @enderror" placeholder="Username" value="{{ old('username') }}" required autocomplete="username">
-                        @error('username')
-                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="sx-login-pass-row">
-                        <label class="required mb-0" for="registration_number">Password</label>
-                        <a href="{{ route('forgot_password') }}" class="sx-login-forgot">Forgot Password?</a>
-                    </div>
-                    <div class="sx-input-wrap">
-                        <i class="fa fa-key sx-field-icon"></i>
-                        <input type="password" id="registration_number" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="Password" required autocomplete="current-password">
-                        <i class="fa fa-eye-slash sx-toggle-pass" id="togglePassword" title="Show password" role="button" tabindex="0" aria-label="Show password"></i>
-                        @error('password')
-                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="sx-auth-links">
-                        <label class="sx-login-remember mb-0" for="remember_me">
-                            <input type="checkbox" name="remember_me" id="remember_me">
-                            <span>Remember Me</span>
-                        </label>
-                        <a href="{{ route('site.contact') }}">Need help?</a>
-                    </div>
-
-                    <input type="hidden" name="latitude" id="lat">
-                    <input type="hidden" name="longitude" id="lng">
-                    <input type="hidden" name="photo_data" id="photo_data">
-                    @if (!empty($loginPhotoCaptureEnabled))
-                    <video id="video" width="320" height="240" style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1;" playsinline muted></video>
-                    <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
-                    @endif
-
-                    <button type="submit" class="btn btn-sx-auth">
-                        <i class="fa fa-sign-in" style="margin-right:8px;"></i>Login
-                    </button>
-                </form>
-
-                <div id="otpWrap" class="mt-3" style="display:none;">
-                    <div class="sx-otp-panel">
-                        <div class="sx-otp-head">
-                            <h6><i class="fa fa-shield" style="margin-right:8px;"></i>OTP Verification</h6>
-                            <span class="small" style="opacity:.92;">ShuleXpert</span>
+                        <div class="small text-danger" id="otpHint"></div>
+                        <div class="d-flex align-items-center justify-content-between mt-2">
+                            <div id="otpStatus" class="small text-muted">Waiting OTP...</div>
+                            <div class="small text-muted" id="otpTimer"></div>
                         </div>
-                        <div class="p-3">
-                            <div class="small mb-2" id="otpTitle" style="color:#2f2f2f;">ENTER 6 DIGITS CODE WE SENT TO YOUR PHONE</div>
-                            <input type="hidden" id="otpToken" value="">
-                            <input type="hidden" id="otpMaskedPhone" value="">
-                            <label class="required" for="otpBox0">OTP</label>
-                            <div class="d-flex sx-otp-boxes mb-2" style="gap:10px;">
-                                <input type="text" id="otpBox0" class="form-control" inputmode="numeric" maxlength="1" autocomplete="one-time-code">
-                                <input type="text" id="otpBox1" class="form-control" inputmode="numeric" maxlength="1">
-                                <input type="text" id="otpBox2" class="form-control" inputmode="numeric" maxlength="1">
-                                <input type="text" id="otpBox3" class="form-control" inputmode="numeric" maxlength="1">
-                                <input type="text" id="otpBox4" class="form-control" inputmode="numeric" maxlength="1">
-                                <input type="text" id="otpBox5" class="form-control" inputmode="numeric" maxlength="1">
-                            </div>
-                            <div class="small text-danger" id="otpHint"></div>
-                            <div class="d-flex align-items-center justify-content-between mt-2">
-                                <div id="otpStatus" class="small text-muted">Waiting OTP...</div>
-                                <div class="small text-muted" id="otpTimer"></div>
-                            </div>
-                            <div class="mt-3 d-flex" style="gap:10px;">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnBackLogin">Back Login</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" id="btnResendOtp">Resend OTP</button>
-                            </div>
+                        <div class="mt-3 d-flex" style="gap:10px;">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnBackLogin">{{ __('site.login_back') }}</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" id="btnResendOtp">{{ __('site.login_resend') }}</button>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <p class="sx-login-secure"><i class="fa fa-lock" aria-hidden="true"></i> Encrypted session · OTP when required</p>
+            <div class="sx-login-unique__foot">
+                <p class="sx-login-secure mb-2"><i class="fa fa-lock" aria-hidden="true"></i> {{ __('site.login_secure') }}</p>
+                <a href="{{ route('site.register_school') }}">{{ __('site.register_school') }}</a>
             </div>
         </div>
     </div>
 </section>
 @endsection
+
+@push('styles')
+<style>
+.sx-login-unique {
+    position: relative;
+    min-height: calc(100vh - 180px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 36px 16px 48px;
+    overflow: hidden;
+    background-color: #0b1220;
+    background-image: var(--sx-login-bg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+.sx-login-unique__shell {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 460px;
+}
+.sx-login-unique__card {
+    background: #fff;
+    border: 1px solid #f0e4e4;
+    border-radius: 18px;
+    padding: 28px 26px 22px;
+    box-shadow: 0 18px 40px rgba(80,0,0,.08);
+}
+.sx-login-unique__brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+}
+.sx-login-unique__brand img {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+}
+.sx-login-unique__title {
+    color: #1a1a1a;
+    font-size: 26px;
+    font-weight: 800;
+    margin: 0 0 6px;
+    text-align: center;
+}
+.sx-login-unique__desc {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.55;
+    margin-bottom: 0;
+    text-align: center;
+}
+.sx-login-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 18px 0 14px;
+    padding: 10px 12px;
+    border: 1px solid #f0dada;
+    border-radius: 10px;
+    background: #fff8f8;
+}
+.sx-login-switch__current {
+    color: #940000;
+    font-weight: 800;
+    font-size: 13px;
+}
+.sx-login-switch__alt {
+    color: #555 !important;
+    font-weight: 700;
+    font-size: 13px;
+    text-decoration: none !important;
+}
+.sx-login-label {
+    display: block;
+    color: #333;
+    font-weight: 700;
+    font-size: 13px;
+    margin: 12px 0 6px;
+}
+.sx-input-wrap { position: relative; }
+.sx-input-wrap .form-control {
+    border-radius: 10px;
+    border-color: #e8d5d5;
+    min-height: 46px;
+    padding-left: 40px;
+    padding-right: 42px;
+}
+.sx-field-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #940000;
+    z-index: 2;
+}
+.sx-toggle-pass {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #777;
+    cursor: pointer;
+    z-index: 2;
+}
+.sx-login-pass-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 4px;
+}
+.sx-login-forgot {
+    color: #940000 !important;
+    font-size: 12.5px;
+    font-weight: 700;
+}
+.sx-auth-links {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 14px 0 18px;
+}
+.sx-login-remember {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #555;
+    font-size: 13.5px;
+    font-weight: 600;
+}
+.sx-auth-links a {
+    color: #940000 !important;
+    font-weight: 700;
+    font-size: 13px;
+}
+.btn-sx-auth {
+    width: 100%;
+    background: #940000 !important;
+    color: #fff !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    font-weight: 800 !important;
+    min-height: 46px;
+}
+.sx-login-secure {
+    margin: 0;
+    color: #777;
+    font-size: 12.5px;
+}
+.sx-login-unique__foot {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #f0e4e4;
+    text-align: center;
+}
+.sx-login-unique__foot a {
+    color: #940000 !important;
+    font-weight: 800;
+    font-size: 13px;
+}
+.sx-otp-panel {
+    border: 1px solid #f0dada;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff8f8;
+}
+.sx-otp-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #940000;
+    color: #fff;
+    padding: 10px 14px;
+}
+.sx-otp-head h6 { margin: 0; color: #fff; font-weight: 800; }
+.sx-otp-boxes .form-control {
+    text-align: center;
+    font-weight: 800;
+    border-radius: 8px;
+    min-height: 44px;
+}
+@media (max-width: 991.98px) {
+    .sx-login-unique { padding: 28px 14px 80px; min-height: auto; }
+}
+</style>
+@endpush
 
 @push('scripts')
 <script>
@@ -167,6 +337,8 @@
     const btnBackLogin = document.getElementById('btnBackLogin');
     const btnResendOtp = document.getElementById('btnResendOtp');
     const boxes = [0,1,2,3,4,5].map(i => document.getElementById('otpBox' + i));
+    const i18nLogin = @json(__('site.login_button'));
+    const i18nOtpEnter = @json(__('site.login_otp_enter'));
 
     if (!form || !otpWrap || !otpToken || boxes.some(b => !b)) return;
 
@@ -454,7 +626,7 @@
         } finally {
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa fa-sign-in" style="margin-right:8px;"></i>Login';
+                btn.innerHTML = '<i class="fa fa-sign-in" style="margin-right:8px;"></i>' + i18nLogin;
             }
         }
     });
@@ -533,7 +705,7 @@
                 if (data && data.success) {
                     const masked = data.masked_phone || otpMaskedPhone.value || '';
                     if (otpTitle) {
-                        otpTitle.textContent = 'ENTER 6 DIGITS CODE WE SENT TO YOUR PHONE' + (masked ? (' ' + masked) : '');
+                        otpTitle.textContent = i18nOtpEnter + (masked ? (' ' + masked) : '');
                     }
                     boxes.forEach(b => b.value = '');
                     boxes[0].focus();

@@ -13,66 +13,50 @@
     var loadHint = document.getElementById('oaLoadHint');
     var VIEW_KEY_M = 'sx_oa_schools_view_m';
     var VIEW_KEY_D = 'sx_oa_schools_view_d';
-    var MOBILE_MAX = 991;
 
-    function isMobileView() {
-        return window.matchMedia('(max-width: ' + MOBILE_MAX + 'px)').matches;
+    function isMobile() {
+        return window.matchMedia('(max-width: 767.98px)').matches;
     }
 
-    function storageKey() {
-        return isMobileView() ? VIEW_KEY_M : VIEW_KEY_D;
+    function viewKey() {
+        return isMobile() ? VIEW_KEY_M : VIEW_KEY_D;
     }
 
-    function defaultView() {
-        return isMobileView() ? 'grid' : 'list';
-    }
-
-    function resolveView() {
+    function readView() {
+        if (isMobile()) return 'grid';
+        var view = 'grid';
         try {
+            var saved = localStorage.getItem(viewKey());
+            if (saved === 'list' || saved === 'grid') view = saved;
             localStorage.removeItem('sx_oa_schools_view');
-            var saved = localStorage.getItem(storageKey());
-            if (saved === 'grid' || saved === 'list') return saved;
         } catch (e) {}
-        return defaultView();
+        return view;
     }
 
-    function applyView(mode) {
-        var view = mode === 'grid' ? 'grid' : 'list';
+    function applyView(view, persist) {
+        if (isMobile()) view = 'grid';
+        view = view === 'list' ? 'list' : 'grid';
         grid.classList.remove('is-list', 'is-grid');
-        grid.classList.add(view === 'grid' ? 'is-grid' : 'is-list');
+        grid.classList.add(view === 'list' ? 'is-list' : 'is-grid');
         document.querySelectorAll('[data-oa-view]').forEach(function (btn) {
             var active = btn.getAttribute('data-oa-view') === view;
             btn.classList.toggle('is-active', active);
             btn.setAttribute('aria-pressed', active ? 'true' : 'false');
         });
-    }
-
-    function initView() {
-        applyView(resolveView());
+        if (persist && !isMobile()) {
+            try { localStorage.setItem(viewKey(), view); } catch (e) {}
+        }
     }
 
     document.querySelectorAll('[data-oa-view]').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            var view = btn.getAttribute('data-oa-view') === 'grid' ? 'grid' : 'list';
-            applyView(view);
-            try { localStorage.setItem(storageKey(), view); } catch (e) {}
+            if (isMobile() && btn.getAttribute('data-oa-view') === 'list') return;
+            var view = btn.getAttribute('data-oa-view') === 'list' ? 'list' : 'grid';
+            applyView(view, true);
         });
     });
 
-    var resizeTimer = null;
-    var lastMobile = isMobileView();
-    window.addEventListener('resize', function () {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(function () {
-            var nowMobile = isMobileView();
-            if (nowMobile !== lastMobile) {
-                lastMobile = nowMobile;
-                applyView(resolveView());
-            }
-        }, 150);
-    });
-
-    initView();
+    applyView(readView(), false);
 
     function bindViewMoreClasses(root) {
         (root || document).querySelectorAll('.sx-apply-view-more-classes').forEach(function (btn) {
@@ -132,35 +116,24 @@
 
     bindViewMoreClasses(document);
 
-    document.body.addEventListener('click', function (e) {
-        var btn = e.target.closest('.sx-copy-school-link');
-        if (!btn) return;
-        e.preventDefault();
-        var url = btn.getAttribute('data-url') || '';
-        if (!url) return;
-        var done = function () {
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({ icon: 'success', title: 'Link copied', text: 'You can forward this link for online applications.', timer: 2200, showConfirmButton: false });
-            } else {
-                alert('Link copied.');
-            }
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(url).then(done).catch(function () {
-                window.prompt('Copy this application link:', url);
-            });
-        } else {
-            window.prompt('Copy this application link:', url);
-        }
+    window.addEventListener('resize', function () {
+        applyView(readView(), false);
     });
 
-    window.addEventListener('scroll', function () {
-        if (!hasMore || loading) return;
-        var scrollBottom = window.innerHeight + window.scrollY;
-        var threshold = document.body.offsetHeight - 300;
-        if (scrollBottom >= threshold) {
-            loadMore();
-        }
-    });
+    if ('IntersectionObserver' in window && loadMoreEl) {
+        var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) loadMore();
+            });
+        }, { rootMargin: '200px 0px' });
+        observer.observe(loadMoreEl);
+    } else {
+        window.addEventListener('scroll', function () {
+            if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 400)) {
+                loadMore();
+            }
+        });
+    }
 })();
 </script>
+

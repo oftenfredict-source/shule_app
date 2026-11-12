@@ -14,7 +14,7 @@
         'url' => $homeUrl,
         'logo' => $publicBase . '/images/shuleXpert.jpg',
         'description' => 'Mfumo bora wa shule Tanzania na duniani, better school management system and school software by EmCa Techonology.',
-        'email' => 'emca@emca.tech',
+        'email' => 'emca@emcatech.co.tz',
         'telephone' => config('shulexpert.phone_e164'),
         'address' => [
             '@type' => 'PostalAddress',

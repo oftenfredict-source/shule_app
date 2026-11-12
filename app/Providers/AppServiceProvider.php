@@ -360,14 +360,15 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-       // Parent portal default is Kiswahili. Persist if the session has no locale yet.
+       // Public site + portals default to English when session has no locale yet
+       // (e.g. after logout / new visitor). Users can still switch to Swahili.
        if (! Session::has('locale')) {
-           Session::put('locale', 'sw');
+           Session::put('locale', 'en');
        }
-       $locale = Session::get('locale', 'sw');
+       $locale = Session::get('locale', 'en');
        if (! in_array($locale, ['en', 'sw'], true)) {
-           $locale = 'sw';
-           Session::put('locale', 'sw');
+           $locale = 'en';
+           Session::put('locale', 'en');
        }
        app()->setLocale($locale);
        Carbon::setLocale($locale);

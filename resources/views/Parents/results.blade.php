@@ -1,584 +1,591 @@
 @extends('layouts.parent_corp')
 
 @section('title', __('parent.exam_results_title') . ' - ShuleXpert')
+@section('page_title', __('parent.student_results'))
+@section('page_breadcrumb', __('parent.exam_results_title'))
 
 @section('content')
 <style>
-    :root {
-        --primary-red: #940000;
-        --light-red: #fff5f5;
-        --border-color: #eee;
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results p,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results span:not(.badge),
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results small,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results strong,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results div,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results h1,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results h2,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results h3,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results h4,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results h5,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results h6,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results .card-title,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results .text-muted,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results .step-label {
+        color: #000 !important;
     }
 
-    .wizard-container {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        padding: 30px;
-        margin-bottom: 30px;
+    .sx-parent-results .card,
+    .sx-parent-results .panel-card {
+        border-radius: 0.35rem;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+        background: #fff;
+        border: 1px solid #e6e6e6;
+    }
+    .sx-parent-results .panel-card .card-body {
+        padding: 1.25rem 1.35rem;
+    }
+    .sx-parent-results .btn-primary,
+    .sx-parent-results a.btn-primary,
+    .sx-parent-results .badge,
+    .sx-parent-results .step-item.completed .step-circle,
+    .sx-parent-results .selection-card.selected,
+    .sx-parent-results .selection-card.selected *,
+    .sx-parent-results .selection-card.selected small,
+    .sx-parent-results .selection-card.selected strong,
+    .sx-parent-results .selection-card.selected i,
+    .sx-parent-results .selection-card.selected .text-muted,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results .selection-card.selected,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results .selection-card.selected *,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results .selection-card.selected small,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results .selection-card.selected strong,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results .selection-card.selected i,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-parent-results .selection-card.selected .text-muted {
+        color: #fff !important;
+    }
+    .sx-parent-results .btn-link {
+        font-weight: 600;
+        text-decoration: none;
+        color: #940000 !important;
+    }
+    .sx-parent-results .btn-outline-light {
+        border-color: #d9d9d9;
+        color: #111 !important;
+        background: #fff;
     }
 
-    /* Chain/Step Progress CSS */
-    .step-chain {
+    .sx-parent-results .hint-strip {
+        border: 1px solid rgba(148, 0, 0, 0.12);
+        border-left: 4px solid #940000;
+        background: #fff;
+        padding: 0.85rem 1rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    /* Step chain */
+    .sx-parent-results .step-chain {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 40px;
+        margin-bottom: 1.75rem;
         position: relative;
-        padding: 0 20px;
+        padding: 0 12px;
     }
-
-    .step-chain::before {
+    .sx-parent-results .step-chain::before {
         content: '';
         position: absolute;
-        top: 25px;
-        left: 70px;
-        right: 70px;
+        top: 22px;
+        left: 56px;
+        right: 56px;
         height: 3px;
-        background: #f0f0f0;
+        background: rgba(148, 0, 0, 0.12);
         z-index: 1;
     }
-
-    .step-chain-progress {
+    .sx-parent-results .step-chain-progress {
         position: absolute;
-        top: 25px;
-        left: 70px;
+        top: 22px;
+        left: 56px;
         height: 3px;
-        background: var(--primary-red);
+        background: #940000;
         z-index: 2;
-        transition: width 0.4s ease;
+        transition: width 0.35s ease;
         width: 0%;
-        max-width: calc(100% - 140px); /* Prevents going beyond the last circle */
+        max-width: calc(100% - 112px);
     }
-
-    .step-item {
+    .sx-parent-results .step-item {
         position: relative;
         z-index: 3;
         text-align: center;
-        width: 100px;
+        width: 96px;
     }
-
-    .step-circle {
-        width: 50px;
-        height: 50px;
+    .sx-parent-results .step-circle {
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
-        background: white;
-        border: 3px solid #f0f0f0;
+        background: #fff;
+        border: 2px solid #e6e6e6;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 0 auto 10px;
+        margin: 0 auto 8px;
         font-weight: 800;
-        color: #999;
-        transition: all 0.3s ease;
-        font-size: 18px;
+        color: #888;
+        transition: all 0.2s ease;
+        font-size: 0.95rem;
     }
-
-    .step-item.active .step-circle {
-        border-color: var(--primary-red);
-        color: var(--primary-red);
-        transform: scale(1.1);
-        box-shadow: 0 0 15px rgba(148,0,0,0.2);
+    .sx-parent-results .step-item.active .step-circle {
+        border-color: #940000;
+        color: #940000 !important;
+        box-shadow: 0 0 0 4px rgba(148, 0, 0, 0.12);
+        transform: scale(1.06);
     }
-
-    .step-item.completed .step-circle {
-        background: var(--primary-red);
-        border-color: var(--primary-red);
-        color: white;
+    .sx-parent-results .step-item.completed .step-circle {
+        background: #940000;
+        border-color: #940000;
+        color: #fff !important;
     }
-
-    .step-label {
-        font-size: 11px;
-        font-weight: 700;
+    .sx-parent-results .step-label {
+        font-size: 0.7rem;
+        font-weight: 800;
         text-transform: uppercase;
-        color: #999;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.04em;
+        color: #777 !important;
+    }
+    .sx-parent-results .step-item.active .step-label {
+        color: #940000 !important;
     }
 
-    .step-item.active .step-label {
-        color: var(--primary-red);
-    }
-
-    /* Selection Cards */
-    .selection-grid {
+    /* Selection cards */
+    .sx-parent-results .selection-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: 15px;
-        margin-top: 20px;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 12px;
+        margin-top: 0.75rem;
     }
-
-    .selection-card {
-        border: 2px solid #f0f0f0;
-        border-radius: 12px;
-        padding: 20px;
+    .sx-parent-results .selection-card {
+        border: 1px solid #e6e6e6;
+        border-top: 3px solid transparent;
+        border-radius: 0;
+        padding: 1rem 0.85rem;
         text-align: center;
         cursor: pointer;
-        transition: all 0.3s ease;
-        background: white;
+        transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+        background: #fff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
     }
-
-    .selection-card:hover {
-        border-color: var(--primary-red);
-        background: var(--light-red);
-        transform: translateY(-3px);
+    .sx-parent-results .selection-card:hover {
+        border-color: #e0b0b0;
+        border-top-color: #940000;
+        background: #fff8f8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(148, 0, 0, 0.1);
     }
-
-    .selection-card.selected {
-        border-color: var(--primary-red);
-        background: var(--primary-red);
-        color: white;
+    .sx-parent-results .selection-card.selected {
+        border-color: #940000;
+        border-top-color: #940000;
+        background: #940000;
+        color: #fff !important;
+        box-shadow: 0 4px 14px rgba(148, 0, 0, 0.18);
     }
-
-    .selection-card i {
-        font-size: 24px;
-        margin-bottom: 10px;
+    .sx-parent-results .selection-card.selected .text-muted {
+        color: rgba(255, 255, 255, 0.85) !important;
+    }
+    .sx-parent-results .selection-card i {
+        font-size: 1.35rem;
+        margin-bottom: 0.45rem;
         display: block;
+        color: #940000;
+    }
+    .sx-parent-results .selection-card.selected i {
+        color: #fff !important;
+    }
+    .sx-parent-results .wizard-step-title {
+        font-size: 0.95rem;
+        font-weight: 800;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.02em;
+    }
+    .sx-parent-results .page-heading {
+        color: #940000 !important;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+    }
+    .sx-parent-results .nav-buttons {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
     }
 
-    /* Result Table Styles */
-    .result-section {
+    /* Results display */
+    .sx-parent-results .result-section {
         display: none;
-        animation: fadeIn 0.5s ease;
+        animation: sxFadeIn 0.4s ease;
     }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
+    @keyframes sxFadeIn {
+        from { opacity: 0; transform: translateY(8px); }
         to { opacity: 1; transform: translateY(0); }
     }
-
-    /* Collegiate UI Styles */
-    .color-def-container {
+    .sx-parent-results .color-def-container {
         text-align: center;
-        margin-bottom: 20px;
+        margin-bottom: 1rem;
     }
-    .color-def-title {
-        font-weight: bold;
-        color: #6c757d;
-        margin-bottom: 10px;
-        font-size: 15px;
+    .sx-parent-results .color-def-title {
+        font-weight: 800;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.55rem;
+        color: #777 !important;
     }
-    .color-blocks {
+    .sx-parent-results .color-blocks {
         display: inline-flex;
+        overflow: hidden;
+        border: 1px solid #e6e6e6;
     }
-    .color-block {
-        padding: 10px 40px;
-        font-size: 15px;
-        color: #6c757d;
+    .sx-parent-results .color-block {
+        padding: 0.55rem 1.5rem;
+        font-size: 0.85rem;
+        font-weight: 700;
     }
-    .bg-pass { background-color: #d4edda; }
-    .bg-fail { background-color: #f8d7da; }
-    .bg-inc { background-color: #d1ecf1; }
-    
-    .univ-summary-table {
+    .sx-parent-results .bg-pass { background-color: #d4edda !important; color: #155724 !important; }
+    .sx-parent-results .bg-fail { background-color: #f8d7da !important; color: #721c24 !important; }
+    .sx-parent-results .bg-inc { background-color: #d1ecf1 !important; color: #0c5460 !important; }
+
+    .sx-parent-results .univ-summary-table {
         width: 100%;
-        border: 1px solid #ddd;
+        border: 1px solid #e6e6e6;
         background: #fff;
+        margin-bottom: 0;
     }
-    .univ-summary-header {
-        background-color: #f8f9fa;
-        font-weight: bold;
-        padding: 12px 15px;
-        border-bottom: 1px solid #ddd;
-        color: #6c757d;
+    .sx-parent-results .univ-summary-header {
+        background: #fcf7f7;
+        font-weight: 800;
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid #e6e6e6;
+        color: #940000 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-size: 0.78rem;
     }
-    .univ-summary-table td {
-        padding: 12px 15px;
+    .sx-parent-results .univ-summary-table td {
+        padding: 0.75rem 1rem;
         border-bottom: 1px solid #eee;
-        color: #555;
     }
-    .univ-summary-table td.label {
-        font-weight: bold;
-        color: #6c757d;
-        width: 250px;
+    .sx-parent-results .univ-summary-table td.label {
+        font-weight: 700;
+        width: 220px;
         text-align: right;
         border-right: 1px solid #eee;
+        color: #666 !important;
     }
-    .univ-summary-table tr:last-child td {
+    .sx-parent-results .univ-summary-table tr:last-child td {
         border-bottom: none;
     }
-    .univ-dl-link {
+    .sx-parent-results .univ-dl-link {
         display: block;
-        padding: 12px 15px;
-        border: 1px solid #ddd;
-        border-top: none;
-        background-color: #fff;
-        color: #337ab7;
+        padding: 0.85rem 1rem;
+        border: 1px solid #940000;
+        background: #fff;
+        color: #940000 !important;
         text-decoration: none;
-        font-size: 14px;
-        margin-bottom: 30px;
+        font-weight: 800;
+        text-align: center;
+        margin: 1rem 0 1.25rem;
+        transition: background 0.15s ease, color 0.15s ease;
     }
-    .univ-dl-link:hover {
-        background-color: #f8f9fa;
-        text-decoration: none;
+    .sx-parent-results .univ-dl-link:hover {
+        background: #940000;
+        color: #fff !important;
     }
-    
-    .univ-section-title {
-        font-weight: bold;
-        font-size: 18px;
-        margin: 25px 0 15px 0;
-        color: #333;
+    .sx-parent-results .univ-section-title {
+        font-weight: 800;
+        font-size: 1rem;
+        margin: 0.5rem 0 0.85rem;
+        color: #940000 !important;
     }
-    
-    .univ-marks-table {
+    .sx-parent-results .univ-marks-table {
         width: 100%;
         border-collapse: collapse;
-        border: 1px solid #ddd;
+        border: 1px solid #e6e6e6;
         background: #fff;
-        table-layout: auto;
     }
-    .univ-marks-table th.col-somo { width: 22%; }
-    .univ-marks-table th.col-mtihani { width: auto; }
-    .univ-marks-table th.col-small {
-        white-space: nowrap;
-        width: 1%;
-    }
-    .univ-marks-table td.col-small {
-        white-space: nowrap;
-        text-align: center;
-    }
-    .univ-marks-table td.col-mtihani {
-        word-break: break-word;
-    }
-    .univ-marks-table th {
-        background-color: #fff;
-        color: #555;
-        font-weight: bold;
-        padding: 15px;
+    .sx-parent-results .univ-marks-table th {
+        background: #fcf7f7;
+        color: #940000 !important;
+        font-weight: 800;
+        padding: 0.85rem 0.75rem;
         text-align: left;
-        border-bottom: 1px solid #ddd;
+        border-bottom: 1px solid #e6e6e6;
         border-right: 1px solid #eee;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
     }
-    .univ-marks-table td {
-        padding: 15px;
+    .sx-parent-results .univ-marks-table td {
+        padding: 0.85rem 0.75rem;
         border-bottom: 1px solid #eee;
         border-right: 1px solid #eee;
-        color: #6c757d;
+        vertical-align: middle;
     }
-    .univ-marks-table td.colored-remark {
+    .sx-parent-results .univ-marks-table th.col-small,
+    .sx-parent-results .univ-marks-table td.col-small {
+        white-space: nowrap;
         text-align: center;
-        font-weight: 500;
-        padding: 8px 4px !important;
+        width: 1%;
     }
-    .bg-pass { background-color: #d4edda !important; color: #155724 !important; }
-    .bg-fail { background-color: #f8d7da !important; color: #721c24 !important; }
-    .bg-inc { background-color: #d1ecf1 !important; color: #0c5460 !important; }
-
-    .exam-sub-list {
+    .sx-parent-results .univ-marks-table td.colored-remark {
+        text-align: center;
+        font-weight: 600;
+        padding: 0.55rem 0.35rem !important;
+    }
+    .sx-parent-results .exam-sub-list {
         list-style: none;
         padding: 0;
         margin: 0;
     }
-    .exam-sub-item {
-        padding: 5px 0;
+    .sx-parent-results .exam-sub-item {
+        padding: 0.3rem 0;
         border-bottom: 1px solid #eee;
+        font-size: 0.85rem;
     }
-    .exam-sub-item:last-child {
+    .sx-parent-results .exam-sub-item:last-child {
         border-bottom: none;
     }
-    
-    .btn-premium-download {
-        background-color: #f8f9fa;
-        color: #940000;
-        border: 1px solid #940000;
-        font-weight: bold;
-        transition: all 0.3s ease;
-    }
-    .btn-premium-download:hover {
-        background-color: #940000;
-        color: #white;
-    }
 
-    /* Mobile Responsive */
     @media (max-width: 768px) {
-        .step-chain {
-            padding: 0;
-        }
-        .step-item {
-            width: 70px;
-        }
-        .step-circle {
-            width: 40px;
-            height: 40px;
-            font-size: 14px;
-        }
-        .step-label {
-            font-size: 9px;
-        }
-        .btn-back-responsive {
-            width: 100%;
-            margin-bottom: 5px;
-        }
-        .step-chain::before {
-            left: 35px;
-            right: 35px;
-            top: 20px;
-        }
-        .step-chain-progress {
-            left: 35px;
-            max-width: calc(100% - 70px);
-            top: 20px;
-        }
-        .selection-grid {
-            grid-template-columns: 1fr; /* Make cards full width on mobile */
-        }
-        
-        .container-fluid {
-            padding-left: 2px !important;
-            padding-right: 2px !important;
-        }
-        .univ-marks-table th, .univ-marks-table td {
-            font-size: 10px !important;
-            padding: 6px 4px !important;
-        }
-        .exam-sub-item {
-            padding: 2px 0;
-            word-break: break-word;
-        }
-        .univ-marks-table {
-            width: 100% !important;
-            table-layout: auto !important;
-        }
-        .colored-remark {
-            padding: 5px 2px !important;
-        }
-    }
-        
-        .col-lg-10 {
-            padding-left: 2px !important;
-            padding-right: 2px !important;
-            width: 100% !important;
-            max-width: 100% !important;
-        }
-        
-        .wizard-container {
-            padding: 10px 5px !important;
-            border-radius: 8px !important;
-            margin: 0 auto !important;
-            width: 98% !important;
-        }
-
-        .step-chain {
-            padding: 0 5px;
-            margin-bottom: 25px;
-        }
-
-        /* Color Definition Responsive */
-        .color-blocks {
-            display: flex;
-            flex-direction: row;
-            width: 100%;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-        .color-block {
-            flex: 1;
-            padding: 8px 5px;
-            text-align: center;
-            border-right: 1px solid #fff;
-            font-size: 11px;
-        }
-        .color-block:last-child {
-            border-right: none;
-        }
-
-        /* Summary Table Responsive (Keep Tabular) */
-        .univ-summary-table td {
-            padding: 8px 10px;
-        }
-        .univ-summary-table td.label {
-            font-size: 12px;
-            width: 45%;
-        }
-        .univ-summary-table td:not(.label) {
-            font-size: 13px;
-        }
-
-        /* Marks Table Responsive (Keep Tabular) */
-        .univ-marks-table th {
-            padding: 8px 5px;
-            font-size: 10px;
-        }
-        .univ-marks-table td {
-            padding: 8px 5px;
-            font-size: 12px;
-        }
-        .univ-marks-table td.colored-remark {
-            padding: 8px 5px;
-            font-size: 11px;
-        }
+        .sx-parent-results .step-item { width: 70px; }
+        .sx-parent-results .step-circle { width: 36px; height: 36px; font-size: 0.8rem; }
+        .sx-parent-results .step-label { font-size: 0.62rem; }
+        .sx-parent-results .step-chain::before,
+        .sx-parent-results .step-chain-progress { top: 18px; left: 36px; right: 36px; }
+        .sx-parent-results .step-chain-progress { max-width: calc(100% - 72px); left: 36px; }
+        .sx-parent-results .selection-grid { grid-template-columns: 1fr; }
+        .sx-parent-results .color-blocks { display: flex; width: 100%; }
+        .sx-parent-results .color-block { flex: 1; padding: 0.5rem 0.35rem; font-size: 0.72rem; }
+        .sx-parent-results .univ-summary-table td.label { width: 42%; font-size: 0.8rem; }
+        .sx-parent-results .univ-marks-table th,
+        .sx-parent-results .univ-marks-table td { font-size: 0.72rem; padding: 0.45rem 0.3rem; }
+        .sx-parent-results .btn-back-responsive { width: 100%; }
     }
 
-    .nav-buttons {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 30px;
+    /* Dark mode */
+    html[data-sx-theme="dark"] .sx-parent-results .card,
+    html[data-bs-theme="dark"] .sx-parent-results .card,
+    html[data-sx-theme="dark"] .sx-parent-results .panel-card,
+    html[data-bs-theme="dark"] .sx-parent-results .panel-card,
+    html[data-sx-theme="dark"] .sx-parent-results .hint-strip,
+    html[data-bs-theme="dark"] .sx-parent-results .hint-strip,
+    html[data-sx-theme="dark"] .sx-parent-results .selection-card,
+    html[data-bs-theme="dark"] .sx-parent-results .selection-card,
+    html[data-sx-theme="dark"] .sx-parent-results .univ-summary-table,
+    html[data-bs-theme="dark"] .sx-parent-results .univ-summary-table,
+    html[data-sx-theme="dark"] .sx-parent-results .univ-marks-table,
+    html[data-bs-theme="dark"] .sx-parent-results .univ-marks-table,
+    html[data-sx-theme="dark"] .sx-parent-results .step-circle,
+    html[data-bs-theme="dark"] .sx-parent-results .step-circle {
+        background: #24181c !important;
+        border-color: rgba(255, 180, 180, 0.16) !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-parent-results,
+    html[data-bs-theme="dark"] .sx-parent-results,
+    html[data-sx-theme="dark"] .sx-parent-results p,
+    html[data-bs-theme="dark"] .sx-parent-results p,
+    html[data-sx-theme="dark"] .sx-parent-results span:not(.badge),
+    html[data-bs-theme="dark"] .sx-parent-results span:not(.badge),
+    html[data-sx-theme="dark"] .sx-parent-results small,
+    html[data-bs-theme="dark"] .sx-parent-results small,
+    html[data-sx-theme="dark"] .sx-parent-results strong,
+    html[data-bs-theme="dark"] .sx-parent-results strong,
+    html[data-sx-theme="dark"] .sx-parent-results div,
+    html[data-bs-theme="dark"] .sx-parent-results div,
+    html[data-sx-theme="dark"] .sx-parent-results h4,
+    html[data-bs-theme="dark"] .sx-parent-results h4,
+    html[data-sx-theme="dark"] .sx-parent-results h5,
+    html[data-bs-theme="dark"] .sx-parent-results h5,
+    html[data-sx-theme="dark"] .sx-parent-results .text-muted,
+    html[data-bs-theme="dark"] .sx-parent-results .text-muted {
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-parent-results .page-heading,
+    html[data-bs-theme="dark"] .sx-parent-results .page-heading,
+    html[data-sx-theme="dark"] .sx-parent-results .univ-section-title,
+    html[data-bs-theme="dark"] .sx-parent-results .univ-section-title,
+    html[data-sx-theme="dark"] .sx-parent-results .univ-summary-header,
+    html[data-bs-theme="dark"] .sx-parent-results .univ-summary-header,
+    html[data-sx-theme="dark"] .sx-parent-results .step-item.active .step-label,
+    html[data-bs-theme="dark"] .sx-parent-results .step-item.active .step-label {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-parent-results .univ-summary-header,
+    html[data-bs-theme="dark"] .sx-parent-results .univ-summary-header,
+    html[data-sx-theme="dark"] .sx-parent-results .univ-marks-table th,
+    html[data-bs-theme="dark"] .sx-parent-results .univ-marks-table th {
+        background: rgba(148, 0, 0, 0.18) !important;
+    }
+    html[data-sx-theme="dark"] .sx-parent-results .selection-card:hover,
+    html[data-bs-theme="dark"] .sx-parent-results .selection-card:hover {
+        background: rgba(255, 180, 180, 0.08) !important;
+    }
+    html[data-sx-theme="dark"] .sx-parent-results .selection-card.selected,
+    html[data-bs-theme="dark"] .sx-parent-results .selection-card.selected {
+        background: #940000 !important;
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] .sx-parent-results .univ-dl-link,
+    html[data-bs-theme="dark"] .sx-parent-results .univ-dl-link {
+        background: transparent !important;
+        color: #ffb4b4 !important;
+        border-color: rgba(255, 180, 180, 0.35) !important;
+    }
+    html[data-sx-theme="dark"] .sx-parent-results .btn-outline-light,
+    html[data-bs-theme="dark"] .sx-parent-results .btn-outline-light {
+        background: transparent !important;
+        border-color: rgba(255, 180, 180, 0.35) !important;
+        color: #f3e9eb !important;
     }
 </style>
 
-<div class="container-fluid py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            
-            <div class="wizard-container">
-                <!-- Back Button - shown when results are displayed -->
-                <div id="backBtnWrapper" style="display:none; margin-bottom: 10px;">
-                    <button class="btn btn-outline-danger btn-back-responsive" id="backToWizardBtn" style="border-radius: 20px; font-weight: bold;">
-                        <i class="bx bx-arrow-back mr-2"></i> {{ __('parent.back_wizard') }}
-                    </button>
-                </div>
-                <h4 class="mb-4 text-center font-weight-bold" style="color: var(--primary-red);">
-                    <i class="bx bx-trophy"></i> {{ __('parent.student_results') }}
-                </h4>
-
-                <div class="alert alert-light border mb-3" style="border-left:4px solid #940000 !important;border-radius:0;">
-                    <i class="bx bx-info-circle"></i>
-                    {{ __('parent.start_choose_student') }}
-                </div>
-
-                <!-- Step Progress Chain -->
-                <div class="step-chain">
-                    <div class="step-chain-progress" id="stepProgress"></div>
-                    <div class="step-item active" id="step1-tab">
-                        <div class="step-circle">1</div>
-                        <div class="step-label">{{ __('parent.step_student') }}</div>
-                    </div>
-                    <div class="step-item" id="step2-tab">
-                        <div class="step-circle">2</div>
-                        <div class="step-label">{{ __('parent.step_year') }}</div>
-                    </div>
-                    <div class="step-item" id="step3-tab">
-                        <div class="step-circle">3</div>
-                        <div class="step-label">{{ __('parent.step_term') }}</div>
-                    </div>
-                    <div class="step-item" id="step4-tab">
-                        <div class="step-circle">4</div>
-                        <div class="step-label">{{ __('parent.step_exam') }}</div>
-                    </div>
-                </div>
-
-                <!-- Wizard Content -->
-                <div class="wizard-content">
-                    <!-- Step 1: Student -->
-                    <div class="wizard-step" id="step1">
-                        <h5 class="font-weight-bold mb-3">{{ __('parent.step1_student') }}</h5>
-                        <div class="selection-grid" id="studentGrid">
-                            @foreach($students as $student)
-                                <div class="selection-card"
-                                     data-value="{{ $student->studentID }}"
-                                     data-is-a-level="{{ !empty($student->is_a_level) ? '1' : '0' }}"
-                                     data-level-label="{{ $student->level_label ?? '' }}">
-                                    <i class="bx bx-user"></i>
-                                    <strong>{{ $student->first_name }} {{ $student->last_name }}</strong>
-                                    <br><small class="text-muted">{{ $student->admission_number }}</small>
-                                    @if(!empty($student->level_label))
-                                        <br><small style="color:#940000;font-weight:600;">{{ $student->level_label }}</small>
-                                    @endif
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    <!-- Step 2: Academic Year (filtered by student level) -->
-                    <div class="wizard-step d-none" id="step2">
-                        <h5 class="font-weight-bold mb-3">{{ __('parent.step2_year') }}</h5>
-                        <div class="small text-muted mb-2" id="yearLevelHint"></div>
-                        <div class="selection-grid" id="yearGrid">
-                            <div class="col-12 text-muted small text-center py-3">{{ __('parent.choose_student_first') }}</div>
-                        </div>
-                        <div id="noYearsMessage" class="alert alert-warning d-none mt-3">
-                            {{ __('parent.no_year_for_level') }}
-                        </div>
-                    </div>
-
-                    <!-- Step 3: Term Selection -->
-                    <div class="wizard-step d-none" id="step3">
-                        <h5 class="font-weight-bold mb-3">{{ __('parent.step3_term') }}</h5>
-                        <div class="selection-grid" id="termGrid">
-                            <div class="selection-card" data-value="first_term">
-                                <i class="bx bx-time-five"></i>
-                                <strong>{{ __('parent.first_term') }}</strong>
-                            </div>
-                            <div class="selection-card" data-value="second_term">
-                                <i class="bx bx-time"></i>
-                                <strong>{{ __('parent.second_term') }}</strong>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 4: Exam Selection -->
-                    <div class="wizard-step d-none" id="step4">
-                        <h5 class="font-weight-bold mb-3">{{ __('parent.step4_exam') }}</h5>
-                        <div class="selection-grid" id="examGrid">
-                            <!-- Dynamically loaded -->
-                        </div>
-                        <div id="noExamsMessage" class="alert alert-warning d-none mt-3">
-                            {{ __('parent.no_exams_published') }}
-                        </div>
-                    </div>
-
-                    <!-- Navigation Buttons -->
-                    <div class="nav-buttons mt-5">
-                        <button class="btn btn-outline-secondary px-4 d-none" id="prevBtn">
-                            <i class="bx bx-chevron-left"></i> {{ __('parent.previous') }}
+<div class="sx-parent-results">
+    <div class="row g-3 justify-content-center">
+        <div class="col-xl-10">
+            <div class="card panel-card">
+                <div class="card-body">
+                    <div id="backBtnWrapper" class="mb-3" style="display:none;">
+                        <button type="button" class="btn btn-outline-light btn-shadow waves-effect btn-back-responsive" id="backToWizardBtn">
+                            <i class="fi fi-rr-arrow-left me-1"></i> {{ __('parent.back_wizard') }}
                         </button>
-                        <div class="ms-auto">
-                            <button class="btn btn-primary px-4 d-none" id="nextBtn">
-                                {{ __('parent.continue') }} <i class="bx bx-chevron-right"></i>
+                    </div>
+
+                    <h4 class="mb-3 text-center page-heading font-weight-bold">
+                        <i class="fi fi-rr-trophy me-1"></i> {{ __('parent.student_results') }}
+                    </h4>
+
+                    <div class="hint-strip">
+                        <i class="fi fi-rr-info me-1" style="color:#940000;"></i>
+                        {{ __('parent.start_choose_student') }}
+                    </div>
+
+                    <div class="step-chain">
+                        <div class="step-chain-progress" id="stepProgress"></div>
+                        <div class="step-item active" id="step1-tab">
+                            <div class="step-circle">1</div>
+                            <div class="step-label">{{ __('parent.step_student') }}</div>
+                        </div>
+                        <div class="step-item" id="step2-tab">
+                            <div class="step-circle">2</div>
+                            <div class="step-label">{{ __('parent.step_year') }}</div>
+                        </div>
+                        <div class="step-item" id="step3-tab">
+                            <div class="step-circle">3</div>
+                            <div class="step-label">{{ __('parent.step_term') }}</div>
+                        </div>
+                        <div class="step-item" id="step4-tab">
+                            <div class="step-circle">4</div>
+                            <div class="step-label">{{ __('parent.step_exam') }}</div>
+                        </div>
+                    </div>
+
+                    <div class="wizard-content">
+                        <div class="wizard-step" id="step1">
+                            <div class="wizard-step-title">{{ __('parent.step1_student') }}</div>
+                            <div class="selection-grid" id="studentGrid">
+                                @foreach($students as $student)
+                                    <div class="selection-card"
+                                         data-value="{{ $student->studentID }}"
+                                         data-is-a-level="{{ !empty($student->is_a_level) ? '1' : '0' }}"
+                                         data-level-label="{{ $student->level_label ?? '' }}">
+                                        <i class="fi fi-rr-user"></i>
+                                        <strong>{{ $student->first_name }} {{ $student->last_name }}</strong>
+                                        <br><small class="text-muted">{{ $student->admission_number }}</small>
+                                        @if(!empty($student->level_label))
+                                            <br><small style="color:#940000;font-weight:700;">{{ $student->level_label }}</small>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <div class="wizard-step d-none" id="step2">
+                            <div class="wizard-step-title">{{ __('parent.step2_year') }}</div>
+                            <div class="small text-muted mb-2" id="yearLevelHint"></div>
+                            <div class="selection-grid" id="yearGrid">
+                                <div class="col-12 text-muted small text-center py-3">{{ __('parent.choose_student_first') }}</div>
+                            </div>
+                            <div id="noYearsMessage" class="alert alert-warning d-none mt-3 mb-0">
+                                {{ __('parent.no_year_for_level') }}
+                            </div>
+                        </div>
+
+                        <div class="wizard-step d-none" id="step3">
+                            <div class="wizard-step-title">{{ __('parent.step3_term') }}</div>
+                            <div class="selection-grid" id="termGrid">
+                                <div class="selection-card" data-value="first_term">
+                                    <i class="fi fi-rr-clock"></i>
+                                    <strong>{{ __('parent.first_term') }}</strong>
+                                </div>
+                                <div class="selection-card" data-value="second_term">
+                                    <i class="fi fi-rr-time-past"></i>
+                                    <strong>{{ __('parent.second_term') }}</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="wizard-step d-none" id="step4">
+                            <div class="wizard-step-title">{{ __('parent.step4_exam') }}</div>
+                            <div class="selection-grid" id="examGrid"></div>
+                            <div id="noExamsMessage" class="alert alert-warning d-none mt-3 mb-0">
+                                {{ __('parent.no_exams_published') }}
+                            </div>
+                        </div>
+
+                        <div class="nav-buttons">
+                            <button type="button" class="btn btn-outline-light btn-shadow waves-effect px-4 d-none" id="prevBtn">
+                                <i class="fi fi-rr-angle-left"></i> {{ __('parent.previous') }}
                             </button>
-                            <button class="btn btn-success px-4 d-none" id="viewBtn">
-                                <i class="bx bx-show"></i> {{ __('parent.view_results') }}
-                            </button>
+                            <div class="ms-auto d-flex gap-2">
+                                <button type="button" class="btn btn-primary waves-effect waves-light px-4 d-none" id="nextBtn">
+                                    {{ __('parent.continue') }} <i class="fi fi-rr-angle-right"></i>
+                                </button>
+                                <button type="button" class="btn btn-primary waves-effect waves-light px-4 d-none" id="viewBtn">
+                                    <i class="fi fi-rr-eye"></i> {{ __('parent.view_results') }}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Results Section -->
-            <div id="resultDisplay" class="result-section" style="margin-top: -10px;">
-                <!-- Color Definition -->
-                <div class="color-def-container">
-                    <div class="color-def-title">{{ __('parent.color_meaning') }}</div>
-                    <div class="color-blocks">
-                        <div class="color-block bg-pass">{{ __('parent.pass') }}</div>
-                        <div class="color-block bg-fail">{{ __('parent.fail') }}</div>
-                        <div class="color-block bg-inc">{{ __('parent.incomplete') }}</div>
+            <div id="resultDisplay" class="result-section mt-3">
+                <div class="card panel-card mb-3">
+                    <div class="card-body">
+                        <div class="color-def-container">
+                            <div class="color-def-title">{{ __('parent.color_meaning') }}</div>
+                            <div class="color-blocks">
+                                <div class="color-block bg-pass">{{ __('parent.pass') }}</div>
+                                <div class="color-block bg-fail">{{ __('parent.fail') }}</div>
+                                <div class="color-block bg-inc">{{ __('parent.incomplete') }}</div>
+                            </div>
+                        </div>
+
+                        <div class="univ-summary-table">
+                            <div class="univ-summary-header">{{ __('parent.results_summary') }}</div>
+                            <table style="width:100%;">
+                                <tbody id="overviewBody"></tbody>
+                            </table>
+                        </div>
+
+                        <a href="#" id="univDownloadBtn" class="univ-dl-link">
+                            <i class="fi fi-rr-download me-1"></i> {{ __('parent.download_results_pdf') }}
+                        </a>
+
+                        <div class="univ-section-title" id="semesterTitle">{{ __('parent.exam_results_heading') }}</div>
+                        <div style="overflow-x:auto;width:100%;-webkit-overflow-scrolling:touch;">
+                            <table class="univ-marks-table">
+                                <thead id="marksHead"></thead>
+                                <tbody id="marksBody"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Summary Table -->
-                <div class="univ-summary-table">
-                    <div class="univ-summary-header">{{ __('parent.results_summary') }}</div>
-                    <table style="width: 100%;">
-                        <tbody id="overviewBody">
-                            <!-- Loaded via JS -->
-                        </tbody>
-                    </table>
-                </div>
-                
-                <a href="#" id="univDownloadBtn" class="univ-dl-link btn-premium-download" style="text-align: center; display: block; padding: 12px; border-radius: 10px; text-decoration: none; margin: 20px 0;">
-                    <i class="bx bx-download mr-2"></i> {{ __('parent.download_results_pdf') }}
-                </a>
-
-                <div class="univ-section-title" id="semesterTitle">{{ __('parent.exam_results_heading') }}</div>
-
-                <!-- Detail Table -->
-                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch;">
-                    <table class="univ-marks-table">
-                        <thead id="marksHead">
-                            <!-- Loaded via JS -->
-                        </thead>
-                        <tbody id="marksBody">
-                            <!-- Loaded via JS -->
-                        </tbody>
-                    </table>
-                </div>
             </div>
-
         </div>
     </div>
 </div>
 
-<!-- Form for PDF Download -->
 <form id="downloadForm" action="{{ route('download_student_result') }}" method="POST" style="display:none;">
     @csrf
     <input type="hidden" name="studentID" id="dl_studentID">
@@ -586,7 +593,6 @@
     <input type="hidden" name="year" id="dl_year">
     <input type="hidden" name="term" id="dl_term">
 </form>
-
 @endsection
 
 @push('scripts')
@@ -633,33 +639,32 @@ $(document).ready(function() {
         years.forEach(function(ay) {
             const label = (ayMode === 'secondary_dual' ? (ay.short_label || ay.label) : (ay.label || ay.short_label));
             html += '<div class="selection-card" data-value="' + ay.calendar_year + '" data-academic-year-id="' + (ay.academic_yearID || '') + '" data-label="' + String(label).replace(/"/g, '&quot;') + '">'
-                + '<i class="bx bx-calendar"></i>'
+                + '<i class="fi fi-rr-calendar"></i>'
                 + '<strong>' + label + '</strong>'
                 + '</div>';
         });
         $('#yearGrid').html(html);
     };
 
-    // Check if session exists to auto-load results on refresh
     const savedSession = sessionStorage.getItem('parent_results_selections');
-    if(savedSession) {
+    if (savedSession) {
         try {
             selections = JSON.parse(savedSession);
-            // Hide wizard internals, show back button
             $('.step-chain, .wizard-content, h4.text-center').hide();
+            $('.hint-strip').hide();
             $('#backBtnWrapper').show();
             $('#resultDisplay').show();
-            $('#overviewBody').html('<tr><td colspan="5" class="text-center py-5"><i class="bx bx-loader bx-spin text-danger" style="font-size: 30px;"></i><br>' + P.loading_results + '</td></tr>');
-            
+            $('#overviewBody').html('<tr><td colspan="5" class="text-center py-5"><div class="spinner-border text-danger"></div><br>' + P.loading_results + '</td></tr>');
+
             $.ajax({
                 url: '{{ route("fetch_student_results_ajax") }}',
                 data: selections,
                 success: function(response) {
-                    if(response.success) {
+                    if (response.success) {
                         renderResults(response.data);
                     } else {
                         sessionStorage.removeItem('parent_results_selections');
-                        $('.step-chain, .wizard-content, h4.text-center').show();
+                        $('.step-chain, .wizard-content, h4.text-center, .hint-strip').show();
                         $('#backBtnWrapper').hide();
                         $('#resultDisplay').hide();
                         Swal.fire(P.error, response.message || P.could_not_get_results, 'error');
@@ -667,36 +672,32 @@ $(document).ready(function() {
                 },
                 error: function() {
                     sessionStorage.removeItem('parent_results_selections');
-                    $('.step-chain, .wizard-content, h4.text-center').show();
+                    $('.step-chain, .wizard-content, h4.text-center, .hint-strip').show();
                     $('#backBtnWrapper').hide();
                     $('#resultDisplay').hide();
                     Swal.fire(P.error, P.network_error, 'error');
                 }
             });
-        } catch(e) {}
+        } catch (e) {}
     }
 
     const updateWizard = () => {
-        // Update Steps UI
         $('.step-item').removeClass('active completed');
-        for(let i=1; i<=4; i++) {
-            if(i < currentStep) $(`#step${i}-tab`).addClass('completed');
-            if(i === currentStep) $(`#step${i}-tab`).addClass('active');
+        for (let i = 1; i <= 4; i++) {
+            if (i < currentStep) $('#step' + i + '-tab').addClass('completed');
+            if (i === currentStep) $('#step' + i + '-tab').addClass('active');
         }
 
-        // Update Progress Bar
         const progress = ((currentStep - 1) / 3) * 100;
-        $('#stepProgress').css('width', `${progress}%`);
+        $('#stepProgress').css('width', progress + '%');
 
-        // Show/Hide Steps
         $('.wizard-step').addClass('d-none');
-        $(`#step${currentStep}`).removeClass('d-none');
+        $('#step' + currentStep).removeClass('d-none');
 
-        // Update Buttons
-        if(currentStep === 1) $('#prevBtn').addClass('d-none');
+        if (currentStep === 1) $('#prevBtn').addClass('d-none');
         else $('#prevBtn').removeClass('d-none');
 
-        if(currentStep === 4) {
+        if (currentStep === 4) {
             $('#nextBtn').addClass('d-none');
             $('#viewBtn').removeClass('d-none');
         } else {
@@ -704,20 +705,18 @@ $(document).ready(function() {
             $('#viewBtn').addClass('d-none');
         }
 
-        // Disable next if no selection
         const key = ['student', 'year', 'term', 'exam'][currentStep - 1];
-        if(!selections[key]) $('#nextBtn, #viewBtn').prop('disabled', true);
+        if (!selections[key]) $('#nextBtn, #viewBtn').prop('disabled', true);
         else $('#nextBtn, #viewBtn').prop('disabled', false);
     };
 
-    // Card Selection
     $(document).on('click', '.selection-card', function() {
         const step = $(this).closest('.wizard-step').attr('id');
         const key = step.replace('step', '');
         const map = { '1': 'student', '2': 'year', '3': 'term', '4': 'exam' };
         const dataKey = map[key];
 
-        $(`#${step} .selection-card`).removeClass('selected');
+        $('#' + step + ' .selection-card').removeClass('selected');
         $(this).addClass('selected');
         selections[dataKey] = $(this).data('value');
 
@@ -743,11 +742,10 @@ $(document).ready(function() {
             selections.exam = '';
         }
 
-        // Auto move to next step if possible
-        if(currentStep < 3) {
+        if (currentStep < 3) {
             currentStep++;
             updateWizard();
-        } else if(currentStep === 3) {
+        } else if (currentStep === 3) {
             currentStep++;
             loadExams();
             updateWizard();
@@ -757,15 +755,15 @@ $(document).ready(function() {
     });
 
     $('#nextBtn').click(function() {
-        if(currentStep < 4) {
+        if (currentStep < 4) {
             currentStep++;
-            if(currentStep === 4) loadExams();
+            if (currentStep === 4) loadExams();
             updateWizard();
         }
     });
 
     $('#prevBtn').click(function() {
-        if(currentStep > 1) {
+        if (currentStep > 1) {
             currentStep--;
             updateWizard();
         }
@@ -784,12 +782,12 @@ $(document).ready(function() {
                 academic_yearID: selections.academic_yearID || ''
             },
             success: function(response) {
-                if(response.success && response.exams.length > 0) {
+                if (response.success && response.exams.length > 0) {
                     let html = '';
                     response.exams.forEach(exam => {
                         html += `
                             <div class="selection-card" data-value="${exam.examID}">
-                                <i class="bx bx-file"></i>
+                                <i class="fi fi-rr-file"></i>
                                 <strong>${exam.exam_name}</strong>
                                 <br><small class="text-muted">${P.published_recently}</small>
                             </div>`;
@@ -805,17 +803,16 @@ $(document).ready(function() {
     };
 
     $('#viewBtn').click(function() {
-        $(this).html('<i class="bx bx-loader bx-spin"></i> ' + P.searching);
-        
+        $(this).html('<span class="spinner-border spinner-border-sm me-1"></span> ' + P.searching);
+
         $.ajax({
             url: '{{ route("fetch_student_results_ajax") }}',
             data: selections,
             success: function(response) {
-                $('#viewBtn').html('<i class="bx bx-show"></i> ' + P.view_results);
-                if(response.success) {
+                $('#viewBtn').html('<i class="fi fi-rr-eye"></i> ' + P.view_results);
+                if (response.success) {
                     sessionStorage.setItem('parent_results_selections', JSON.stringify(selections));
-                    // Hide wizard internals, show back button at top
-                    $('.step-chain, .wizard-content, h4.text-center').hide();
+                    $('.step-chain, .wizard-content, h4.text-center, .hint-strip').hide();
                     $('#backBtnWrapper').show();
                     renderResults(response.data);
                     $('#resultDisplay').fadeIn();
@@ -825,7 +822,7 @@ $(document).ready(function() {
                 }
             },
             error: function() {
-                $('#viewBtn').html('<i class="bx bx-show"></i> ' + P.view_results);
+                $('#viewBtn').html('<i class="fi fi-rr-eye"></i> ' + P.view_results);
                 Swal.fire(P.error, P.network_error, 'error');
             }
         });
@@ -835,8 +832,7 @@ $(document).ready(function() {
         e.preventDefault();
         sessionStorage.removeItem('parent_results_selections');
         $('#resultDisplay').hide();
-        // Restore wizard internals
-        $('.step-chain, .wizard-content, h4.text-center').show();
+        $('.step-chain, .wizard-content, h4.text-center, .hint-strip').show();
         $('#backBtnWrapper').hide();
         updateWizard();
     });
@@ -885,7 +881,6 @@ $(document).ready(function() {
     };
 
     const renderResults = (data) => {
-        // Handle "N/A" -> "Incomplete"
         const position = (data.position && data.position !== 'N/A') ? data.position : P.incomplete;
         const grade = (data.overall_grade || data.overall_division || P.incomplete);
         const totalMarks = (data.total_marks !== null && data.total_marks !== undefined && data.total_marks !== '-') ? parseFloat(data.total_marks).toFixed(0) : P.incomplete;
@@ -893,7 +888,6 @@ $(document).ready(function() {
         const isSecondary = String(data.school_type || 'Secondary').toLowerCase() === 'secondary';
         const isALevel = !!data.is_a_level;
 
-        // Overview
         $('#overviewBody').html(`
             <tr><td class="label">${P.student_name}:</td><td>${data.student.first_name} ${data.student.last_name}</td></tr>
             <tr><td class="label">${P.total_marks}:</td><td>${totalMarks}</td></tr>
@@ -902,9 +896,7 @@ $(document).ready(function() {
             <tr><td class="label">${P.position}:</td><td>${position}</td></tr>
         `);
 
-        // Marks Table, conditional on whether exam has CA
         const hasCa = data.has_ca;
-
         let headHtml = '';
         if (hasCa) {
             headHtml = `
@@ -926,10 +918,8 @@ $(document).ready(function() {
         }
         $('#marksHead').html(headHtml);
 
-        // Marks Table Body
         let bodyHtml = '';
         data.results.forEach(res => {
-            // Determine if marks are null/empty → Incomplete
             const rawMarks = res.average ?? res.marks;
             const hasMarks = rawMarks !== null && rawMarks !== undefined && rawMarks !== '' && rawMarks !== '-';
             const marksVal = hasMarks ? parseFloat(rawMarks).toFixed(0) : P.incomplete;
@@ -973,14 +963,11 @@ $(document).ready(function() {
             }
         });
         $('#marksBody').html(bodyHtml);
-
-        // Update Exam Title
-        $('#semesterTitle').text($('#examSelect option:selected').text() || P.exam_results_heading);
+        $('#semesterTitle').text(P.exam_results_heading);
     };
-    
+
     $('#univDownloadBtn').click(function(e) {
         e.preventDefault();
-        
         Swal.fire({
             title: P.preparing_pdf,
             html: P.preparing_results_wait + '<br><br><b></b>%',
@@ -992,7 +979,7 @@ $(document).ready(function() {
                 let progress = 0;
                 const timerInterval = setInterval(() => {
                     progress += 5;
-                    if(progress > 100) progress = 100;
+                    if (progress > 100) progress = 100;
                     b.textContent = progress;
                 }, 150);
             },
@@ -1006,15 +993,6 @@ $(document).ready(function() {
         });
     });
 
-    $('#downloadBtn').click(function() {
-        $('#dl_studentID').val(selections.student);
-        $('#dl_examID').val(selections.exam);
-        $('#dl_year').val(selections.year);
-        $('#dl_term').val(selections.term);
-        $('#downloadForm').submit();
-    });
-
-    // Initialize
     updateWizard();
 });
 </script>

@@ -1,105 +1,102 @@
 @extends('layouts.site')
 
 @section('content')
-<section class="banner-area relative about-banner sx-reg-banner" id="home">
-    <div class="overlay overlay-bg"></div>
-    <div class="sx-reg-banner__glow sx-reg-banner__glow--a" aria-hidden="true"></div>
-    <div class="sx-reg-banner__glow sx-reg-banner__glow--b" aria-hidden="true"></div>
+<section class="banner-area relative about-banner sx-reg-page-banner" id="home" style="background-image:url('{{ asset('images/modules-school-hero.jpg') }}')">
+    <div class="sx-reg-page-banner__overlay" aria-hidden="true"></div>
     <div class="container">
         <div class="row d-flex align-items-center justify-content-center">
-            <div class="about-content col-lg-12 text-center">
+            <div class="about-content col-lg-10 text-center">
                 <h1 class="text-white">{{ __('site.register_school') }}</h1>
-                <p class="text-white link-nav">
+                <p class="text-white link-nav mb-0">
                     <a href="{{ route('site.home') }}">{{ __('site.home') }}</a>
-                    <span class="lnr lnr-arrow-right"></span>
+                    <span class="fa fa-angle-right mx-1"></span>
                     <a href="{{ route('site.register_school') }}">{{ __('site.register_school') }}</a>
-                </p>
-                <p class="sx-reg-lead text-white">
-                    Apply to join ShuleXpert. Your application stays pending until our team verifies it.
                 </p>
             </div>
         </div>
     </div>
 </section>
 
-<section class="section-gap sx-reg-page">
-    <div class="container">
+<section class="sx-reg-page-wrap">
+    <div class="container sx-reg-block">
+        <div class="sx-reg-intro-lead text-center">
+            <p class="mb-0">{{ __('site.register_intro') }}</p>
+        </div>
+    </div>
+
+    <div class="container sx-reg-block sx-reg-block--last">
         @if(session('success'))
-            <div class="alert alert-success sx-reg-alert">
-                {{ session('success') }}
-            </div>
+            <div class="sx-reg-alert">{{ session('success') }}</div>
         @endif
 
-        <div class="row justify-content-center">
-            <div class="col-lg-10">
-                <div class="mb-4 sx-reg-intro">
-                    <h4>School Registration | ShuleXpert</h4>
-                    <p class="mb-2">
-                        Fill in this form to apply to join ShuleXpert. After submission, your application will remain
-                        <strong>Pending</strong> until our team verifies it. <strong>You will not receive login credentials</strong>
-                        until after verification.
-                    </p>
-                    <p class="mb-0 small sx-reg-muted">Steps: 1) Fill in your details, 2) Submit Registration, 3) Verify phone with OTP, 4) Application is saved</p>
-                </div>
+        <div class="row g-4 align-items-start">
+            <div class="col-lg-8">
+                <div class="sx-reg-form-card">
+                    <div class="sx-reg-form-card__intro">
+                        <p class="sx-reg-kicker">{{ __('site.register_form_kicker') }}</p>
+                        <h2 class="sx-reg-heading">{{ __('site.register_form_title') }}</h2>
+                        <p class="sx-reg-text">{{ __('site.register_form_desc') }}</p>
+                        <p class="sx-reg-steps mb-0">{{ __('site.register_steps') }}</p>
+                    </div>
 
                 <form id="schoolRegForm" class="sx-reg-form" method="POST" action="{{ route('site.register_school.submit') }}">
                     @csrf
                     <input type="hidden" name="otp_token" id="otp_token" value="">
 
-                    <h6 class="sx-reg-section-title">Basic Information</h6>
+                    <h6 class="sx-reg-section-title">{{ __('site.register_basic') }}</h6>
                     <div class="row">
                         <div class="col-md-6 form-group mb-3">
-                            <label class="font-weight-bold">School Name <span class="text-danger">*</span></label>
+                            <label class="sx-reg-label">{{ __('site.register_school_name') }} <span class="text-danger">*</span></label>
                             <input type="text" name="school_name" class="form-control" value="{{ old('school_name') }}" required>
                             @error('school_name')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-3 form-group mb-3">
-                            <label class="font-weight-bold">Registration No.</label>
+                            <label class="sx-reg-label">{{ __('site.register_reg_no') }}</label>
                             <input type="text" name="registration_number" id="registration_number" class="form-control" value="{{ old('registration_number') }}" placeholder="e.g. S927/123" autocomplete="off">
                             <small id="registration_numberFeedback" class="d-block mt-1 sx-reg-feedback"></small>
                             @error('registration_number')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-3 form-group mb-3">
-                            <label class="font-weight-bold">Exam Center No.</label>
+                            <label class="sx-reg-label">{{ __('site.register_exam_center') }}</label>
                             <input type="text" name="exam_center_number" class="form-control" value="{{ old('exam_center_number') }}">
                         </div>
                         <div class="col-md-4 form-group mb-3">
-                            <label class="font-weight-bold">Education Level <span class="text-danger">*</span></label>
+                            <label class="sx-reg-label">{{ __('site.register_level') }} <span class="text-danger">*</span></label>
                             <select name="school_type" class="form-control" required>
-                                <option value="">-- Select --</option>
+                                <option value="">{{ __('site.register_select') }}</option>
                                 <option value="Primary" {{ old('school_type') === 'Primary' ? 'selected' : '' }}>Primary</option>
                                 <option value="Secondary" {{ old('school_type') === 'Secondary' ? 'selected' : '' }}>Secondary</option>
                             </select>
                             @error('school_type')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-4 form-group mb-3">
-                            <label class="font-weight-bold">Ownership <span class="text-danger">*</span></label>
+                            <label class="sx-reg-label">{{ __('site.register_ownership') }} <span class="text-danger">*</span></label>
                             <select name="ownership" class="form-control" required>
-                                <option value="">-- Select --</option>
-                                <option value="Public" {{ old('ownership') === 'Public' ? 'selected' : '' }}>Public (Government)</option>
-                                <option value="Private" {{ old('ownership') === 'Private' ? 'selected' : '' }}>Private / NGO</option>
+                                <option value="">{{ __('site.register_select') }}</option>
+                                <option value="Public" {{ old('ownership') === 'Public' ? 'selected' : '' }}>{{ __('site.register_public') }}</option>
+                                <option value="Private" {{ old('ownership') === 'Private' ? 'selected' : '' }}>{{ __('site.register_private') }}</option>
                             </select>
                             @error('ownership')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-4 form-group mb-3">
-                            <label class="font-weight-bold">Established Year</label>
+                            <label class="sx-reg-label">{{ __('site.register_established') }}</label>
                             <input type="text" name="established_year" class="form-control" value="{{ old('established_year') }}" placeholder="e.g. 1998">
                         </div>
                         <div class="col-md-4 form-group mb-3">
-                            <label class="font-weight-bold">Number of Students <span class="text-danger">*</span></label>
+                            <label class="sx-reg-label">{{ __('site.register_students') }} <span class="text-danger">*</span></label>
                             <input type="number" name="number_of_students" class="form-control" value="{{ old('number_of_students') }}" min="1" required>
                             @error('number_of_students')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-4 form-group mb-3">
-                            <label class="font-weight-bold">Contact Person</label>
+                            <label class="sx-reg-label">{{ __('site.register_contact_person') }}</label>
                             <input type="text" name="contact_person" class="form-control" value="{{ old('contact_person') }}" placeholder="Headmaster / Admin name">
                         </div>
                     </div>
 
-                    <h6 class="sx-reg-section-title sx-reg-section-title--spaced">Location & Contact</h6>
+                    <h6 class="sx-reg-section-title sx-reg-section-title--spaced">{{ __('site.register_location') }}</h6>
                     <div class="row">
                         <div class="col-md-4 form-group mb-3">
-                            <label class="font-weight-bold">Region <span class="text-danger">*</span></label>
+                            <label class="sx-reg-label">{{ __('site.register_region') }} <span class="text-danger">*</span></label>
                             <select name="region" id="region" class="form-control" required data-old="{{ old('region') }}">
                                 <option value="">Select region</option>
                             </select>
@@ -107,60 +104,80 @@
                             @error('region')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-4 form-group mb-3">
-                            <label class="font-weight-bold">District <span class="text-danger">*</span></label>
+                            <label class="sx-reg-label">{{ __('site.register_district') }} <span class="text-danger">*</span></label>
                             <select name="district" id="district" class="form-control" required disabled data-old="{{ old('district') }}">
                                 <option value="">Select region first</option>
                             </select>
                             @error('district')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-4 form-group mb-3">
-                            <label class="font-weight-bold">Ward</label>
+                            <label class="sx-reg-label">{{ __('site.register_ward') }}</label>
                             <select name="ward" id="ward" class="form-control" disabled data-old="{{ old('ward') }}">
                                 <option value="">Select district first</option>
                             </select>
                             @error('ward')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-6 form-group mb-3">
-                            <label class="font-weight-bold">Email</label>
+                            <label class="sx-reg-label">{{ __('site.register_email') }}</label>
                             <input type="email" name="email" id="email" class="form-control" value="{{ old('email') }}" autocomplete="email">
                             <small id="emailFeedback" class="d-block mt-1 sx-reg-feedback"></small>
                             @error('email')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-6 form-group mb-3">
-                            <label class="font-weight-bold">Phone <span class="text-danger">*</span></label>
+                            <label class="sx-reg-label">{{ __('site.register_phone') }} <span class="text-danger">*</span></label>
                             <input type="text" name="phone" id="phone" class="form-control" value="{{ old('phone', '255') }}" required placeholder="2557XXXXXXXX" maxlength="12" autocomplete="tel">
                             <small id="phoneFeedback" class="d-block mt-1 sx-reg-feedback"></small>
                             @error('phone')<small class="text-danger d-block">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-12 form-group mb-3">
-                            <label class="font-weight-bold">Address</label>
+                            <label class="sx-reg-label">{{ __('site.register_address') }}</label>
                             <textarea name="address" class="form-control" rows="2">{{ old('address') }}</textarea>
                         </div>
                         <div class="col-12 form-group mb-3">
-                            <label class="font-weight-bold">Additional Notes</label>
+                            <label class="sx-reg-label">{{ __('site.register_notes') }}</label>
                             <textarea name="notes" class="form-control" rows="2" placeholder="Optional message to the ShuleXpert team">{{ old('notes') }}</textarea>
                         </div>
                     </div>
 
                     {{-- OTP step: shown after Submit, before save --}}
                     <div id="otpStep" class="sx-reg-otp" style="display:none;">
-                        <h6 class="sx-reg-otp__title">Verify phone with OTP</h6>
-                        <p class="mb-2 small" id="otpIntro">We have sent an OTP to your phone. Enter the code to complete registration.</p>
+                        <h6 class="sx-reg-otp__title">{{ __('site.register_otp_title') }}</h6>
+                        <p class="mb-2 small" id="otpIntro">{{ __('site.register_otp_intro') }}</p>
                         <div class="d-flex flex-wrap sx-reg-otp__row">
-                            <input type="text" id="otpInput" class="form-control" placeholder="Enter 6-digit OTP" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
-                            <button type="button" class="btn btn-dark sx-reg-btn-secondary" id="btnVerifyOtp">Verify & Save</button>
-                            <button type="button" class="btn btn-outline-secondary sx-reg-btn-ghost" id="btnResendOtp">Resend OTP</button>
+                            <input type="text" id="otpInput" class="form-control" placeholder="{{ __('site.register_otp_ph') }}" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+                            <button type="button" class="btn btn-dark sx-reg-btn-secondary" id="btnVerifyOtp">{{ __('site.register_verify_save') }}</button>
+                            <button type="button" class="btn btn-outline-secondary sx-reg-btn-ghost" id="btnResendOtp">{{ __('site.register_resend') }}</button>
                         </div>
                         <small id="otpStatus" class="d-block mt-2 sx-reg-muted"></small>
                     </div>
 
                     <div class="d-flex flex-wrap align-items-center justify-content-between mt-3 sx-reg-actions">
-                        <small class="sx-reg-muted" id="verifyHint">Fill in the form, then click Submit Registration. An OTP will be sent to your phone.</small>
+                        <small class="sx-reg-muted" id="verifyHint">{{ __('site.register_hint') }}</small>
                         <button type="submit" class="btn btn-lg sx-reg-submit" id="btnSubmit">
-                            Submit Registration
+                            {{ __('site.register_submit') }}
                         </button>
                     </div>
                 </form>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="sx-reg-side-cta">
+                    <h3>{{ __('site.register_aside_title') }}</h3>
+                    <p>{{ __('site.register_aside_text') }}</p>
+                    <ul>
+                        <li><i class="fa fa-check"></i> {{ __('site.register_aside_point1') }}</li>
+                        <li><i class="fa fa-check"></i> {{ __('site.register_aside_point2') }}</li>
+                        <li><i class="fa fa-check"></i> {{ __('site.register_aside_point3') }}</li>
+                    </ul>
+                    <a href="tel:{{ config('shulexpert.phone_e164') }}" class="sx-reg-side-cta__link">
+                        <i class="fa fa-phone"></i> {{ config('shulexpert.phone_display') }}
+                    </a>
+                    <a href="mailto:emca@emcatech.co.tz" class="sx-reg-side-cta__link">
+                        <i class="fa fa-envelope"></i> emca@emcatech.co.tz
+                    </a>
+                    <a href="{{ route('pricing') }}" class="btn btn-light btn-block mt-3">{{ __('about.view_pricing') }}</a>
+                </div>
             </div>
         </div>
     </div>
@@ -449,7 +466,7 @@
         otpInput.value = '';
         otpStep.style.display = 'none';
         btnSubmit.style.display = '';
-        verifyHint.textContent = 'Fill in the form, then click Submit Registration. An OTP will be sent to your phone.';
+        verifyHint.textContent = @json(__('site.register_hint'));
         verifyHint.style.color = '#666';
         setStatus('', true);
     }
@@ -641,148 +658,228 @@
 
 @push('styles')
 <style>
-.sx-reg-banner.about-banner {
-    min-height: 340px !important;
-    padding-top: 168px !important;
-    padding-bottom: 72px !important;
+.sx-public-site .banner-area.sx-reg-page-banner.about-banner,
+.sx-reg-page-banner.about-banner {
+    min-height: 300px !important;
+    height: 300px !important;
+    padding: 0 !important;
     position: relative;
     overflow: hidden;
+    background-color: #5c0000 !important;
+    background-size: cover !important;
+    background-position: center 35% !important;
+    background-repeat: no-repeat !important;
+    display: flex;
+    align-items: center;
 }
-.sx-reg-banner__glow {
+.sx-reg-page-banner__overlay {
     position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
+    inset: 0;
+    background: linear-gradient(120deg, rgba(92,0,0,.62) 0%, rgba(148,0,0,.46) 55%, rgba(26,10,10,.38) 100%);
     z-index: 1;
 }
-.sx-reg-banner__glow--a {
-    width: 320px; height: 320px;
-    top: -80px; right: -60px;
-    background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
-}
-.sx-reg-banner__glow--b {
-    width: 260px; height: 260px;
-    bottom: -100px; left: -40px;
-    background: radial-gradient(circle, rgba(196,58,58,0.35) 0%, transparent 70%);
-}
-.sx-reg-banner .container { position: relative; z-index: 2; }
-.sx-reg-banner .about-content h1 {
-    font-size: 38px;
+.sx-reg-page-banner .container { position: relative; z-index: 2; width: 100%; }
+.sx-reg-page-banner .about-content h1 {
+    font-size: 30px;
     font-weight: 800;
-    margin-bottom: 10px;
-}
-.sx-reg-lead {
-    max-width: 620px;
-    margin: 14px auto 0;
-    opacity: .92;
-    font-size: 15px;
-    line-height: 1.7;
-}
-.sx-reg-page {
-    padding-top: 40px !important;
-    padding-bottom: 60px !important;
-}
-.sx-reg-alert {
-    border-radius: 0;
-    border-left: 4px solid #1a7f37;
-}
-.sx-reg-intro,
-.sx-reg-form {
-    border: 1px solid #e5e5e5;
-    background: #fff;
-}
-.sx-reg-intro {
-    padding: 16px 18px;
-}
-.sx-reg-intro h4 {
-    color: #940000;
-    font-weight: 700;
     margin-bottom: 8px;
 }
-.sx-reg-intro p {
+.sx-reg-page-banner .link-nav a { color: #fff !important; }
+
+.sx-reg-page-wrap { padding-bottom: 20px; }
+.sx-reg-page-wrap > .container.sx-reg-block {
+    padding-top: 40px !important;
+    padding-bottom: 0 !important;
+}
+.sx-reg-page-wrap > .container.sx-reg-block.sx-reg-block--last {
+    padding-bottom: 30px !important;
+}
+@media (max-width: 991.98px) {
+    .sx-reg-page-wrap > .container.sx-reg-block.sx-reg-block--last {
+        padding-bottom: 70px !important;
+    }
+    .sx-reg-page-banner .about-content h1 { font-size: 26px; }
+}
+
+.sx-reg-intro-lead {
+    max-width: 760px;
+    margin: 0 auto;
+    background: #fff8f8;
+    border: 1px solid #f0e4e4;
+    border-radius: 14px;
+    padding: 20px 26px;
+    color: #444;
+    font-size: 15.5px;
+    line-height: 1.7;
+}
+.sx-reg-alert {
+    background: #edf7f0;
+    border: 1px solid #b7e0c2;
+    border-left: 4px solid #1a7f37;
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #1a5c2e;
+    margin-bottom: 18px;
+}
+.sx-reg-form-card {
+    border: 1px solid #f0e4e4;
+    border-radius: 14px;
+    background: #fff;
+    padding: 24px 22px;
+    box-shadow: 0 8px 22px rgba(148,0,0,.05);
+}
+.sx-reg-form-card__intro { margin-bottom: 20px; }
+.sx-reg-kicker {
+    color: #940000;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.sx-reg-heading {
+    color: #1a1a1a;
+    font-weight: 800;
+    font-size: 24px;
+    margin: 0 0 10px;
+}
+.sx-reg-text {
     color: #555;
+    font-size: 14.5px;
+    line-height: 1.65;
+    margin-bottom: 8px;
 }
-.sx-reg-intro strong { color: #222; }
-.sx-reg-muted,
-.sx-reg-intro .sx-reg-muted {
-    color: #777 !important;
-}
-.sx-reg-form {
-    padding: 24px;
+.sx-reg-steps {
+    color: #777;
+    font-size: 13px;
 }
 .sx-reg-section-title {
     color: #940000;
-    font-weight: 700;
-    border-bottom: 1px solid #eee;
+    font-weight: 800;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    border-bottom: 1px solid #f0e4e4;
     padding-bottom: 8px;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
 }
-.sx-reg-section-title--spaced {
-    margin: 24px 0 18px;
-}
-.sx-reg-form label {
+.sx-reg-section-title--spaced { margin-top: 22px; }
+.sx-reg-label {
+    display: block;
     color: #333;
+    font-weight: 700;
+    font-size: 13px;
+    margin-bottom: 6px;
 }
+.sx-reg-form .form-control {
+    border-radius: 10px;
+    border-color: #e8d5d5;
+    min-height: 42px;
+}
+.sx-reg-form textarea.form-control { min-height: 72px; }
+.sx-reg-muted { color: #777 !important; }
 .sx-reg-feedback { min-height: 18px; }
 .sx-reg-otp {
-    margin: 18px 0;
+    margin: 16px 0;
     padding: 16px;
-    border: 1px solid #e0cdcd;
-    background: #fffaf9;
+    border: 1px solid #f0dada;
+    background: #fff8f8;
+    border-radius: 12px;
 }
 .sx-reg-otp__title {
     color: #940000;
-    font-weight: 700;
+    font-weight: 800;
     margin-bottom: 8px;
 }
 .sx-reg-otp p { color: #555; }
-.sx-reg-otp__row {
-    gap: 8px;
-    max-width: 420px;
-}
+.sx-reg-otp__row { gap: 8px; max-width: 480px; }
 .sx-reg-btn-secondary,
 .sx-reg-btn-ghost {
-    border-radius: 0 !important;
+    border-radius: 10px !important;
     white-space: nowrap;
 }
 .sx-reg-actions { gap: 12px; }
 .sx-reg-submit {
     background: #940000 !important;
     color: #fff !important;
-    border-radius: 0 !important;
-    font-weight: 700 !important;
+    border-radius: 10px !important;
+    font-weight: 800 !important;
     border: none !important;
+    padding: 10px 18px !important;
 }
 
-html[data-sx-theme="dark"] .sx-reg-intro,
-html[data-sx-theme="dark"] .sx-reg-form {
+.sx-reg-side-cta {
+    background: #940000;
+    color: #fff;
+    border-radius: 14px;
+    padding: 22px 18px;
+    position: sticky;
+    top: 90px;
+}
+.sx-reg-side-cta h3 {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 800;
+    margin: 0 0 10px;
+}
+.sx-reg-side-cta > p {
+    color: #ffe3e3;
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin-bottom: 14px;
+}
+.sx-reg-side-cta ul {
+    list-style: none;
+    margin: 0 0 16px;
+    padding: 0;
+}
+.sx-reg-side-cta li {
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.sx-reg-side-cta li .fa {
+    margin-right: 6px;
+    color: #ffd6d6;
+}
+.sx-reg-side-cta__link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffe3e3 !important;
+    text-decoration: none !important;
+    font-weight: 600;
+    font-size: 13.5px;
+    margin-bottom: 8px;
+}
+.sx-reg-side-cta .btn-light {
+    background: #fff !important;
+    color: #940000 !important;
+    border: 0 !important;
+    font-weight: 800;
+}
+
+html[data-sx-theme="dark"] .sx-reg-intro-lead,
+html[data-sx-theme="dark"] .sx-reg-form-card {
     background: #1f1418 !important;
     border-color: rgba(255,180,180,0.2) !important;
     color: #f3e9eb !important;
 }
-html[data-sx-theme="dark"] .sx-reg-intro h4,
+html[data-sx-theme="dark"] .sx-reg-heading,
 html[data-sx-theme="dark"] .sx-reg-section-title,
-html[data-sx-theme="dark"] .sx-reg-otp__title {
+html[data-sx-theme="dark"] .sx-reg-otp__title,
+html[data-sx-theme="dark"] .sx-reg-kicker {
     color: #ffb4b4 !important;
 }
-html[data-sx-theme="dark"] .sx-reg-section-title {
-    border-bottom-color: rgba(255,180,180,0.18) !important;
-}
-html[data-sx-theme="dark"] .sx-reg-intro p,
-html[data-sx-theme="dark"] .sx-reg-otp p,
-html[data-sx-theme="dark"] .sx-reg-form label,
+html[data-sx-theme="dark"] .sx-reg-text,
+html[data-sx-theme="dark"] .sx-reg-steps,
+html[data-sx-theme="dark"] .sx-reg-label,
 html[data-sx-theme="dark"] .sx-reg-muted,
-html[data-sx-theme="dark"] .sx-reg-intro .sx-reg-muted,
 html[data-sx-theme="dark"] #verifyHint,
 html[data-sx-theme="dark"] #otpStatus,
 html[data-sx-theme="dark"] #regionLoadHint {
     color: #f3e9eb !important;
-}
-html[data-sx-theme="dark"] .sx-reg-form label {
-    color: #fff !important;
-}
-html[data-sx-theme="dark"] .sx-reg-intro strong,
-html[data-sx-theme="dark"] .sx-reg-form strong {
-    color: #fff !important;
 }
 html[data-sx-theme="dark"] .sx-reg-form .form-control,
 html[data-sx-theme="dark"] .sx-reg-otp .form-control {
@@ -790,40 +887,9 @@ html[data-sx-theme="dark"] .sx-reg-otp .form-control {
     border-color: rgba(255,180,180,0.22) !important;
     color: #fff !important;
 }
-html[data-sx-theme="dark"] .sx-reg-form .form-control:disabled,
-html[data-sx-theme="dark"] .sx-reg-form select:disabled {
-    background: #1a1014 !important;
-    color: #c9b4b8 !important;
-}
-html[data-sx-theme="dark"] .sx-reg-form .form-control::placeholder {
-    color: #c9b4b8 !important;
-}
 html[data-sx-theme="dark"] .sx-reg-otp {
     background: #2a171c !important;
     border-color: rgba(255,180,180,0.28) !important;
-}
-html[data-sx-theme="dark"] .sx-reg-btn-ghost {
-    color: #ffd6d6 !important;
-    border-color: rgba(255,180,180,0.4) !important;
-    background: transparent !important;
-}
-html[data-sx-theme="dark"] .sx-reg-btn-secondary {
-    background: #3a242b !important;
-    border-color: rgba(255,180,180,0.3) !important;
-    color: #fff !important;
-}
-html[data-sx-theme="dark"] .sx-reg-alert {
-    background: #1a2e22 !important;
-    color: #d4edda !important;
-    border-color: #1a7f37 !important;
-}
-@media (max-width: 991.98px) {
-    .sx-reg-banner.about-banner {
-        min-height: 300px !important;
-        padding-top: 148px !important;
-        padding-bottom: 60px !important;
-    }
-    .sx-reg-banner .about-content h1 { font-size: 30px; }
 }
 </style>
 @endpush

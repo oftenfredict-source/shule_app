@@ -609,7 +609,7 @@
                         </div>
                         <div class="ms-2">
                             <h6 style="color: #940000 !important;" class="mb-0">Mail Us</h6>
-                            <span style="color: #940000 !important;">emca@emca.tech</span>
+                            <span style="color: #940000 !important;">emca@emcatech.co.tz</span>
                         </div>
                     </div>
                 </div>

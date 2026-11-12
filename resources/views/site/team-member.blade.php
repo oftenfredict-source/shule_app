@@ -415,7 +415,7 @@
             '@type' => 'Organization',
             'name' => 'EmCa Techonology',
             'url' => url('/'),
-            'email' => 'emca@emca.tech',
+            'email' => 'emca@emcatech.co.tz',
         ],
     ]);
 

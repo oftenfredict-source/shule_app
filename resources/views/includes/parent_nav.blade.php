@@ -258,8 +258,8 @@
             }
         };
 
-        // Get current language from session or default to Swahili
-        let currentLang = '{{ Session::get("locale", "sw") }}';
+        // Get current language from session or default to English
+        let currentLang = '{{ Session::get("locale", "en") }}';
 
         // Function to update translations
         function updateTranslations() {
@@ -523,8 +523,8 @@
             }
         };
 
-        // Get current language from session or default to Swahili
-        let currentLang = '{{ Session::get("locale", "sw") }}';
+        // Get current language from session or default to English
+        let currentLang = '{{ Session::get("locale", "en") }}';
 
         // Function to update translations
         function updateTranslations() {

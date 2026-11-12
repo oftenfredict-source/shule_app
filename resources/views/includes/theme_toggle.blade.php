@@ -25,7 +25,9 @@
         }
 
         function setTheme(theme) {
+            theme = theme === 'dark' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-sx-theme', theme);
+            document.documentElement.setAttribute('data-bs-theme', theme);
             try { localStorage.setItem('sx-theme', theme); } catch (e) {}
             applyToggleState(theme);
         }
@@ -35,19 +37,26 @@
             setTheme(current === 'dark' ? 'light' : 'dark');
         }
 
-        function bindToggles() {
-            applyToggleState(document.documentElement.getAttribute('data-sx-theme') || 'light');
-            document.querySelectorAll('.sx-theme-toggle').forEach(function (btn) {
-                if (btn.__sxBound) return;
-                btn.__sxBound = true;
-                btn.addEventListener('click', toggleTheme);
-            });
+        function syncFromStorage() {
+            var theme = 'light';
+            try {
+                var saved = localStorage.getItem('sx-theme');
+                if (saved === 'dark' || saved === 'light') theme = saved;
+            } catch (e) {}
+            setTheme(theme);
         }
 
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('.sx-theme-toggle');
+            if (!btn) return;
+            e.preventDefault();
+            toggleTheme();
+        });
+
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', bindToggles);
+            document.addEventListener('DOMContentLoaded', syncFromStorage);
         } else {
-            bindToggles();
+            syncFromStorage();
         }
     })();
-    </script>
+</script>

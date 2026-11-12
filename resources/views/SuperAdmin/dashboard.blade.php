@@ -1,364 +1,396 @@
 @extends('includes.superadmin_nav')
 
-@section('page_title', 'Super Administrator Dashboard')
-@section('page_subtitle', 'System Control & Management')
-@section('page_breadcrumb', 'Super Admin Dashboard')
-
 @section('content')
+@php
+    $demoCount = (int) ($demoSchoolsCount ?? 0);
+    $liveCount = (int) ($liveSchoolsCount ?? 0);
+    $totalInstitutions = $demoCount + $liveCount;
+    $unreadInquiries = (int) ($customerInquiryUnread ?? 0);
+    $demoShare = $totalInstitutions > 0 ? (int) round(($demoCount / $totalInstitutions) * 100) : 0;
+    $liveShare = $totalInstitutions > 0 ? (int) round(($liveCount / $totalInstitutions) * 100) : 0;
+@endphp
+
 <style>
-    .dashboard-hero {
-        background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
-        border: 1px solid #f0dada;
-        padding: 20px 22px;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
+    .sx-sa-dash,
+    .sx-sa-dash p,
+    .sx-sa-dash span,
+    .sx-sa-dash small,
+    .sx-sa-dash strong,
+    .sx-sa-dash h1,
+    .sx-sa-dash h2,
+    .sx-sa-dash h3,
+    .sx-sa-dash h4,
+    .sx-sa-dash h5,
+    .sx-sa-dash h6,
+    .sx-sa-dash .card-title,
+    .sx-sa-dash .stat-label,
+    .sx-sa-dash .stat-value,
+    .sx-sa-dash .sx-sa-copy,
+    .sx-sa-dash .text-muted,
+    .sx-sa-dash .text-body,
+    .sx-sa-dash .text-dark,
+    .sx-sa-dash a:not(.btn),
+    .sx-sa-dash .quick-tool-link,
+    .sx-sa-dash .list-row {
+        color: #000 !important;
     }
-    .dashboard-hero .hero-title {
-        font-size: 1.25rem;
-        font-weight: 800;
-        color: #940000;
-        margin-bottom: 4px;
+    .sx-sa-dash .btn-primary,
+    .sx-sa-dash a.btn-primary,
+    .sx-sa-dash .text-white,
+    .sx-sa-dash .badge,
+    .sx-sa-dash .avatar,
+    .sx-sa-dash .stat-ico {
+        color: #fff !important;
     }
-    .dashboard-hero .hero-subtitle {
-        color: #666;
-        margin-bottom: 0;
-        font-size: 0.9rem;
+    .sx-sa-dash .card {
+        border-radius: 0.35rem;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+        background: #fff;
+        color: #000;
     }
-    .dashboard-card {
-        border: 1px solid #f0f0f0;
-        box-shadow: 0 4px 12px rgba(148,0,0,0.05);
-        height: 100%;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        border-left: 4px solid #940000;
+    .sx-sa-dash a.stat-card {
+        display: block;
+        text-decoration: none;
+        color: #000 !important;
+        background: #fff !important;
+        border: 1px solid #e6e6e6;
+        border-top: 4px solid #940000;
+        border-radius: 0;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        transition: box-shadow 0.15s ease, transform 0.15s ease;
+        cursor: pointer;
     }
-    .dashboard-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 24px rgba(148,0,0,0.1);
+    .sx-sa-dash a.stat-card:hover {
+        box-shadow: 0 4px 14px rgba(148, 0, 0, 0.12);
+        transform: translateY(-1px);
+        color: #000 !important;
     }
-    .dashboard-card .card-title {
+    .sx-sa-dash a.stat-card .card-body {
+        padding: 1rem 1.15rem 1.1rem;
+    }
+    .sx-sa-dash .stat-label {
+        display: block;
+        margin: 0 0 0.45rem;
+        font-size: 0.78rem;
         font-weight: 700;
-        color: #444;
-        font-size: 0.9rem;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 12px;
+        color: #000 !important;
+        line-height: 1.2;
     }
-    .dashboard-card .card-icon {
-        font-size: 2.2rem;
-        color: #940000;
-        opacity: 0.9;
+    .sx-sa-dash .stat-value {
+        display: block;
+        margin: 0;
+        font-size: 1.55rem;
+        font-weight: 700;
+        line-height: 1.15;
+        color: #000 !important;
+        letter-spacing: -0.02em;
     }
-    .stat-value {
-        font-size: 2rem;
-        font-weight: 800;
-        color: #222;
-        line-height: 1;
+    .sx-sa-dash .avatar {
+        width: 40px;
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
     }
-    .stat-desc {
-        font-size: 0.8rem;
-        color: #888;
-        margin-top: 8px;
+    .sx-sa-dash .bg-brand {
+        background: #940000 !important;
     }
-    /* Ensure no radius */
-    .card, .btn, .alert { border-radius: 0 !important; }
+    .sx-sa-dash .shadow-brand {
+        box-shadow: 0 0.35rem 0.75rem rgba(148, 0, 0, 0.25) !important;
+    }
+    .sx-sa-dash .quick-tool-link {
+        text-decoration: none;
+        color: inherit;
+    }
+    .sx-sa-dash .quick-tool-link:hover {
+        color: inherit;
+    }
+    .sx-sa-dash .quick-tool-link .list-row:hover {
+        background: rgba(148, 0, 0, 0.05);
+        border-radius: 0.75rem;
+    }
+    .sx-sa-dash .list-row {
+        padding: 0.7rem 0.55rem;
+        transition: background 0.15s ease;
+    }
+    .sx-sa-dash .env-bar {
+        height: 12px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(148, 0, 0, 0.1);
+    }
+    .sx-sa-dash .env-bar > span {
+        display: block;
+        height: 100%;
+        background: #940000;
+    }
+    .sx-sa-dash .panel-card .card-body {
+        padding: 1.25rem 1.35rem;
+    }
+    html[data-sx-theme="dark"] .sx-sa-dash .card,
+    html[data-bs-theme="dark"] .sx-sa-dash .card {
+        background: #24181c !important;
+        border: 1px solid rgba(255, 180, 180, 0.16) !important;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+        color: #fff;
+    }
+    html[data-sx-theme="dark"] .sx-sa-dash a.stat-card,
+    html[data-bs-theme="dark"] .sx-sa-dash a.stat-card {
+        background: #24181c !important;
+        border-color: rgba(255, 180, 180, 0.18);
+        border-top-color: #940000;
+    }
+    html[data-sx-theme="dark"] .sx-sa-dash,
+    html[data-bs-theme="dark"] .sx-sa-dash,
+    html[data-sx-theme="dark"] .sx-sa-dash p,
+    html[data-bs-theme="dark"] .sx-sa-dash p,
+    html[data-sx-theme="dark"] .sx-sa-dash span,
+    html[data-bs-theme="dark"] .sx-sa-dash span,
+    html[data-sx-theme="dark"] .sx-sa-dash small,
+    html[data-bs-theme="dark"] .sx-sa-dash small,
+    html[data-sx-theme="dark"] .sx-sa-dash .card-title,
+    html[data-bs-theme="dark"] .sx-sa-dash .card-title,
+    html[data-sx-theme="dark"] .sx-sa-dash .stat-label,
+    html[data-bs-theme="dark"] .sx-sa-dash .stat-label,
+    html[data-sx-theme="dark"] .sx-sa-dash .stat-value,
+    html[data-bs-theme="dark"] .sx-sa-dash .stat-value,
+    html[data-sx-theme="dark"] .sx-sa-dash .text-muted,
+    html[data-bs-theme="dark"] .sx-sa-dash .text-muted,
+    html[data-sx-theme="dark"] .sx-sa-dash a:not(.btn),
+    html[data-bs-theme="dark"] .sx-sa-dash a:not(.btn) {
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] .sx-sa-dash .quick-tool-link .list-row:hover,
+    html[data-bs-theme="dark"] .sx-sa-dash .quick-tool-link .list-row:hover {
+        background: rgba(255, 180, 180, 0.08);
+    }
 
-    /* Light-mode custom buttons */
-    .btn-primary-custom {
-        background: #940000 !important;
-        border: 1px solid #940000 !important;
-        color: #fff !important;
-    }
-    .btn-primary-custom:hover {
-        background: #a80000 !important;
-        border-color: #a80000 !important;
-        color: #fff !important;
-    }
-    .btn-outline-primary-custom {
-        background: transparent !important;
-        border: 1px solid #940000 !important;
-        color: #940000 !important;
-    }
-    .btn-outline-primary-custom:hover {
-        background: #940000 !important;
-        color: #fff !important;
-    }
-
-    /* Soft dark dashboard */
-    html[data-sx-theme="dark"] .dashboard-hero {
-        background: linear-gradient(135deg, #2a1a1f 0%, #1f1418 100%) !important;
-        border-color: rgba(255, 180, 180, 0.28) !important;
-    }
-    html[data-sx-theme="dark"] .dashboard-hero .hero-title {
-        color: #ffc2c2 !important;
-    }
-    html[data-sx-theme="dark"] .dashboard-hero .hero-subtitle,
-    html[data-sx-theme="dark"] .dashboard-hero .text-muted {
-        color: #e8d6da !important;
-    }
-    html[data-sx-theme="dark"] .dashboard-card,
-    html[data-sx-theme="dark"] .card {
-        background: #1f1418 !important;
-        border-color: rgba(255, 180, 180, 0.22) !important;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.3) !important;
-        color: #f3e9eb !important;
-    }
-    html[data-sx-theme="dark"] .dashboard-card .card-title,
-    html[data-sx-theme="dark"] .card-header h6,
-    html[data-sx-theme="dark"] .fw-bold {
-        color: #fff !important;
-    }
-    html[data-sx-theme="dark"] .dashboard-card .card-icon,
-    html[data-sx-theme="dark"] .dashboard-card .card-icon i,
-    html[data-sx-theme="dark"] .text-primary,
-    html[data-sx-theme="dark"] i.text-primary {
-        color: #ffb4b4 !important;
-    }
-    html[data-sx-theme="dark"] .stat-value {
-        color: #fff !important;
-    }
-    html[data-sx-theme="dark"] .stat-desc,
-    html[data-sx-theme="dark"] .text-muted,
-    html[data-sx-theme="dark"] .smaller {
-        color: #e0cfd3 !important;
-    }
-    html[data-sx-theme="dark"] .card-header,
-    html[data-sx-theme="dark"] .card-header.bg-white,
-    html[data-sx-theme="dark"] .bg-white {
-        background: #2a1a1f !important;
-        border-color: rgba(255, 180, 180, 0.2) !important;
-        color: #fff !important;
-    }
-    html[data-sx-theme="dark"] .border {
-        border-color: rgba(255, 180, 180, 0.22) !important;
-    }
-    html[data-sx-theme="dark"] .btn-outline-primary-custom,
-    html[data-sx-theme="dark"] .btn-outline-dark,
-    html[data-sx-theme="dark"] a.btn-outline-primary-custom,
-    html[data-sx-theme="dark"] a.btn-outline-dark {
-        background: transparent !important;
-        border: 1px solid rgba(255, 180, 180, 0.55) !important;
-        color: #ffe8eb !important;
-    }
-    html[data-sx-theme="dark"] .btn-outline-primary-custom i,
-    html[data-sx-theme="dark"] .btn-outline-dark i {
-        color: #ffb4b4 !important;
-    }
-    html[data-sx-theme="dark"] .btn-outline-primary-custom:hover,
-    html[data-sx-theme="dark"] .btn-outline-dark:hover,
-    html[data-sx-theme="dark"] a.btn-outline-primary-custom:hover,
-    html[data-sx-theme="dark"] a.btn-outline-dark:hover {
-        background: #940000 !important;
-        border-color: #940000 !important;
-        color: #fff !important;
-    }
-    html[data-sx-theme="dark"] .btn-dark,
-    html[data-sx-theme="dark"] a.btn-dark {
-        background: #3a242b !important;
-        border-color: rgba(255, 180, 180, 0.35) !important;
-        color: #fff !important;
-    }
-    html[data-sx-theme="dark"] .btn-primary-custom,
-    html[data-sx-theme="dark"] a.btn-primary-custom {
-        background: #940000 !important;
-        border-color: #940000 !important;
-        color: #fff !important;
-    }
-    html[data-sx-theme="dark"] hr {
-        border-color: rgba(255, 180, 180, 0.2) !important;
-        opacity: 1;
-    }
 </style>
 
-<div class="container-fluid px-0 mt-1">
+<div class="sx-sa-dash">
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="bx bx-check-circle me-2"></i> {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <i class="fi fi-rr-check-circle me-2"></i>{{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
 
-    <div class="dashboard-hero">
-        <div>
-            <div class="text-muted small fw-bold uppercase" style="letter-spacing: 1px;">{{ \Carbon\Carbon::now()->format('l, d M Y') }}</div>
-            <div class="hero-title">Welcome, Super Admin</div>
-            <p class="hero-subtitle">Quick actions and institutional overview</p>
-        </div>
-        <div class="hero-actions d-none d-md-flex gap-2">
-            <a href="{{ route('superadmin.schools.register') }}" class="btn btn-primary-custom btn-sm py-2 px-3">
-                <i class="bx bx-plus-circle me-1"></i> New School
-            </a>
-            <a href="{{ route('superadmin.schools.index') }}" class="btn btn-outline-primary-custom btn-sm py-2 px-3">
-                <i class="bx bx-list-ul me-1"></i> All Schools
-            </a>
-            <a href="{{ route('superadmin.fingerprint_attendance_setup.index') }}" class="btn btn-outline-primary-custom btn-sm py-2 px-3">
-                <i class="bx bx-desktop me-1"></i> Attendance Setup
+    <div class="row g-3">
+        {{-- Metric cards (clickable, maroon top bar) --}}
+        <div class="col-sm-6 col-xl-3">
+            <a class="card stat-card h-100" href="{{ route('superadmin.schools.index') }}?environment=Demo">
+                <div class="card-body">
+                    <span class="stat-label">Demo Environments</span>
+                    <span class="stat-value">{{ $demoCount }}</span>
+                </div>
             </a>
         </div>
-    </div>
-
-    <div class="row">
-        <!-- Demo Schools -->
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
-            <div class="card dashboard-card">
+        <div class="col-sm-6 col-xl-3">
+            <a class="card stat-card h-100" href="{{ route('superadmin.schools.index') }}?environment=Live">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <div class="card-title">Demo Environments</div>
-                            <div class="stat-value">{{ $demoSchoolsCount ?? 0 }}</div>
-                        </div>
-                        <div class="card-icon"><i class="bx bx-test-tube"></i></div>
-                    </div>
-                    <p class="stat-desc mb-0">Institutions currently in trial or demo mode.</p>
+                    <span class="stat-label">Live Environments</span>
+                    <span class="stat-value">{{ $liveCount }}</span>
                 </div>
-            </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <a class="card stat-card h-100" href="{{ route('superadmin.schools.index') }}">
+                <div class="card-body">
+                    <span class="stat-label">Total Institutions</span>
+                    <span class="stat-value">{{ $totalInstitutions }}</span>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <a class="card stat-card h-100" href="{{ route('superadmin.customer_inquiries') }}">
+                <div class="card-body">
+                    <span class="stat-label">Unread Inquiries</span>
+                    <span class="stat-value">{{ $unreadInquiries }}</span>
+                </div>
+            </a>
         </div>
 
-        <!-- Live Schools -->
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
-            <div class="card dashboard-card">
+        <div class="col-xl-4">
+            <div class="card panel-card overflow-hidden z-1 h-100">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <div class="card-title">Live Environments</div>
-                            <div class="stat-value">{{ $liveSchoolsCount ?? 0 }}</div>
-                        </div>
-                        <div class="card-icon"><i class="bx bx-rocket"></i></div>
+                    <div class="w-75 pe-2">
+                        <h5 class="card-title mb-2">Welcome, Super Admin</h5>
+                        <p class="mb-0 sx-sa-copy">Oversee licenses, schools, and system-wide alerts from one place.</p>
                     </div>
-                    <p class="stat-desc mb-0">Active production environments for schools.</p>
+                    <img src="{{ asset('gxon/images/media/svg/media1.svg') }}" alt="" class="position-absolute bottom-0 end-0 z-n1" style="max-width: 44%; opacity: .92;">
                 </div>
-            </div>
-        </div>
-
-        <!-- Registered Schools -->
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
-            <div class="card dashboard-card" style="border-left-color: #444;">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <div class="card-title">Total Institutions</div>
-                            <div class="stat-value">{{ ($demoSchoolsCount ?? 0) + ($liveSchoolsCount ?? 0) }}</div>
-                        </div>
-                        <div class="card-icon"><i class="bx bx-building-house"></i></div>
-                    </div>
-                    <a href="{{ route('superadmin.schools.index') }}" class="btn btn-sm btn-outline-dark w-100 mt-2">Manage All</a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
-            <div class="card dashboard-card">
-                <div class="card-body">
-                    <div class="card-title">System Quick Tools</div>
-                    <div class="d-grid gap-2">
-                        <a href="{{ route('superadmin.system_alerts') }}" class="btn btn-sm btn-dark text-start">
-                            <i class="bx bx-bullhorn me-2"></i> Broadcast Alert
-                        </a>
-                        <a href="{{ route('superadmin.customer_inquiries') }}" class="btn btn-sm btn-outline-dark text-start position-relative">
-                            <i class="bx bx-envelope me-2"></i> Customer Inquiries
-                            @if(($customerInquiryUnread ?? 0) > 0)
-                                <span class="badge bg-danger ms-1">{{ $customerInquiryUnread }}</span>
-                            @endif
-                        </a>
-                        <a href="{{ route('superadmin.user_password') }}" class="btn btn-sm btn-outline-dark text-start">
-                            <i class="bx bx-key me-2"></i> Reset User Password
-                        </a>
-                        <a href="{{ route('superadmin.fingerprint_attendance_setup.index') }}" class="btn btn-sm btn-outline-dark text-start">
-                            <i class="bx bx-desktop me-2"></i> Fingerprint Attendance Setup
-                        </a>
-                        <a href="{{ route('superadmin.parent_fingerprint_portal') }}" class="btn btn-sm btn-outline-dark text-start">
-                            <i class="bx bx-fingerprint me-2"></i> Parent Fingerprint Portal
-                        </a>
-                        <a href="{{ route('superadmin.banks.index') }}" class="btn btn-sm btn-outline-dark text-start">
-                            <i class="bx bx-buildings me-2"></i> Bank Registration
-                        </a>
-                        <a href="{{ route('superadmin.bank_accounts.verification') }}" class="btn btn-sm btn-outline-dark text-start">
-                            <i class="bx bx-check-shield me-2"></i> Account Verification
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Secondary Row -->
-    <div class="row mb-4">
-        <div class="col-md-4 mb-4">
-            <div class="card dashboard-card" style="border-left-color:#c41e3a;">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div>
-                            <div class="card-title">Customer Inquiries</div>
-                            <div class="stat-value">{{ $customerInquiryUnread ?? 0 }}</div>
-                        </div>
-                        <div class="card-icon"><i class="bx bx-envelope"></i></div>
-                    </div>
-                    <p class="stat-desc mb-3">Unread messages from the public contact page.</p>
-                    <a href="{{ route('superadmin.customer_inquiries') }}" class="btn btn-sm btn-primary-custom w-100">
-                        <i class="bx bx-show me-1"></i> View Inquiries
+                <div class="card-footer border-0 pt-0">
+                    <a href="{{ route('superadmin.system_alerts') }}" class="btn btn-primary waves-effect waves-light">
+                        <i class="fi fi-rr-bell me-1"></i> Broadcast Alert
                     </a>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Secondary Row -->
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card border shadow-sm">
-                <div class="card-header bg-white border-bottom py-3">
-                    <h6 class="mb-0 fw-bold"><i class="bx bx-info-circle me-2 text-primary"></i> Super Admin Information</h6>
+        <div class="col-xl-4">
+            <div class="card panel-card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between border-0 pb-0">
+                    <h6 class="card-title mb-0">Institution Mix</h6>
+                    <a href="{{ route('superadmin.schools.index') }}" class="btn btn-sm btn-outline-light btn-shadow waves-effect">View Schools</a>
                 </div>
                 <div class="card-body">
-                    <p>Welcome to the ShuleXpert Super Admin panel. This area allows you to oversee the entire platform, manage school licenses, and monitor system-wide alerts.</p>
-                    <div class="row text-center mt-4">
-                        <div class="col-md-4 mb-3">
-                            <div class="p-3 border">
-                                <i class="bx bx-shield-quarter d-block mb-2 text-primary" style="font-size: 1.5rem;"></i>
-                                <div class="small fw-bold">Secure Access</div>
-                                <div class="text-muted smaller">Multi-level Auth</div>
-                            </div>
+                    <div class="d-flex justify-content-between align-items-end mb-2">
+                        <div>
+                            <div class="text-muted small">Live vs Demo</div>
+                            <h3 class="mb-0 fw-bold">{{ $totalInstitutions }}</h3>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="p-3 border">
-                                <i class="bx bx-data d-block mb-2 text-primary" style="font-size: 1.5rem;"></i>
-                                <div class="small fw-bold">Data Control</div>
-                                <div class="text-muted smaller">Full CRUD Access</div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="p-3 border">
-                                <i class="bx bx-support d-block mb-2 text-primary" style="font-size: 1.5rem;"></i>
-                                <div class="small fw-bold">Help Desk</div>
-                                <div class="text-muted smaller">24/7 Monitoring</div>
-                            </div>
+                        <div class="text-end">
+                            <div class="small"><span class="text-success fw-semibold">{{ $liveCount }}</span> Live ({{ $liveShare }}%)</div>
+                            <div class="small"><span class="text-secondary fw-semibold">{{ $demoCount }}</span> Demo ({{ $demoShare }}%)</div>
                         </div>
                     </div>
+                    <div class="env-bar mb-3" title="Live share">
+                        <span style="width: {{ max(0, min(100, $liveShare)) }}%;"></span>
+                    </div>
+                    <a href="{{ route('superadmin.schools.registration_requests') }}" class="btn btn-primary waves-effect waves-light w-100">
+                        <i class="fi fi-rr-file me-1"></i> School Requests
+                    </a>
                 </div>
             </div>
         </div>
-        <div class="col-lg-4">
-            <div class="card border shadow-sm">
-                <div class="card-header bg-white border-bottom py-3">
-                    <h6 class="mb-0 fw-bold"><i class="bx bx-cog me-2 text-primary"></i> Account Settings</h6>
+
+        <div class="col-xl-4">
+            <div class="card panel-card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between border-0 pb-0">
+                    <h6 class="card-title mb-0">Account Settings</h6>
                 </div>
                 <div class="card-body">
                     <div class="d-flex align-items-center mb-3">
-                        <div class="avatar-sa me-3" style="width: 50px; height: 50px; background: #940000; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem;">
+                        <div class="avatar rounded-circle bg-brand text-white fw-bold me-2">
                             SA
                         </div>
                         <div>
                             <div class="fw-bold">Super Administrator</div>
-                            <div class="text-muted small">system@shulelink.com</div>
+                            <small class="text-muted d-block">ShuleXpert control plane</small>
                         </div>
                     </div>
-                    <hr>
-                    <a href="{{ route('superadmin.change_password') }}" class="btn btn-outline-primary-custom w-100 mb-2">
-                        <i class="bx bx-lock-open-alt me-1"></i> Update Security
+                    <a href="{{ route('superadmin.change_password') }}" class="btn btn-outline-light btn-shadow waves-effect w-100 mb-2">
+                        <i class="fi fi-rr-lock me-1"></i> Update Security
                     </a>
+                    <a href="{{ route('superadmin.parent_fingerprint_portal') }}" class="btn btn-primary waves-effect waves-light w-100">
+                        <i class="fi fi-rr-fingerprint me-1"></i> Parent Fingerprint Portal
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card panel-card">
+                <div class="card-header d-flex align-items-center justify-content-between border-0 pb-0">
+                    <h6 class="card-title mb-0">System Quick Tools</h6>
+                    <a href="{{ route('superadmin.customer_inquiries') }}" class="btn-link">Inquiries</a>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-md-6 col-xl-4">
+                            <a href="{{ route('superadmin.customer_inquiries') }}" class="quick-tool-link d-block">
+                                <div class="list-row d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar avatar-sm rounded-circle bg-brand text-white" style="width:42px;height:42px;">
+                                            <i class="fi fi-rr-envelope"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">Customer Inquiries</div>
+                                            <small class="text-muted">Public contact messages</small>
+                                        </div>
+                                    </div>
+                                    @if($unreadInquiries > 0)
+                                        <span class="badge bg-danger rounded-pill">{{ $unreadInquiries > 99 ? '99+' : $unreadInquiries }}</span>
+                                    @else
+                                        <i class="fi fi-rr-angle-small-right text-muted"></i>
+                                    @endif
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6 col-xl-4">
+                            <a href="{{ route('superadmin.user_password') }}" class="quick-tool-link d-block">
+                                <div class="list-row d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar avatar-sm rounded-circle bg-secondary text-white" style="width:42px;height:42px;">
+                                            <i class="fi fi-rr-key"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">Reset User Password</div>
+                                            <small class="text-muted">Send credentials by SMS</small>
+                                        </div>
+                                    </div>
+                                    <i class="fi fi-rr-angle-small-right text-muted"></i>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6 col-xl-4">
+                            <a href="{{ route('superadmin.fingerprint_attendance_setup.index') }}" class="quick-tool-link d-block">
+                                <div class="list-row d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar avatar-sm rounded-circle bg-info text-white" style="width:42px;height:42px;">
+                                            <i class="fi fi-rr-fingerprint"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">Attendance Setup</div>
+                                            <small class="text-muted">Fingerprint devices</small>
+                                        </div>
+                                    </div>
+                                    <i class="fi fi-rr-angle-small-right text-muted"></i>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6 col-xl-4">
+                            <a href="{{ route('superadmin.banks.index') }}" class="quick-tool-link d-block">
+                                <div class="list-row d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar avatar-sm rounded-circle bg-success text-white" style="width:42px;height:42px;">
+                                            <i class="fi fi-rr-bank"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">Bank Registration</div>
+                                            <small class="text-muted">Fees &amp; collections</small>
+                                        </div>
+                                    </div>
+                                    <i class="fi fi-rr-angle-small-right text-muted"></i>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6 col-xl-4">
+                            <a href="{{ route('superadmin.bank_accounts.verification') }}" class="quick-tool-link d-block">
+                                <div class="list-row d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar avatar-sm rounded-circle bg-warning text-white" style="width:42px;height:42px;">
+                                            <i class="fi fi-rr-shield-check"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">Account Verification</div>
+                                            <small class="text-muted">Approve school accounts</small>
+                                        </div>
+                                    </div>
+                                    <i class="fi fi-rr-angle-small-right text-muted"></i>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6 col-xl-4">
+                            <a href="{{ route('superadmin.system_logs') }}" class="quick-tool-link d-block">
+                                <div class="list-row d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar avatar-sm rounded-circle bg-dark text-white" style="width:42px;height:42px;">
+                                            <i class="fi fi-rr-shield"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">System Logs</div>
+                                            <small class="text-muted">Security &amp; activity</small>
+                                        </div>
+                                    </div>
+                                    <i class="fi fi-rr-angle-small-right text-muted"></i>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

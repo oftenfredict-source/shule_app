@@ -303,7 +303,7 @@
                     <h4 class="text-light mb-4">ShuleXpert Office</h4>
                     <p class="mb-2"><i class="fa fa-map-marker-alt me-3"></i>Moshi, Kilimanjaro</p>
                     <p class="mb-2"><i class="fa fa-phone-alt me-3"></i>{{ config('shulexpert.phone_e164') }}</p>
-                    <p class="mb-2"><i class="fa fa-envelope me-3"></i>emca@emca.tech</p>
+                    <p class="mb-2"><i class="fa fa-envelope me-3"></i>emca@emcatech.co.tz</p>
                     <p class="mb-3 mt-3"><span class="footer-powered-by">Powered by: EmCa Technologies LTD</span></p>
                     <div class="d-flex pt-3">
                         <a class="btn btn-square btn-primary me-2" href="#!"><i class="fab fa-x-twitter"></i></a>

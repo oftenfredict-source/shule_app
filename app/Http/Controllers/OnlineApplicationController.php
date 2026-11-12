@@ -97,7 +97,7 @@ class OnlineApplicationController extends Controller
     }
 
     /**
-     * Get detailed information about a school
+     * Get detailed information about a school (for public apply modal).
      */
     public function getSchoolDetails($schoolID)
     {
@@ -107,97 +107,63 @@ class OnlineApplicationController extends Controller
             return response()->json(['error' => 'School not found'], 404);
         }
 
-        $classes = ClassModel::where('schoolID', $schoolID)
-            ->where('status', 'Active')
-            ->get()
-            ->map(function ($class) {
-                $subclasses = Subclass::where('classID', $class->classID)
-                    ->where('status', 'Active')
-                    ->get();
+        $card = $this->schoolService->buildSchoolCard($school);
+        $needsLogin = !auth('online_application')->check();
 
-                $subclassesWithStudents = $subclasses->map(function ($subclass) {
-                    $studentCount = Student::where('subclassID', $subclass->subclassID)
-                        ->where('status', 'Active')
-                        ->count();
+        $classes = collect();
+        $schoolSubjects = collect();
+        $classSubjects = collect();
+
+        if (!$needsLogin) {
+            $classes = collect($card['classesWithSpaces'] ?? [])->map(function ($class) {
+                return [
+                    'classID' => $class['classID'],
+                    'className' => $class['className'],
+                    'hasSpaces' => !empty($class['hasSpaces']),
+                    'academicYearName' => $class['academicYearName'] ?? null,
+                    'applyUrl' => $class['applyUrl'] ?? null,
+                    'applyLabel' => __('site.apply_now'),
+                ];
+            })->values();
+
+            $schoolSubjects = SchoolSubject::where('schoolID', $schoolID)
+                ->where('status', 'Active')
+                ->orderBy('subject_name')
+                ->get(['subjectID', 'subject_name', 'subject_code']);
+
+            $classSubjects = ClassSubject::whereHas('class', function ($query) use ($schoolID) {
+                $query->where('schoolID', $schoolID)->where('status', 'Active');
+            })
+                ->where('status', 'Active')
+                ->with(['subject:subjectID,subject_name,subject_code', 'class:classID,class_name'])
+                ->get()
+                ->groupBy('classID')
+                ->map(function ($subjects, $classID) {
+                    $className = optional($subjects->first()->class)->class_name ?: 'Class';
 
                     return [
-                        'subclassID' => $subclass->subclassID,
-                        'subclassName' => $subclass->subclass_name ?: 'Main',
-                        'studentCount' => $studentCount,
+                        'classID' => (int) $classID,
+                        'className' => $className,
+                        'subjects' => $subjects
+                            ->map(function ($classSubject) {
+                                return [
+                                    'subjectName' => $classSubject->subject->subject_name ?? 'N/A',
+                                    'subjectCode' => $classSubject->subject->subject_code ?? '',
+                                ];
+                            })
+                            ->unique(function ($subject) {
+                                return mb_strtolower(trim(($subject['subjectName'] ?? '') . '|' . ($subject['subjectCode'] ?? '')));
+                            })
+                            ->sortBy('subjectName', SORT_NATURAL | SORT_FLAG_CASE)
+                            ->values(),
                     ];
-                });
+                })
+                ->values();
+        }
 
-                return [
-                    'classID' => $class->classID,
-                    'className' => $class->class_name,
-                    'subclassesCount' => $subclasses->count(),
-                    'subclasses' => $subclassesWithStudents,
-                ];
-            });
-
-        $schoolSubjects = SchoolSubject::where('schoolID', $schoolID)
-            ->where('status', 'Active')
-            ->orderBy('subject_name')
-            ->get(['subjectID', 'subject_name', 'subject_code']);
-
-        $classSubjects = ClassSubject::whereHas('class', function ($query) use ($schoolID) {
-            $query->where('schoolID', $schoolID)->where('status', 'Active');
-        })
-            ->where('status', 'Active')
-            ->with(['subject', 'class', 'teacher'])
-            ->get()
-            ->groupBy('classID')
-            ->map(function ($subjects) {
-                return $subjects->map(function ($classSubject) {
-                    return [
-                        'subjectName' => $classSubject->subject ? $classSubject->subject->subject_name : 'N/A',
-                        'subjectCode' => $classSubject->subject ? $classSubject->subject->subject_code : '',
-                        'teacherName' => $classSubject->teacher
-                            ? ($classSubject->teacher->first_name . ' ' . $classSubject->teacher->last_name)
-                            : 'Not Assigned',
-                    ];
-                });
-            });
-
-        $teachers = Teacher::where('schoolID', $schoolID)
-            ->where('status', 'Active')
-            ->get()
-            ->map(function ($teacher) use ($schoolID) {
-                $roles = DB::table('role_user')
-                    ->join('roles', 'role_user.role_id', '=', 'roles.id')
-                    ->where('role_user.teacher_id', $teacher->id)
-                    ->where('roles.schoolID', $schoolID)
-                    ->pluck('roles.role_name')
-                    ->toArray();
-
-                $isCoordinator = ClassModel::where('teacherID', $teacher->id)
-                    ->where('schoolID', $schoolID)
-                    ->exists();
-
-                if ($isCoordinator && !in_array('Coordinator', $roles)) {
-                    $roles[] = 'Coordinator';
-                }
-
-                $isClassTeacher = Subclass::where('teacherID', $teacher->id)
-                    ->whereHas('class', function ($query) use ($schoolID) {
-                        $query->where('schoolID', $schoolID);
-                    })
-                    ->exists();
-
-                if ($isClassTeacher && !in_array('Class Teacher', $roles)) {
-                    $roles[] = 'Class Teacher';
-                }
-
-                return [
-                    'teacherID' => $teacher->id,
-                    'firstName' => $teacher->first_name,
-                    'middleName' => $teacher->middle_name,
-                    'lastName' => $teacher->last_name,
-                    'fullName' => trim($teacher->first_name . ' ' . ($teacher->middle_name ?? '') . ' ' . $teacher->last_name),
-                    'position' => $teacher->position,
-                    'roles' => $roles,
-                ];
-            });
+        $loginUrl = route('online_application.auth.login', [
+            'redirect' => '/online-application?school=' . urlencode((string) $school->schoolID),
+        ]);
 
         return response()->json([
             'success' => true,
@@ -208,18 +174,17 @@ class OnlineApplicationController extends Controller
                 'ownership' => $school->ownership,
                 'region' => $school->region,
                 'district' => $school->district,
-                'ward' => $school->ward,
-                'village' => $school->village,
                 'address' => $school->address,
                 'email' => $school->email,
                 'phone' => $school->phone,
                 'establishedYear' => $school->established_year,
-                'schoolLogo' => $school->school_logo,
+                'schoolLogoUrl' => \App\Models\School::publicAssetUrl($school->school_logo),
             ],
             'classes' => $classes,
             'schoolSubjects' => $schoolSubjects,
             'classSubjects' => $classSubjects,
-            'teachers' => $teachers,
+            'needsLogin' => $needsLogin,
+            'loginUrl' => $loginUrl,
         ]);
     }
 

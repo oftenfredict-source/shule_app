@@ -87,19 +87,10 @@ class SuperAdminController extends Controller
 
     private function schoolUploadPath(string $folder): string
     {
-        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
-        $uploadPath = $scriptDir . '/' . $folder;
+        // Always store under Laravel public/ so online-application cards and asset() URLs resolve.
+        $uploadPath = public_path($folder);
 
-        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
-            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/' . $folder : null;
-            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
-                $uploadPath = $docRootPath;
-            } else {
-                $uploadPath = public_path($folder);
-            }
-        }
-
-        if ($uploadPath && !file_exists($uploadPath)) {
+        if (!is_dir($uploadPath)) {
             @mkdir($uploadPath, 0755, true);
         }
 
@@ -147,13 +138,23 @@ class SuperAdminController extends Controller
         return view('SuperAdmin.dashboard', compact('demoSchoolsCount', 'liveSchoolsCount', 'customerInquiryUnread'));
     }
 
-    public function schools()
+    public function schools(Request $request)
     {
         if ($resp = $this->ensureSuperAdmin()) {
             return $resp;
         }
 
-        $schools = School::orderBy('schoolID', 'desc')->get()->map(function ($school) {
+        $query = School::query()->orderBy('schoolID', 'desc');
+        $search = trim((string) $request->get('q', ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('school_name', 'like', '%' . $search . '%')
+                    ->orWhere('registration_number', 'like', '%' . $search . '%');
+            });
+        }
+
+        $schools = $query->paginate(10)->withQueryString();
+        $schools->getCollection()->transform(function ($school) {
             $school->logo_url = $this->resolveSchoolAssetUrl($school->school_logo) ?? $this->schoolPlaceholderUrl();
             $school->stamp_url = $this->resolveSchoolAssetUrl($school->school_stamp);
             $school->sign_url = $this->resolveSchoolAssetUrl($school->school_signature);
@@ -1317,6 +1318,17 @@ class SuperAdminController extends Controller
         $validator = Validator::make($request->all(), [
             'schoolID' => 'required|integer|exists:schools,schoolID',
             'school_name' => 'required|string|max:255',
+            'registration_number' => 'nullable|string|max:100',
+            'exam_center_number' => 'nullable|string|max:100',
+            'school_type' => 'nullable|in:Primary,Secondary,Advanced',
+            'ownership' => 'nullable|in:Public,Private',
+            'established_year' => 'nullable|integer|min:1900|max:' . date('Y'),
+            'region' => 'nullable|string|max:100',
+            'district' => 'nullable|string|max:100',
+            'ward' => 'nullable|string|max:100',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:255',
             'environment' => 'nullable|in:Demo,Live',
             'status' => 'required|in:Active,Inactive',
             'senderID' => 'nullable|string|max:20',
@@ -1360,6 +1372,39 @@ class SuperAdminController extends Controller
 
         try {
             $school->school_name = $request->school_name;
+            if ($request->exists('registration_number')) {
+                $school->registration_number = $request->input('registration_number');
+            }
+            if ($request->exists('exam_center_number')) {
+                $school->exam_center_number = $request->input('exam_center_number');
+            }
+            if ($request->filled('school_type')) {
+                $school->school_type = $request->input('school_type');
+            }
+            if ($request->filled('ownership')) {
+                $school->ownership = $request->input('ownership');
+            }
+            if ($request->exists('established_year')) {
+                $school->established_year = $request->input('established_year') ?: null;
+            }
+            if ($request->exists('region')) {
+                $school->region = $request->input('region');
+            }
+            if ($request->exists('district')) {
+                $school->district = $request->input('district');
+            }
+            if ($request->exists('ward')) {
+                $school->ward = $request->input('ward');
+            }
+            if ($request->exists('email')) {
+                $school->email = $request->input('email');
+            }
+            if ($request->exists('phone')) {
+                $school->phone = $request->input('phone');
+            }
+            if ($request->exists('address')) {
+                $school->address = $request->input('address');
+            }
             $school->environment = $request->input('environment', 'Demo');
             $school->status = $request->status;
             $school->two_factor_enabled = $request->boolean('two_factor_enabled');
@@ -1374,9 +1419,9 @@ class SuperAdminController extends Controller
                 : null;
             $school->senderID = $request->senderID;
             $school->sms_enabled = $request->boolean('sms_enabled', true);
-        if ($request->exists('student_portal_enabled')) {
-            $school->student_portal_enabled = $request->boolean('student_portal_enabled');
-        }
+            if ($request->exists('student_portal_enabled')) {
+                $school->student_portal_enabled = $request->boolean('student_portal_enabled');
+            }
             $school->login_status = $loginStatus;
             $school->suspension_reason = $loginStatus === 0 ? $request->suspension_reason : null;
 
@@ -1462,6 +1507,102 @@ class SuperAdminController extends Controller
                 : "SMS disabled for {$updated} school(s). No client SMS will be sent.",
             'updated' => $updated,
             'sms_enabled' => $enabled,
+        ]);
+    }
+
+    public function blockSchool(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'schoolID' => 'required|integer|exists:schools,schoolID',
+            'suspension_reason' => 'required|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $school = School::find($request->schoolID);
+        if (!$school) {
+            return response()->json(['success' => false, 'message' => 'School not found'], 404);
+        }
+
+        $school->login_status = 0;
+        $school->suspension_reason = $request->suspension_reason;
+        $school->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $school->school_name . ' has been blocked.',
+        ]);
+    }
+
+    public function unblockSchool(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'schoolID' => 'required|integer|exists:schools,schoolID',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $school = School::find($request->schoolID);
+        if (!$school) {
+            return response()->json(['success' => false, 'message' => 'School not found'], 404);
+        }
+
+        $school->login_status = 1;
+        $school->suspension_reason = null;
+        $school->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $school->school_name . ' has been unblocked.',
+        ]);
+    }
+
+    public function deleteSchool(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'schoolID' => 'required|integer|exists:schools,schoolID',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $school = School::find($request->schoolID);
+        if (!$school) {
+            return response()->json(['success' => false, 'message' => 'School not found'], 404);
+        }
+
+        $name = $school->school_name;
+        $school->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => $name . ' has been deleted.',
         ]);
     }
 

@@ -6,86 +6,87 @@
         'keywords' => 'login online application, ShuleXpert admission login, apply school online Tanzania',
         'canonical' => app(\App\Services\OnlineApplicationApplyTokenService::class)->publicAbsoluteUrl('/online-application/account/login'),
         'type' => 'website',
-        'image' => url('/images/shuleXpert.jpg'),
+        'image' => url('/images/login-school-night.jpg'),
         'robots' => 'noindex, follow',
     ];
+    $schoolsHref = auth('online_application')->check()
+        ? route('online_application.portal.apply')
+        : route('online_application');
+    $registerHref = route('online_application.auth.register', array_filter(['redirect' => $redirect ?? null]));
 @endphp
-@extends('layouts.online_application_portal')
+@extends('layouts.site')
 
 @section('content')
-<section class="sx-auth-stage">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-10 col-xl-9">
-                <div class="sx-auth-panel">
-                    <aside class="sx-auth-art sx-auth-art-bg" style="--sx-auth-art-bg: url('{{ asset('img/carousel-1.jpg') }}')">
-                        <div>
-                            <h2>Your application portal</h2>
-                            <p>Login with your phone number and password to apply to schools, track application status, and manage your online admission account.</p>
-                        </div>
-                        <div class="sx-auth-powered">Powered by EmCa Techonology</div>
-                    </aside>
+<section class="sx-login-unique sx-oa-login" style="--sx-login-bg: url('{{ asset('images/login-school-night.jpg') }}')">
+    <div class="sx-login-unique__shell">
+        <div class="sx-login-unique__card">
+            <div class="sx-login-unique__brand">
+                <img src="{{ asset('shule.png') }}" alt="ShuleXpert">
+            </div>
 
-                    <div class="sx-auth-form-wrap">
-                        <h3><i class="fa fa-sign-in" style="margin-right:8px;"></i>Login to Apply Online</h3>
-                        <p class="sx-auth-sub">This login is only for online school applications, not for school staff or parent accounts.</p>
+            <h1 class="sx-login-unique__title">Apply Online Login</h1>
+            <p class="sx-login-unique__desc">Sign in with your phone number and password to apply to schools and track admission status.</p>
 
-                        <div id="oaLoginAlert" class="alert d-none" role="alert"></div>
+            <div class="sx-login-switch">
+                <span class="sx-login-switch__current"><i class="fa fa-file-text-o" aria-hidden="true"></i> Online Application</span>
+                <a href="{{ $registerHref }}" class="sx-login-switch__alt">Create account <i class="fa fa-angle-right" aria-hidden="true"></i></a>
+            </div>
 
-                        @if (session('success'))
-                            <div class="alert alert-success">{{ session('success') }}</div>
-                        @endif
-                        @if (session('info'))
-                            <div class="alert alert-info">{{ session('info') }}</div>
-                        @endif
-                        @if (session('error'))
-                            <div class="alert alert-danger">{{ session('error') }}</div>
-                        @endif
-                        @if ($errors->any())
-                            <div class="alert alert-danger">
-                                <ul class="mb-0 pl-3">
-                                    @foreach ($errors->all() as $error)
-                                        <li>{{ $error }}</li>
-                                    @endforeach
-                                </ul>
-                            </div>
-                        @endif
+            <div id="oaLoginAlert" class="alert d-none" role="alert"></div>
 
-                        <form method="POST" action="{{ route('online_application.auth.login') }}" id="oaLoginForm">
-                            @csrf
-                            @if(!empty($redirect))
-                                <input type="hidden" name="redirect" value="{{ $redirect }}">
-                            @endif
-
-                            @include('online_application.partials.tz-phone-field', [
-                                'phoneAutocomplete' => 'username',
-                            ])
-
-                            <label class="required" for="password">Password</label>
-                            <div class="sx-input-wrap">
-                                <i class="fa fa-key sx-field-icon"></i>
-                                <input type="password" id="password" name="password" class="form-control" placeholder="Your password" required autocomplete="current-password">
-                            </div>
-
-                            <div class="sx-auth-links mb-3">
-                                <label class="mb-0" style="font-weight:600;">
-                                    <input type="checkbox" name="remember" value="1" style="margin-right:6px;"> Remember me
-                                </label>
-                            </div>
-
-                            <button type="submit" class="btn btn-sx-auth" id="oaLoginBtn">
-                                <span class="oa-btn-label"><i class="fa fa-unlock" style="margin-right:8px;"></i>Login</span>
-                                <span class="oa-btn-loading" style="display:none;"><i class="fa fa-spinner fa-spin" style="margin-right:8px;"></i>Logging in...</span>
-                            </button>
-                        </form>
-
-                        <div class="sx-auth-links mt-4 mb-0">
-                            <span>Don't have an account?</span>
-                            <a href="{{ route('online_application.auth.register', array_filter(['redirect' => $redirect ?? null])) }}">Create account to apply</a>
-                            <a href="{{ auth('online_application')->check() ? route('online_application.portal.apply') : route('online_application') }}">Back to schools</a>
-                        </div>
-                    </div>
+            @if (session('success'))
+                <div class="alert alert-success">{{ session('success') }}</div>
+            @endif
+            @if (session('info'))
+                <div class="alert alert-info">{{ session('info') }}</div>
+            @endif
+            @if (session('error'))
+                <div class="alert alert-danger">{{ session('error') }}</div>
+            @endif
+            @if ($errors->any())
+                <div class="alert alert-danger">
+                    <ul class="mb-0 pl-3">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
                 </div>
+            @endif
+
+            <form method="POST" action="{{ route('online_application.auth.login') }}" id="oaLoginForm">
+                @csrf
+                @if(!empty($redirect))
+                    <input type="hidden" name="redirect" value="{{ $redirect }}">
+                @endif
+
+                @include('online_application.partials.tz-phone-field', [
+                    'phoneAutocomplete' => 'username',
+                ])
+
+                <label class="sx-login-label required" for="password">Password</label>
+                <div class="sx-input-wrap">
+                    <i class="fa fa-key sx-field-icon"></i>
+                    <input type="password" id="password" name="password" class="form-control" placeholder="Your password" required autocomplete="current-password">
+                    <i class="fa fa-eye-slash sx-toggle-pass" id="oaTogglePassword" title="Show password" role="button" tabindex="0" aria-label="Show password"></i>
+                </div>
+
+                <div class="sx-auth-links">
+                    <label class="sx-login-remember mb-0" for="oa_remember">
+                        <input type="checkbox" name="remember" id="oa_remember" value="1">
+                        <span>Remember me</span>
+                    </label>
+                    <a href="{{ $schoolsHref }}">Back to schools</a>
+                </div>
+
+                <button type="submit" class="btn btn-sx-auth" id="oaLoginBtn">
+                    <span class="oa-btn-label"><i class="fa fa-sign-in" style="margin-right:8px;"></i>Login</span>
+                    <span class="oa-btn-loading" style="display:none;"><i class="fa fa-spinner fa-spin" style="margin-right:8px;"></i>Logging in...</span>
+                </button>
+            </form>
+
+            <div class="sx-login-unique__foot">
+                <p class="sx-login-secure mb-2"><i class="fa fa-lock" aria-hidden="true"></i> For online applications only — not school staff or parent portals.</p>
+                <a href="{{ $registerHref }}">Create account to apply</a>
             </div>
         </div>
     </div>
@@ -94,13 +95,168 @@
 
 @push('styles')
 <style>
+.sx-login-unique {
+    position: relative;
+    min-height: calc(100vh - 180px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 36px 16px 48px;
+    overflow: hidden;
+    background-color: #0b1220;
+    background-image: var(--sx-login-bg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+.sx-login-unique__shell {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 460px;
+}
+.sx-login-unique__card {
+    background: #fff;
+    border: 1px solid #f0e4e4;
+    border-radius: 18px;
+    padding: 28px 26px 22px;
+    box-shadow: 0 18px 40px rgba(80,0,0,.08);
+}
+.sx-login-unique__brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+}
+.sx-login-unique__brand img {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+}
+.sx-login-unique__title {
+    color: #1a1a1a;
+    font-size: 26px;
+    font-weight: 800;
+    margin: 0 0 6px;
+    text-align: center;
+}
+.sx-login-unique__desc {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.55;
+    margin-bottom: 0;
+    text-align: center;
+}
+.sx-login-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 18px 0 14px;
+    padding: 10px 12px;
+    border: 1px solid #f0dada;
+    border-radius: 10px;
+    background: #fff8f8;
+}
+.sx-login-switch__current {
+    color: #940000;
+    font-weight: 800;
+    font-size: 13px;
+}
+.sx-login-switch__alt {
+    color: #555 !important;
+    font-weight: 700;
+    font-size: 13px;
+    text-decoration: none !important;
+}
+.sx-login-unique label.required,
+.sx-login-label {
+    display: block;
+    color: #333;
+    font-weight: 700;
+    font-size: 13px;
+    margin: 12px 0 6px;
+}
+.sx-input-wrap { position: relative; }
+.sx-input-wrap .form-control {
+    border-radius: 10px;
+    border-color: #e8d5d5;
+    min-height: 46px;
+    padding-left: 40px;
+    padding-right: 42px;
+}
+.sx-field-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #940000;
+    z-index: 2;
+}
+.sx-toggle-pass {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #777;
+    cursor: pointer;
+    z-index: 2;
+}
 .sx-tz-phone-hint {
     font-size: 12px;
     color: #777;
-    margin-bottom: 12px !important;
+    margin: 6px 0 0 !important;
 }
 .sx-tz-phone-hint strong { color: #940000; }
+.sx-auth-links {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 14px 0 18px;
+}
+.sx-login-remember {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #555;
+    font-size: 13.5px;
+    font-weight: 600;
+}
+.sx-auth-links a {
+    color: #940000 !important;
+    font-weight: 700;
+    font-size: 13px;
+}
+.btn-sx-auth {
+    width: 100%;
+    background: #940000 !important;
+    color: #fff !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    font-weight: 800 !important;
+    min-height: 46px;
+}
 #oaLoginBtn:disabled { opacity: 0.75; cursor: wait; }
+.sx-login-secure {
+    margin: 0;
+    color: #777;
+    font-size: 12.5px;
+}
+.sx-login-unique__foot {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #f0e4e4;
+    text-align: center;
+}
+.sx-login-unique__foot a {
+    color: #940000 !important;
+    font-weight: 800;
+    font-size: 13px;
+}
+@media (max-width: 991.98px) {
+    .sx-login-unique { padding: 28px 14px 80px; min-height: auto; }
+}
 </style>
 @endpush
 
@@ -112,12 +268,25 @@
     var form = document.getElementById('oaLoginForm');
     var btn = document.getElementById('oaLoginBtn');
     var alertBox = document.getElementById('oaLoginAlert');
+    var toggle = document.getElementById('oaTogglePassword');
+    var password = document.getElementById('password');
     if (!form || !btn) return;
 
     var csrf = document.querySelector('meta[name="csrf-token"]')
         ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         : '';
     var submitting = false;
+
+    if (toggle && password) {
+        toggle.addEventListener('click', function () {
+            var show = password.type === 'password';
+            password.type = show ? 'text' : 'password';
+            toggle.classList.toggle('fa-eye', show);
+            toggle.classList.toggle('fa-eye-slash', !show);
+            toggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            toggle.setAttribute('title', show ? 'Hide password' : 'Show password');
+        });
+    }
 
     function showAlert(type, text) {
         if (!alertBox) return;

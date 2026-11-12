@@ -3289,21 +3289,22 @@ class ParentsContoller extends Controller
      */
     public function changeLanguage(Request $request)
     {
-        $locale = $request->input('locale', 'sw');
+        $locale = $request->input('locale', $request->json('locale', 'en'));
 
         // Validate locale
-        if (!in_array($locale, ['en', 'sw'])) {
-            $locale = 'sw';
+        if (! in_array($locale, ['en', 'sw'], true)) {
+            $locale = 'en';
         }
 
-        // Set locale in session
+        // Persist for all portals (parent, school, super admin)
         Session::put('locale', $locale);
+        Session::save();
         app()->setLocale($locale);
 
         return response()->json([
             'success' => true,
             'locale' => $locale,
-            'message' => 'Language changed successfully'
+            'message' => __('superadmin.lang_changed'),
         ]);
     }
 

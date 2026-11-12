@@ -1,5 +1,8 @@
 @if($permissions->count() === 0)
-    <div class="alert alert-light text-muted border-0 py-4 text-center" style="border-radius:0;">{{ __('parent.no_permission_records') }}</div>
+    <div class="empty-state">
+        <i class="fi fi-rr-shield-check d-block mb-2" style="font-size:2rem;color:#940000;opacity:.45;"></i>
+        {{ __('parent.no_permission_records') }}
+    </div>
 @else
 
 @php
@@ -20,29 +23,29 @@
     };
 @endphp
 
-<div class="d-flex align-items-center justify-content-between mb-3 px-1">
-    <small class="text-muted">{{ __('parent.records_count', ['count' => $permissions->count()]) }}</small>
+<div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
+    <small class="text-muted fw-bold">{{ __('parent.records_count', ['count' => $permissions->count()]) }}</small>
     <div class="btn-group btn-group-sm perm-view-toggle" role="group" aria-label="{{ __('parent.toggle_view') }}">
-        <button type="button" class="btn btn-outline-secondary perm-view-btn" data-view="list" title="{{ __('parent.list_view') }}">
-            <i class="bx bx-list-ul"></i>
+        <button type="button" class="btn btn-outline-light perm-view-btn" data-view="list" title="{{ __('parent.list_view') }}">
+            <i class="fi fi-rr-list"></i>
         </button>
-        <button type="button" class="btn btn-outline-secondary perm-view-btn" data-view="grid" title="{{ __('parent.card_view') }}">
-            <i class="bx bx-grid-alt"></i>
+        <button type="button" class="btn btn-outline-light perm-view-btn" data-view="grid" title="{{ __('parent.card_view') }}">
+            <i class="fi fi-rr-apps"></i>
         </button>
     </div>
 </div>
 
 <div class="perm-list-view">
     <div class="table-responsive">
-        <table class="table table-hover align-middle border">
-            <thead class="bg-light">
-                <tr style="font-size: 11px; text-transform: uppercase; color: #940000; letter-spacing: 0.5px;">
-                    <th class="py-3 px-3">{{ __('parent.request_date') }}</th>
-                    <th class="py-3 px-3">{{ __('parent.student_name') }}</th>
-                    <th class="py-3 px-3">{{ __('parent.period_duration') }}</th>
-                    <th class="py-3 px-3">{{ __('parent.type') }}</th>
-                    <th class="py-3 px-3 text-center">{{ __('parent.status') }}</th>
-                    <th class="py-3 px-3 text-center">{{ __('parent.actions') }}</th>
+        <table class="perm-table">
+            <thead>
+                <tr>
+                    <th>{{ __('parent.request_date') }}</th>
+                    <th>{{ __('parent.student_name') }}</th>
+                    <th>{{ __('parent.period_duration') }}</th>
+                    <th>{{ __('parent.type') }}</th>
+                    <th class="text-center">{{ __('parent.status') }}</th>
+                    <th class="text-center">{{ __('parent.actions') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -51,36 +54,37 @@
                         $permId = $permission->permissionID ?? $permission->id;
                         $studentId = $permission->studentID ?? $permission->student_id;
                         $status = strtolower($permission->status);
-                        $badgeClass = match($status) {
-                            'approved' => 'bg-success',
-                            'rejected' => 'bg-danger',
-                            default => 'bg-warning text-dark'
+                        $statusClass = match($status) {
+                            'approved' => 'approved',
+                            'rejected' => 'rejected',
+                            default => 'pending'
                         };
                     @endphp
                     <tr>
-                        <td class="px-3" style="font-size: 13px;">{{ $permission->created_at ? $permission->created_at->format('d M Y, H:i') : '---' }}</td>
-                        <td class="px-3">
-                            <div style="font-weight: 700; color: #333;">{{ $studentNames[$studentId] ?? __('parent.processing_name') }}</div>
+                        <td>{{ $permission->created_at ? $permission->created_at->format('d M Y, H:i') : '---' }}</td>
+                        <td><div class="child-name">{{ $studentNames[$studentId] ?? __('parent.processing_name') }}</div></td>
+                        <td>
+                            <div>
+                                <i class="fi fi-rr-calendar me-1" style="color:#940000;"></i>
+                                {{ \Carbon\Carbon::parse($permission->start_date)->locale(app()->getLocale())->isoFormat('D MMMM Y') }}
+                                {{ __('parent.until') }}
+                                {{ \Carbon\Carbon::parse($permission->end_date)->locale(app()->getLocale())->isoFormat('D MMMM Y') }}
+                            </div>
+                            <span class="days-chip">{{ $permission->days_count }} {{ __('parent.days_upper') }}</span>
                         </td>
-                        <td class="px-3" style="font-size: 13px;">
-                            <i class="bx bx-calendar text-muted me-1"></i> {{ \Carbon\Carbon::parse($permission->start_date)->locale(app()->getLocale())->isoFormat('D MMMM Y') }} {{ __('parent.until') }} {{ \Carbon\Carbon::parse($permission->end_date)->locale(app()->getLocale())->isoFormat('D MMMM Y') }}
-                            <div class="badge bg-light text-dark border ms-0 mt-1" style="border-radius:0; font-weight:700;">{{ $permission->days_count }} {{ __('parent.days_upper') }}</div>
+                        <td>{{ $parentReasonSw($permission->reason_type) }}</td>
+                        <td class="text-center">
+                            <span class="status-badge {{ $statusClass }}">{{ $parentStatusSw($permission->status) }}</span>
                         </td>
-                        <td class="px-3"><span class="small font-weight-bold" style="color:#777;">{{ $parentReasonSw($permission->reason_type) }}</span></td>
-                        <td class="px-3 text-center">
-                            <span class="badge {{ $badgeClass }} text-uppercase" style="border-radius: 0; font-size: 10px; padding: 5px 10px;">
-                                {{ $parentStatusSw($permission->status) }}
-                            </span>
-                        </td>
-                        <td class="px-3 text-center">
+                        <td class="text-center">
                             <div class="dropdown">
-                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border:none; border-radius:0;">
-                                    <i class="bx bx-dots-vertical-rounded" style="font-size: 18px;"></i>
+                                <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fi fi-rr-menu-dots-vertical"></i>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end" style="border-radius:0; font-size: 13px;">
+                                <ul class="dropdown-menu dropdown-menu-end">
                                     <li>
                                         <a class="dropdown-item py-2" href="#" onclick="viewPermissionProgress({{ $permId }}, true); return false;">
-                                            <i class="bx bx-show text-info me-2"></i> {{ __('parent.view_progress') }}
+                                            <i class="fi fi-rr-eye me-2" style="color:#0dcaf0;"></i> {{ __('parent.view_progress') }}
                                         </a>
                                     </li>
                                     <li>
@@ -99,13 +103,13 @@
                                             'admin_response' => $permission->admin_response ?? null,
                                             'requested_at' => $permission->created_at ? $permission->created_at->format('j F Y H:i') : 'N/A'
                                         ]) }}); return false;">
-                                            <i class="bx bx-list-ul text-secondary me-2"></i> {{ __('parent.view_details') }}
+                                            <i class="fi fi-rr-list me-2"></i> {{ __('parent.view_details') }}
                                         </a>
                                     </li>
                                     @if($permission->status === 'rejected')
                                     <li>
                                         <a class="dropdown-item py-2" href="{{ url()->current() }}?tab=request&edit_id={{ $permId }}">
-                                            <i class="bx bx-edit text-primary me-2"></i> {{ __('parent.edit_resubmit_action') }}
+                                            <i class="fi fi-rr-edit me-2" style="color:#940000;"></i> {{ __('parent.edit_resubmit_action') }}
                                         </a>
                                     </li>
                                     @endif
@@ -126,67 +130,66 @@
             $permId = $permission->permissionID ?? $permission->id;
             $studentId = $permission->studentID ?? $permission->student_id;
             $status = strtolower($permission->status);
-            $badgeClass = match($status) { 'approved' => 'bg-success', 'rejected' => 'bg-danger', default => 'bg-warning text-dark' };
-            $borderColor = match($status) { 'approved' => '#28a745', 'rejected' => '#dc3545', default => '#ffc107' };
+            $statusClass = match($status) { 'approved' => 'approved', 'rejected' => 'rejected', default => 'pending' };
+            $cardClass = match($status) { 'approved' => 'is-approved', 'rejected' => 'is-rejected', default => 'is-pending' };
             $studentLabel = $studentNames[$studentId] ?? __('parent.processing_name');
         @endphp
-        <div class="col-12 col-sm-6">
-            <div class="card h-100 shadow-sm" style="border-radius:0; border-left: 4px solid {{ $borderColor }};">
-                <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div>
-                            <div style="font-weight:700; color:#333; font-size:14px;">{{ $studentLabel }}</div>
-                            <div style="font-size:11px; color:#888;"><i class="bx bx-time"></i> {{ $permission->created_at ? $permission->created_at->format('d M Y, H:i') : 'N/A' }}</div>
-                        </div>
-                        <div class="dropdown">
-                            <button class="btn btn-sm p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border:none; line-height:1;">
-                                <i class="bx bx-dots-vertical-rounded" style="font-size:20px; color:#666;"></i>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end" style="border-radius:0; font-size:13px;">
-                                <li><a class="dropdown-item py-2" href="#" onclick="viewPermissionProgress({{ $permId }}, true); return false;"><i class="bx bx-show text-info me-2"></i> {{ __('parent.view_progress') }}</a></li>
-                                <li><a class="dropdown-item py-2" href="#" onclick="viewPermissionDetails({{ json_encode([
-                                    'id' => $permId,
-                                    'time_mode' => $permission->time_mode === 'days' ? __('parent.days_mode') : __('parent.hours_mode'),
-                                    'days_count' => $permission->days_count,
-                                    'start_date' => $permission->start_date ? \Carbon\Carbon::parse($permission->start_date)->format('j F Y') : null,
-                                    'end_date' => $permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->format('j F Y') : null,
-                                    'return_date' => $permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->addDay()->format('j F Y') : null,
-                                    'start_time' => $permission->start_time,
-                                    'end_time' => $permission->end_time,
-                                    'reason_type' => $parentReasonSw($permission->reason_type),
-                                    'reason_description' => $permission->reason_description,
-                                    'status' => $parentStatusSw($permission->status),
-                                    'admin_response' => $permission->admin_response ?? null,
-                                    'requested_at' => $permission->created_at ? $permission->created_at->format('j F Y H:i') : 'N/A'
-                                ]) }}); return false;"><i class="bx bx-list-ul text-secondary me-2"></i> {{ __('parent.view_details') }}</a></li>
-                                @if($permission->status === 'rejected')
-                                <li><a class="dropdown-item py-2" href="{{ url()->current() }}?tab=request&edit_id={{ $permId }}"><i class="bx bx-edit text-primary me-2"></i> {{ __('parent.edit_resubmit_action') }}</a></li>
-                                @endif
-                            </ul>
+        <div class="col-12 col-sm-6 col-xl-4">
+            <div class="perm-card {{ $cardClass }}">
+                <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+                    <div class="min-w-0">
+                        <div class="child-name text-truncate">{{ $studentLabel }}</div>
+                        <div class="small text-muted">
+                            <i class="fi fi-rr-clock me-1"></i>
+                            {{ $permission->created_at ? $permission->created_at->format('d M Y, H:i') : 'N/A' }}
                         </div>
                     </div>
-
-                    <div class="mb-1" style="font-size:12px; color:#555;">
-                        <i class="bx bx-calendar" style="color:#940000;"></i>
-                        {{ \Carbon\Carbon::parse($permission->start_date)->format('j M Y') }} &rarr; {{ \Carbon\Carbon::parse($permission->end_date)->format('j M Y') }}
-                        <span class="badge bg-light text-dark border ms-1" style="border-radius:0; font-size:10px;">{{ $permission->days_count }} {{ __('parent.days') }}</span>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fi fi-rr-menu-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item py-2" href="#" onclick="viewPermissionProgress({{ $permId }}, true); return false;"><i class="fi fi-rr-eye me-2"></i> {{ __('parent.view_progress') }}</a></li>
+                            <li><a class="dropdown-item py-2" href="#" onclick="viewPermissionDetails({{ json_encode([
+                                'id' => $permId,
+                                'time_mode' => $permission->time_mode === 'days' ? __('parent.days_mode') : __('parent.hours_mode'),
+                                'days_count' => $permission->days_count,
+                                'start_date' => $permission->start_date ? \Carbon\Carbon::parse($permission->start_date)->format('j F Y') : null,
+                                'end_date' => $permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->format('j F Y') : null,
+                                'return_date' => $permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->addDay()->format('j F Y') : null,
+                                'start_time' => $permission->start_time,
+                                'end_time' => $permission->end_time,
+                                'reason_type' => $parentReasonSw($permission->reason_type),
+                                'reason_description' => $permission->reason_description,
+                                'status' => $parentStatusSw($permission->status),
+                                'admin_response' => $permission->admin_response ?? null,
+                                'requested_at' => $permission->created_at ? $permission->created_at->format('j F Y H:i') : 'N/A'
+                            ]) }}); return false;"><i class="fi fi-rr-list me-2"></i> {{ __('parent.view_details') }}</a></li>
+                            @if($permission->status === 'rejected')
+                            <li><a class="dropdown-item py-2" href="{{ url()->current() }}?tab=request&edit_id={{ $permId }}"><i class="fi fi-rr-edit me-2"></i> {{ __('parent.edit_resubmit_action') }}</a></li>
+                            @endif
+                        </ul>
                     </div>
-
-                    <div class="d-flex align-items-center justify-content-between mt-2">
-                        <span class="small" style="color:#777; font-size:11px; font-weight:600;">
-                            <i class="bx bx-tag"></i> {{ $parentReasonSw($permission->reason_type) }}
-                        </span>
-                        <span class="badge {{ $badgeClass }} text-uppercase" style="border-radius:0; font-size:10px; padding: 4px 8px;">
-                            {{ $parentStatusSw($permission->status) }}
-                        </span>
-                    </div>
-
-                    @if($permission->status === 'rejected' && !empty($permission->admin_response))
-                    <div class="mt-2 p-2" style="background:#fff5f5; border-left: 3px solid #dc3545; font-size: 11px; color:#dc3545;">
-                        <i class="bx bx-x-circle"></i> <strong>{{ __('parent.reason') }}:</strong> {{ $permission->admin_response }}
-                    </div>
-                    @endif
                 </div>
+
+                <div class="mb-2 small">
+                    <i class="fi fi-rr-calendar me-1" style="color:#940000;"></i>
+                    {{ \Carbon\Carbon::parse($permission->start_date)->format('j M Y') }}
+                    &rarr;
+                    {{ \Carbon\Carbon::parse($permission->end_date)->format('j M Y') }}
+                    <span class="days-chip ms-1">{{ $permission->days_count }} {{ __('parent.days') }}</span>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                    <span class="small text-muted fw-bold">{{ $parentReasonSw($permission->reason_type) }}</span>
+                    <span class="status-badge {{ $statusClass }}">{{ $parentStatusSw($permission->status) }}</span>
+                </div>
+
+                @if($permission->status === 'rejected' && !empty($permission->admin_response))
+                <div class="reject-note">
+                    <strong>{{ __('parent.reason') }}:</strong> {{ $permission->admin_response }}
+                </div>
+                @endif
             </div>
         </div>
         @endforeach

@@ -1048,11 +1048,12 @@ body.sx-mobile-nav-open {
         display: none;
     }
     #header.sx-site-header .header-top-right a {
-        margin-left: 10px;
-        font-size: 14px;
+        margin-left: 0;
+        font-size: 12px;
     }
     #header.sx-site-header .header-top {
-        padding: 7px 0;
+        padding: 6px 0;
+        overflow: hidden;
     }
     .banner-area.fullscreen,
     .banner-area .fullscreen {
@@ -2633,6 +2634,12 @@ body.sx-mobile-nav-open {
         font-size: 30px;
     }
 }
+@media (max-width: 767.98px) {
+    .sx-apply-view-toggle,
+    .sx-apply-toolbar__views.sx-apply-view-toggle {
+        display: none !important;
+    }
+}
 @media (max-width: 575.98px) {
     .sx-apply-view-toggle {
         width: 100%;
@@ -2671,8 +2678,13 @@ body.sx-mobile-nav-open {
 }
 .sx-apply-schools.is-list .sx-apply-school-card {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: stretch;
     min-height: 0;
+}
+.sx-apply-schools.is-list .sx-apply-school-card__ribbon {
+    width: 100%;
+    flex: 0 0 100%;
 }
 .sx-apply-schools.is-list .sx-apply-school-card:hover {
     transform: translateY(-2px);
@@ -2682,15 +2694,15 @@ body.sx-mobile-nav-open {
     max-width: 340px;
     flex-direction: row;
     text-align: left;
-    align-items: center;
-    gap: 16px;
+    align-items: flex-start;
+    gap: 14px;
     padding: 18px 20px;
     border-bottom: none;
     border-right: 1px solid #f0e4e4;
 }
 .sx-apply-schools.is-list .sx-apply-school-card__logo {
-    width: 72px;
-    height: 72px;
+    width: 68px;
+    height: 68px;
     margin: 0;
     flex-shrink: 0;
 }
@@ -2698,16 +2710,18 @@ body.sx-mobile-nav-open {
     min-width: 0;
 }
 .sx-apply-schools.is-list .sx-apply-school-card__meta h3 {
-    font-size: 17px;
+    font-size: 16px;
     margin-bottom: 4px;
 }
 .sx-apply-schools.is-list .sx-apply-school-card__classes {
     flex: 1 1 280px;
     min-width: 0;
     padding: 16px 18px;
+    background: #fff;
 }
 .sx-apply-schools.is-list .sx-apply-school-card__footer {
-    flex: 0 0 148px;
+    flex: 0 0 150px;
+    display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: stretch;
@@ -2716,6 +2730,7 @@ body.sx-mobile-nav-open {
     border-top: none;
     border-left: 1px solid #f0e4e4;
     background: #fffafa;
+    grid-template-columns: none;
 }
 .sx-apply-schools.is-list .sx-apply-school-card__footer .sx-apply-btn-outline {
     width: 100%;
@@ -2735,6 +2750,11 @@ body.sx-mobile-nav-open {
 @media (max-width: 767.98px) {
     .sx-apply-schools.is-list .sx-apply-school-card {
         flex-direction: column;
+        flex-wrap: nowrap;
+    }
+    .sx-apply-schools.is-list .sx-apply-school-card__ribbon {
+        flex: 0 0 auto;
+        width: 100%;
     }
     .sx-apply-schools.is-list .sx-apply-school-card__identity,
     .sx-apply-schools.is-list .sx-apply-school-card__footer {
@@ -2748,13 +2768,9 @@ body.sx-mobile-nav-open {
         border-bottom: 1px solid #f0e4e4;
     }
     .sx-apply-schools.is-list .sx-apply-school-card__footer {
-        flex-direction: row;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         border-top: 1px solid #f0e4e4;
-    }
-    .sx-apply-schools.is-list .sx-apply-school-card__footer .sx-apply-btn-outline {
-        width: auto;
-        flex: 1 1 auto;
     }
 }
 .sx-apply-search__field {
@@ -2789,181 +2805,294 @@ body.sx-mobile-nav-open {
     position: relative;
     background: #fff;
     border: 1px solid #edd6d6;
-    box-shadow: 0 8px 26px rgba(148, 0, 0, 0.06);
+    border-radius: 18px;
+    box-shadow: 0 12px 30px rgba(120, 0, 0, 0.07);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.sx-apply-school-card__ribbon {
+    height: 6px;
+    background: #940000;
 }
 .sx-apply-school-card::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: linear-gradient(180deg, #c40000 0%, #940000 100%);
+    content: none;
 }
 .sx-apply-school-card:hover {
-    transform: translateY(-3px);
+    transform: translateY(-4px);
     border-color: #e0b8b8;
-    box-shadow: 0 14px 36px rgba(148, 0, 0, 0.11);
+    box-shadow: 0 20px 40px rgba(148, 0, 0, 0.14);
 }
 .sx-apply-school-card__identity {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 22px 20px 16px;
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    gap: 14px;
+    padding: 18px 18px 16px;
     border-bottom: 1px solid #f3e8e8;
+    background: #fff8f8;
 }
 .sx-apply-school-card__logo {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
     object-fit: cover;
-    margin-bottom: 12px;
-    border: 3px solid #fff5f5;
-    box-shadow: 0 4px 14px rgba(148, 0, 0, 0.14);
+    margin: 0;
+    flex-shrink: 0;
+    border: 2px solid #fff;
+    box-shadow: 0 8px 18px rgba(148, 0, 0, 0.16);
+    background: #fff5f5;
 }
 .sx-apply-school-card__logo--placeholder {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(145deg, #ffc9c9 0%, #940000 100%);
+    background: #940000;
     color: #fff;
-    font-size: 26px;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+.sx-apply-school-card__logo--placeholder span {
+    line-height: 1;
+}
+.sx-apply-school-card__meta {
+    min-width: 0;
+    flex: 1;
+}
+.sx-apply-school-card__type {
+    display: inline-flex;
+    align-items: center;
+    background: #940000;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 4px 10px;
+    margin-bottom: 8px;
 }
 .sx-apply-school-card__meta h3 {
-    font-size: 18px;
-    color: #1f1f1f;
-    margin: 0 0 4px;
+    font-size: 17px;
+    color: #171717;
+    margin: 0 0 6px;
     line-height: 1.3;
-    font-weight: 700;
+    font-weight: 800;
 }
 .sx-apply-school-card__place {
-    color: #888;
+    color: #777;
     font-size: 13px;
-    margin: 0 0 10px;
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.sx-apply-school-card__place .fa {
+    color: #940000;
+    font-family: FontAwesome !important;
 }
 .sx-apply-school-card__chips {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    justify-content: center;
-}
-.sx-apply-schools.is-list .sx-apply-school-card__chips {
     justify-content: flex-start;
 }
 .sx-apply-school-card__chips span {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    background: #fff5f5;
+    gap: 5px;
+    background: #fff;
     border: 1px solid #f0dada;
+    border-radius: 999px;
     color: #666;
     font-size: 11px;
     line-height: 1;
-    padding: 6px 9px;
-    text-transform: lowercase;
+    padding: 7px 10px;
+    box-shadow: 0 2px 8px rgba(148, 0, 0, 0.04);
+}
+.sx-apply-school-card__chips .fa {
+    color: #940000;
+    font-size: 11px;
+    font-family: FontAwesome !important;
 }
 .sx-apply-school-card__chips strong {
     color: #940000;
     font-size: 12px;
 }
 .sx-apply-school-card__classes {
-    padding: 16px 20px;
+    padding: 16px 18px 10px;
     flex: 1;
+    background: #fcfcfc;
+}
+.sx-apply-school-card__classes-head {
+    margin-bottom: 10px;
 }
 .sx-apply-school-card__classes h4 {
     font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     color: #940000;
-    margin-bottom: 10px;
-    font-weight: 700;
+    margin: 0;
+    font-weight: 800;
 }
 .sx-apply-class-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    padding: 10px 12px;
+    gap: 12px;
+    padding: 12px 12px 12px 14px;
     background: #fff;
     border: 1px solid #f0dada;
+    border-radius: 12px;
     margin-bottom: 8px;
-    border-left: 3px solid #940000;
+    box-shadow: 0 4px 12px rgba(80, 0, 0, 0.03);
+    position: relative;
+}
+.sx-apply-class-row::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 3px;
+    border-radius: 3px;
+    background: #940000;
 }
 .sx-apply-class-row.is-full {
-    opacity: 0.75;
-    border-left-color: #ccc;
+    opacity: 0.72;
+}
+.sx-apply-class-row.is-full::before {
+    background: #ccc;
+}
+.sx-apply-class-row__info {
+    min-width: 0;
+    flex: 1;
 }
 .sx-apply-class-row strong {
     display: block;
     font-size: 14px;
-    color: #333;
+    color: #222;
+    font-weight: 800;
+    margin-bottom: 3px;
 }
 .sx-apply-class-row small {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: 12px;
-    color: #777;
+    color: #1a7f37;
+    font-weight: 600;
 }
-.sx-apply-btn-sm {
-    background: linear-gradient(135deg, #ed9999 0%, #940000 100%);
-    border: none;
-    color: #fff;
-    font-size: 12px;
-    font-weight: 700;
+.sx-apply-class-row small .fa {
+    font-family: FontAwesome !important;
+}
+.sx-apply-class-row small.is-full-text,
+.sx-apply-class-row small.text-danger {
+    color: #940000;
+}
+.sx-apply-btn-sm,
+a.sx-apply-btn-sm {
+    background: #940000 !important;
+    border: none !important;
+    color: #fff !important;
+    font-size: 11px;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 8px 14px;
+    letter-spacing: 0.03em;
+    padding: 10px 12px;
     white-space: nowrap;
     cursor: pointer;
-    transition: opacity 0.2s ease;
-    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    text-decoration: none !important;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    box-shadow: 0 8px 16px rgba(148, 0, 0, 0.22);
 }
-.sx-apply-btn-sm:hover {
-    opacity: 0.9;
-    color: #fff;
+.sx-apply-btn-sm .fa,
+a.sx-apply-btn-sm .fa {
+    color: #fff !important;
+    font-family: FontAwesome !important;
+}
+.sx-apply-btn-sm:hover,
+.sx-apply-btn-sm:focus,
+a.sx-apply-btn-sm:hover,
+a.sx-apply-btn-sm:focus {
+    color: #fff !important;
+    text-decoration: none !important;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(148, 0, 0, 0.28);
+}
+.sx-apply-view-more-classes {
+    width: 100%;
+    margin: 4px 0 8px;
+    border: 1px dashed #e0b8b8;
+    background: #fff5f5;
+    color: #940000 !important;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+.sx-apply-view-more-classes .fa {
+    font-family: FontAwesome !important;
+}
+.sx-apply-view-more-classes:hover {
+    background: #ffe8e8;
+    border-color: #940000;
 }
 .sx-apply-school-card__footer {
-    padding: 14px 18px 18px;
+    padding: 14px 16px 16px;
     text-align: center;
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
-    justify-content: center;
     border-top: 1px solid #f3e8e8;
+    background: #fff;
 }
 .sx-apply-school-card__footer .sx-apply-btn-outline {
     text-decoration: none;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
+    width: 100%;
+    border-radius: 10px;
 }
 .sx-apply-btn-outline,
 a.sx-apply-btn-outline,
 button.sx-apply-btn-outline {
-    background: transparent;
-    border: 2px solid #940000;
+    background: #fff !important;
+    border: 1.5px solid #e4bcbc !important;
     color: #940000 !important;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 10px 18px;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 10px 14px;
     cursor: pointer;
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
     text-decoration: none !important;
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    border-radius: 10px;
 }
 .sx-apply-btn-outline i,
 a.sx-apply-btn-outline i,
 button.sx-apply-btn-outline i {
     color: inherit !important;
+    font-family: FontAwesome !important;
 }
 .sx-apply-btn-outline:hover,
 .sx-apply-btn-outline:focus,
@@ -2978,6 +3107,7 @@ button.sx-apply-btn-outline:active {
     border-color: #940000 !important;
     color: #fff !important;
     text-decoration: none !important;
+    transform: translateY(-1px);
 }
 .sx-apply-btn-outline:hover i,
 .sx-apply-btn-outline:focus i,
@@ -2989,6 +3119,16 @@ button.sx-apply-btn-outline:hover i,
 button.sx-apply-btn-outline:focus i,
 button.sx-apply-btn-outline:active i {
     color: #fff !important;
+}
+@media (max-width: 575.98px) {
+    .sx-apply-class-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .sx-apply-btn-sm,
+    a.sx-apply-btn-sm {
+        width: 100%;
+    }
 }
 html {
     scroll-behavior: smooth;
@@ -3736,19 +3876,7 @@ html {
     gap: 16px;
     width: 100%;
 }
-.sx-apply-view-more-classes {
-    display: block;
-    width: 100%;
-    background: transparent;
-    border: none;
-    color: #940000;
-    font-size: 13px;
-    font-weight: 600;
-    text-align: center;
-    padding: 8px 0 0;
-    cursor: pointer;
-    text-decoration: underline;
-}
+/* view-more-classes styled with school cards above */
 .sx-oa-portal-body {
     background: #fffafa;
     min-height: 100vh;
@@ -4459,10 +4587,22 @@ html {
     font-size: 11px;
     font-weight: 800;
     letter-spacing: .04em;
-    padding: 6px 10px;
+    padding: 5px 9px;
     cursor: pointer;
     line-height: 1;
-    min-width: 36px;
+    min-width: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+.sx-lang-flag {
+    width: 18px;
+    height: 12px;
+    object-fit: cover;
+    display: block;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
 }
 .sx-lang-btn.is-active {
     background: #fff;

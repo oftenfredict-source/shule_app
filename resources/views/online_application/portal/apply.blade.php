@@ -28,18 +28,18 @@
                 @if($search)
                     <a href="{{ route('online_application.portal.apply') }}" class="sx-apply-search__clear">Clear</a>
                 @endif
+                <div class="sx-apply-view-toggle" role="group" aria-label="{{ __('site.apply_layout') }}">
+                    <button type="button" class="sx-apply-view-toggle__btn" data-oa-view="list" title="{{ __('site.apply_list') }}" aria-pressed="false">
+                        <i class="fa fa-list" aria-hidden="true"></i><span>{{ __('site.apply_list') }}</span>
+                    </button>
+                    <button type="button" class="sx-apply-view-toggle__btn is-active" data-oa-view="grid" title="{{ __('site.apply_grid') }}" aria-pressed="true">
+                        <i class="fa fa-th-large" aria-hidden="true"></i><span>{{ __('site.apply_grid') }}</span>
+                    </button>
+                </div>
             </form>
-            <div class="sx-apply-view-toggle" role="group" aria-label="School layout">
-                <button type="button" class="sx-apply-view-toggle__btn" data-oa-view="list" title="List view" aria-pressed="false">
-                    <i class="fa fa-list" aria-hidden="true"></i><span>List</span>
-                </button>
-                <button type="button" class="sx-apply-view-toggle__btn" data-oa-view="grid" title="Grid view" aria-pressed="false">
-                    <i class="fa fa-th-large" aria-hidden="true"></i><span>Grid</span>
-                </button>
-            </div>
         </div>
 
-        <div class="row sx-apply-schools" id="oaSchoolsGrid"
+        <div class="row sx-apply-schools is-grid" id="oaSchoolsGrid"
             data-load-url="{{ route('online_application.schools') }}"
             data-page="{{ $nextPage }}"
             data-has-more="{{ $hasMore ? '1' : '0' }}"

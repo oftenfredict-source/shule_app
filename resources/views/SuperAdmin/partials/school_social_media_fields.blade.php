@@ -4,6 +4,7 @@
     $ssmEnabled = !empty($ssmEnabled);
     $ssmItems = is_array($ssmItems ?? null) ? $ssmItems : [];
     $ssmPlatforms = \App\Support\SchoolSocialMedia::platforms();
+    $ssmHideToggle = !empty($ssmHideToggle);
 @endphp
 
 <style>
@@ -59,18 +60,55 @@
         font-size: 18px;
     }
     .ssm-picker-icon {
-        width: 24px;
-        height: 24px;
-        border-radius: 4px;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: #fff !important;
+        color: #444 !important;
         font-size: 15px;
         flex-shrink: 0;
+        background: #f3f3f3;
+    }
+    .ssm-picker-icon-logo {
+        background: #fff !important;
+        border: 1px solid #e6e6e6;
+        padding: 3px;
     }
     .ssm-picker-icon-empty {
-        background: #adb5bd !important;
+        background: #ececec !important;
+        color: #666 !important;
+    }
+    .ssm-logo {
+        width: 18px;
+        height: 18px;
+        object-fit: contain;
+        display: block;
+    }
+    .ssm-remove {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        min-height: 38px;
+        width: 100%;
+        border: 1px solid #940000 !important;
+        background: #fff !important;
+        color: #940000 !important;
+        font-weight: 700;
+        font-size: 0.78rem;
+        border-radius: 0.45rem;
+    }
+    .ssm-remove i {
+        color: #940000 !important;
+        font-size: 0.95rem;
+        line-height: 1;
+    }
+    .ssm-remove:hover {
+        background: #fff5f5 !important;
+        border-color: #940000 !important;
+        color: #940000 !important;
     }
     .ssm-picker-menu {
         position: absolute;
@@ -114,10 +152,12 @@
 </style>
 
 <div class="ssm-wrap" id="{{ $ssmId }}_wrap" data-ssm-id="{{ $ssmId }}">
-    <div class="form-check form-switch mb-2">
+    <div class="form-check form-switch mb-2{{ $ssmHideToggle ? ' visually-hidden' : '' }}">
         <input class="form-check-input ssm-enable" type="checkbox" id="{{ $ssmId }}_enable" name="enable_social_media" value="1" {{ $ssmEnabled ? 'checked' : '' }}>
-        <label class="form-check-label fw-bold" for="{{ $ssmId }}_enable">School Social Media A/C</label>
-        <div class="small text-muted">When ON, add school social links. Parents see icons in the portal header.</div>
+        @unless($ssmHideToggle)
+            <label class="form-check-label fw-bold" for="{{ $ssmId }}_enable">School Social Media A/C</label>
+            <div class="small text-muted">When ON, add school social links. Parents see icons in the portal header.</div>
+        @endunless
     </div>
 
     <div class="ssm-fields" id="{{ $ssmId }}_fields" style="{{ $ssmEnabled ? '' : 'display:none;' }}">
@@ -185,21 +225,30 @@
             return selected;
         }
 
+        function logoHtml(meta) {
+            if (!meta || !meta.logo) {
+                return '<span class="ssm-picker-icon ssm-picker-icon-empty"><i class="fi fi-rr-link"></i></span>';
+            }
+            return '<span class="ssm-picker-icon ssm-picker-icon-logo">'
+                + '<img class="ssm-logo" src="' + esc(meta.logo) + '" alt="' + esc(meta.label) + '" width="20" height="20" loading="lazy">'
+                + '</span>';
+        }
+
         function setPickerButton($row, key) {
             const meta = platformMeta(key);
             const $btn = $row.find('.ssm-picker-btn');
             if (!meta) {
                 $btn.html(
-                    '<span class="ssm-picker-icon ssm-picker-icon-empty"><i class="bx bx-link"></i></span>'
+                    '<span class="ssm-picker-icon ssm-picker-icon-empty"><i class="fi fi-rr-link"></i></span>'
                     + '<span class="ssm-picker-label text-muted">-- Select social media --</span>'
-                    + '<i class="bx bx-chevron-down ssm-picker-caret"></i>'
+                    + '<i class="fi fi-rr-angle-small-down ssm-picker-caret"></i>'
                 );
                 return;
             }
             $btn.html(
-                '<span class="ssm-picker-icon" style="background:' + meta.color + ';"><i class="bx ' + meta.icon + '"></i></span>'
+                logoHtml(meta)
                 + '<span class="ssm-picker-label">' + esc(meta.label) + '</span>'
-                + '<i class="bx bx-chevron-down ssm-picker-caret"></i>'
+                + '<i class="fi fi-rr-angle-small-down ssm-picker-caret"></i>'
             );
         }
 
@@ -246,7 +295,7 @@
         function buildPickerMenuHtml(selected) {
             let html = ''
                 + '<button type="button" class="ssm-picker-option" data-value="" data-label="-- Select social media --">'
-                + '  <span class="ssm-picker-icon ssm-picker-icon-empty"><i class="bx bx-link"></i></span>'
+                + '  <span class="ssm-picker-icon ssm-picker-icon-empty"><i class="fi fi-rr-link"></i></span>'
                 + '  <span>-- Select social media --</span>'
                 + '</button>';
             PLATFORMS.forEach(function(p) {
@@ -255,9 +304,9 @@
                     + '<button type="button" class="ssm-picker-option' + sel + '"'
                     + ' data-value="' + p.key + '"'
                     + ' data-label="' + esc(p.label) + '"'
-                    + ' data-icon="' + p.icon + '"'
+                    + ' data-logo="' + esc(p.logo || '') + '"'
                     + ' data-color="' + p.color + '">'
-                    + '  <span class="ssm-picker-icon" style="background:' + p.color + ';"><i class="bx ' + p.icon + '"></i></span>'
+                    + '  ' + logoHtml(p)
                     + '  <span>' + esc(p.label) + '</span>'
                     + '</button>';
             });
@@ -270,12 +319,12 @@
             const ph = meta ? meta.placeholder : 'Select a platform first';
             const inputType = meta && meta.type === 'phone' ? 'tel' : 'url';
             const btnInner = meta
-                ? ('<span class="ssm-picker-icon" style="background:' + meta.color + ';"><i class="bx ' + meta.icon + '"></i></span>'
+                ? (logoHtml(meta)
                     + '<span class="ssm-picker-label">' + esc(meta.label) + '</span>'
-                    + '<i class="bx bx-chevron-down ssm-picker-caret"></i>')
-                : ('<span class="ssm-picker-icon ssm-picker-icon-empty"><i class="bx bx-link"></i></span>'
+                    + '<i class="fi fi-rr-angle-small-down ssm-picker-caret"></i>')
+                : ('<span class="ssm-picker-icon ssm-picker-icon-empty"><i class="fi fi-rr-link"></i></span>'
                     + '<span class="ssm-picker-label text-muted">-- Select social media --</span>'
-                    + '<i class="bx bx-chevron-down ssm-picker-caret"></i>');
+                    + '<i class="fi fi-rr-angle-small-down ssm-picker-caret"></i>');
 
             return ''
                 + '<div class="ssm-row" data-index="' + index + '">'
@@ -288,12 +337,12 @@
                 + '        <div class="ssm-picker-menu" role="listbox" hidden>' + buildPickerMenuHtml(selected) + '</div>'
                 + '      </div>'
                 + '    </div>'
-                + '    <div class="col-md-6">'
+                + '    <div class="col-md-5">'
                 + '      <label class="small fw-bold ssm-value-label">' + label + '</label>'
                 + '      <input class="form-control form-control-sm ssm-value" type="' + inputType + '" name="social_media[' + index + '][value]" value="' + esc(value) + '" placeholder="' + esc(ph) + '">'
                 + '    </div>'
-                + '    <div class="col-md-1 d-flex align-items-end">'
-                + '      <button type="button" class="btn btn-sm btn-outline-danger ssm-remove" title="Remove"><i class="bx bx-trash"></i></button>'
+                + '    <div class="col-md-2 d-flex align-items-end">'
+                + '      <button type="button" class="btn btn-sm ssm-remove" title="Remove"><i class="fi fi-rr-trash"></i><span>Remove</span></button>'
                 + '    </div>'
                 + '  </div>'
                 + '</div>';

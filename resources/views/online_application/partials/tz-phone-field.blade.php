@@ -4,7 +4,7 @@
         $phoneValue = '255';
     }
 @endphp
-<label class="required" for="{{ $phoneId ?? 'phone' }}">Phone number</label>
+<label class="sx-login-label required" for="{{ $phoneId ?? 'phone' }}">Phone number</label>
 <div class="sx-input-wrap">
     <i class="fa fa-phone sx-field-icon"></i>
     <input

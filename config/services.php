@@ -40,4 +40,14 @@ return [
         'password' => env('SMS_PASSWORD'),
     ],
 
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-4.1-mini'),
+        'vector_store_id' => env('OPENAI_VECTOR_STORE_ID'),
+        'enabled' => filter_var(env('AI_SUPPORT_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+        'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+        'timeout' => (int) env('OPENAI_TIMEOUT', 60),
+        'rate_limit_per_minute' => (int) env('AI_SUPPORT_RATE_LIMIT', 20),
+    ],
+
 ];

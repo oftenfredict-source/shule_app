@@ -1,199 +1,465 @@
 @extends('layouts.site')
 
+@php
+    // One realistic school photo for every module page (no cartoon art).
+    $modulePhotoRel = 'images/modules-school-hero.jpg';
+    if (!is_file(public_path($modulePhotoRel))) {
+        $modulePhotoRel = 'images/services-hero.jpg';
+    }
+    $heroUrl = asset($modulePhotoRel);
+    $photoUrl = $heroUrl;
+
+    $points = collect($module['points'] ?? [])->take(6)->values();
+
+    $otherModules = collect($modules ?? [])
+        ->where('slug', '!=', $module['slug'])
+        ->take(3)
+        ->values();
+
+    $faqItems = [
+        [
+            'q' => __('site.module_faq_what_q', ['title' => $module['title']]),
+            'a' => $module['short'],
+        ],
+        [
+            'q' => __('site.module_faq_get_q'),
+            'a' => __('site.module_faq_get_a'),
+        ],
+    ];
+
+    if (($module['slug'] ?? '') === 'lesson-plans') {
+        $faqItems = [
+            [
+                'q' => __('site.module_faq_lp_vs_scheme_q'),
+                'a' => __('site.module_faq_lp_vs_scheme_a'),
+            ],
+            [
+                'q' => __('site.module_faq_get_q'),
+                'a' => __('site.module_faq_get_a'),
+            ],
+        ];
+    } elseif (($module['slug'] ?? '') === 'scheme-of-work') {
+        $faqItems = [
+            [
+                'q' => __('site.module_faq_sow_vs_lp_q'),
+                'a' => __('site.module_faq_sow_vs_lp_a'),
+            ],
+            [
+                'q' => __('site.module_faq_get_q'),
+                'a' => __('site.module_faq_get_a'),
+            ],
+        ];
+    }
+@endphp
+
 @section('content')
-<section class="banner-area relative about-banner sx-module-detail-banner" id="home">
-    <div class="overlay overlay-bg"></div>
-    <div class="sx-module-detail-banner__glow sx-module-detail-banner__glow--a" aria-hidden="true"></div>
-    <div class="sx-module-detail-banner__glow sx-module-detail-banner__glow--b" aria-hidden="true"></div>
+<section class="banner-area relative about-banner sx-module-page-banner" id="home" style="background-image:url('{{ $heroUrl }}')">
+    <div class="sx-module-page-banner__overlay" aria-hidden="true"></div>
     <div class="container">
         <div class="row d-flex align-items-center justify-content-center">
-            <div class="about-content col-lg-12 text-center">
+            <div class="about-content col-lg-10 text-center">
                 <h1 class="text-white">{{ $module['title'] }}</h1>
-                <p class="text-white link-nav">
+                <p class="text-white link-nav mb-0">
                     <a href="{{ route('site.home') }}">{{ __('site.home') }}</a>
-                    <span class="lnr lnr-arrow-right"></span>
+                    <span class="fa fa-angle-right mx-1"></span>
                     <a href="{{ route('site.modules') }}">{{ __('site.modules') }}</a>
-                    <span class="lnr lnr-arrow-right"></span>
+                    <span class="fa fa-angle-right mx-1"></span>
                     <a href="{{ route('site.module', $module['slug']) }}">{{ $module['title'] }}</a>
                 </p>
-                @if(!empty($module['short']))
-                    <p class="sx-module-detail-lead text-white">{{ $module['short'] }}</p>
-                @endif
             </div>
         </div>
     </div>
 </section>
 
-<section class="course-details-area section-gap">
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-8 left-contents">
-                <div class="main-image mb-30 sx-module-hero-icon">
-                    <i class="fa {{ $module['icon'] }}" aria-hidden="true"></i>
-                </div>
-                <h2 style="color:#940000;font-weight:800;margin-bottom:16px;">{{ $module['title'] }}</h2>
-                <p style="font-size:15px;line-height:1.8;">{{ $module['body'] }}</p>
-                <h4 class="mt-40 mb-20" style="color:#222;">Key capabilities</h4>
-                <ul class="sx-point-list">
-                    @foreach($module['points'] as $point)
-                        <li>{{ $point }}</li>
-                    @endforeach
-                </ul>
+<section class="sx-module-page">
+    <div class="container sx-module-block">
+        <div class="sx-module-intro text-center">
+            <p class="sx-module-intro__lead mb-0">{{ $module['short'] }}</p>
+        </div>
+    </div>
 
-                @if(!empty($module['seo_sections']))
-                    <div class="mt-40 sx-module-seo-content">
-                        @foreach($module['seo_sections'] as $section)
-                            <h3 style="color:#940000;font-weight:800;margin:28px 0 12px;font-size:20px;">{{ $section['heading'] }}</h3>
-                            <p style="font-size:15px;line-height:1.85;color:#333;">{{ $section['text'] }}</p>
-                        @endforeach
-                        @if(($module['slug'] ?? '') === 'lesson-plans')
-                            <p style="font-size:15px;line-height:1.85;color:#333;margin-top:16px;">
-                                Related: <a href="{{ route('site.module', 'scheme-of-work') }}">Scheme of Work</a>,
-                                <a href="{{ route('site.module', 'timetable-academics') }}">Timetable</a>,
-                                <a href="{{ route('site.module', 'teacher-portal') }}">Teacher Portal</a>.
-                            </p>
-                        @elseif(($module['slug'] ?? '') === 'scheme-of-work')
-                            <p style="font-size:15px;line-height:1.85;color:#333;margin-top:16px;">
-                                Related: <a href="{{ route('site.module', 'lesson-plans') }}">Lesson Plans</a>,
-                                <a href="{{ route('site.module', 'timetable-academics') }}">Timetable</a>,
-                                <a href="{{ route('site.module', 'teacher-portal') }}">Teacher Portal</a>.
-                            </p>
-                        @endif
+    <div class="container sx-module-block">
+        <div class="row g-4 align-items-start">
+            <div class="col-lg-8">
+                <div class="sx-module-main-panel">
+                    <div class="sx-module-main-top">
+                        <div class="sx-module-photo sx-module-photo--compact">
+                            <img src="{{ $photoUrl }}" alt="{{ $module['title'] }}" loading="eager">
+                            <div class="sx-module-photo__badge">
+                                <span class="sx-module-photo__icon"><i class="fa {{ $module['icon'] }}"></i></span>
+                                <strong>{{ $module['title'] }}</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="sx-module-kicker">{{ __('site.module_overview') }}</p>
+                            <h2 class="sx-module-heading">{{ $module['title'] }}</h2>
+                            <p class="sx-module-text mb-0">{{ $module['body'] }}</p>
+                        </div>
                     </div>
-                @endif
 
-                <div class="mt-40 sx-module-faq">
-                    <h3 style="color:#222;font-weight:800;margin-bottom:16px;">Common questions</h3>
-                    <div class="mb-20">
-                        <h4 style="font-size:16px;color:#940000;font-weight:700;">What does {{ $module['title'] }} do in ShuleXpert?</h4>
-                        <p style="font-size:14px;line-height:1.7;color:#444;">{{ $module['body'] }}</p>
+                    <div class="sx-module-caps-wrap">
+                        <h3 class="sx-module-subhead">{{ __('site.module_capabilities') }}</h3>
+                        <ul class="sx-module-caps">
+                            @foreach($points as $point)
+                                <li>{{ $point }}</li>
+                            @endforeach
+                        </ul>
                     </div>
-                    <div class="mb-20">
-                        <h4 style="font-size:16px;color:#940000;font-weight:700;">What are the key capabilities?</h4>
-                        <p style="font-size:14px;line-height:1.7;color:#444;">{{ implode(', ', $module['points'] ?? []) }}</p>
-                    </div>
-                    @if(($module['slug'] ?? '') === 'lesson-plans')
-                        <div class="mb-20">
-                            <h4 style="font-size:16px;color:#940000;font-weight:700;">Is this digital lesson plan software for teachers?</h4>
-                            <p style="font-size:14px;line-height:1.7;color:#444;">Yes, create from sessions, reuse plans, send to admin, get supervisor signature, download PDF (mpango wa somo online).</p>
-                        </div>
-                        <div class="mb-20">
-                            <h4 style="font-size:16px;color:#940000;font-weight:700;">Is Lesson Plans separate from Scheme of Work?</h4>
-                            <p style="font-size:14px;line-height:1.7;color:#444;">Yes. Scheme of Work is the long-range plan; Lesson Plans are period-by-period. They are two modules.</p>
-                        </div>
-                    @elseif(($module['slug'] ?? '') === 'scheme-of-work')
-                        <div class="mb-20">
-                            <h4 style="font-size:16px;color:#940000;font-weight:700;">Is this scheme of work software for schools?</h4>
-                            <p style="font-size:14px;line-height:1.7;color:#444;">Yes, create/manage schemes, reuse yearly, track progress, export PDF/Excel.</p>
-                        </div>
-                        <div class="mb-20">
-                            <h4 style="font-size:16px;color:#940000;font-weight:700;">How is it different from Lesson Plans?</h4>
-                            <p style="font-size:14px;line-height:1.7;color:#444;">Scheme maps topics across months; Lesson Plans deliver each period. Separate modules on purpose.</p>
-                        </div>
-                    @endif
-                    <div class="mb-10">
-                        <h4 style="font-size:16px;color:#940000;font-weight:700;">How can a school get this module?</h4>
-                        <p style="font-size:14px;line-height:1.7;color:#444;">
-                            Request a demo via <a href="{{ route('site.contact') }}">Contact</a> or review
-                            <a href="{{ route('pricing') }}">pricing</a> (installation plus monthly per-student fee).
+
+                    @if(in_array($module['slug'] ?? '', ['lesson-plans', 'scheme-of-work'], true))
+                        <p class="sx-module-related-line mb-0">
+                            {{ __('site.related') }}:
+                            @if(($module['slug'] ?? '') === 'lesson-plans')
+                                <a href="{{ route('site.module', 'scheme-of-work') }}">{{ __('site.scheme_of_work') }}</a>,
+                            @else
+                                <a href="{{ route('site.module', 'lesson-plans') }}">{{ __('site.lesson_plans') }}</a>,
+                            @endif
+                            <a href="{{ route('site.module', 'timetable-academics') }}">{{ __('site.timetable') }}</a>,
+                            <a href="{{ route('site.module', 'teacher-portal') }}">{{ __('site.teacher_portal') }}</a>
                         </p>
-                    </div>
-                </div>
-
-                <div class="mt-40">
-                    <a href="{{ route('site.contact') }}" class="primary-btn text-uppercase">Request Demo</a>
-                    <a href="{{ route('site.modules') }}" class="primary-btn wh text-uppercase ml-10">All Modules</a>
+                    @endif
                 </div>
             </div>
-            <div class="col-lg-4 right-contents">
-                <ul>
-                    <li>
-                        <a class="justify-content-between d-flex" href="#">
-                            <p>Module</p>
-                            <span class="or">{{ $module['title'] }}</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a class="justify-content-between d-flex" href="{{ route('pricing') }}">
-                            <p>Pricing</p>
-                            <span>View plans</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a class="justify-content-between d-flex" href="{{ route('login') }}">
-                            <p>Access</p>
-                            <span>School Login</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a class="justify-content-between d-flex" href="{{ route('site.contact') }}">
-                            <p>Support</p>
-                            <span>Contact</span>
-                        </a>
-                    </li>
-                </ul>
-                <a href="{{ route('online_application') }}" class="primary-btn text-uppercase mt-20" style="display:block;">Online Application</a>
 
-                <h4 class="mt-40 mb-20" style="color:#940000;">Other modules</h4>
-                @foreach(collect($modules)->where('slug', '!=', $module['slug'])->take(8) as $other)
-                        <div style="border-bottom:1px solid #f0dada;padding:10px 0;">
-                            <a href="{{ route('site.module', $other['slug']) }}" style="color:#222;font-weight:600;">
-                                <i class="fa {{ $other['icon'] }}" style="color:#940000;margin-right:8px;"></i>{{ $other['title'] }}
-                            </a>
+            <div class="col-lg-4">
+                <div class="sx-module-side-cta">
+                    <h3>{{ __('site.module_next_steps') }}</h3>
+                    <ul>
+                        <li><a href="{{ route('site.contact') }}"><i class="fa fa-angle-right"></i> {{ __('site.request_demo') }}</a></li>
+                        <li><a href="{{ route('pricing') }}"><i class="fa fa-angle-right"></i> {{ __('about.view_pricing') }}</a></li>
+                        <li><a href="{{ route('site.modules') }}"><i class="fa fa-angle-right"></i> {{ __('site.all_modules') }}</a></li>
+                        <li><a href="{{ route('login') }}"><i class="fa fa-angle-right"></i> {{ __('site.school_login') }}</a></li>
+                    </ul>
+                    <a href="{{ route('site.contact') }}" class="btn btn-light btn-block">{{ __('site.get_in_touch') }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container sx-module-block">
+        <div class="sx-module-faq-panel">
+            <p class="sx-module-kicker">{{ __('site.module_faq_kicker') }}</p>
+            <h2 class="sx-module-heading sx-module-heading--sm">{{ __('site.module_faq_title') }}</h2>
+            <div class="row">
+                @foreach($faqItems as $item)
+                    <div class="col-md-6">
+                        <div class="sx-module-faq-item">
+                            <h4>{{ $item['q'] }}</h4>
+                            <p>{{ $item['a'] }}</p>
                         </div>
+                    </div>
                 @endforeach
             </div>
         </div>
     </div>
+
+    @if($otherModules->isNotEmpty())
+        <div class="container sx-module-block sx-module-block--last">
+            <div class="sx-module-section-head">
+                <h2 class="sx-module-heading sx-module-heading--sm mb-0">{{ __('site.other_modules') }}</h2>
+            </div>
+            <div class="row">
+                @foreach($otherModules as $other)
+                    <div class="col-md-4 mb-20">
+                        <a href="{{ route('site.module', $other['slug']) }}" class="sx-module-related-card">
+                            <span class="sx-module-related-card__icon"><i class="fa {{ $other['icon'] }}"></i></span>
+                            <strong>{{ $other['title'] }}</strong>
+                            <span>{{ $other['short'] }}</span>
+                        </a>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
 </section>
 @endsection
 
 @push('styles')
 <style>
-.sx-module-detail-banner.about-banner {
-    min-height: 340px !important;
-    padding-top: 168px !important;
-    padding-bottom: 72px !important;
+.sx-public-site .banner-area.sx-module-page-banner.about-banner,
+.sx-module-page-banner.about-banner {
+    min-height: 260px !important;
+    height: 260px !important;
+    padding: 0 !important;
     position: relative;
     overflow: hidden;
+    background-color: #5c0000 !important;
+    background-size: cover !important;
+    background-position: center 35% !important;
+    background-repeat: no-repeat !important;
+    display: flex;
+    align-items: center;
 }
-.sx-module-detail-banner__glow {
+.sx-module-page-banner__overlay {
     position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
+    inset: 0;
+    background: linear-gradient(120deg, rgba(92,0,0,.62) 0%, rgba(148,0,0,.46) 55%, rgba(26,10,10,.38) 100%);
     z-index: 1;
 }
-.sx-module-detail-banner__glow--a {
-    width: 320px; height: 320px;
-    top: -80px; right: -60px;
-    background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
-}
-.sx-module-detail-banner__glow--b {
-    width: 260px; height: 260px;
-    bottom: -100px; left: -40px;
-    background: radial-gradient(circle, rgba(196,58,58,0.35) 0%, transparent 70%);
-}
-.sx-module-detail-banner .container { position: relative; z-index: 2; }
-.sx-module-detail-banner .about-content h1 {
-    font-size: 36px;
+.sx-module-page-banner .container { position: relative; z-index: 2; width: 100%; }
+.sx-module-page-banner .about-content h1 {
+    font-size: 28px;
     font-weight: 800;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
-.sx-module-detail-lead {
-    max-width: 640px;
-    margin: 14px auto 0;
-    opacity: .92;
-    font-size: 15px;
-    line-height: 1.7;
+.sx-module-page-banner .link-nav a { color: #fff !important; }
+
+.sx-module-page { padding-bottom: 16px; }
+.sx-module-page > .container.sx-module-block {
+    padding-top: 36px !important;
+    padding-bottom: 0 !important;
+}
+.sx-module-page > .container.sx-module-block.sx-module-block--last {
+    padding-bottom: 28px !important;
 }
 @media (max-width: 991.98px) {
-    .sx-module-detail-banner.about-banner {
-        min-height: 300px !important;
-        padding-top: 148px !important;
-        padding-bottom: 60px !important;
+    .sx-module-page > .container.sx-module-block.sx-module-block--last {
+        padding-bottom: 70px !important;
     }
-    .sx-module-detail-banner .about-content h1 { font-size: 28px; }
+    .sx-module-page-banner.about-banner {
+        min-height: 220px !important;
+        height: 220px !important;
+    }
+    .sx-module-page-banner .about-content h1 { font-size: 24px; }
 }
+
+.sx-module-intro {
+    max-width: 720px;
+    margin: 0 auto;
+    background: #fff8f8;
+    border: 1px solid #f0e4e4;
+    border-radius: 14px;
+    padding: 18px 24px;
+}
+.sx-module-intro__lead {
+    color: #444;
+    font-size: 15px;
+    line-height: 1.65;
+}
+.sx-module-kicker {
+    color: #940000;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.sx-module-heading {
+    color: #1a1a1a;
+    font-weight: 800;
+    font-size: 24px;
+    line-height: 1.3;
+    margin: 0 0 10px;
+}
+.sx-module-heading--sm { font-size: 18px; }
+.sx-module-subhead {
+    color: #1a1a1a;
+    font-weight: 800;
+    font-size: 16px;
+    margin: 0 0 12px;
+}
+.sx-module-text {
+    color: #555;
+    font-size: 14.5px;
+    line-height: 1.7;
+    margin-bottom: 12px;
+}
+.sx-module-section-head { margin-bottom: 16px; }
+
+.sx-module-main-panel {
+    border: 1px solid #f0e4e4;
+    border-radius: 14px;
+    background: #fff;
+    padding: 22px 20px;
+}
+.sx-module-main-top {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 18px;
+    align-items: start;
+    margin-bottom: 18px;
+}
+@media (max-width: 767.98px) {
+    .sx-module-main-top { grid-template-columns: 1fr; }
+}
+.sx-module-photo {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #f0e4e4;
+    background: #fff5f5;
+}
+.sx-module-photo--compact img {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    display: block;
+}
+.sx-module-photo__badge {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    background: #940000;
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 8px;
+}
+.sx-module-photo__icon {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,.18);
+    border-radius: 50%;
+    margin-bottom: 4px;
+    font-size: 11px;
+}
+.sx-module-photo__badge strong {
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.sx-module-caps-wrap {
+    border-top: 1px solid #f0e4e4;
+    padding-top: 16px;
+}
+.sx-module-caps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 14px;
+}
+@media (max-width: 575.98px) {
+    .sx-module-caps { grid-template-columns: 1fr; }
+}
+.sx-module-caps li {
+    position: relative;
+    padding: 10px 12px 10px 32px;
+    background: #fff8f8;
+    border: 1px solid #f0e4e4;
+    border-radius: 10px;
+    color: #444;
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 600;
+}
+.sx-module-caps li:before {
+    content: "\f00c";
+    font-family: FontAwesome, "Font Awesome 5 Free";
+    font-weight: 900;
+    position: absolute;
+    left: 11px;
+    top: 11px;
+    color: #940000;
+    font-size: 12px;
+}
+.sx-module-related-line {
+    margin-top: 16px;
+    color: #666;
+    font-size: 13.5px;
+}
+.sx-module-related-line a {
+    color: #940000;
+    font-weight: 700;
+}
+
+.sx-module-side-cta {
+    background: #940000;
+    color: #fff;
+    border-radius: 14px;
+    padding: 20px 18px;
+    height: auto;
+    position: sticky;
+    top: 90px;
+}
+.sx-module-side-cta h3 {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 800;
+    margin: 0 0 12px;
+}
+.sx-module-side-cta ul {
+    list-style: none;
+    margin: 0 0 14px;
+    padding: 0;
+}
+.sx-module-side-cta li { margin-bottom: 8px; }
+.sx-module-side-cta a {
+    color: #ffe3e3 !important;
+    text-decoration: none !important;
+    font-weight: 600;
+    font-size: 13.5px;
+}
+.sx-module-side-cta a:hover { color: #fff !important; }
+.sx-module-side-cta .btn-light {
+    background: #fff !important;
+    color: #940000 !important;
+    border: 0 !important;
+    font-weight: 800;
+}
+
+.sx-module-faq-panel {
+    border: 1px solid #f0e4e4;
+    border-radius: 14px;
+    background: #fff;
+    padding: 20px 20px 8px;
+}
+.sx-module-faq-item {
+    padding: 4px 0 14px;
+}
+.sx-module-faq-item h4 {
+    color: #940000;
+    font-size: 14px;
+    font-weight: 800;
+    margin: 0 0 6px;
+}
+.sx-module-faq-item p {
+    color: #555;
+    font-size: 13.5px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.sx-module-related-card {
+    display: block;
+    background: #fff;
+    border: 1px solid #f0e4e4;
+    border-radius: 12px;
+    padding: 14px;
+    height: 100%;
+    text-decoration: none !important;
+}
+.sx-module-related-card__icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #fff0f0;
+    color: #940000;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+.sx-module-related-card strong {
+    display: block;
+    color: #1a1a1a;
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+.sx-module-related-card span:last-child {
+    display: block;
+    color: #666;
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+.mb-20 { margin-bottom: 20px; }
 </style>
 @endpush
 
@@ -209,7 +475,7 @@
         'url' => $moduleUrl,
         'name' => $module['title'] . ', ShuleXpert',
         'description' => $module['short'],
-        'inLanguage' => 'en-TZ',
+        'inLanguage' => app()->getLocale() === 'sw' ? 'sw-TZ' : 'en-TZ',
         'isPartOf' => [
             '@type' => 'WebSite',
             'name' => 'ShuleXpert',
@@ -227,126 +493,46 @@
         '@type' => 'Service',
         '@id' => $moduleUrl . '#service',
         'name' => $module['title'],
-        'alternateName' => $module['title'] . ', ShuleXpert',
         'description' => $module['body'],
         'serviceType' => 'School management software module',
-        'category' => 'EducationTechnology',
         'provider' => [
             '@type' => 'Organization',
             'name' => 'ShuleXpert',
             'url' => url('/'),
             'parentOrganization' => [
                 '@type' => 'Organization',
-                'name' => 'EmCa Techonology',
+                'name' => 'EmCa Techonologies',
                 'url' => 'https://emca.tech',
             ],
         ],
-        'areaServed' => [
-            '@type' => 'Place',
-            'name' => 'Worldwide',
-        ],
         'url' => $moduleUrl,
         'image' => $moduleImage,
-        'isRelatedTo' => [
-            '@type' => 'SoftwareApplication',
-            'name' => 'ShuleXpert',
-            'url' => url('/'),
-        ],
-        'hasOfferCatalog' => [
-            '@type' => 'OfferCatalog',
-            'name' => $module['title'] . ' capabilities',
-            'itemListElement' => collect($module['points'] ?? [])->values()->map(function ($point, $i) {
-                return [
-                    '@type' => 'Offer',
-                    'itemOffered' => [
-                        '@type' => 'Service',
-                        'name' => $point,
-                        'position' => $i + 1,
-                    ],
-                ];
-            })->all(),
-        ],
     ];
 
-    $faqEntities = [
-        [
-            '@type' => 'Question',
-            'name' => 'What does the ' . $module['title'] . ' module do in ShuleXpert?',
-            'acceptedAnswer' => [
-                '@type' => 'Answer',
-                'text' => $module['body'],
-            ],
-        ],
-        [
-            '@type' => 'Question',
-            'name' => 'What are the key capabilities of ' . $module['title'] . '?',
-            'acceptedAnswer' => [
-                '@type' => 'Answer',
-                'text' => implode(' ', $module['points'] ?? []),
-            ],
-        ],
-        [
-            '@type' => 'Question',
-            'name' => 'How can a school get ' . $module['title'] . ' in ShuleXpert?',
-            'acceptedAnswer' => [
-                '@type' => 'Answer',
-                'text' => 'Contact EmCa Techonology via the ShuleXpert contact page or request a demo. Pricing is listed on the ShuleXpert pricing page (installation plus monthly per-student fee).',
-            ],
-        ],
-    ];
-
-    if (($module['slug'] ?? '') === 'lesson-plans') {
-        $faqEntities = array_merge($faqEntities, [
-            [
-                '@type' => 'Question',
-                'name' => 'Is ShuleXpert a digital lesson plan software for teachers?',
-                'acceptedAnswer' => [
-                    '@type' => 'Answer',
-                    'text' => 'Yes. ShuleXpert Lesson Plans lets teachers create digital lesson plans from class sessions, reuse previous plans, send plans to admin, receive supervisor signatures, and download PDF lesson plans, built for schools in Tanzania and Africa.',
-                ],
-            ],
-            [
-                '@type' => 'Question',
-                'name' => 'Can admins sign lesson plans in ShuleXpert?',
-                'acceptedAnswer' => [
-                    '@type' => 'Answer',
-                    'text' => 'Yes. Teachers send lesson plans to admin. Admins filter by subject and class, open the plan, and Sign Lesson Plan with a digital supervisor signature.',
-                ],
-            ],
-            [
-                '@type' => 'Question',
-                'name' => 'Is Lesson Plans separate from Scheme of Work?',
-                'acceptedAnswer' => [
-                    '@type' => 'Answer',
-                    'text' => 'Yes. Scheme of Work is the long-range subject plan. Lesson Plans are period-by-period teaching plans. They are separate modules in ShuleXpert.',
-                ],
-            ],
-        ]);
-    } elseif (($module['slug'] ?? '') === 'scheme-of-work') {
-        $faqEntities = array_merge($faqEntities, [
-            [
-                '@type' => 'Question',
-                'name' => 'Is ShuleXpert a scheme of work software for schools?',
-                'acceptedAnswer' => [
-                    '@type' => 'Answer',
-                    'text' => 'Yes. Teachers create and manage schemes of work by subject, reuse existing schemes, and export PDF or Excel. Admins track Scheme of Work Progress across the school.',
-                ],
-            ],
-            [
-                '@type' => 'Question',
-                'name' => 'How is Scheme of Work different from Lesson Plans?',
-                'acceptedAnswer' => [
-                    '@type' => 'Answer',
-                    'text' => 'Scheme of Work maps topics across months for a subject. Lesson Plans deliver each teaching period. ShuleXpert keeps them as two separate modules.',
-                ],
-            ],
-        ]);
+    // Keep SEO section text in schema only (not shown on page)
+    if (!empty($module['seo_sections'])) {
+        $svc['additionalProperty'] = collect($module['seo_sections'])->map(function ($section) {
+            return [
+                '@type' => 'PropertyValue',
+                'name' => $section['heading'],
+                'value' => $section['text'],
+            ];
+        })->values()->all();
     }
 
     $faq = [
         '@context' => 'https://schema.org',
         '@type' => 'FAQPage',
-        'mainEntity' => $faqEntities,
+        'mainEntity' => collect($faqItems)->map(function ($item) {
+            return [
+                '@type' => 'Question',
+                'name' => $item['q'],
+                'acceptedAnswer' => [
+                    '@type' => 'Answer',
+                    'text' => $item['a'],
+                ],
+            ];
+        })->values()->all(),
     ];
 @endphp
 <script type="application/ld+json">{!! json_encode($webpage, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!}</script>

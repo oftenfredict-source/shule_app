@@ -1,89 +1,232 @@
 <script>
-    function viewSchoolDetails(schoolID) {
-        $('#schoolDetailsModal').modal('show');
-
-        $('#schoolDetailsContent').html(
-            '<div class="text-center py-4">' +
-                '<div class="spinner-border text-danger" role="status"><span class="sr-only">Loading...</span></div>' +
-                '<p class="mt-2 mb-0">Loading school details...</p>' +
-            '</div>'
-        );
-
-        $.ajax({
-            url: '{{ route("online_application.school_details", ":schoolID") }}'.replace(':schoolID', schoolID),
-            method: 'GET',
-            success: function(response) {
-                if (!response.success) return;
-
-                var html = '<div class="sx-school-details">';
-                html += '<div class="text-center mb-4">';
-                if (response.school.schoolLogo) {
-                    html += '<img src="{{ asset("") }}' + response.school.schoolLogo + '" alt="' + response.school.schoolName + '" class="sx-school-details__logo mb-2">';
-                }
-                html += '<h4 class="mb-1">' + response.school.schoolName + '</h4>';
-                html += '<p class="text-muted mb-0">' + response.school.schoolType + ' - ' + response.school.ownership + '</p>';
-                html += '<p class="text-muted small mb-0">' + response.school.region + ', ' + response.school.district + '</p>';
-                if (response.school.address) html += '<p class="text-muted small mb-0">' + response.school.address + '</p>';
-                if (response.school.phone) html += '<p class="text-muted small mb-0"><i class="fa fa-phone"></i> ' + response.school.phone + '</p>';
-                if (response.school.email) html += '<p class="text-muted small mb-0"><i class="fa fa-envelope"></i> ' + response.school.email + '</p>';
-                if (response.school.establishedYear) html += '<p class="text-muted small">Established: ' + response.school.establishedYear + '</p>';
-                html += '</div>';
-
-                html += '<h5 class="sx-school-details__heading"><i class="fa fa-columns"></i> Classes (' + response.classes.length + ')</h5>';
-                html += '<div class="row">';
-                response.classes.forEach(function(cls) {
-                    html += '<div class="col-md-6 mb-3"><div class="sx-school-details__card">';
-                    html += '<h6>' + cls.className + '</h6><p class="mb-2"><strong>Subclasses:</strong> ' + cls.subclassesCount + '</p><div class="small">';
-                    cls.subclasses.forEach(function(sub) {
-                        html += '<div class="mb-1"><i class="fa fa-circle sx-dot"></i> ' + sub.subclassName + ': ' + sub.studentCount + ' students</div>';
-                    });
-                    html += '</div></div></div>';
-                });
-                html += '</div>';
-
-                html += '<h5 class="sx-school-details__heading"><i class="fa fa-book"></i> School Subjects (' + response.schoolSubjects.length + ')</h5><div class="row">';
-                response.schoolSubjects.forEach(function(subj) {
-                    html += '<div class="col-md-4 mb-2"><div class="sx-school-details__badge"><strong>' + subj.subject_name + '</strong>';
-                    if (subj.subject_code) html += '<br><small>Code: ' + subj.subject_code + '</small>';
-                    html += '</div></div>';
-                });
-                html += '</div>';
-
-                html += '<h5 class="sx-school-details__heading"><i class="fa fa-bookmark"></i> Class Subjects</h5>';
-                Object.keys(response.classSubjects).forEach(function(classID) {
-                    var classData = response.classes.find(function(c) { return c.classID == classID; });
-                    var className = classData ? classData.className : 'Unknown Class';
-                    var subjects = response.classSubjects[classID];
-                    html += '<div class="mb-3"><h6 class="sx-school-details__sub">' + className + '</h6>';
-                    html += '<div class="table-responsive"><table class="table table-sm table-bordered sx-school-details__table"><thead><tr><th>Subject</th><th>Code</th><th>Teacher</th></tr></thead><tbody>';
-                    subjects.forEach(function(subj) {
-                        html += '<tr><td>' + subj.subjectName + '</td><td>' + (subj.subjectCode || '-') + '</td><td>' + subj.teacherName + '</td></tr>';
-                    });
-                    html += '</tbody></table></div></div>';
-                });
-
-                html += '<h5 class="sx-school-details__heading"><i class="fa fa-users"></i> Teachers (' + response.teachers.length + ')</h5>';
-                html += '<div class="table-responsive"><table class="table table-bordered sx-school-details__table"><thead><tr><th>Name</th><th>Position</th><th>Roles</th></tr></thead><tbody>';
-                response.teachers.forEach(function(teacher) {
-                    html += '<tr><td>' + teacher.fullName + '</td><td>' + (teacher.position || '-') + '</td><td>';
-                    if (teacher.roles.length > 0) {
-                        teacher.roles.forEach(function(role) {
-                            html += '<span class="badge badge-danger mr-1">' + role + '</span>';
-                        });
-                    } else {
-                        html += '<span class="text-muted">No roles assigned</span>';
-                    }
-                    html += '</td></tr>';
-                });
-                html += '</tbody></table></div></div>';
-
-                $('#schoolDetailsContent').html(html);
-            },
-            error: function() {
-                $('#schoolDetailsContent').html(
-                    '<div class="alert alert-danger mb-0"><i class="fa fa-exclamation-triangle"></i> Error loading school details. Please try again.</div>'
-                );
-            }
-        });
+(function () {
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
+
+    function showSchoolDetailsModal() {
+        var el = document.getElementById('schoolDetailsModal');
+        if (!el) return null;
+
+        if (window.bootstrap && bootstrap.Modal) {
+            var instance = typeof bootstrap.Modal.getInstance === 'function'
+                ? bootstrap.Modal.getInstance(el)
+                : null;
+            if (!instance) {
+                instance = new bootstrap.Modal(el);
+            }
+            return instance;
+        }
+
+        if (window.jQuery && typeof jQuery(el).modal === 'function') {
+            return {
+                show: function () { jQuery(el).modal('show'); },
+                hide: function () { jQuery(el).modal('hide'); }
+            };
+        }
+
+        return {
+            show: function () {
+                el.classList.add('show');
+                el.style.display = 'block';
+                el.removeAttribute('aria-hidden');
+                document.body.classList.add('modal-open');
+                if (!document.querySelector('.modal-backdrop')) {
+                    var backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop fade show';
+                    document.body.appendChild(backdrop);
+                }
+            },
+            hide: function () {
+                el.classList.remove('show');
+                el.style.display = 'none';
+                el.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('modal-open');
+                document.querySelectorAll('.modal-backdrop').forEach(function (node) { node.remove(); });
+            }
+        };
+    }
+
+    function loadingHtml() {
+        return '<div class="text-center py-4">' +
+            '<div class="spinner-border text-danger" role="status"><span class="sr-only">Loading...</span></div>' +
+            '<p class="mt-2 mb-0">{{ __("site.apply_loading_details") }}</p>' +
+            '</div>';
+    }
+
+    function uniqueSubjects(list) {
+        var seen = {};
+        var out = [];
+        (list || []).forEach(function (subj) {
+            var name = (subj.subjectName || subj.subject_name || '').trim();
+            if (!name) return;
+            var key = name.toLowerCase();
+            if (seen[key]) return;
+            seen[key] = true;
+            out.push({
+                name: name,
+                code: (subj.subjectCode || subj.subject_code || '').trim()
+            });
+        });
+        return out;
+    }
+
+    function renderSchoolDetails(response) {
+        var school = response.school || {};
+        var classes = response.classes || [];
+        var schoolSubjects = uniqueSubjects(response.schoolSubjects || []);
+        var classSubjects = response.classSubjects || [];
+        var subjectsByClass = {};
+        classSubjects.forEach(function (group) {
+            subjectsByClass[String(group.classID)] = uniqueSubjects(group.subjects || []);
+        });
+        var html = '<div class="sx-school-details">';
+
+        html += '<div class="sx-school-details__hero">';
+        if (school.schoolLogoUrl) {
+            html += '<img src="' + escapeHtml(school.schoolLogoUrl) + '" alt="" class="sx-school-details__logo" onerror="this.style.display=\'none\'">';
+        } else {
+            html += '<div class="sx-school-details__logo sx-school-details__logo--ph">' +
+                escapeHtml((school.schoolName || 'S').charAt(0).toUpperCase()) +
+                '</div>';
+        }
+        html += '<div class="sx-school-details__hero-text">';
+        if (school.schoolType) {
+            html += '<span class="sx-school-details__type">' + escapeHtml(school.schoolType) + '</span>';
+        }
+        html += '<h4>' + escapeHtml(school.schoolName || '') + '</h4>';
+        html += '<p class="sx-school-details__place"><i class="fa fa-map-marker"></i> ' +
+            escapeHtml([school.region, school.district].filter(Boolean).join(', ')) + '</p>';
+        if (school.phone || school.email) {
+            html += '<div class="sx-school-details__contacts">';
+            if (school.phone) html += '<span><i class="fa fa-phone"></i> ' + escapeHtml(school.phone) + '</span>';
+            if (school.email) html += '<span><i class="fa fa-envelope"></i> ' + escapeHtml(school.email) + '</span>';
+            html += '</div>';
+        }
+        html += '</div></div>';
+
+        html += '<div class="sx-school-details__section">';
+        if (response.needsLogin) {
+            var loginUrl = response.loginUrl || '{{ route("online_application.auth.login") }}';
+            html += '<div class="sx-apply-login-gate sx-apply-login-gate--modal">';
+            html += '<div class="sx-apply-login-gate__icon" aria-hidden="true"><i class="fa fa-lock"></i></div>';
+            html += '<h4>{{ __("site.apply_login_to_apply") }}</h4>';
+            html += '<p>{{ __("site.apply_login_gate_text") }}</p>';
+            html += '<a href="' + escapeHtml(loginUrl) + '" class="sx-apply-btn-sm sx-apply-btn-sm--block">';
+            html += '<i class="fa fa-sign-in" aria-hidden="true"></i> <span>{{ __("site.apply_login_to_apply") }}</span></a>';
+            html += '</div>';
+        } else {
+            html += '<div class="sx-school-details__section-head">';
+            html += '<h5><i class="fa fa-graduation-cap"></i> {{ __("site.apply_available_classes") }}</h5>';
+            html += '</div>';
+
+            if (!classes.length) {
+                html += '<div class="sx-school-details__empty">{{ __("site.apply_no_classes") }}</div>';
+            } else {
+                html += '<div class="sx-school-details__class-list">';
+                classes.forEach(function (cls) {
+                    var clsSubjects = subjectsByClass[String(cls.classID)] || [];
+                    html += '<div class="sx-school-details__class' + (cls.hasSpaces ? '' : ' is-full') + '">';
+                    html += '<div class="sx-school-details__class-top">';
+                    html += '<div class="sx-school-details__class-info">';
+                    html += '<strong>' + escapeHtml(cls.className) + '</strong>';
+                    if (cls.academicYearName) {
+                        html += '<small>' + escapeHtml(cls.academicYearName) + '</small>';
+                    }
+                    html += '</div>';
+                    if (cls.hasSpaces && cls.applyUrl) {
+                        html += '<a href="' + escapeHtml(cls.applyUrl) + '" class="sx-school-details__apply">' +
+                            '<i class="fa fa-paper-plane"></i> <span>{{ __("site.apply_now") }}</span></a>';
+                    }
+                    html += '</div>';
+
+                    if (clsSubjects.length) {
+                        html += '<div class="sx-school-details__class-subjects">';
+                        html += '<div class="sx-school-details__class-subjects-label"><i class="fa fa-book"></i> {{ __("site.apply_subjects") }} (' + clsSubjects.length + ')</div>';
+                        html += '<div class="sx-school-details__subjects">';
+                        clsSubjects.forEach(function (subj) {
+                            html += '<span class="sx-school-details__subject">' + escapeHtml(subj.name);
+                            if (subj.code) html += ' <em>' + escapeHtml(subj.code) + '</em>';
+                            html += '</span>';
+                        });
+                        html += '</div></div>';
+                    } else {
+                        html += '<div class="sx-school-details__class-subjects is-empty">{{ __("site.apply_no_subjects") }}</div>';
+                    }
+
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+        }
+        html += '</div>';
+
+        if (schoolSubjects.length) {
+            html += '<div class="sx-school-details__section">';
+            html += '<div class="sx-school-details__section-head">';
+            html += '<h5><i class="fa fa-book"></i> {{ __("site.apply_all_subjects") }}</h5>';
+            html += '<span class="sx-school-details__count">' + schoolSubjects.length + '</span>';
+            html += '</div>';
+            html += '<div class="sx-school-details__subjects">';
+            schoolSubjects.forEach(function (subj) {
+                html += '<span class="sx-school-details__subject">' + escapeHtml(subj.name);
+                if (subj.code) html += ' <em>' + escapeHtml(subj.code) + '</em>';
+                html += '</span>';
+            });
+            html += '</div></div>';
+        }
+
+        html += '</div>';
+        return html;
+    }
+
+    window.viewSchoolDetails = function (schoolID) {
+        if (!schoolID) return;
+
+        var content = document.getElementById('schoolDetailsContent');
+        var title = document.getElementById('schoolDetailsModalLabel');
+        if (content) content.innerHTML = loadingHtml();
+        if (title) title.textContent = '{{ __("site.apply_school_details") }}';
+
+        var modal = showSchoolDetailsModal();
+        if (modal && typeof modal.show === 'function') modal.show();
+
+        var url = '{{ route("online_application.school_details", ":schoolID") }}'.replace(':schoolID', encodeURIComponent(schoolID));
+
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(function (res) {
+            if (!res.ok) throw new Error('Failed');
+            return res.json();
+        })
+        .then(function (response) {
+            if (!response.success || !content) return;
+            if (title && response.school && response.school.schoolName) {
+                title.textContent = response.school.schoolName;
+            }
+            content.innerHTML = renderSchoolDetails(response);
+        })
+        .catch(function () {
+            if (!content) return;
+            content.innerHTML =
+                '<div class="alert alert-danger mb-0"><i class="fa fa-exclamation-triangle"></i> {{ __("site.apply_details_error") }}</div>';
+        });
+    };
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.sx-view-school-details');
+        if (!btn) return;
+        e.preventDefault();
+        window.viewSchoolDetails(btn.getAttribute('data-school-id'));
+    });
+})();
 </script>

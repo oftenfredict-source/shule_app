@@ -1,537 +1,608 @@
 @extends('layouts.site')
 
 @php
+    $sp = asset('studypresshtml-62/studypresshtml-62/studypress-client-files-v6.2/studypress-bootstrap5-new-version');
     $homeFeaturedSlugs = [
         'lesson-plans',
-        'scheme-of-work',
         'fees-payments',
         'attendance-biometric',
         'exams-results',
-        'topic-analysis',
-        'parent-portal',
-        'timetable-academics',
     ];
+    $homeModShorts = __('site.home_mod_shorts');
+    if (!is_array($homeModShorts)) {
+        $homeModShorts = [];
+    }
     $homeModules = collect($modules)
         ->keyBy('slug')
         ->only($homeFeaturedSlugs)
         ->filter()
+        ->map(function ($module) use ($homeModShorts) {
+            $slug = $module['slug'] ?? '';
+            if (!empty($homeModShorts[$slug])) {
+                $module['short'] = $homeModShorts[$slug];
+            }
+            $module['card_image'] = asset('images/modules/'.$slug.'.jpg');
+            return $module;
+        })
         ->values()
         ->all();
-
     $pillars = [
-        [
-            'icon' => 'fa-money',
-            'title' => __('site.fees_title'),
-            'text' => __('site.fees_text'),
-            'link' => route('site.module', 'fees-payments'),
-        ],
-        [
-            'icon' => 'fa-hand-paper-o',
-            'title' => __('site.biometric_title'),
-            'text' => __('site.biometric_text'),
-            'link' => route('site.module', 'attendance-biometric'),
-        ],
-        [
-            'icon' => 'fa-users',
-            'title' => __('site.parent_title'),
-            'text' => __('site.parent_text'),
-            'link' => route('site.module', 'parent-portal'),
-        ],
+        ['icon' => 'fa fa-money', 'title' => __('site.pillar_fees'), 'text' => __('site.fees_text'), 'link' => route('site.module', 'fees-payments')],
+        ['icon' => 'fa fa-hand-paper-o', 'title' => __('site.pillar_biometric'), 'text' => __('site.biometric_text'), 'link' => route('site.module', 'attendance-biometric')],
+        ['icon' => 'fa fa-users', 'title' => __('site.pillar_parent'), 'text' => __('site.parent_text'), 'link' => route('site.module', 'parent-portal')],
+        ['icon' => 'fa fa-graduation-cap', 'title' => __('site.pillar_exams'), 'text' => __('site.pillar_exams_text'), 'link' => route('site.module', 'exams-results')],
+        ['icon' => 'fa fa-calendar', 'title' => __('site.pillar_modules'), 'text' => __('site.pillar_modules_text'), 'link' => route('site.modules')],
+        ['icon' => 'fa fa-mobile', 'title' => __('site.pillar_app'), 'text' => __('site.pillar_app_text'), 'link' => route('site.download')],
     ];
-
     $reviews = [
         [
-            'quote' => 'Fee control numbers and SMS reminders transformed our collections. Parents pay with confidence.',
-            'role' => 'School Administrator',
-            'place' => 'Secondary School, Kilimanjaro',
+            'name' => 'Naamani Basso',
+            'role' => 'Headmaster, Bi. Alpha Memorial School',
+            'quote' => 'ShuleXpert has greatly improved the way we manage our school. From admissions to attendance and examinations, everything is now more organized and efficient. It is an excellent system that we highly recommend.',
+            'img' => $sp.'/images/testimonials/3.jpg',
         ],
         [
-            'quote' => 'Entering results and publishing to parents is finally simple. The teacher portal saves hours every week.',
-            'role' => 'Subject Teacher',
-            'place' => 'High School, Moshi',
+            'name' => 'Werney Kapinga',
+            'role' => 'Head Teacher, Malecela Secondary School',
+            'quote' => 'ShuleXpert has made academic records simple and efficient. It is easy to use, secure, and improves communication between teachers, parents, and management. Highly recommended!',
+            'img' => $sp.'/images/testimonials/1.jpg',
         ],
         [
-            'quote' => 'I get attendance and results on my phone. Fee balances are clear, I always know what I owe.',
-            'role' => 'Parent',
-            'place' => 'Primary School, Arusha',
+            'name' => 'Asha Mwakasege',
+            'role' => 'School Administrator, Arusha Primary School',
+            'quote' => 'Fee control numbers and parent SMS reminders transformed our collections. Attendance and results are clear for parents, and our office work is finally organized in one place.',
+            'img' => $sp.'/images/testimonials/2.jpg',
+        ],
+        [
+            'name' => 'Joseph Kimaro',
+            'role' => 'Academic Master, Moshi High School',
+            'quote' => 'Entering results and publishing to parents is finally simple. Lesson plans, exams and reports save our teachers hours every week. ShuleXpert fits how real schools work.',
+            'img' => $sp.'/images/testimonials/1.jpg',
         ],
     ];
 @endphp
 
 @section('content')
-<section class="banner-area relative home-banner sx-home-banner" id="home">
-    <div class="overlay overlay-bg"></div>
-    <div class="sx-home-banner__glow sx-home-banner__glow--a" aria-hidden="true"></div>
-    <div class="sx-home-banner__glow sx-home-banner__glow--b" aria-hidden="true"></div>
-    <div class="container">
-        <div class="row fullscreen d-flex align-items-center justify-content-between">
-            <div class="banner-content col-12 col-lg-9 col-md-12">
-                <h1 class="text-uppercase">
-                    {{ __('site.hero_title_1') }}<br>{{ __('site.hero_title_2') }}
-                </h1>
-                <p class="sx-home-lead">
-                    {{ __('site.hero_lead') }}
-                </p>
-                <div class="sx-home-hero-actions">
-                    <a href="{{ route('site.modules') }}" class="primary-btn text-uppercase">{{ __('site.explore_modules') }}</a>
-                    <a href="{{ route('login') }}" class="primary-btn wh text-uppercase">{{ __('site.school_login') }}</a>
-                </div>
+    {{-- Section: home hero (school images + readable text) --}}
+    <section id="home" class="sx-hero-slider">
+      <div id="sxHeroOwl" class="owl-carousel owl-theme sx-hero-owl">
+        <div class="sx-hero-slide">
+          <div class="sx-hero-slide__bg" style="background-image:url('{{ asset('images/hero/sx-hero-classroom.jpg') }}')"></div>
+          <div class="sx-hero-slide__overlay"></div>
+          <div class="container sx-hero-slide__inner">
+            <div class="sx-hero-copy sx-hero-copy--center">
+              <p class="sx-hero-kicker">ShuleXpert</p>
+              <h1 class="sx-hero-title">{{ __('site.hero_title_1') }}</h1>
+              <p class="sx-hero-lead">{{ __('site.hero_lead_short') }}</p>
+              <div class="sx-hero-actions sx-hero-actions--center">
+                <a href="{{ route('site.modules') }}" class="btn btn-theme-colored1 btn-circled btn-lg text-white">{{ __('site.explore_modules') }}</a>
+                <a href="{{ route('login') }}" class="btn btn-theme-colored2 btn-circled btn-lg text-white">{{ __('site.school_login') }}</a>
+              </div>
             </div>
+          </div>
         </div>
-    </div>
-</section>
-
-<section class="sx-home-pillars">
-    <div class="container">
-        <div class="row">
-            @foreach($pillars as $pillar)
-                <div class="col-12 col-lg-4 mb-3 mb-lg-0">
-                    <a href="{{ $pillar['link'] }}" class="sx-home-pillar">
-                        <span class="sx-home-pillar__icon" aria-hidden="true"><i class="fa {{ $pillar['icon'] }}"></i></span>
-                        <span class="sx-home-pillar__body">
-                            <strong>{{ $pillar['title'] }}</strong>
-                            <span>{{ $pillar['text'] }}</span>
-                            <em>{{ __('site.learn_more') }} <i class="fa fa-angle-right"></i></em>
-                        </span>
-                    </a>
-                </div>
-            @endforeach
-        </div>
-    </div>
-</section>
-
-<section class="popular-course-area section-gap sx-modules-showcase" style="--sx-modules-bg: url('{{ asset('images/x.jpg') }}')">
-    <div class="container">
-        <div class="row d-flex justify-content-center">
-            <div class="menu-content pb-70 col-lg-8">
-                <div class="title text-center">
-                    <p class="sx-home-section-kicker">{{ __('site.module_suite') }}</p>
-                    <h2 class="mb-10">{{ __('site.modules_heading') }}</h2>
-                    <p>{{ __('site.modules_lead') }}</p>
-                </div>
+        <div class="sx-hero-slide">
+          <div class="sx-hero-slide__bg" style="background-image:url('{{ asset('images/hero/sx-hero-campus.jpg') }}')"></div>
+          <div class="sx-hero-slide__overlay"></div>
+          <div class="container sx-hero-slide__inner">
+            <div class="sx-hero-copy sx-hero-copy--center">
+              <p class="sx-hero-kicker">{{ __('site.why_choose') }}</p>
+              <h1 class="sx-hero-title">{{ __('site.built_worldwide') }}</h1>
+              <p class="sx-hero-lead">{{ __('site.hero_slide2_lead') }}</p>
+              <div class="sx-hero-actions sx-hero-actions--center">
+                <a href="{{ route('site.about') }}" class="btn btn-theme-colored1 btn-circled btn-lg text-white">{{ __('site.about_shulexpert') }}</a>
+                <a href="{{ route('login') }}" class="btn btn-theme-colored2 btn-circled btn-lg text-white">{{ __('site.school_login') }}</a>
+              </div>
             </div>
+          </div>
         </div>
-        <div class="row sx-modules-grid">
+        <div class="sx-hero-slide">
+          <div class="sx-hero-slide__bg" style="background-image:url('{{ asset('images/hero/sx-hero-digital.jpg') }}')"></div>
+          <div class="sx-hero-slide__overlay"></div>
+          <div class="container sx-hero-slide__inner">
+            <div class="sx-hero-copy sx-hero-copy--center">
+              <p class="sx-hero-kicker">EmCa Techonology</p>
+              <h1 class="sx-hero-title">{{ __('site.ready_digitize') }}</h1>
+              <p class="sx-hero-lead">{{ __('site.hero_slide3_lead') }}</p>
+              <div class="sx-hero-actions sx-hero-actions--center">
+                <a href="{{ route('site.contact') }}" class="btn btn-theme-colored1 btn-circled btn-lg text-white">{{ __('site.contact_us') }}</a>
+                <a href="{{ route('online_application') }}" class="btn btn-theme-colored2 btn-circled btn-lg text-white">{{ __('site.online_application') }}</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {{-- Section: About (layout2) --}}
+    <section class="sx-about-section">
+      <div class="container">
+        <div class="section-content">
+          <div class="row align-items-center">
+            <div class="col-sm-12 col-md-12 col-lg-8 col-xl-8">
+              <h3 class="text-uppercase font-weight-800 mt-0 mb-0 line-height-1 sx-about-heading">{{ __('site.about_shulexpert') }}</h3>
+              <h6 class="text-uppercase line-bottom line-bottom-theme-colored1 title font-playfair text-uppercase">{{ __('site.built_worldwide') }}</h6>
+              <p class="sx-about-lead">{{ __('site.built_worldwide_p1') }}</p>
+              <div class="row sx-about-pillars">
+                @foreach($pillars as $pillar)
+                <div class="col-sm-6">
+                  <div class="tm-sc-icon-box icon-box icon-left tm-iconbox-icontype-font-icon text-left iconbox-centered-in-responsive iconbox-theme-colored1 icon-position-icon-left mb-30 sx-about-pillar">
+                    <div class="icon-box-wrapper">
+                      <a href="{{ $pillar['link'] }}" class="icon icon-type-font-icon icon-circled icon-sm icon-dark icon-theme-colored1 mt-10 sx-about-icon">
+                        <i class="{{ $pillar['icon'] }}"></i>
+                      </a>
+                      <div class="icon-text">
+                        <h5 class="icon-box-title text-uppercase mb-10 sx-about-pillar-title"><a href="{{ $pillar['link'] }}">{{ $pillar['title'] }}</a></h5>
+                        <p class="mb-0 sx-about-pillar-text">{{ \Illuminate\Support\Str::limit($pillar['text'], 90) }}</p>
+                      </div>
+                      <div class="clearfix"></div>
+                    </div>
+                  </div>
+                </div>
+                @endforeach
+              </div>
+            </div>
+            <div class="col-sm-12 col-md-12 col-lg-4 col-xl-4">
+              <form id="home_appointment_form" name="home_appointment_form" class="booking-form form-home sx-contact-card p-30" method="get" action="{{ route('site.contact') }}">
+                <h3 class="text-white mt-0 mb-20 sx-contact-card__title">{{ __('site.contact_us') }}</h3>
+
+                <div class="sx-contact-field mb-10">
+                  <span class="sx-contact-field__icon" aria-hidden="true"><i class="fa fa-user"></i></span>
+                  <input name="name" class="form-control" type="text" placeholder="{{ __('site.ask_float_name_ph') }}" autocomplete="name">
+                </div>
+
+                <div class="sx-contact-field mb-10">
+                  <span class="sx-contact-field__icon" aria-hidden="true"><i class="fa fa-envelope"></i></span>
+                  <input name="email" class="form-control" type="email" placeholder="{{ __('site.ask_float_email_ph') }}" autocomplete="email">
+                </div>
+
+                <div class="sx-contact-field mb-10">
+                  <span class="sx-contact-field__icon" aria-hidden="true"><i class="fa fa-phone"></i></span>
+                  <input name="phone" class="form-control" type="tel" placeholder="{{ config('shulexpert.phone_display') }}" autocomplete="tel">
+                </div>
+
+                <div class="sx-contact-field mb-10">
+                  <span class="sx-contact-field__icon" aria-hidden="true"><i class="fa fa-th-large"></i></span>
+                  <select name="subject" class="form-control">
+                    <option value="">{{ __('site.modules') }}</option>
+                    <option value="fees">{{ __('site.fees_title') }}</option>
+                    <option value="biometric">{{ __('site.biometric_title') }}</option>
+                    <option value="parent">{{ __('site.parent_title') }}</option>
+                    <option value="register">{{ __('site.register_school') }}</option>
+                  </select>
+                </div>
+
+                <div class="sx-contact-field sx-contact-field--textarea mb-10">
+                  <span class="sx-contact-field__icon" aria-hidden="true"><i class="fa fa-comment"></i></span>
+                  <textarea name="message" class="form-control" placeholder="{{ __('site.ask_float_message_ph') }}" rows="3"></textarea>
+                </div>
+
+                <div class="mb-0 mt-20">
+                  <button type="submit" class="btn btn-theme-colored1 btn-block">
+                    <i class="fa fa-paper-plane me-1" aria-hidden="true"></i>{{ __('site.contact_us') }}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {{-- Section: Courses / Modules (layout2) --}}
+    <section class="bg-silver-light sx-modules-section">
+      <div class="container pb-40">
+        <div class="section-title sx-modules-section__head text-center mb-30">
+          <h2 class="text-uppercase line-bottom line-bottom-theme-colored1 sx-modules-section__title">{{ __('site.modules') }}</h2>
+          <p class="sx-modules-lead mb-0">{{ __('site.modules_lead_short') }}</p>
+        </div>
+        <div class="section-content">
+          <div class="row">
             @foreach($homeModules as $module)
-                <div class="col-lg-3 col-md-6 col-12 sx-module-col">
-                    <div class="sx-module-card">
-                        <div class="thumb thumb-icon" aria-hidden="true">
-                            <i class="fa {{ $module['icon'] }}"></i>
-                        </div>
-                        <div class="details">
-                            <a href="{{ route('site.module', $module['slug']) }}"><h4>{{ $module['title'] }}</h4></a>
-                            <p>{{ $module['short'] }}</p>
-                            <a href="{{ route('site.module', $module['slug']) }}" class="primary-btn sx-module-btn">{{ __('site.view_module') }}</a>
-                        </div>
-                    </div>
+            <div class="col-sm-12 col-md-6 col-lg-3 col-xl-3">
+              <article class="course-item mb-30 bg-white sx-module-card">
+                <a href="{{ route('site.module', $module['slug']) }}" class="sx-module-card__media">
+                  <img alt="{{ $module['title'] }}" src="{{ $module['card_image'] }}" class="sx-module-card__img" loading="lazy">
+                  <span class="sx-module-card__shine" aria-hidden="true"></span>
+                  <span class="sx-module-card__badge"><i class="fa {{ $module['icon'] }}"></i></span>
+                </a>
+                <div class="content text-left flip sx-module-card__body">
+                  <h4 class="line-bottom line-bottom-theme-colored1 sx-module-card__title">{{ $module['title'] }}</h4>
+                  <p class="sx-module-card__desc">{{ $module['short'] }}</p>
+                  <a class="btn btn-theme-colored1 btn-xs text-uppercase" href="{{ route('site.module', $module['slug']) }}">{{ __('site.view_module') }}</a>
                 </div>
+              </article>
+            </div>
             @endforeach
-        </div>
-        <div class="row">
-            <div class="col-12 text-center mt-20">
-                <a href="{{ route('site.modules') }}" class="primary-btn text-uppercase">{{ __('site.view_all_modules') }}</a>
+          </div>
+          <div class="row">
+            <div class="col-12 text-center mt-10 mb-20">
+              <a href="{{ route('site.modules') }}" class="btn btn-theme-colored1 btn-circled">{{ __('site.view_all_modules') }}</a>
             </div>
+          </div>
         </div>
-    </div>
-</section>
+      </div>
+    </section>
 
-<section class="info-area pb-120 sx-soft-band sx-home-info">
-    <div class="sx-home-info-inner">
-        <div class="sx-home-info-media">
-            <img src="{{ asset('images/african-children-primary-school-classroom-johannesburg-south-africa-september-176110088.webp') }}" alt="ShuleXpert mfumo bora wa shule Tanzania, school management system in classrooms" loading="lazy" decoding="async">
-        </div>
-        <div class="sx-home-info-body">
-            <p class="sx-home-section-kicker">{{ __('site.why_choose') }}</p>
-            <h2>{{ __('site.built_worldwide') }}</h2>
-            <p>
-                {{ __('site.built_worldwide_p1') }}
-            </p>
-            <p class="sx-home-info-gap">
-                {{ __('site.built_worldwide_p2') }}
-            </p>
-            <div class="sx-home-info-actions">
-                <a href="{{ route('site.about') }}" class="primary-btn text-uppercase">{{ __('site.about_shulexpert') }}</a>
-                <a href="{{ route('site.services') }}" class="primary-btn wh text-uppercase">{{ __('site.our_services') }}</a>
+    {{-- Section: Why Choose Us --}}
+    <section class="sx-why-section">
+      <div class="container">
+        <div class="row align-items-center gx-4 gy-4">
+          <div class="col-md-12 col-lg-5">
+            <div class="sx-why-media">
+              <img src="{{ asset('images/why-choose-school.jpg') }}" alt="ShuleXpert schools" class="sx-why-media__img">
             </div>
+          </div>
+          <div class="col-md-12 col-lg-7">
+            <h3 class="sx-why-title line-bottom line-bottom-theme-colored1">{{ __('site.why_choose') }} <span>ShuleXpert</span></h3>
+            <p class="sx-why-lead">{{ __('site.why_choose_lead') }}</p>
+            <div class="row sx-why-links">
+              <div class="col-sm-4">
+                <div class="sx-why-link">
+                  <span class="sx-why-link__icon"><i class="fa fa-shield"></i></span>
+                  <span class="sx-why-link__label">{{ __('site.why_secure') }}</span>
+                </div>
+              </div>
+              <div class="col-sm-4">
+                <div class="sx-why-link">
+                  <span class="sx-why-link__icon"><i class="fa fa-headphones"></i></span>
+                  <span class="sx-why-link__label">{{ __('site.why_support') }}</span>
+                </div>
+              </div>
+              <div class="col-sm-4">
+                <div class="sx-why-link">
+                  <span class="sx-why-link__icon"><i class="fa fa-money"></i></span>
+                  <span class="sx-why-link__label">{{ __('site.why_cost') }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-    </div>
-</section>
+      </div>
+    </section>
 
-<section class="section-gap sx-seo-home" aria-labelledby="sx-seo-home-heading">
-    <div class="container">
+    {{-- Section: Funfacts (layout2) --}}
+    <section class="layer-overlay overlay-theme-colored2-9 bg-no-repeat bg-pos-center-center sx-funfacts" data-tm-bg-img="{{ $sp }}/images/bg/bg2.jpg">
+      <div class="container pt-80 pb-80">
+        <div class="section-content">
+          <div class="row">
+            <div class="col-md-6 col-lg-3 col-xl-3">
+              <div class="funfact-item text-center mb-md-40">
+                <i class="funfact-icon fa fa-building text-theme-colored1"></i>
+                <h2 class="text-white mt-0 mb-10 sx-funfact-num">
+                  <span data-animation-duration="2000" data-value="120" class="counter animate-number">0</span>+
+                </h2>
+                <p class="text-white title mb-0">{{ __('site.trusted_leaders') }}</p>
+              </div>
+            </div>
+            <div class="col-md-6 col-lg-3 col-xl-3">
+              <div class="funfact-item text-center mb-md-40">
+                <i class="funfact-icon fa fa-graduation-cap text-theme-colored1"></i>
+                <h2 class="text-white mt-0 mb-10 sx-funfact-num">
+                  <span data-animation-duration="2000" data-value="15000" class="counter animate-number">0</span>+
+                </h2>
+                <p class="text-white title mb-0">{{ __('site.stat_students') }}</p>
+              </div>
+            </div>
+            <div class="col-md-6 col-lg-3 col-xl-3">
+              <div class="funfact-item text-center mb-sm-40">
+                <i class="funfact-icon fa fa-th-large text-theme-colored1"></i>
+                <h2 class="text-white mt-0 mb-10 sx-funfact-num">
+                  <span data-animation-duration="2000" data-value="33" class="counter animate-number">0</span>+
+                </h2>
+                <p class="text-white title mb-0">{{ __('site.stat_modules') }}</p>
+              </div>
+            </div>
+            <div class="col-md-6 col-lg-3 col-xl-3">
+              <div class="funfact-item text-center">
+                <i class="funfact-icon fa fa-users text-theme-colored1"></i>
+                <h2 class="text-white mt-0 mb-10 sx-funfact-num">
+                  <span data-animation-duration="2000" data-value="300" class="counter animate-number">0</span>+
+                </h2>
+                <p class="text-white title mb-0">{{ __('site.stat_teachers') }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {{-- Section: Pricing (home) --}}
+    <section class="sx-home-pricing" id="pricing">
+      <div class="container">
+        <div class="section-title text-center mb-40">
+          <h2 class="text-uppercase line-bottom line-bottom-theme-colored1 d-inline-block sx-home-pricing__title">{{ __('pricing.title') }}</h2>
+          <p class="sx-home-pricing__lead mx-auto mb-0">{{ __('pricing.lead') }}</p>
+        </div>
         <div class="row justify-content-center">
-            <div class="col-lg-10">
-                <div class="title text-center mb-40">
-                    <h2 id="sx-seo-home-heading" class="mb-10">{{ __('site.seo_heading') }}</h2>
-                    <p class="sx-seo-home-lead">
-                        {{ __('site.seo_lead') }}
-                    </p>
-                </div>
-                <div class="row sx-seo-home-grid">
-                    <div class="col-md-6 mb-30">
-                        <div class="sx-home-seo-card">
-                            <h3>{{ __('site.seo_why_title') }}</h3>
-                            <p>{{ __('site.seo_why_p1') }}</p>
-                            <p>{{ __('site.seo_why_p2') }}</p>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-30">
-                        <div class="sx-home-seo-card">
-                            <h3>{{ __('site.seo_use_title') }}</h3>
-                            <p>
-                                {{ __('site.seo_use_intro') }}
-                                <a href="{{ route('site.modules') }}">{{ __('site.modules') }}</a>,
-                                <a href="{{ route('pricing') }}">{{ __('site.pricing') }}</a>,
-                                {{ __('site.seo_use_or') }}
-                                <a href="{{ route('online_application') }}">{{ __('site.online_application') }}</a>.
-                            </p>
-                            <ul class="sx-seo-home-list">
-                                <li>{{ __('site.seo_list_1') }}</li>
-                                <li>{{ __('site.seo_list_2') }}</li>
-                                <li>{{ __('site.seo_list_3') }}</li>
-                                <li>{{ __('site.seo_list_4') }}</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
+          <div class="col-md-6 col-lg-5 mb-30">
+            <article class="sx-home-price-card sx-home-price-card--featured">
+              <span class="sx-home-price-card__tag">{{ __('pricing.one_time') }}</span>
+              <h3>{{ __('pricing.fee_title') }}</h3>
+              <p>{{ __('pricing.fee_desc') }}</p>
+              <div class="sx-home-price-card__amount">TZS 1,000,000</div>
+              <small>{{ __('pricing.one_time_setup') }}</small>
+              <ul class="sx-home-price-card__list">
+                <li>{{ __('pricing.inst1_label') }}</li>
+                <li>{{ __('pricing.inst3_label') }}</li>
+                <li>{{ __('pricing.inst4_label') }}</li>
+                <li>{{ __('pricing.inst5_label') }}</li>
+              </ul>
+            </article>
+          </div>
+          <div class="col-md-6 col-lg-5 mb-30">
+            <article class="sx-home-price-card">
+              <span class="sx-home-price-card__tag sx-home-price-card__tag--soft">{{ __('pricing.monthly') }}</span>
+              <h3>{{ __('pricing.sub_title') }}</h3>
+              <p>{{ __('pricing.sub_desc') }}</p>
+              <div class="sx-home-price-card__amount">TZS 500</div>
+              <small>{{ __('pricing.per_student_month') }}</small>
+              <ul class="sx-home-price-card__list">
+                <li>{{ __('pricing.mon1_label') }}</li>
+                <li>{{ __('pricing.mon2_label') }}</li>
+                <li>{{ __('pricing.mon3_label') }}</li>
+                <li>{{ __('pricing.mon4_label') }}</li>
+              </ul>
+            </article>
+          </div>
         </div>
-    </div>
-</section>
+        <div class="sx-price-calc" id="sxPriceCalc" data-rate="500">
+          <div class="sx-price-calc__head text-center">
+            <p class="sx-price-calc__kicker mb-1">{{ __('pricing.calc_kicker') }}</p>
+            <h3 class="sx-price-calc__title">{{ __('pricing.calc_title') }}</h3>
+            <p class="sx-price-calc__hint mb-0">{{ __('pricing.calc_hint') }}</p>
+          </div>
+          <div class="row g-3 align-items-end sx-price-calc__row">
+            <div class="col-md-4">
+              <label class="sx-price-calc__label" for="sxPriceStudents">{{ __('pricing.calc_students') }}</label>
+              <div class="sx-price-calc__input-wrap">
+                <i class="fa fa-graduation-cap" aria-hidden="true"></i>
+                <input id="sxPriceStudents" type="number" min="1" step="1" value="200" inputmode="numeric" class="form-control sx-price-calc__input">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <span class="sx-price-calc__label">{{ __('pricing.calc_period') }}</span>
+              <div class="sx-price-calc__period" role="group" aria-label="{{ __('pricing.calc_period') }}">
+                <button type="button" class="sx-price-calc__period-btn is-active" data-period="month">{{ __('pricing.monthly') }}</button>
+                <button type="button" class="sx-price-calc__period-btn" data-period="year">{{ __('pricing.yearly') }}</button>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <span class="sx-price-calc__label">{{ __('pricing.calc_total') }}</span>
+              <div class="sx-price-calc__total" aria-live="polite">
+                <strong id="sxPriceTotal">TZS 100,000</strong>
+                <small id="sxPriceTotalPeriod">{{ __('pricing.per_month') }}</small>
+              </div>
+            </div>
+          </div>
+          <p class="sx-price-calc__note mb-0 text-center">{{ __('pricing.calc_note') }}</p>
+        </div>
+        <div class="text-center mt-25 mb-10">
+          <a href="{{ route('site.contact') }}" class="btn btn-theme-colored1 btn-circled">{{ __('site.request_quotation') }}</a>
+        </div>
+      </div>
+    </section>
 
-<section class="sx-home-cta relative section-gap">
-    <div class="sx-home-cta__bg" style="background-image: url('{{ asset('images/African_science_academy_banner_1600-x-650.webp') }}');" aria-hidden="true"></div>
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8 text-center sx-home-cta__content">
-                <p class="sx-home-eyebrow">{{ __('site.next_step') }}</p>
-                <h2 class="text-white">{{ __('site.ready_digitize') }}</h2>
-                <p class="text-white">
-                    {{ __('site.ready_digitize_desc') }}
-                </p>
-                <div class="sx-home-hero-actions sx-home-hero-actions--center">
-                    <a class="primary-btn wh text-uppercase" href="{{ route('site.contact') }}">{{ __('site.contact_us') }}</a>
-                    <a class="primary-btn text-uppercase" href="{{ route('pricing') }}">{{ __('site.see_pricing') }}</a>
-                </div>
-            </div>
+    {{-- Section: Trusted by school leaders --}}
+    <section class="sx-testimonials">
+      <div class="container">
+        <div class="section-title text-center mb-40 sx-section-head">
+          <h2 class="text-uppercase line-bottom line-bottom-theme-colored1 d-inline-block sx-section-head__title">{{ __('site.testimonials_eyebrow') }}</h2>
+          <p class="sx-section-head__lead mx-auto mb-0">{{ __('site.trusted_leaders_desc') }}</p>
         </div>
-    </div>
-</section>
+        <div id="sxTestimonialsOwl" class="owl-carousel owl-theme sx-testimonials-owl">
+          @foreach($reviews as $review)
+          <div class="sx-testimonial-card">
+            <div class="sx-testimonial-card__top">
+              <div class="sx-testimonial-card__avatar" aria-hidden="true">
+                <i class="fa fa-user"></i>
+              </div>
+              <span class="sx-testimonial-card__quote-mark"><i class="fa fa-quote-right"></i></span>
+            </div>
+            <h4 class="sx-testimonial-card__name">{{ $review['name'] }}</h4>
+            <p class="sx-testimonial-card__role">{{ $review['role'] }}</p>
+            <span class="sx-testimonial-card__label">{{ __('site.client_label') }}</span>
+            <div class="sx-testimonial-card__divider"><i class="fa fa-quote-left"></i></div>
+            <p class="sx-testimonial-card__text">"{{ $review['quote'] }}"</p>
+          </div>
+          @endforeach
+        </div>
+      </div>
+    </section>
 
-<section class="sx-team-spotlight section-gap" id="team" style="--sx-team-bg: url('{{ asset('img/carousel-1.jpg') }}')">
-    <div class="sx-team-spotlight__bg" aria-hidden="true"></div>
-    <div class="container position-relative">
-        <div class="row d-flex justify-content-center">
-            <div class="menu-content pb-50 col-lg-8">
-                <div class="title text-center sx-team-spotlight__head">
-                    <span class="sx-team-eyebrow">{{ __('site.crafted_by') }}</span>
-                    <h2 class="mb-10">{{ __('site.team_behind') }}</h2>
-                    <p>{{ __('site.team_behind_desc') }}</p>
-                </div>
+    {{-- Section: Working process (4 steps) --}}
+    <section class="sx-process" aria-labelledby="sx-process-heading">
+      <div class="container">
+        <div class="section-title text-center mb-40 sx-section-head">
+          <h2 id="sx-process-heading" class="text-uppercase line-bottom line-bottom-theme-colored1 d-inline-block sx-section-head__title">{{ __('site.process_eyebrow') }}</h2>
+          <p class="sx-section-head__lead mx-auto mb-0">{{ __('site.process_lead') }}</p>
+        </div>
+        <div class="sx-process__track">
+          <div class="sx-process__step">
+            <div class="sx-process__icon-wrap">
+              <span class="sx-process__num">1</span>
+              <span class="sx-process__icon"><i class="fa fa-laptop"></i></span>
             </div>
-        </div>
-        <div class="row sx-team-grid justify-content-center align-items-end">
-            @foreach($teamMembers as $member)
-                @include('site.partials.team-card', ['member' => $member, 'variant' => 'home'])
-            @endforeach
-        </div>
-        <div class="row">
-            <div class="col-12 text-center mt-30">
-                <a href="{{ route('site.team') }}" class="primary-btn text-uppercase sx-team-cta">{{ __('site.meet_full_team') }}</a>
-            </div>
-        </div>
-    </div>
-</section>
+            <h4 class="sx-process__name">{{ __('site.process_1_title') }}</h4>
+            <p class="sx-process__desc">{{ __('site.process_1_text') }}</p>
+          </div>
 
-<section class="review-area section-gap sx-reviews-showcase" style="--sx-reviews-bg: url('{{ asset('images/SS.jpg') }}')">
-    <div class="container">
-        <div class="row d-flex justify-content-center">
-            <div class="menu-content pb-70 col-lg-8">
-                <div class="title text-center">
-                    <p class="sx-home-section-kicker">{{ __('site.social_proof') }}</p>
-                    <h2 class="mb-10">{{ __('site.trusted_leaders') }}</h2>
-                    <p>{{ __('site.trusted_leaders_desc') }}</p>
-                </div>
+          <div class="sx-process__step">
+            <div class="sx-process__icon-wrap">
+              <span class="sx-process__num">2</span>
+              <span class="sx-process__icon"><i class="fa fa-calendar"></i></span>
             </div>
-        </div>
-        <div class="row">
-            @foreach($reviews as $review)
-                <div class="col-12 col-lg-4">
-                    <article class="sx-home-review">
-                        <div class="star" aria-label="5 star rating">
-                            <span class="fa fa-star checked"></span>
-                            <span class="fa fa-star checked"></span>
-                            <span class="fa fa-star checked"></span>
-                            <span class="fa fa-star checked"></span>
-                            <span class="fa fa-star checked"></span>
-                        </div>
-                        <p>{{ $review['quote'] }}</p>
-                        <h4>{{ $review['role'] }}</h4>
-                        <span>{{ $review['place'] }}</span>
-                    </article>
-                </div>
-            @endforeach
-        </div>
-    </div>
-</section>
+            <h4 class="sx-process__name">{{ __('site.process_2_title') }}</h4>
+            <p class="sx-process__desc">{{ __('site.process_2_text') }}</p>
+          </div>
 
-<section class="cta-two-area">
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-8 cta-left">
-                <h2>{{ __('site.start_today') }}</h2>
+          <div class="sx-process__step">
+            <div class="sx-process__icon-wrap">
+              <span class="sx-process__num">3</span>
+              <span class="sx-process__icon"><i class="fa fa-file-text-o"></i></span>
             </div>
-            <div class="col-lg-4 cta-right">
-                <a class="primary-btn wh" href="{{ route('online_application') }}">{{ __('site.online_application') }}</a>
+            <h4 class="sx-process__name">{{ __('site.process_3_title') }}</h4>
+            <p class="sx-process__desc">{{ __('site.process_3_text') }}</p>
+          </div>
+
+          <div class="sx-process__step">
+            <div class="sx-process__icon-wrap">
+              <span class="sx-process__num">4</span>
+              <span class="sx-process__icon"><i class="fa fa-rocket"></i></span>
             </div>
+            <h4 class="sx-process__name">{{ __('site.process_4_title') }}</h4>
+            <p class="sx-process__desc">{{ __('site.process_4_text') }}</p>
+          </div>
         </div>
-    </div>
-</section>
+      </div>
+    </section>
+
+    {{-- Clients / CTA divider (layout2) --}}
+    <section class="bg-theme-colored1">
+      <div class="container pt-40 pb-40">
+        <div class="row align-items-center">
+          <div class="col-lg-8 mb-20 mb-lg-0">
+            <h2 class="text-white text-uppercase mt-0 mb-0">{{ __('site.start_today') }}</h2>
+          </div>
+          <div class="col-lg-4 text-lg-end">
+            <a class="btn btn-theme-colored2 btn-circled btn-lg text-white" href="{{ route('online_application') }}">{{ __('site.online_application') }}</a>
+          </div>
+        </div>
+      </div>
+    </section>
 @endsection
 
-@push('styles')
-<style>
-.sx-home-banner {
-    position: relative;
-    overflow: hidden;
-}
-.sx-home-banner .fullscreen {
-    padding-top: 130px;
-    padding-bottom: 48px;
-    box-sizing: border-box;
-    align-items: center;
-}
-.sx-home-banner .banner-content {
-    overflow: visible;
-}
-.sx-home-banner .banner-content h1 {
-    line-height: 1.28 !important;
-    overflow: visible;
-    padding-top: 4px;
-    margin-bottom: 14px;
-}
-.sx-home-banner__glow {
-    position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 1;
-}
-.sx-home-banner__glow--a {
-    width: 380px; height: 380px;
-    top: -100px; right: -80px;
-    background: radial-gradient(circle, rgba(255,255,255,0.16) 0%, transparent 70%);
-}
-.sx-home-banner__glow--b {
-    width: 300px; height: 300px;
-    bottom: -120px; left: -60px;
-    background: radial-gradient(circle, rgba(196,58,58,0.35) 0%, transparent 70%);
-}
-.sx-home-banner .container { position: relative; z-index: 2; }
-.sx-home-eyebrow {
-    display: inline-block;
-    color: #ffd6d6;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-}
-.sx-home-lead {
-    color: #eee;
-    max-width: 640px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-    font-size: 15px;
-    line-height: 1.75;
-}
-.sx-home-hero-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    margin-top: 8px;
-}
-.sx-home-hero-actions--center { justify-content: center; }
-.sx-home-hero-actions .primary-btn {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    height: 44px !important;
-    min-height: 44px !important;
-    line-height: 1 !important;
-    padding: 0 26px !important;
-    margin: 0 !important;
-    box-sizing: border-box;
-}
+@push('scripts')
+<script>
+(function () {
+  var tries = 0;
+  function initSxHero() {
+    var $ = window.jQuery;
+    if (!$ || !$.fn || !$.fn.owlCarousel) return false;
+    var $hero = $('#sxHeroOwl');
+    if (!$hero.length) return true;
+    if ($hero.hasClass('owl-loaded') || $hero.data('sxHeroReady')) return true;
 
-.sx-home-pillars {
-    margin-top: -42px;
-    position: relative;
-    z-index: 3;
-    padding-bottom: 10px;
-}
-.sx-home-pillar {
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-    background: #fff;
-    border: 1px solid #f0dada;
-    padding: 20px 16px;
-    height: 100%;
-    text-decoration: none !important;
-    box-shadow: 0 10px 28px rgba(148,0,0,0.06);
-    transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
-}
-.sx-home-pillar:hover {
-    transform: translateY(-3px);
-    border-color: #e8b4b4;
-    box-shadow: 0 14px 32px rgba(148,0,0,0.12);
-}
-.sx-home-pillar__icon {
-    width: 46px; height: 46px;
-    display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(145deg, #940000, #c43a3a);
-    color: #fff;
-    flex-shrink: 0;
-}
-.sx-home-pillar__body {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-}
-.sx-home-pillar__body strong {
-    color: #222;
-    font-size: 16px;
-    font-weight: 800;
-}
-.sx-home-pillar__body span {
-    color: #666;
-    font-size: 13px;
-    line-height: 1.55;
-}
-.sx-home-pillar__body em {
-    font-style: normal;
-    color: #940000;
-    font-size: 13px;
-    font-weight: 700;
-    margin-top: 4px;
-}
+    $hero.owlCarousel({
+      items: 1,
+      loop: true,
+      margin: 0,
+      nav: true,
+      dots: true,
+      autoplay: true,
+      autoplayTimeout: 5500,
+      autoplayHoverPause: true,
+      autoplaySpeed: 900,
+      smartSpeed: 900,
+      slideTransition: 'ease-in-out',
+      mouseDrag: true,
+      touchDrag: true,
+      pullDrag: true,
+      navText: [
+        '<i class="fa fa-chevron-left"></i>',
+        '<i class="fa fa-chevron-right"></i>'
+      ]
+    });
+    $hero.data('sxHeroReady', true);
+    return true;
+  }
 
-.sx-home-section-kicker {
-    color: #940000 !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    margin-bottom: 8px !important;
-}
-.sx-home-info-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    margin-top: 22px;
-}
-.sx-home-info-actions .primary-btn {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    height: 42px !important;
-    min-height: 42px !important;
-    max-height: 42px !important;
-    line-height: 1 !important;
-    padding: 0 28px !important;
-    margin: 0 !important;
-    box-sizing: border-box;
-    flex: 0 0 auto;
-}
-.sx-home-seo-card {
-    border: 1px solid #f0dada;
-    background: linear-gradient(180deg, #fff 0%, #FFF5F5 100%);
-    padding: 24px 20px;
-    height: 100%;
-}
+  function initSxTestimonials() {
+    var $ = window.jQuery;
+    if (!$ || !$.fn || !$.fn.owlCarousel) return false;
+    var $owl = $('#sxTestimonialsOwl');
+    if (!$owl.length) return true;
+    if ($owl.hasClass('owl-loaded') || $owl.data('sxTestimonialsReady')) return true;
 
-.sx-home-cta {
-    position: relative;
-    overflow: hidden;
-    padding-top: 72px !important;
-    padding-bottom: 72px !important;
-}
-.sx-home-cta__bg {
-    position: absolute;
-    inset: 0;
-    background-position: center;
-    background-size: cover;
-    background-repeat: no-repeat;
-}
-.sx-home-cta__bg::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(148,0,0,.92), rgba(4,9,30,.88));
-}
-.sx-home-cta__content {
-    position: relative;
-    z-index: 2;
-}
-.sx-home-cta__content h2 {
-    font-weight: 800;
-    margin-bottom: 12px;
-}
-.sx-home-cta__content > p.text-white {
-    max-width: 560px;
-    margin: 0 auto 18px;
-    opacity: .92;
-}
+    $owl.owlCarousel({
+      loop: true,
+      margin: 24,
+      nav: false,
+      dots: true,
+      autoplay: true,
+      autoplayTimeout: 5000,
+      autoplayHoverPause: true,
+      smartSpeed: 700,
+      responsive: {
+        0: { items: 1 },
+        768: { items: 2 },
+        992: { items: 3 }
+      }
+    });
+    $owl.data('sxTestimonialsReady', true);
+    return true;
+  }
 
-.sx-home-review {
-    background: #fff;
-    border: 1px solid #f0dada;
-    padding: 28px 22px;
-    margin-bottom: 20px;
-    height: calc(100% - 20px);
-    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
-}
-.sx-home-review:hover {
-    border-color: #e8b4b4;
-    box-shadow: 0 12px 28px rgba(148,0,0,0.08);
-    transform: translateY(-2px);
-}
-.sx-home-review .star { margin-bottom: 12px; }
-.sx-home-review .star .fa { color: #c43a3a; }
-.sx-home-review p {
-    color: #555;
-    font-size: 14px;
-    line-height: 1.7;
-    margin-bottom: 16px;
-}
-.sx-home-review h4 {
-    color: #940000;
-    font-weight: 800;
-    font-size: 16px;
-    margin-bottom: 4px;
-}
-.sx-home-review span {
-    color: #777;
-    font-size: 13px;
-}
+  function boot() {
+    var heroOk = initSxHero();
+    var reviewsOk = initSxTestimonials();
+    if (heroOk && reviewsOk) return;
+    tries += 1;
+    if (tries < 25) setTimeout(boot, 200);
+  }
 
-@media (max-width: 991.98px) {
-    .sx-home-pillars { margin-top: -28px; }
-    .sx-home-banner .fullscreen { padding-top: 120px; }
-}
-@media (max-width: 575.98px) {
-    .sx-home-hero-actions .primary-btn { width: 100%; text-align: center; }
-    .sx-home-banner .banner-content h1 { font-size: 28px !important; line-height: 1.3 !important; }
-    .sx-home-info-actions { width: 100%; }
-    .sx-home-info-actions .primary-btn {
-        width: 100%;
-        flex: 1 1 100%;
+  function initSxPriceCalc() {
+    var root = document.getElementById('sxPriceCalc');
+    if (!root || root.getAttribute('data-ready') === '1') return;
+    root.setAttribute('data-ready', '1');
+
+    var rate = parseInt(root.getAttribute('data-rate') || '500', 10) || 500;
+    var input = document.getElementById('sxPriceStudents');
+    var totalEl = document.getElementById('sxPriceTotal');
+    var periodEl = document.getElementById('sxPriceTotalPeriod');
+    var period = 'month';
+    var perMonthLabel = @json(__('pricing.per_month'));
+    var perYearLabel = @json(__('pricing.per_year'));
+
+    function formatTzs(n) {
+      try {
+        return 'TZS ' + Number(n).toLocaleString('en-US');
+      } catch (e) {
+        return 'TZS ' + String(n);
+      }
     }
-}
-</style>
+
+    function recalc() {
+      var students = parseInt((input && input.value) || '0', 10);
+      if (!isFinite(students) || students < 1) students = 0;
+      var monthly = students * rate;
+      var amount = period === 'year' ? monthly * 12 : monthly;
+      if (totalEl) totalEl.textContent = formatTzs(amount);
+      if (periodEl) periodEl.textContent = period === 'year' ? perYearLabel : perMonthLabel;
+    }
+
+    if (input) {
+      input.addEventListener('input', recalc);
+      input.addEventListener('change', recalc);
+    }
+    root.querySelectorAll('.sx-price-calc__period-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        root.querySelectorAll('.sx-price-calc__period-btn').forEach(function (b) {
+          b.classList.remove('is-active');
+        });
+        btn.classList.add('is-active');
+        period = btn.getAttribute('data-period') === 'year' ? 'year' : 'month';
+        recalc();
+      });
+    });
+    recalc();
+  }
+
+  if (window.jQuery) {
+    window.jQuery(boot);
+  } else if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSxPriceCalc);
+  } else {
+    initSxPriceCalc();
+  }
+})();
+</script>
 @endpush
 
 @push('schema')
@@ -554,22 +625,6 @@
                 'acceptedAnswer' => [
                     '@type' => 'Answer',
                     'text' => 'ShuleXpert is a better school management system and school software for Tanzania and worldwide: fees with control numbers, biometric attendance, exams and results, parent portal, timetable, and online admission, one school system for admin, teachers, staff and parents.',
-                ],
-            ],
-            [
-                '@type' => 'Question',
-                'name' => 'Mfumo wa taaluma na mifumo ya shule inajumuisha nini?',
-                'acceptedAnswer' => [
-                    '@type' => 'Answer',
-                    'text' => 'Mfumo wa taaluma wa ShuleXpert unajumuisha lesson plans, scheme of work, timetable, exams, topic analysis, attendance na parent communication, sehemu ya mifumo bora ya shule Tanzania na duniani.',
-                ],
-            ],
-            [
-                '@type' => 'Question',
-                'name' => 'Is ShuleXpert an alternative if I searched for ShuleSoft or other school systems?',
-                'acceptedAnswer' => [
-                    '@type' => 'Answer',
-                    'text' => 'If you searched for shulesoft, school system, school software, or mfumo wa shule Tanzania, ShuleXpert is a modern school management platform with live modules, mobile access, and EmCa Techonology support.',
                 ],
             ],
         ],

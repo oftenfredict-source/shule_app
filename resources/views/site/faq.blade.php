@@ -25,153 +25,112 @@
 @endphp
 
 @section('content')
-<section class="banner-area relative about-banner sx-faq-banner" id="home">
-    <div class="overlay overlay-bg"></div>
-    <div class="sx-faq-banner__glow sx-faq-banner__glow--a" aria-hidden="true"></div>
-    <div class="sx-faq-banner__glow sx-faq-banner__glow--b" aria-hidden="true"></div>
+<section class="banner-area relative about-banner sx-faq-page-banner" id="home" style="background-image:url('{{ asset('images/faq-hero.jpg') }}')">
+    <div class="sx-faq-page-banner__overlay" aria-hidden="true"></div>
     <div class="container">
         <div class="row d-flex align-items-center justify-content-center">
-            <div class="about-content col-lg-12 text-center">
+            <div class="about-content col-lg-10 text-center">
                 <h1 class="text-white">{{ __('faq.title') }}</h1>
-                <p class="text-white link-nav">
+                <p class="text-white link-nav mb-0">
                     <a href="{{ route('site.home') }}">{{ __('site.home') }}</a>
-                    <span class="lnr lnr-arrow-right"></span>
+                    <span class="fa fa-angle-right mx-1"></span>
                     <a href="{{ route('site.faq') }}">{{ __('site.faq') }}</a>
                 </p>
-                <p class="sx-faq-lead text-white">
-                    {{ __('faq.lead') }}
-                </p>
             </div>
         </div>
     </div>
 </section>
 
-<section class="sx-faq-highlights">
-    <div class="container">
+<section class="sx-faq-page-wrap">
+    <div class="container sx-faq-block">
+        <div class="sx-faq-intro-lead text-center">
+            <p class="mb-0">{{ __('faq.lead') }}</p>
+        </div>
+    </div>
+
+    <div class="container sx-faq-block">
         <div class="row">
-            <div class="col-lg-4 col-md-4 mb-3 mb-lg-0">
-                <a href="{{ route('pricing') }}" class="sx-faq-highlight">
-                    <span class="sx-faq-highlight__icon"><i class="fa fa-tag"></i></span>
-                    <span class="sx-faq-highlight__body">
-                        <strong>Transparent pricing</strong>
-                        <span>TZS 1M install, TZS 500 / student</span>
-                    </span>
+            <div class="col-md-4 mb-30">
+                <a href="{{ route('pricing') }}" class="sx-faq-quick-card">
+                    <span class="sx-faq-quick-card__icon"><i class="fa fa-tag"></i></span>
+                    <strong>{{ __('faq.hl1_title') }}</strong>
+                    <span>{{ __('faq.hl1_text') }}</span>
                 </a>
             </div>
-            <div class="col-lg-4 col-md-4 mb-3 mb-lg-0">
-                <a href="{{ route('site.modules') }}" class="sx-faq-highlight">
-                    <span class="sx-faq-highlight__icon"><i class="fa fa-th-large"></i></span>
-                    <span class="sx-faq-highlight__body">
-                        <strong>Full module suite</strong>
-                        <span>Fees, exams, attendance &amp; more</span>
-                    </span>
+            <div class="col-md-4 mb-30">
+                <a href="{{ route('site.modules') }}" class="sx-faq-quick-card">
+                    <span class="sx-faq-quick-card__icon"><i class="fa fa-th-large"></i></span>
+                    <strong>{{ __('faq.hl2_title') }}</strong>
+                    <span>{{ __('faq.hl2_text') }}</span>
                 </a>
             </div>
-            <div class="col-lg-4 col-md-4">
-                <a href="{{ route('site.contact') }}" class="sx-faq-highlight">
-                    <span class="sx-faq-highlight__icon"><i class="fa fa-life-ring"></i></span>
-                    <span class="sx-faq-highlight__body">
-                        <strong>Local support</strong>
-                        <span>Moshi, Kilimanjaro, EmCa</span>
-                    </span>
+            <div class="col-md-4 mb-30">
+                <a href="{{ route('site.contact') }}" class="sx-faq-quick-card">
+                    <span class="sx-faq-quick-card__icon"><i class="fa fa-life-ring"></i></span>
+                    <strong>{{ __('faq.hl3_title') }}</strong>
+                    <span>{{ __('faq.hl3_text') }}</span>
                 </a>
             </div>
         </div>
     </div>
-</section>
 
-<section class="sx-faq-page section-gap">
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-8 mb-40 mb-lg-0">
-                <div class="sx-faq-toolbar">
-                    <label class="sx-faq-search" for="faqSearch">
-                        <i class="fa fa-search" aria-hidden="true"></i>
-                        <input type="search" id="faqSearch" placeholder="Search questionsâ€¦" autocomplete="off">
-                    </label>
-                    <div class="sx-faq-filters" role="tablist" aria-label="FAQ categories">
-                        @foreach($categories as $key => $label)
-                            <button type="button"
-                                    class="sx-faq-filter{{ $key === 'all' ? ' is-active' : '' }}"
-                                    data-cat="{{ $key }}"
-                                    role="tab"
-                                    aria-selected="{{ $key === 'all' ? 'true' : 'false' }}">
-                                {{ $label }}
-                            </button>
+    <div class="container sx-faq-block sx-faq-block--last">
+        <div class="row g-4 align-items-start">
+            <div class="col-lg-8">
+                <div class="sx-faq-main-panel">
+                    <div class="sx-faq-toolbar">
+                        <label class="sx-faq-search" for="faqSearch">
+                            <i class="fa fa-search" aria-hidden="true"></i>
+                            <input type="search" id="faqSearch" placeholder="{{ __('faq.search_ph') }}" autocomplete="off">
+                        </label>
+                        <div class="sx-faq-filters" role="tablist" aria-label="FAQ categories">
+                            @foreach($categories as $key => $label)
+                                <button type="button"
+                                        class="sx-faq-filter{{ $key === 'all' ? ' is-active' : '' }}"
+                                        data-cat="{{ $key }}"
+                                        role="tab"
+                                        aria-selected="{{ $key === 'all' ? 'true' : 'false' }}">
+                                    {{ $label }}
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="sx-faq-list" id="faqList">
+                        @foreach($faqs as $i => $item)
+                            <article class="sx-faq-item{{ $i === 0 ? ' is-open' : '' }}"
+                                     data-cat="{{ $item['cat'] }}"
+                                     data-q="{{ strtolower($item['q'].' '.$item['a']) }}">
+                                <button type="button" class="sx-faq-item__q" aria-expanded="{{ $i === 0 ? 'true' : 'false' }}">
+                                    <span class="sx-faq-item__icon" aria-hidden="true"><i class="fa {{ $item['icon'] }}"></i></span>
+                                    <span class="sx-faq-item__text">
+                                        <span class="sx-faq-item__cat">{{ $categories[$item['cat']] ?? $item['cat'] }}</span>
+                                        <span class="sx-faq-item__title">{{ $item['q'] }}</span>
+                                    </span>
+                                    <span class="sx-faq-item__chev" aria-hidden="true"><i class="fa fa-plus"></i></span>
+                                </button>
+                                <div class="sx-faq-item__a" @if($i !== 0) hidden @endif>
+                                    <p>{{ $item['a'] }}</p>
+                                </div>
+                            </article>
                         @endforeach
                     </div>
+                    <p class="sx-faq-empty" id="faqEmpty" hidden>{{ __('faq.empty') }}</p>
                 </div>
-
-                <div class="sx-faq-list" id="faqList">
-                    @foreach($faqs as $i => $item)
-                        <article class="sx-faq-item{{ $i === 0 ? ' is-open' : '' }}"
-                                 data-cat="{{ $item['cat'] }}"
-                                 data-q="{{ strtolower($item['q'].' '.$item['a']) }}">
-                            <button type="button" class="sx-faq-item__q" aria-expanded="{{ $i === 0 ? 'true' : 'false' }}">
-                                <span class="sx-faq-item__icon" aria-hidden="true"><i class="fa {{ $item['icon'] }}"></i></span>
-                                <span class="sx-faq-item__text">
-                                    <span class="sx-faq-item__cat">{{ $categories[$item['cat']] ?? $item['cat'] }}</span>
-                                    <span class="sx-faq-item__title">{{ $item['q'] }}</span>
-                                </span>
-                                <span class="sx-faq-item__chev" aria-hidden="true"><i class="fa fa-plus"></i></span>
-                            </button>
-                            <div class="sx-faq-item__a" @if($i !== 0) hidden @endif>
-                                <p>{{ $item['a'] }}</p>
-                            </div>
-                        </article>
-                    @endforeach
-                </div>
-                <p class="sx-faq-empty" id="faqEmpty" hidden>No questions match your search. Try another keyword or contact us.</p>
             </div>
 
-            <aside class="col-lg-4">
-                <div class="sx-faq-aside">
-                    <div class="sx-faq-aside__card sx-faq-aside__card--primary">
-                        <p class="sx-faq-aside__eyebrow">{{ __('faq.aside_eyebrow') }}</p>
+            <div class="col-lg-4">
+                <div class="sx-faq-side-wrap">
+                    <div class="sx-faq-side-cta">
+                        <p class="sx-faq-side-cta__eyebrow">{{ __('faq.aside_eyebrow') }}</p>
                         <h3>{{ __('faq.aside_title') }}</h3>
-                        <p>{{ __('faq.aside_text') }}</p>
-                        <a href="{{ route('site.contact') }}" class="primary-btn text-uppercase">{{ __('site.ask_question') }}</a>
-                        <a href="tel:{{ config('shulexpert.phone_e164') }}" class="sx-faq-aside__link">
+                        <p>{{ __('faq.aside_text_short') }}</p>
+                        <a href="{{ route('site.contact') }}" class="btn btn-light btn-block">{{ __('site.ask_question') }}</a>
+                        <a href="tel:{{ config('shulexpert.phone_e164') }}" class="sx-faq-side-cta__link">
                             <i class="fa fa-phone"></i> {{ config('shulexpert.phone_display') }}
                         </a>
-                        <a href="mailto:emca@emca.tech" class="sx-faq-aside__link">
-                            <i class="fa fa-envelope"></i> emca@emca.tech
-                        </a>
-                    </div>
-
-                    <div class="sx-faq-aside__card">
-                        <h4>Quick links</h4>
-                        <ul class="sx-faq-aside__links">
-                            <li><a href="{{ route('pricing') }}"><i class="fa fa-angle-right"></i> View pricing</a></li>
-                            <li><a href="{{ route('site.modules') }}"><i class="fa fa-angle-right"></i> Browse modules</a></li>
-                            <li><a href="{{ route('site.register_school') }}"><i class="fa fa-angle-right"></i> Register your school</a></li>
-                            <li><a href="{{ route('site.download') }}"><i class="fa fa-angle-right"></i> Download the app</a></li>
-                        </ul>
-                    </div>
-
-                    <div class="sx-faq-aside__card sx-faq-aside__card--soft">
-                        <h4>At a glance</h4>
-                        <ul class="sx-point-list">
-                            <li>One-time install: TZS 1,000,000</li>
-                            <li>Monthly: TZS 500 / student</li>
-                            <li>Preschool â†’ A-level ready</li>
-                            <li>ZKTeco biometric support</li>
-                        </ul>
                     </div>
                 </div>
-            </aside>
-        </div>
-    </div>
-</section>
-
-<section class="cta-two-area">
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-8 cta-left">
-                <h1>Ready to digitize your school?</h1>
-            </div>
-            <div class="col-lg-4 cta-right">
-                <a class="primary-btn wh" href="{{ route('site.register_school') }}">Register School</a>
             </div>
         </div>
     </div>
@@ -180,122 +139,108 @@
 
 @push('styles')
 <style>
-.sx-faq-banner.about-banner {
-    min-height: 340px !important;
-    padding-top: 168px !important;
-    padding-bottom: 72px !important;
+.sx-public-site .banner-area.sx-faq-page-banner.about-banner,
+.sx-faq-page-banner.about-banner {
+    min-height: 300px !important;
+    height: 300px !important;
+    padding: 0 !important;
     position: relative;
     overflow: hidden;
+    background-color: #5c0000 !important;
+    background-size: cover !important;
+    background-position: center 35% !important;
+    background-repeat: no-repeat !important;
+    display: flex;
+    align-items: center;
 }
-.sx-faq-banner__glow {
+.sx-faq-page-banner__overlay {
     position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
+    inset: 0;
+    background: linear-gradient(120deg, rgba(92,0,0,.58) 0%, rgba(148,0,0,.42) 55%, rgba(26,10,10,.35) 100%);
     z-index: 1;
 }
-.sx-faq-banner__glow--a {
-    width: 320px; height: 320px;
-    top: -80px; right: -60px;
-    background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
-}
-.sx-faq-banner__glow--b {
-    width: 260px; height: 260px;
-    bottom: -100px; left: -40px;
-    background: radial-gradient(circle, rgba(196,58,58,0.35) 0%, transparent 70%);
-}
-.sx-faq-banner .container { position: relative; z-index: 2; }
-.sx-faq-eyebrow {
-    display: inline-block;
-    color: #ffd6d6;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    margin-bottom: 10px;
-}
-.sx-faq-banner .about-content h1 {
-    font-size: 38px;
+.sx-faq-page-banner .container { position: relative; z-index: 2; width: 100%; }
+.sx-faq-page-banner .about-content h1 {
+    font-size: 30px;
     font-weight: 800;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
-.sx-faq-lead {
-    max-width: 620px;
-    margin: 14px auto 0;
-    opacity: .92;
-    font-size: 15px;
+.sx-faq-page-banner .link-nav a { color: #fff !important; }
+
+.sx-faq-page-wrap > .container.sx-faq-block {
+    padding-top: 48px !important;
+    padding-bottom: 0 !important;
+}
+.sx-faq-page-wrap > .container.sx-faq-block.sx-faq-block--last {
+    padding-bottom: 90px !important;
+}
+.sx-faq-page-wrap { padding-bottom: 20px; }
+
+.sx-faq-intro-lead {
+    max-width: 760px;
+    margin: 0 auto;
+    background: linear-gradient(160deg, #fff 0%, #fff8f8 100%);
+    border: 1px solid #f0e4e4;
+    border-radius: 14px;
+    padding: 22px 28px;
+    box-shadow: 0 8px 22px rgba(148,0,0,.06);
+    color: #444;
+    font-size: 16px;
     line-height: 1.7;
 }
 
-.sx-faq-highlights {
-    margin-top: -36px;
-    position: relative;
-    z-index: 3;
-    padding-bottom: 8px;
-}
-.sx-faq-highlight {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    background: #fff;
-    border: 1px solid #f0dada;
-    padding: 18px 16px;
-    text-decoration: none !important;
-    height: 100%;
-    transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
-    box-shadow: 0 10px 28px rgba(148,0,0,0.06);
-}
-.sx-faq-highlight:hover {
-    transform: translateY(-3px);
-    border-color: #e8b4b4;
-    box-shadow: 0 14px 32px rgba(148,0,0,0.12);
-}
-.sx-faq-highlight__icon {
-    width: 46px; height: 46px;
-    display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(145deg, #940000, #c43a3a);
-    color: #fff;
-    flex-shrink: 0;
-}
-.sx-faq-highlight__body {
+.sx-faq-quick-card {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+    gap: 6px;
+    background: #fff;
+    border: 1px solid #f0e4e4;
+    border-radius: 12px;
+    padding: 20px 18px;
+    height: 100%;
+    text-decoration: none !important;
+    box-shadow: 0 8px 20px rgba(0,0,0,.04);
+    transition: transform .25s ease, box-shadow .25s ease;
 }
-.sx-faq-highlight__body strong {
-    color: #222;
-    font-size: 15px;
-    font-weight: 800;
+.sx-faq-quick-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 28px rgba(148,0,0,.1);
 }
-.sx-faq-highlight__body span {
-    color: #666;
-    font-size: 13px;
+.sx-faq-quick-card__icon {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: #940000; color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-bottom: 6px;
 }
+.sx-faq-quick-card strong { color: #1a1a1a; font-size: 15px; font-weight: 800; }
+.sx-faq-quick-card span { color: #666; font-size: 13px; line-height: 1.45; }
 
-.sx-faq-page {
-    padding-top: 40px !important;
-    padding-bottom: 56px !important;
+.sx-faq-main-panel {
+    border: 1px solid #f0e4e4;
+    border-radius: 14px;
+    background: #fff;
+    padding: 22px 20px;
+    box-shadow: 0 8px 20px rgba(0,0,0,.04);
 }
-.sx-faq-toolbar { margin-bottom: 22px; }
+.sx-faq-toolbar { margin-bottom: 18px; }
 .sx-faq-search {
     display: flex;
     align-items: center;
     gap: 10px;
-    border: 1px solid #f0dada;
-    background: linear-gradient(180deg, #fff 0%, #FFF5F5 100%);
-    padding: 0 16px;
-    margin-bottom: 14px;
+    border: 1px solid #f0e4e4;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    background: #fff8f8;
 }
 .sx-faq-search i { color: #940000; }
 .sx-faq-search input {
     border: 0;
-    background: transparent;
+    outline: 0;
     width: 100%;
-    height: 48px;
-    outline: none;
-    font-family: inherit;
+    background: transparent;
     font-size: 14px;
-    color: #222;
+    color: #333;
 }
 .sx-faq-filters {
     display: flex;
@@ -303,167 +248,118 @@
     gap: 8px;
 }
 .sx-faq-filter {
-    border: 1px solid #f0dada;
+    border: 1px solid #f0e4e4;
     background: #fff;
     color: #555;
     font-size: 12px;
     font-weight: 700;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-    padding: 8px 14px;
+    padding: 6px 12px;
+    border-radius: 999px;
     cursor: pointer;
-    transition: background .2s ease, color .2s ease, border-color .2s ease;
 }
-.sx-faq-filter:hover { border-color: #e8b4b4; color: #940000; }
-.sx-faq-filter.is-active {
+.sx-faq-filter.is-active,
+.sx-faq-filter:hover {
     background: #940000;
     border-color: #940000;
     color: #fff;
 }
 
 .sx-faq-item {
-    border: 1px solid #f0dada;
-    background: #fff;
-    margin-bottom: 12px;
+    border: 1px solid #f0e4e4;
+    border-radius: 10px;
+    margin-bottom: 10px;
     overflow: hidden;
-    transition: border-color .2s ease, box-shadow .2s ease;
-}
-.sx-faq-item.is-open,
-.sx-faq-item:hover {
-    border-color: #e8b4b4;
-    box-shadow: 0 8px 24px rgba(148,0,0,0.06);
+    background: #fff;
 }
 .sx-faq-item__q {
     width: 100%;
+    border: 0;
+    background: transparent;
     display: flex;
     align-items: flex-start;
-    gap: 14px;
+    gap: 12px;
     text-align: left;
-    background: transparent;
-    border: 0;
-    padding: 18px 16px;
+    padding: 14px 14px;
     cursor: pointer;
-    font-family: inherit;
 }
 .sx-faq-item__icon {
-    width: 40px; height: 40px;
-    display: flex; align-items: center; justify-content: center;
-    background: #FFF5F5;
-    color: #940000;
-    border: 1px solid #f0dada;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #fff0f0; color: #940000;
+    display: inline-flex; align-items: center; justify-content: center;
     flex-shrink: 0;
-}
-.sx-faq-item.is-open .sx-faq-item__icon {
-    background: linear-gradient(145deg, #940000, #c43a3a);
-    color: #fff;
-    border-color: transparent;
 }
 .sx-faq-item__text { flex: 1; min-width: 0; }
 .sx-faq-item__cat {
     display: block;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .08em;
-    text-transform: uppercase;
     color: #940000;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
     margin-bottom: 4px;
 }
 .sx-faq-item__title {
     display: block;
-    color: #222;
-    font-size: 16px;
-    font-weight: 800;
+    color: #1a1a1a;
+    font-size: 14.5px;
+    font-weight: 700;
     line-height: 1.4;
 }
 .sx-faq-item__chev {
     color: #940000;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    margin-top: 6px;
-    transition: transform .2s ease;
+    margin-top: 8px;
 }
-.sx-faq-item.is-open .sx-faq-item__chev { transform: rotate(45deg); }
+.sx-faq-item.is-open .sx-faq-item__chev i:before { content: "\f068"; }
 .sx-faq-item__a {
-    padding: 0 16px 18px 70px;
+    padding: 0 14px 14px 62px;
 }
 .sx-faq-item__a p {
     margin: 0;
-    color: #555;
+    color: #666;
     font-size: 14px;
-    line-height: 1.75;
-    border-top: 1px solid #f7e6e6;
-    padding-top: 14px;
+    line-height: 1.65;
 }
 .sx-faq-empty {
-    text-align: center;
     color: #777;
-    padding: 28px 12px;
-    border: 1px dashed #f0dada;
-    background: #FFF5F5;
+    font-size: 14px;
+    margin-top: 12px;
 }
 
-.sx-faq-aside { display: flex; flex-direction: column; gap: 16px; }
-.sx-faq-aside__card {
-    border: 1px solid #f0dada;
-    background: #fff;
-    padding: 22px 20px;
+.sx-faq-side-wrap {
+    position: sticky;
+    top: 100px;
 }
-.sx-faq-aside__card--primary {
-    background:
-        linear-gradient(160deg, rgba(148,0,0,0.96) 0%, rgba(92,0,0,0.94) 55%, rgba(26,12,22,0.96) 100%);
-    border-color: transparent;
+.sx-faq-side-cta {
+    border-radius: 14px;
+    background: linear-gradient(165deg, #940000 0%, #7a0000 48%, #5c0000 100%);
+    padding: 20px 18px;
     color: #fff;
+    height: auto;
+    box-shadow: 0 14px 30px rgba(148,0,0,.22);
 }
-.sx-faq-aside__card--primary h3 {
-    color: #fff;
-    font-weight: 800;
-    font-size: 22px;
-    margin: 6px 0 10px;
-}
-.sx-faq-aside__card--primary p { color: rgba(255,255,255,0.88); font-size: 14px; line-height: 1.65; }
-.sx-faq-aside__eyebrow {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .1em;
-    text-transform: uppercase;
+.sx-faq-side-cta__eyebrow {
     color: #ffd6d6;
-    margin: 0;
-}
-.sx-faq-aside__card--primary .primary-btn {
-    display: inline-block;
-    margin: 8px 0 14px;
-    background: #fff !important;
-    color: #940000 !important;
-    border: 0;
-}
-.sx-faq-aside__link {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #ffd6d6 !important;
-    font-size: 13px;
-    margin-top: 8px;
-    text-decoration: none !important;
-}
-.sx-faq-aside__link:hover { color: #fff !important; }
-.sx-faq-aside__card h4 {
-    color: #940000;
+    font-size: 11px;
     font-weight: 800;
-    font-size: 16px;
-    margin-bottom: 12px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
 }
-.sx-faq-aside__links {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+.sx-faq-side-cta h3 {
+    color: #fff;
+    font-weight: 800;
+    font-size: 18px;
+    margin-bottom: 8px;
+    line-height: 1.3;
 }
-.sx-faq-aside__links li { margin-bottom: 8px; }
-.sx-faq-aside__links a {
-    color: #333;
+.sx-faq-side-cta > p {
+    color: rgba(255,255,255,.88);
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 14px;
+}
+.sx-faq-side-cta a {
+    color: #ffd6d6 !important;
     text-decoration: none !important;
     font-size: 14px;
     font-weight: 600;
@@ -471,26 +367,37 @@
     align-items: center;
     gap: 8px;
 }
-.sx-faq-aside__links a:hover { color: #940000; }
-.sx-faq-aside__links i { color: #940000; }
-.sx-faq-aside__card--soft {
-    background: linear-gradient(180deg, #FFF5F5 0%, #fff 100%);
+.sx-faq-side-cta a:hover { color: #fff !important; }
+.sx-faq-side-cta .btn-light {
+    background: #fff !important;
+    color: #940000 !important;
+    font-weight: 800;
+    border: 0;
+    margin-bottom: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
 }
+.sx-faq-side-cta__link { display: inline-flex !important; margin-top: 2px; font-size: 13px !important; }
 
 @media (max-width: 991.98px) {
-    .sx-faq-banner.about-banner {
-        min-height: 300px !important;
-        padding-top: 148px !important;
-        padding-bottom: 60px !important;
+    .sx-faq-page-banner.about-banner {
+        min-height: 240px !important;
+        height: 240px !important;
+        background-position: center 30% !important;
     }
-    .sx-faq-banner .about-content h1 { font-size: 30px; }
-    .sx-faq-highlights { margin-top: -28px; }
-    .sx-faq-item__a { padding-left: 16px; }
+    .sx-faq-page-banner .about-content h1 { font-size: 24px; }
+    .sx-faq-item__a { padding-left: 14px; }
+    .sx-faq-page-wrap > .container.sx-faq-block.sx-faq-block--last {
+        padding-bottom: 70px !important;
+    }
 }
 @media (max-width: 575.98px) {
-    .sx-faq-banner .about-content h1 { font-size: 26px; }
-    .sx-faq-item__q { padding: 14px 12px; gap: 10px; }
-    .sx-faq-item__title { font-size: 15px; }
+    .sx-faq-page-banner.about-banner {
+        min-height: 200px !important;
+        height: 200px !important;
+    }
+    .sx-faq-page-banner .about-content h1 { font-size: 22px; }
+    .sx-faq-intro-lead { padding: 18px 16px; }
 }
 </style>
 @endpush
@@ -523,9 +430,10 @@
     var search = document.getElementById('faqSearch');
     var filters = document.querySelectorAll('.sx-faq-filter');
     var activeCat = 'all';
+    if (!list) return;
 
     function applyFilter() {
-        var q = (search.value || '').trim().toLowerCase();
+        var q = (search && search.value ? search.value : '').trim().toLowerCase();
         var visible = 0;
         list.querySelectorAll('.sx-faq-item').forEach(function (item) {
             var catOk = activeCat === 'all' || item.getAttribute('data-cat') === activeCat;
@@ -534,7 +442,7 @@
             item.hidden = !show;
             if (show) visible++;
         });
-        empty.hidden = visible > 0;
+        if (empty) empty.hidden = visible > 0;
     }
 
     filters.forEach(function (btn) {
@@ -550,9 +458,7 @@
         });
     });
 
-    if (search) {
-        search.addEventListener('input', applyFilter);
-    }
+    if (search) search.addEventListener('input', applyFilter);
 
     list.querySelectorAll('.sx-faq-item__q').forEach(function (btn) {
         btn.addEventListener('click', function () {

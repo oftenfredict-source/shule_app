@@ -1501,4 +1501,17 @@ document.addEventListener('DOMContentLoaded', function() {
  <script src="{{ asset('assets/js/main.js') }}"></script>
 
  <script src="{{ asset('assets/js/widgets.js') }}"></script>
+
+@php
+    $sxAiSupportUserType = Session::get('user_type');
+    $sxAiSupportSchoolId = Session::get('schoolID');
+    $sxAiSupportEnabled = (bool) config('services.openai.enabled', true);
+@endphp
+@if(
+    $sxAiSupportEnabled
+    && $sxAiSupportSchoolId
+    && in_array($sxAiSupportUserType, ['Admin', 'Teacher', 'Staff'], true)
+)
+    @include('partials.ai_support_widget')
+@endif
 <!-- ======= Custom Footer End ======= -->
