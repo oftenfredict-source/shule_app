@@ -2,9 +2,9 @@
 <div class="modal fade" id="reviewSubtasksModal{{ $task->taskID }}" tabindex="-1">
     <div class="modal-dialog" style="max-width: 95%; width: 1200px;">
         <div class="modal-content" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;">
-            <div class="modal-header text-white" style="background-color: #940000;">
-                <h5 class="modal-title">Review Sub-tasks: {{ $task->kpi }}</h5>
-                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            <div class="modal-header">
+                <h5 class="modal-title">{{ __('teacher.sgpm.review_subtasks', ['count' => $task->subtasks->count()]) }}: {{ $task->kpi }}</h5>
+                <button type="button" class="btn-close close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="{{ __('teacher.sgpm.close') }}"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-body">
                 <!-- Filters -->
@@ -12,9 +12,9 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6">
-                                <label class="form-label"><strong>Filter by Team Member</strong></label>
+                                <label class="form-label"><strong>{{ __('teacher.goals.target_member') }}</strong></label>
                                 <select class="form-control filter-member" data-task="{{ $task->taskID }}">
-                                    <option value="">All Team Members</option>
+                                    <option value="">{{ __('teacher.goals.select_member') }}</option>
                                     @php
                                         $assignedUser = $task->assignee;
                                         $profile = $assignedUser->teacher ?? $assignedUser->staff;
@@ -24,13 +24,13 @@
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label"><strong>Filter by Status</strong></label>
+                                <label class="form-label"><strong>{{ __('teacher.goals.status') }}</strong></label>
                                 <select class="form-control filter-status" data-task="{{ $task->taskID }}">
-                                    <option value="">All Status</option>
-                                    <option value="Draft">Draft</option>
-                                    <option value="Submitted" selected>Submitted</option>
-                                    <option value="Approved">Approved</option>
-                                    <option value="Rejected">Rejected</option>
+                                    <option value="">{{ __('teacher.goals.status') }}</option>
+                                    <option value="Draft">{{ __('teacher.goals.pending') }}</option>
+                                    <option value="Submitted" selected>{{ __('teacher.goals.submitted') }}</option>
+                                    <option value="Approved">{{ __('teacher.goals.approved') }}</option>
+                                    <option value="Rejected">{{ __('teacher.goals.reject') }}</option>
                                 </select>
                             </div>
                         </div>
@@ -41,13 +41,13 @@
                     <table class="table table-bordered subtasks-table" id="subtasksTable{{ $task->taskID }}">
                         <thead style="background-color: #f8f9fa;">
                             <tr>
-                                <th style="width: 25%;">Title</th>
-                                <th style="width: 15%;">Assigned By</th>
-                                <th style="width: 8%;">Weight</th>
-                                <th style="width: 10%;">Due Date</th>
-                                <th style="width: 10%;">Status</th>
-                                <th style="width: 17%;">Evidence</th>
-                                <th style="width: 15%;">Action</th>
+                                <th style="width: 25%;">{{ __('teacher.goals.task_name') }}</th>
+                                <th style="width: 15%;">{{ __('teacher.sgpm.assigned_to') }}</th>
+                                <th style="width: 8%;">{{ __('teacher.goals.weight') }}</th>
+                                <th style="width: 10%;">{{ __('teacher.sgpm.due_date') }}</th>
+                                <th style="width: 10%;">{{ __('teacher.goals.status') }}</th>
+                                <th style="width: 17%;">{{ __('teacher.sgpm.upload_evidence') }}</th>
+                                <th style="width: 15%;">{{ __('teacher.goals.actions') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -72,39 +72,47 @@
                                     <td>{{ $subtask->due_date }}</td>
                                     <td>
                                         <span class="badge {{ $subtask->status == 'Draft' ? 'bg-secondary' : ($subtask->status == 'Submitted' ? 'bg-info' : ($subtask->status == 'Approved' ? 'bg-success' : 'bg-danger')) }}">
-                                            {{ $subtask->status }}
+                                            @if($subtask->status == 'Submitted')
+                                                {{ __('teacher.goals.submitted') }}
+                                            @elseif($subtask->status == 'Approved')
+                                                {{ __('teacher.goals.approved') }}
+                                            @elseif($subtask->status == 'Rejected')
+                                                {{ __('teacher.goals.reject') }}
+                                            @else
+                                                {{ __('teacher.goals.pending') }}
+                                            @endif
                                         </span>
                                         @if($subtask->status == 'Approved')
-                                            <br><small class="text-success"><strong>Score: {{ $subtask->achieved_score }}/{{ $subtask->weight_percentage }}%</strong></small>
+                                            <br><small class="text-success"><strong>{{ __('teacher.sgpm.score') }}: {{ $subtask->achieved_score }}/{{ $subtask->weight_percentage }}%</strong></small>
                                         @endif
                                     </td>
                                     <td>
                                         @if($subtask->evidence_remarks)
                                             <small>{{ $subtask->evidence_remarks }}</small>
                                         @else
-                                            <em class="text-muted">None</em>
+                                            <em class="text-muted">{{ __('teacher.goals.no_impl_steps') }}</em>
                                         @endif
                                     </td>
                                     <td>
                                         @if($subtask->status == 'Submitted')
-                                            <button class="btn btn-xs btn-success mb-1" data-toggle="modal" data-target="#approveSubtaskModal{{ $subtask->subtaskID }}">
-                                                <i class="fa fa-check"></i> Approve
+                                            <button class="btn btn-xs btn-success mb-1" data-bs-toggle="modal" data-bs-target="#approveSubtaskModal{{ $subtask->subtaskID }}" data-toggle="modal" data-target="#approveSubtaskModal{{ $subtask->subtaskID }}">
+                                                <i class="fa fa-check"></i> {{ __('teacher.goals.approve_mark') }}
                                             </button>
                                             <button class="btn btn-xs btn-danger approve-subtask" data-id="{{ $subtask->subtaskID }}" data-action="reject">
-                                                <i class="fa fa-times"></i> Reject
+                                                <i class="fa fa-times"></i> {{ __('teacher.goals.reject') }}
                                             </button>
                                         @elseif($subtask->status == 'Approved')
-                                            <small class="text-success"><strong>✓ Approved</strong></small>
+                                            <small class="text-success"><strong>✓ {{ __('teacher.goals.approved') }}</strong></small>
                                             @if($subtask->hod_comments)
                                                 <br><em class="text-muted">"{{ $subtask->hod_comments }}"</em>
                                             @endif
                                         @elseif($subtask->status == 'Rejected')
-                                            <small class="text-danger"><strong>✗ Rejected</strong></small>
+                                            <small class="text-danger"><strong>✗ {{ __('teacher.goals.reject') }}</strong></small>
                                             @if($subtask->hod_comments)
                                                 <br><em class="text-muted">"{{ $subtask->hod_comments }}"</em>
                                             @endif
                                         @else
-                                            <em class="text-muted">Draft</em>
+                                            <em class="text-muted">{{ __('teacher.goals.pending') }}</em>
                                         @endif
                                     </td>
                                 </tr>
@@ -115,30 +123,30 @@
                                         <div class="modal-content" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;">
                                             <form class="approve-subtask-form" data-id="{{ $subtask->subtaskID }}">
                                                 @csrf
-                                                <div class="modal-header text-white" style="background-color: #940000;">
-                                                    <h6 class="modal-title">Approve: {{ $subtask->title }}</h6>
-                                                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                                                <div class="modal-header">
+                                                    <h6 class="modal-title">{{ __('teacher.goals.approve_mark') }}: {{ $subtask->title }}</h6>
+                                                    <button type="button" class="btn-close close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="{{ __('teacher.sgpm.close') }}"><span aria-hidden="true">&times;</span></button>
                                                 </div>
                                                 <div class="modal-body">
                                                     <div class="alert alert-info">
-                                                        <strong>Subtask Weight:</strong> {{ $subtask->weight_percentage }}%
+                                                        <strong>{{ __('teacher.goals.weight') }}:</strong> {{ $subtask->weight_percentage }}%
                                                     </div>
                                                     <div class="form-group">
-                                                        <label>Achieved Score (out of {{ $subtask->weight_percentage }}%)</label>
-                                                        <input type="number" name="achieved_score" class="form-control" 
-                                                               min="0" max="{{ $subtask->weight_percentage }}" 
+                                                        <label>{{ __('teacher.goals.marks_assign') }} {{ $subtask->weight_percentage }}%)</label>
+                                                        <input type="number" name="achieved_score" class="form-control"
+                                                               min="0" max="{{ $subtask->weight_percentage }}"
                                                                step="0.01" required>
-                                                        <small class="text-muted">Enter the actual score achieved (0 - {{ $subtask->weight_percentage }}%)</small>
+                                                        <small class="text-muted">{{ __('teacher.goals.enter_weight_achieved') }}</small>
                                                     </div>
                                                     <div class="form-group">
-                                                        <label>Comments (Optional)</label>
-                                                        <textarea name="hod_comments" class="form-control" rows="3" placeholder="Add feedback for the staff/teacher"></textarea>
+                                                        <label>{{ __('teacher.sgpm.comments') }}</label>
+                                                        <textarea name="hod_comments" class="form-control" rows="3" placeholder="{{ __('teacher.goals.desc_ph') }}"></textarea>
                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-dismiss="modal">{{ __('teacher.sgpm.cancel') }}</button>
                                                     <button type="submit" class="btn text-white" style="background-color: #940000;">
-                                                        <i class="fa fa-check"></i> Approve
+                                                        <i class="fa fa-check"></i> {{ __('teacher.goals.approve_mark') }}
                                                     </button>
                                                 </div>
                                             </form>
@@ -147,7 +155,7 @@
                                 </div>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted py-3">No subtasks to review yet.</td>
+                                    <td colspan="7" class="text-center text-muted py-3">{{ __('teacher.sgpm.no_subtasks_filter') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -155,7 +163,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-dismiss="modal">{{ __('teacher.sgpm.close') }}</button>
             </div>
         </div>
     </div>

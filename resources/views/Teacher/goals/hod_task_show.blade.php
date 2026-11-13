@@ -49,19 +49,19 @@
                             <div class="d-flex align-items-center">
                                 <div class="mr-4 text-center border-right pr-4" style="min-width: 100px;">
                                     <h4 class="mb-0 font-weight-bold text-maroon">{{ (float)$task->overall_progress_percent == (int)$task->overall_progress_percent ? number_format($task->overall_progress_percent, 0) : rtrim(rtrim(number_format($task->overall_progress_percent, 2, '.', ''), '0'), '.') }}%</h4>
-                                    <small class="text-muted text-uppercase" style="font-size: 0.6rem; letter-spacing: 1px; font-weight: 700;">Progress</small>
+                                    <small class="text-muted text-uppercase" style="font-size: 0.6rem; letter-spacing: 1px; font-weight: 700;">{{ __('teacher.goals.progress') }}</small>
                                 </div>
                                 <div>
                                     <h4 class="mb-1" style="font-weight: 800; color: #2f2f2f;">{{ $task->task_name }}</h4>
                                     <div class="d-flex align-items-center small text-muted">
-                                        <span class="mr-3"><i class="fa fa-bullseye mr-1 text-maroon"></i> Allocation: <b>{{ $task->weight }}%</b></span>
-                                        <span><i class="fa fa-folder-open-o mr-1 text-maroon"></i> Goal: {{ $task->goal->goal_name }}</span>
+                                        <span class="mr-3"><i class="fa fa-bullseye mr-1 text-maroon"></i> {{ __('teacher.goals.allocation') }} <b>{{ $task->weight }}%</b></span>
+                                        <span><i class="fa fa-folder-open-o mr-1 text-maroon"></i> {{ $task->goal->goal_name }}</span>
                                     </div>
                                 </div>
                             </div>
                             <div class="text-right">
                                 <a href="{{ route('hod.goals.assigned') }}" class="btn btn-sm btn-outline-secondary px-3" style="border-radius: 20px;">
-                                    <i class="fa fa-arrow-left mr-1"></i> Back
+                                    <i class="fa fa-arrow-left mr-1"></i> {{ __('teacher.goals.back') }}
                                 </a>
                             </div>
                         </div>
@@ -69,7 +69,7 @@
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="font-weight-bold mb-0" style="color: #2f2f2f;">Delegations & Performance</h5>
+                    <h5 class="font-weight-bold mb-0" style="color: #2f2f2f;">{{ __('teacher.goals.delegations_perf') }}</h5>
                 </div>
 
                 <div class="row">
@@ -85,7 +85,7 @@
                                     </div>
                                     
                                     <div class="mb-2">
-                                        <small class="text-muted" style="font-size: 0.75rem;">Member:</small>
+                                        <small class="text-muted" style="font-size: 0.75rem;">{{ __('teacher.goals.member') }}</small>
                                         <div class="text-dark font-weight-600 small text-truncate">
                                             <i class="fa fa-user-o text-muted mr-1"></i> {{ $mTask->member_name }}
                                         </div>
@@ -93,7 +93,7 @@
 
                                     <div class="mb-3">
                                         <div class="d-flex justify-content-between align-items-center mb-1 small">
-                                            <span class="text-muted">Status</span>
+                                            <span class="text-muted">{{ __('teacher.goals.status') }}</span>
                                             <span class="font-weight-bold {{ $mTask->progress == 100 ? 'text-success' : 'text-primary-shule' }}">{{ (float)$mTask->progress == (int)$mTask->progress ? number_format($mTask->progress, 0) : rtrim(rtrim(number_format($mTask->progress, 6, '.', ''), '0'), '.') }}%</span>
                                         </div>
                                         <div class="progress progress-sm rounded-pill bg-light">
@@ -109,10 +109,10 @@
 
                                     <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
                                         <div class="small text-muted">
-                                            <i class="fa fa-list-ul mr-1"></i> {{ $mTask->subtasks->count() }} Subtasks
+                                            <i class="fa fa-list-ul mr-1"></i> {{ __('teacher.goals.subtasks_count', ['count' => $mTask->subtasks->count()]) }}
                                         </div>
                                         <button class="btn btn-xs btn-outline-danger btn-view-performance" data-id="{{ $mTask->id }}" data-name="{{ $mTask->member_name }}" data-task="{{ $mTask->task_name }}">
-                                            View Performance
+                                            {{ __('teacher.goals.view_performance') }}
                                         </button>
                                     </div>
                                 </div>
@@ -121,7 +121,7 @@
                     @empty
                         <div class="col-12 text-center py-5">
                             <i class="fa fa-users fa-3x text-muted mb-3" style="opacity: 0.2;"></i>
-                            <p class="text-muted mt-2">Hujapanga majukumu kwa walimu bado kwa kazi hii.</p>
+                            <p class="text-muted mt-2">{{ __('teacher.goals.no_members_yet') }}</p>
                         </div>
                     @endforelse
                 </div>
@@ -135,7 +135,7 @@
     <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 80%;">
         <div class="modal-content border-0" style="border-radius: 15px;">
             <div class="modal-header bg-maroon text-white">
-                <h5 class="modal-title">Performance Review: <span id="perf_member_name"></span></h5>
+                <h5 class="modal-title">{{ __('teacher.goals.performance_review') }} <span id="perf_member_name"></span></h5>
                 <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body p-4 bg-light" id="perf_subtasks_container" style="max-height: 70vh; overflow-y: auto;">
@@ -150,7 +150,7 @@
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content" style="border-radius: 15px;">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title font-weight-bold">Mark & Approve Subtask</h5>
+                <h5 class="modal-title font-weight-bold">{{ __('teacher.goals.mark_approve_subtask') }}</h5>
                 <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
             </div>
             <form id="approveForm">
@@ -158,15 +158,15 @@
                 <input type="hidden" name="id" id="approve_subtask_id">
                 <input type="hidden" name="action" id="approve_action_val" value="Approve">
                 <div class="modal-body">
-                    <p class="mb-3">Subtask: <b id="approve_subtask_name"></b></p>
+                    <p class="mb-3">{{ __('teacher.goals.subtask') }} <b id="approve_subtask_name"></b></p>
                     <div class="form-group">
-                        <label class="font-weight-bold">Marks to Assign (Max: <span id="max_marks_display"></span>)</label>
+                        <label class="font-weight-bold">{{ __('teacher.goals.marks_assign') }} <span id="max_marks_display"></span>)</label>
                         <input type="number" name="marks" id="approve_marks_input" class="form-control" required min="0" step="0.1">
-                        <small class="text-muted">Enter the weight achieved for this subtask.</small>
+                        <small class="text-muted">{{ __('teacher.goals.enter_weight_achieved') }}</small>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-success px-5 rounded-pill">Approve & Save Marks</button>
+                    <button type="submit" class="btn btn-success px-5 rounded-pill">{{ __('teacher.goals.approve_save') }}</button>
                 </div>
             </form>
         </div>
@@ -179,6 +179,9 @@
 </style>
 
 <script>
+const G = @json(__('teacher.goals'));
+G.loading = @json(__('teacher.loading'));
+
 $(document).ready(function() {
     $('.btn-view-performance').click(function() {
         const id = $(this).data('id');
@@ -193,12 +196,12 @@ $(document).ready(function() {
         $.get('{{ url("goals/fetch-subtasks") }}/' + memberTaskId + '?role=hod', function(subtasks) {
             let html = '<div class="row">';
             if(subtasks.length === 0) {
-                html += '<div class="col-12 text-center py-4">Huyu member bado hajaanza ku-breakdown kazi yake.</div>';
+                html += '<div class="col-12 text-center py-4">' + G.member_not_started + '</div>';
             } else {
                 subtasks.forEach(s => {
                     let stepsHtml = '';
                     if(s.steps.length === 0) {
-                        stepsHtml = '<div class="text-muted italic small py-2">No implementation steps recorded.</div>';
+                        stepsHtml = '<div class="text-muted italic small py-2">' + G.no_impl_steps + '</div>';
                     } else {
                         s.steps.forEach(step => {
                             stepsHtml += `
@@ -213,9 +216,9 @@ $(document).ready(function() {
                     }
 
                     let statusBadge = '';
-                    if(s.status === 'Submitted') statusBadge = '<span class="badge badge-warning">Submitted</span>';
-                    else if(s.status === 'Approved') statusBadge = '<span class="badge badge-success">Approved</span>';
-                    else statusBadge = '<span class="badge badge-light">Pending</span>';
+                    if(s.status === 'Submitted') statusBadge = '<span class="badge badge-warning">' + G.submitted + '</span>';
+                    else if(s.status === 'Approved') statusBadge = '<span class="badge badge-success">' + G.approved + '</span>';
+                    else statusBadge = '<span class="badge badge-light">' + G.pending + '</span>';
 
                     html += `
                         <div class="col-md-6 mb-4">
@@ -224,29 +227,29 @@ $(document).ready(function() {
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <div>
                                             <h6 class="font-weight-bold mb-0">${s.subtask_name}</h6>
-                                            <small class="text-muted">Weight: ${s.weight}%</small>
+                                            <small class="text-muted">${G.weight}: ${s.weight}%</small>
                                         </div>
                                         ${statusBadge}
                                     </div>
                                     <p class="small text-muted mb-3">${s.description || ''}</p>
                                     
                                     <div class="bg-light p-2 rounded mb-3" style="max-height: 150px; overflow-y: auto;">
-                                        <b class="small d-block mb-1">Steps Used:</b>
+                                        <b class="small d-block mb-1">${G.steps_used}</b>
                                         ${stepsHtml}
                                     </div>
 
                                     <div class="d-flex justify-content-between align-items-center">
                                          ${s.is_approved ? `
-                                            <div class="text-success font-weight-bold">Marks: ${s.marks}/${s.weight}</div>
+                                            <div class="text-success font-weight-bold">${G.pts.replace(':marks', s.marks).replace(':weight', s.weight)}</div>
                                             <div class="btn-group ml-3">
-                                                <button class="btn btn-xs btn-outline-info btn-re-mark" data-id="${s.id}" data-name="${s.subtask_name}" data-marks="${s.marks}" data-max="${s.weight}"><i class="fa fa-edit"></i> Edit</button>
-                                                <button class="btn btn-xs btn-outline-danger btn-reset-marks" data-id="${s.id}"><i class="fa fa-undo"></i> Reset</button>
+                                                <button class="btn btn-xs btn-outline-info btn-re-mark" data-id="${s.id}" data-name="${s.subtask_name}" data-marks="${s.marks}" data-max="${s.weight}"><i class="fa fa-edit"></i> ${G.edit}</button>
+                                                <button class="btn btn-xs btn-outline-danger btn-reset-marks" data-id="${s.id}"><i class="fa fa-undo"></i> ${G.reset}</button>
                                             </div>
                                          ` : `
-                                            <div class="text-muted small italic">Not yet marked</div>
+                                            <div class="text-muted small italic">${G.not_marked}</div>
                                              <div class="btn-group">
-                                                <button class="btn btn-sm btn-success btn-approve-now" data-id="${s.id}" data-name="${s.subtask_name}" data-max="${s.weight}">Approve & Mark</button>
-                                                <button class="btn btn-sm btn-danger btn-reject-now ml-1" data-id="${s.id}" data-name="${s.subtask_name}">Reject</button>
+                                                <button class="btn btn-sm btn-success btn-approve-now" data-id="${s.id}" data-name="${s.subtask_name}" data-max="${s.weight}">${G.approve_mark}</button>
+                                                <button class="btn btn-sm btn-danger btn-reject-now ml-1" data-id="${s.id}" data-name="${s.subtask_name}">${G.reject}</button>
                                              </div>
                                          `}
                                     </div>
@@ -281,13 +284,14 @@ $(document).ready(function() {
         const name = $(this).data('name');
 
         Swal.fire({
-            title: 'Reject Subtask?',
-            text: `Are you sure you want to reject "${name}"? It will be returned to the teacher as a Draft for corrections.`,
+            title: G.reject,
+            text: name,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
             cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, Reject'
+            confirmButtonText: G.reject,
+            cancelButtonText: G.cancel
         }).then((result) => {
             if (result.isConfirmed) {
                 $.post('{{ route("goals.review.approve") }}', {
@@ -296,14 +300,14 @@ $(document).ready(function() {
                     action: 'Reject'
                 }, function(res) {
                     if (res.success) {
-                        Swal.fire('Rejected!', res.message, 'success').then(() => location.reload());
+                        Swal.fire(G.reject, res.message, 'success').then(() => location.reload());
                     } else {
-                        Swal.fire('Error', res.message, 'error');
+                        Swal.fire(G.fail_load_subtasks, res.message, 'error');
                     }
                 }).fail(function(xhr) {
-                    let msg = 'Something went wrong on the server.';
+                    let msg = G.fail_load_subtasks;
                     if(xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                    Swal.fire('Error', msg, 'error');
+                    Swal.fire(G.fail_load_subtasks, msg, 'error');
                 });
             }
         });
@@ -312,45 +316,47 @@ $(document).ready(function() {
     $('#approveForm').submit(function(e) {
         e.preventDefault();
         const $btn = $(this).find('button[type="submit"]');
-        $btn.prop('disabled', true).text('Saving...');
+        $btn.prop('disabled', true).text(G.loading);
 
         $.post('{{ route("goals.review.approve") }}', $(this).serialize(), function(response) {
             if(response.success) {
-                Swal.fire('Success', response.message, 'success');
+                Swal.fire(G.approve_save, response.message, 'success');
                 $('#approveSubtaskModal').modal('hide');
                 location.reload(); 
             } else {
-                $btn.prop('disabled', false).text('Approve & Save Marks');
-                Swal.fire('Error', response.message, 'error');
+                $btn.prop('disabled', false).text(G.approve_save);
+                Swal.fire(G.fail_load_subtasks, response.message, 'error');
             }
         }).fail(function(xhr) {
-            $btn.prop('disabled', false).text('Approve & Save Marks');
-            let msg = 'Something went wrong on the server.';
+            $btn.prop('disabled', false).text(G.approve_save);
+            let msg = G.fail_load_subtasks;
             if(xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-            Swal.fire('Error', msg, 'error');
+            Swal.fire(G.fail_load_subtasks, msg, 'error');
         });
     });
 
     $(document).on('click', '.btn-reset-marks', function() {
         const id = $(this).data('id');
         Swal.fire({
-            title: 'Reset Marks?',
-            text: "This will remove marks and set status back to Submitted.",
+            title: G.reset,
+            text: G.submitted,
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#d33'
+            confirmButtonColor: '#d33',
+            confirmButtonText: G.reset,
+            cancelButtonText: G.cancel
         }).then((result) => {
             if (result.isConfirmed) {
                 $.post('{{ url("goals/review/reset-marks") }}/' + id, {_token: '{{ csrf_token() }}'}, function(response) {
                     if (response.success) {
                         location.reload();
                     } else {
-                        Swal.fire('Error', response.message, 'error');
+                        Swal.fire(G.fail_load_subtasks, response.message, 'error');
                     }
                 }).fail(function(xhr) {
-                    let msg = 'Something went wrong on the server.';
+                    let msg = G.fail_load_subtasks;
                     if(xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                    Swal.fire('Error', msg, 'error');
+                    Swal.fire(G.fail_load_subtasks, msg, 'error');
                 });
             }
         });

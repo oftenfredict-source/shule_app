@@ -1631,11 +1631,57 @@ class SuperAdminController extends Controller
             })
             ->update(['logout_at' => now()]);
 
-        $query = User::with('school');
+        $usersTableHasSchoolId = Schema::hasColumn((new User)->getTable(), 'schoolID');
+        $schoolFilterId = $request->filled('school_id') ? (int) $request->school_id : null;
 
-        if ($request->school_id) {
-            $query->where('schoolID', $request->school_id);
+        $query = $usersTableHasSchoolId ? User::with('school') : User::query();
+
+        if ($schoolFilterId) {
+            if ($usersTableHasSchoolId) {
+                $query->where('schoolID', $schoolFilterId);
+            } else {
+                // users.schoolID does not exist locally — resolve school members via related tables + login logs.
+                $school = School::find($schoolFilterId);
+                $usernames = collect();
+                if ($school && filled($school->registration_number)) {
+                    $usernames->push($school->registration_number);
+                }
+                $usernames = $usernames
+                    ->merge(Teacher::where('schoolID', $schoolFilterId)->pluck('employee_number'))
+                    ->merge(OtherStaff::where('schoolID', $schoolFilterId)->pluck('employee_number'))
+                    ->merge(Watchman::where('schoolID', $schoolFilterId)->pluck('phone_number'))
+                    ->merge(ParentModel::where('schoolID', $schoolFilterId)->pluck('phone'))
+                    ->map(fn ($v) => trim((string) $v))
+                    ->filter(fn ($v) => $v !== '' && strtolower($v) !== 'null')
+                    ->unique()
+                    ->values();
+
+                $userIdsFromLogs = UserLog::where('schoolID', $schoolFilterId)
+                    ->whereNotNull('user_id')
+                    ->distinct()
+                    ->pluck('user_id')
+                    ->filter()
+                    ->values();
+
+                $query->where(function ($q) use ($usernames, $userIdsFromLogs) {
+                    $hasUsernames = $usernames->isNotEmpty();
+                    $hasLogUsers = $userIdsFromLogs->isNotEmpty();
+
+                    if ($hasUsernames) {
+                        $q->whereIn('name', $usernames->all());
+                    }
+                    if ($hasLogUsers) {
+                        $hasUsernames
+                            ? $q->orWhereIn('id', $userIdsFromLogs->all())
+                            : $q->whereIn('id', $userIdsFromLogs->all());
+                    }
+                    if (!$hasUsernames && !$hasLogUsers) {
+                        $q->whereRaw('1 = 0');
+                    }
+                });
+            }
         }
+
         if ($request->user_type) {
             $query->where('user_type', $request->user_type);
         }
@@ -2160,11 +2206,17 @@ class SuperAdminController extends Controller
         $schools = School::orderBy('school_name', 'asc')
             ->get(['schoolID', 'school_name', 'school_logo', 'registration_number', 'environment']);
 
-        $scheduleRows = SchoolAttendanceSmsSchedule::whereIn('schoolID', $schools->pluck('schoolID'))
+        $schoolIds = $schools->pluck('schoolID');
+
+        $scheduleRows = SchoolAttendanceSmsSchedule::whereIn('schoolID', $schoolIds)
             ->get()
             ->keyBy('schoolID');
 
-        return view('SuperAdmin.attendance_sms_schedule', compact('schools', 'scheduleRows'));
+        $fpScheduleRows = SchoolFingerprintAttendanceSmsSchedule::whereIn('schoolID', $schoolIds)
+            ->get()
+            ->keyBy('schoolID');
+
+        return view('SuperAdmin.attendance_sms_schedule', compact('schools', 'scheduleRows', 'fpScheduleRows'));
     }
 
     public function getAttendanceSmsSchedule($schoolID)
@@ -2855,7 +2907,7 @@ class SuperAdminController extends Controller
                     'phone' => $item->phone,
                     'subject' => $item->subject,
                     'message' => $item->message,
-                    'message_preview' => \Illuminate\Support\Str::limit($item->message, 120),
+                    'message_preview' => \Illuminate\Support\Str::limit($item->message, 70),
                     'is_read' => $item->is_read,
                     'read_at' => $item->read_at?->format('d M Y H:i'),
                     'created_at' => $item->created_at?->format('d M Y H:i'),

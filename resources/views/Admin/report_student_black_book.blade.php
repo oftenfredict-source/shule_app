@@ -215,13 +215,19 @@
                     <label class="font-weight-bold">Problem Category</label>
                     <select id="problemCategorySelect" class="form-control bb-search-select">
                         <option value="">Search problem category...</option>
-                        @foreach($categories as $cat)
+                        @foreach($categories->filter(fn ($c) => strcasecmp((string) $c->name, 'Other') !== 0) as $cat)
                         <option value="{{ $cat->categoryID }}">{{ $cat->name }} (Weight: {{ $cat->weight }}%)</option>
                         @endforeach
+                        <option value="other">Other</option>
                     </select>
                     @if($categories->isEmpty())
-                    <small class="text-danger">No problem categories yet. <a href="{{ route('manage_black_book', ['section' => 'categories']) }}">Add categories</a> first.</small>
+                    <small class="text-muted">Hakuna categories zilizowekwa — chagua <strong>Other</strong> uandike problem.</small>
                     @endif
+                </div>
+                <div class="form-group d-none" id="customProblemWrap">
+                    <label class="font-weight-bold">Andika problem</label>
+                    <input type="text" id="customProblemName" class="form-control" maxlength="150" placeholder="Mfano: Fighting during break, Late to assembly...">
+                    <small class="text-muted">Eleza kwa ufupi aina ya problem isiyoko kwenye list.</small>
                 </div>
                 <div class="form-group">
                     <label class="font-weight-bold">Description of Problem</label>
@@ -259,6 +265,7 @@
         if ($sel.hasClass('select2-hidden-accessible')) {
             try { $sel.select2('destroy'); } catch (e) {}
         }
+        $sel.off('change.bbOther').on('change.bbOther', toggleCustomProblemField);
         $sel.select2({
             theme: 'bootstrap-5',
             placeholder: 'Search problem category...',
@@ -271,6 +278,19 @@
                 searching: function() { return 'Searching...'; }
             }
         });
+        toggleCustomProblemField();
+    }
+
+    function toggleCustomProblemField() {
+        const val = window.jQuery
+            ? String(window.jQuery('#problemCategorySelect').val() || '')
+            : String(document.getElementById('problemCategorySelect').value || '');
+        const wrap = document.getElementById('customProblemWrap');
+        const input = document.getElementById('customProblemName');
+        const isOther = val === 'other';
+        if (wrap) wrap.classList.toggle('d-none', !isOther);
+        if (!isOther && input) input.value = '';
+        if (isOther && input) input.focus();
     }
 
     const PARENT_SMS_KEY = 'black_book_notify_parent_sms';
@@ -495,22 +515,32 @@
         }, 300);
     });
 
+    document.getElementById('problemCategorySelect').addEventListener('change', toggleCustomProblemField);
+
     document.getElementById('submitReportBtn').onclick = async () => {
         const studentID = document.getElementById('selectedStudentID').value;
         const problem_categoryID = window.jQuery ? window.jQuery('#problemCategorySelect').val() : document.getElementById('problemCategorySelect').value;
+        const custom_problem_name = (document.getElementById('customProblemName').value || '').trim();
         const description = document.getElementById('reportDescription').value.trim();
         if (!studentID) return Swal.fire('Error', 'Select a student', 'error');
         if (!problem_categoryID) return Swal.fire('Error', 'Select problem category', 'error');
+        if (problem_categoryID === 'other' && custom_problem_name.length < 2) {
+            return Swal.fire('Error', 'Andika problem (min 2 characters)', 'error');
+        }
         if (description.length < 5) return Swal.fire('Error', 'Enter a description (min 5 characters)', 'error');
 
         const btn = document.getElementById('submitReportBtn');
         btn.disabled = true;
-        const res = await bbApi(storeUrl, 'POST', {
+        const payload = {
             studentID,
             problem_categoryID,
             description,
             send_parent_sms: isParentSmsEnabled(),
-        }, 'Reporting student...');
+        };
+        if (problem_categoryID === 'other') {
+            payload.custom_problem_name = custom_problem_name;
+        }
+        const res = await bbApi(storeUrl, 'POST', payload, 'Reporting student...');
         btn.disabled = false;
 
         if (res.success) {
@@ -518,7 +548,12 @@
             $('#reportStudentModal').modal('hide');
             document.getElementById('selectedStudentID').value = '';
             document.getElementById('reportDescription').value = '';
+            document.getElementById('customProblemName').value = '';
             document.getElementById('selectedStudentDisplay').classList.add('d-none');
+            if (window.jQuery) {
+                try { window.jQuery('#problemCategorySelect').val(null).trigger('change'); } catch (e) {}
+            }
+            toggleCustomProblemField();
             const listRes = await bbApi(listUrl + '?mine=1', 'GET', null, 'Refreshing list...');
             if (listRes.success) { allReports = listRes.reports; renderReports(); }
         } else {

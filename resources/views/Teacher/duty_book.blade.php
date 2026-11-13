@@ -1,187 +1,392 @@
-@include('includes.teacher_nav')
+@extends('layouts.teacher_corp')
+
+@section('title', __('teacher.pages.duty_book').' - ShuleXpert')
+@section('page_title', __('teacher.pages.duty_book'))
+@section('page_breadcrumb', __('teacher.pages.duty_book_bc'))
+
+@section('page_actions')
+    <button type="button" id="exportRosterBtn" data-from="{{ $fromDate }}" data-to="{{ $toDate }}" class="btn btn-primary btn-sm waves-effect">
+        <i class="fa-solid fa-file-pdf me-1"></i> {{ __('teacher.duty.export_roster') }}
+    </button>
+@endsection
 
 @section('content')
-<div class="content-wrapper" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif; background-color: #FFFFFF;">
-    <div class="content mt-3">
-        <div class="animated fadeIn">
-            <!-- Header Section -->
-            <div class="row mb-4">
-                <div class="col-md-12">
-                    <div class="card border-0 shadow-sm" style="border-radius: 0; border-left: 5px solid #940000 !important; background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">Teacher Duty Book: <u>{{ $monthTitle }}</u></h4>
-                                    <p class="text-muted mb-0 small" style="font-weight: 600;">Record and Review Daily Academic Observations</p>
-                                </div>
-                                <div class="d-flex">
-                                    <button type="button" id="exportRosterBtn" data-from="{{ $fromDate }}" data-to="{{ $toDate }}" class="btn shadow-sm text-white" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 20px;">
-                                        <i class="fa fa-file-pdf-o"></i> EXPORT ROSTER
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<style>
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty p,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty small,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty strong,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty h1,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty h2,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty h3,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty h4,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty h5,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty h6,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty .card-title,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty .text-muted,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty label,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty td,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-duty .duty-day-cell {
+        color: #000 !important;
+    }
+    .sx-teacher-duty .card,
+    .sx-teacher-duty .panel-card,
+    .sx-teacher-duty .duty-active-card {
+        background: #fff !important;
+        border: 1px solid #e6e6e6 !important;
+        border-radius: 0 !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+    }
+    .sx-teacher-duty .card,
+    .sx-teacher-duty .panel-card {
+        border-top: 4px solid #940000 !important;
+    }
+    .sx-teacher-duty .panel-card .card-body { padding: 1.15rem 1.25rem; }
+    .sx-teacher-duty .panel-card.is-flush .card-body { padding: 0; }
+    .sx-teacher-duty .panel-card.accent-maroon { border-top-color: #940000 !important; }
+    .sx-teacher-duty .panel-card.accent-info { border-top-color: #17a2b8 !important; }
+    .sx-teacher-duty .duty-active-card {
+        border-top: 4px solid #207227 !important;
+        background: #f1faf2 !important;
+        padding: 1rem 1.15rem;
+    }
+    .sx-teacher-duty .duty-active-card .duty-active-icon {
+        font-size: 1.9rem;
+        color: #207227 !important;
+    }
+    .sx-teacher-duty .duty-active-card .duty-active-title { color: #207227 !important; font-weight: 800; }
+    .sx-teacher-duty .table thead th {
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: #940000 !important;
+        background: #fcf7f7;
+        border-bottom-color: rgba(148, 0, 0, 0.12);
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    .sx-teacher-duty .table td { vertical-align: middle; font-size: 0.9rem; }
+    .sx-teacher-duty .form-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
+    .sx-teacher-duty .form-control,
+    .sx-teacher-duty .form-select,
+    .sx-teacher-duty .btn {
+        border-radius: 0 !important;
+    }
+    .sx-teacher-duty .btn-primary,
+    .sx-teacher-duty .btn-primary:focus {
+        background: #940000;
+        border-color: #940000;
+        color: #fff !important;
+        font-weight: 800;
+    }
+    .sx-teacher-duty .btn-primary:hover { background: #7b0000; border-color: #7b0000; }
+    .sx-teacher-duty .btn-outline-primary { color: #940000 !important; border-color: #940000; font-weight: 800; }
+    .sx-teacher-duty .btn-outline-primary:hover { background: #940000; color: #fff !important; }
+    .sx-teacher-duty .btn-success { font-weight: 800; }
+    .sx-teacher-duty .card-header {
+        background: linear-gradient(135deg, #fcf7f7 0%, #fff 70%) !important;
+        border-bottom: 1px solid rgba(148, 0, 0, 0.1) !important;
+    }
+    .sx-teacher-duty .card-title {
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #940000 !important;
+    }
 
-            <!-- Breadcrumbs -->
-            <div class="row mb-4">
-                <div class="col-md-12">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb bg-transparent p-0 m-0" style="font-size: 13px; font-weight: 600;">
-                            <li class="breadcrumb-item"><a href="{{ route('teachersDashboard') }}" style="color: #940000;">Dashboard</a></li>
-                            <li class="breadcrumb-item active text-muted" aria-current="page">Duty Book</li>
-                        </ol>
-                    </nav>
-                </div>
-            </div>
+    /* Week rows */
+    .sx-teacher-duty .duty-week-row { cursor: pointer; transition: background-color 0.15s ease; }
+    .sx-teacher-duty .duty-week-row:hover { background: #faf3f3; }
+    .sx-teacher-duty .duty-week-row.active-week { background: #fff5f5; box-shadow: inset 4px 0 0 #940000; }
+    .sx-teacher-duty .duty-week-row .sx-duty-chevron { transition: transform 0.25s ease; color: #940000 !important; }
+    .sx-teacher-duty .duty-week-row.is-open .sx-duty-chevron { transform: rotate(180deg); }
+    .sx-teacher-duty .duty-week-row.is-open { background: #fcf7f7; }
+    .sx-teacher-duty .day-view-container > td { background: #fdfafa; }
+    .sx-teacher-duty .duty-days-table tr.is-today > td { background: #fff8e1; }
 
-            @if(!empty($isClassTeacher))
-            <div class="row mb-4">
-                <div class="col-md-12">
-                    <div class="card border-0 shadow-sm" style="border-left: 4px solid #17a2b8 !important;">
-                        <div class="card-header bg-white">
-                            <h6 class="mb-0 font-weight-bold" style="color: #17a2b8;">
-                                <i class="fa fa-eye mr-1"></i> Ruhusa za darasa lako (kuona tu)
-                            </h6>
-                            <small class="text-muted">Baada ya ruhusa ya mzazi kuidhinishwa, unaiona hapa. Huna kitufe cha kuidhinisha wala kukataa.</small>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-sm mb-0">
-                                    <thead class="bg-light">
-                                        <tr>
-                                            <th>Mwanafunzi</th>
-                                            <th>Mzazi</th>
-                                            <th>Aina</th>
-                                            <th>Tarehe</th>
-                                            <th>Hali</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse($classTeacherPermissions as $perm)
-                                            <tr>
-                                                <td>{{ trim($perm->first_name . ' ' . ($perm->last_name ?? '')) }}</td>
-                                                <td>{{ trim(($perm->parent_first_name ?? '') . ' ' . ($perm->parent_last_name ?? '')) ?: 'Mzazi' }}</td>
-                                                <td>{{ ucfirst($perm->reason_type) }}</td>
-                                                <td>{{ $perm->start_date }} - {{ $perm->end_date }}</td>
-                                                <td><span class="badge badge-success">Approved</span></td>
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="5" class="text-center text-muted py-3">Bado hakuna ruhusa iliyoidhinishwa ya wanafunzi wa darasa lako.</td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+    /* Pills / status */
+    .sx-teacher-duty .sx-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-weight: 700;
+        font-size: 0.76rem;
+        line-height: 1.2;
+    }
+    .sx-teacher-duty .sx-pill-week { background: #f5f5f5; color: #940000 !important; letter-spacing: 0.04em; }
+    .sx-teacher-duty .active-week .sx-pill-week { background: #940000; color: #fff !important; }
+    .sx-teacher-duty .sx-pill-teacher { background: #f5f5f5; color: #333 !important; margin: 0 4px 4px 0; }
+    .sx-teacher-duty .sx-pill-teacher.is-me { background: #940000; color: #fff !important; }
+    .sx-teacher-duty .sx-pill-approved { background: #e8f5e9; color: #207227 !important; }
+    .sx-teacher-duty .sx-pill-sent { background: #e7f1ff; color: #0b5ed7 !important; }
+    .sx-teacher-duty .sx-pill-draft { background: #fff7e6; color: #8a5a00 !important; }
+    .sx-teacher-duty .sx-pill-upcoming { background: #f5f5f5; color: #555 !important; }
+    .sx-teacher-duty .sx-pill-waiting { background: #fff0f0; color: #940000 !important; }
+
+    /* Dark mode */
+    html[data-sx-theme="dark"] .sx-teacher-duty,
+    html[data-bs-theme="dark"] .sx-teacher-duty,
+    html[data-sx-theme="dark"] .sx-teacher-duty .text-muted,
+    html[data-bs-theme="dark"] .sx-teacher-duty .text-muted,
+    html[data-sx-theme="dark"] .sx-teacher-duty label,
+    html[data-bs-theme="dark"] .sx-teacher-duty label,
+    html[data-sx-theme="dark"] .sx-teacher-duty td,
+    html[data-bs-theme="dark"] .sx-teacher-duty td {
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .card,
+    html[data-bs-theme="dark"] .sx-teacher-duty .card,
+    html[data-sx-theme="dark"] .sx-teacher-duty .panel-card,
+    html[data-bs-theme="dark"] .sx-teacher-duty .panel-card {
+        background: #24181c !important;
+        border-color: rgba(255, 180, 180, 0.16) !important;
+        border-top-color: #940000 !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .panel-card.accent-info,
+    html[data-bs-theme="dark"] .sx-teacher-duty .panel-card.accent-info {
+        border-top-color: #17a2b8 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .duty-active-card,
+    html[data-bs-theme="dark"] .sx-teacher-duty .duty-active-card {
+        background: rgba(32, 114, 39, 0.16) !important;
+        border-color: rgba(120, 220, 130, 0.3) !important;
+        border-top-color: #207227 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .card-header,
+    html[data-bs-theme="dark"] .sx-teacher-duty .card-header {
+        background: rgba(148, 0, 0, 0.16) !important;
+        border-bottom-color: rgba(255, 180, 180, 0.14) !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .duty-active-card .duty-active-icon,
+    html[data-bs-theme="dark"] .sx-teacher-duty .duty-active-card .duty-active-icon,
+    html[data-sx-theme="dark"] .sx-teacher-duty .duty-active-card .duty-active-title,
+    html[data-bs-theme="dark"] .sx-teacher-duty .duty-active-card .duty-active-title {
+        color: #7be08a !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .table,
+    html[data-bs-theme="dark"] .sx-teacher-duty .table {
+        --bs-table-bg: transparent;
+        --bs-table-color: #f3e9eb;
+        --bs-table-border-color: rgba(255, 180, 180, 0.14);
+        color: #f3e9eb;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .table thead th,
+    html[data-bs-theme="dark"] .sx-teacher-duty .table thead th {
+        background: rgba(148, 0, 0, 0.18) !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .form-control,
+    html[data-bs-theme="dark"] .sx-teacher-duty .form-control {
+        background: #1b1215;
+        border-color: rgba(255, 180, 180, 0.25);
+        color: #f3e9eb;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .duty-week-row:hover,
+    html[data-bs-theme="dark"] .sx-teacher-duty .duty-week-row:hover,
+    html[data-sx-theme="dark"] .sx-teacher-duty .duty-week-row.is-open,
+    html[data-bs-theme="dark"] .sx-teacher-duty .duty-week-row.is-open {
+        background: rgba(148, 0, 0, 0.14) !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .duty-week-row.active-week,
+    html[data-bs-theme="dark"] .sx-teacher-duty .duty-week-row.active-week {
+        background: rgba(148, 0, 0, 0.2) !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .day-view-container > td,
+    html[data-bs-theme="dark"] .sx-teacher-duty .day-view-container > td,
+    html[data-sx-theme="dark"] .sx-teacher-duty .duty-days-table tr > td,
+    html[data-bs-theme="dark"] .sx-teacher-duty .duty-days-table tr > td {
+        background: transparent !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .duty-days-table tr.is-today > td,
+    html[data-bs-theme="dark"] .sx-teacher-duty .duty-days-table tr.is-today > td {
+        background: rgba(255, 193, 7, 0.12) !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .sx-pill-week,
+    html[data-bs-theme="dark"] .sx-teacher-duty .sx-pill-week,
+    html[data-sx-theme="dark"] .sx-teacher-duty .sx-pill-teacher,
+    html[data-bs-theme="dark"] .sx-teacher-duty .sx-pill-teacher,
+    html[data-sx-theme="dark"] .sx-teacher-duty .sx-pill-upcoming,
+    html[data-bs-theme="dark"] .sx-teacher-duty .sx-pill-upcoming {
+        background: rgba(255, 255, 255, 0.08);
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .active-week .sx-pill-week,
+    html[data-bs-theme="dark"] .sx-teacher-duty .active-week .sx-pill-week,
+    html[data-sx-theme="dark"] .sx-teacher-duty .sx-pill-teacher.is-me,
+    html[data-bs-theme="dark"] .sx-teacher-duty .sx-pill-teacher.is-me {
+        background: #940000;
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-duty .sx-pill-approved,
+    html[data-bs-theme="dark"] .sx-teacher-duty .sx-pill-approved { background: rgba(32, 114, 39, 0.28); color: #8ae89a !important; }
+    html[data-sx-theme="dark"] .sx-teacher-duty .sx-pill-sent,
+    html[data-bs-theme="dark"] .sx-teacher-duty .sx-pill-sent { background: rgba(13, 110, 253, 0.25); color: #9ec5fe !important; }
+    html[data-sx-theme="dark"] .sx-teacher-duty .sx-pill-draft,
+    html[data-bs-theme="dark"] .sx-teacher-duty .sx-pill-draft { background: rgba(255, 193, 7, 0.2); color: #ffda6a !important; }
+    html[data-sx-theme="dark"] .sx-teacher-duty .sx-pill-waiting,
+    html[data-bs-theme="dark"] .sx-teacher-duty .sx-pill-waiting { background: rgba(148, 0, 0, 0.3); color: #ffb4b4 !important; }
+    html[data-sx-theme="dark"] .sx-teacher-duty .btn-outline-primary,
+    html[data-bs-theme="dark"] .sx-teacher-duty .btn-outline-primary { color: #ffb4b4 !important; border-color: rgba(255, 180, 180, 0.45); }
+    html[data-sx-theme="dark"] .sx-teacher-duty .btn-outline-primary:hover,
+    html[data-bs-theme="dark"] .sx-teacher-duty .btn-outline-primary:hover { background: #940000; color: #fff !important; }
+</style>
+
+<div class="sx-teacher-duty">
+    <div class="row g-3">
+        <div class="col-12">
+            <div class="card panel-card accent-maroon">
+                <div class="card-body">
+                    <h6 class="card-title mb-1" style="color:#940000; font-weight:800; text-transform:uppercase; letter-spacing:0.04em;">
+                        {!! __('teacher.duty.title', ['month' => '<u>'.e($monthTitle).'</u>']) !!}
+                    </h6>
+                    <small class="text-muted">{{ __('teacher.duty.subtitle') }}</small>
                 </div>
             </div>
-            @endif
-        @if($currentDuty)
-        <div class="alert alert-success shadow-sm mb-4" style="border-left: 5px solid #28a745;">
-            <div class="d-flex align-items-center">
-                <div class="mr-3">
-                    <i class="fa fa-calendar-check-o fa-3x text-success"></i>
+        </div>
+
+        @if(!empty($isClassTeacher))
+        <div class="col-12">
+            <div class="card panel-card accent-info is-flush">
+                <div class="card-header border-0 bg-transparent pb-2">
+                    <h6 class="card-title mb-1"><i class="fa-solid fa-eye me-1"></i> {{ __('teacher.duty.perm_title') }}</h6>
+                    <small class="text-muted">{{ __('teacher.duty.perm_hint') }}</small>
                 </div>
-                <div>
-                    <h4 class="alert-heading text-success mb-1">Your Duty Status: Active</h4>
-                    <p class="mb-0">You are on duty from <strong>{{ \Carbon\Carbon::parse($currentDuty->start_date)->format('d M') }}</strong> to <strong>{{ \Carbon\Carbon::parse($currentDuty->end_date)->format('d M Y') }}</strong>.</p>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>{{ __('teacher.duty.perm_student') }}</th>
+                                    <th>{{ __('teacher.duty.perm_parent') }}</th>
+                                    <th>{{ __('teacher.duty.perm_type') }}</th>
+                                    <th>{{ __('teacher.duty.perm_date') }}</th>
+                                    <th>{{ __('teacher.duty.perm_status') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($classTeacherPermissions as $perm)
+                                    <tr>
+                                        <td>{{ trim($perm->first_name . ' ' . ($perm->last_name ?? '')) }}</td>
+                                        <td>{{ trim(($perm->parent_first_name ?? '') . ' ' . ($perm->parent_last_name ?? '')) ?: __('teacher.duty.perm_parent_fallback') }}</td>
+                                        <td>{{ ucfirst($perm->reason_type) }}</td>
+                                        <td>{{ $perm->start_date }} - {{ $perm->end_date }}</td>
+                                        <td><span class="sx-pill sx-pill-approved">{{ __('teacher.approved') }}</span></td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-3">{{ __('teacher.duty.perm_empty') }}</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
         @endif
 
-                <div class="card border-0 shadow-sm mb-4" style="border-radius: 0;">
-                    <div class="card-header border-0 p-4" style="background-color: #fafafa;">
-                        <div class="d-flex justify-content-between align-items-end">
-                            <form action="{{ route('teacher.duty_book') }}" method="GET" class="row no-gutters w-75">
-                                <div class="col-md-4 mr-2">
-                                    <label class="small font-weight-bold text-muted text-uppercase mb-2">From Date</label>
-                                    <input type="date" name="from_date" class="form-control" value="{{ $fromDate }}" style="border-radius: 0;">
-                                </div>
-                                <div class="col-md-4 mr-2">
-                                    <label class="small font-weight-bold text-muted text-uppercase mb-2">To Date</label>
-                                    <input type="date" name="to_date" class="form-control" value="{{ $toDate }}" style="border-radius: 0;">
-                                </div>
-                                <div class="col-md-2 mt-auto">
-                                    <button type="submit" class="btn btn-block text-white" style="background: #940000; border-radius: 0; font-weight: 700;">FILTER</button>
-                                </div>
-                            </form>
-                            <h6 class="mb-0 font-weight-bold" style="color: #940000;"><i class="fa fa-tasks mr-2"></i>ASSIGNED WEEKS</h6>
-                        </div>
+        @if($currentDuty)
+        <div class="col-12">
+            <div class="duty-active-card">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="fa-solid fa-calendar-check duty-active-icon"></i>
+                    <div>
+                        <h6 class="duty-active-title mb-1">{{ __('teacher.duty.active_title') }}</h6>
+                        <p class="mb-0">{!! __('teacher.duty.active_body', [
+                            'from' => '<strong>'.e(\Carbon\Carbon::parse($currentDuty->start_date)->format('d M')).'</strong>',
+                            'to' => '<strong>'.e(\Carbon\Carbon::parse($currentDuty->end_date)->format('d M Y')).'</strong>',
+                        ]) !!}</p>
                     </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table mb-0">
-                                <thead style="background-color: #f8f9fa;">
-                                    <tr class="small font-weight-bold text-uppercase">
-                                        <th class="py-3 px-4 border-0" style="color: #940000;">Week</th>
-                                        <th class="py-3 border-0" style="color: #940000;">Teachers on Duty</th>
-                                        <th class="py-3 border-0" style="color: #940000;">Dates</th>
-                                        <th class="py-3 px-4 border-0 text-right" style="color: #940000;">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @php 
-                                        $groupedDuties = $duties->groupBy(function($item) {
-                                            return $item->start_date . '_' . $item->end_date;
-                                        });
-                                        $weekCounter = 1;
-                                        $todayDate = \Carbon\Carbon::today();
+                </div>
+            </div>
+        </div>
+        @endif
+
+        <div class="col-12">
+            <div class="card panel-card">
+                <div class="card-header border-0 pb-0 d-flex flex-wrap align-items-end justify-content-between gap-3">
+                    <form action="{{ route('teacher.duty_book') }}" method="GET" class="row g-2 align-items-end flex-grow-1" style="max-width: 720px;">
+                        <div class="col-md-4">
+                            <label class="form-label mb-1">{{ __('teacher.duty.from_date') }}</label>
+                            <input type="date" name="from_date" class="form-control" value="{{ $fromDate }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label mb-1">{{ __('teacher.duty.to_date') }}</label>
+                            <input type="date" name="to_date" class="form-control" value="{{ $toDate }}">
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-filter me-1"></i> {{ __('teacher.filter') }}</button>
+                        </div>
+                    </form>
+                    <h6 class="card-title mb-0" style="color:#940000; font-weight:800;"><i class="fa-solid fa-list-check me-2"></i>{{ __('teacher.duty.assigned_weeks') }}</h6>
+                </div>
+                <div class="card-body px-0 pb-0">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="px-4">{{ __('teacher.duty.week') }}</th>
+                                    <th>{{ __('teacher.duty.teachers_on_duty') }}</th>
+                                    <th>{{ __('teacher.duty.dates') }}</th>
+                                    <th class="px-4 text-end">{{ __('teacher.duty.action') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php
+                                    $groupedDuties = $duties->groupBy(function($item) {
+                                        return $item->start_date . '_' . $item->end_date;
+                                    });
+                                    $weekCounter = 1;
+                                    $todayDate = \Carbon\Carbon::today();
+                                    $studentLabel = (isset($school_details) && $school_details->school_type == 'Secondary') ? __('teacher.duty.student') : __('teacher.duty.pupil');
+                                    $studentsLabel = (isset($school_details) && $school_details->school_type == 'Secondary') ? __('teacher.duty.students') : __('teacher.duty.pupils');
+                                @endphp
+                                @foreach($groupedDuties as $key => $weekGroup)
+                                    @php
+                                        $startDate = \Carbon\Carbon::parse($weekGroup[0]->start_date);
+                                        $endDate = \Carbon\Carbon::parse($weekGroup[0]->end_date);
+                                        $isActiveWeek = $todayDate->between($startDate->copy()->startOfDay(), $endDate->copy()->endOfDay());
                                     @endphp
-                                    @foreach($groupedDuties as $key => $weekGroup)
-                                        @php
-                                            $startDate = \Carbon\Carbon::parse($weekGroup[0]->start_date);
-                                            $endDate = \Carbon\Carbon::parse($weekGroup[0]->end_date);
-                                            $isActiveWeek = $todayDate->between($startDate->copy()->startOfDay(), $endDate->copy()->endOfDay());
-                                        @endphp
-                                        <tr class="duty-week-row border-bottom {{ $isActiveWeek ? 'active-week' : '' }}" 
-                                            data-start="{{ $startDate->format('Y-m-d') }}" 
-                                            data-end="{{ $endDate->format('Y-m-d') }}"
-                                            style="cursor: pointer; {{ $isActiveWeek ? 'background-color: #FFF5F5;' : '' }}">
-                                            <td class="py-4 px-4 align-middle">
-                                                <span class="badge badge-pill px-3 py-2" style="background-color: {{ $isActiveWeek ? '#940000' : '#f8f9fa' }}; color: {{ $isActiveWeek ? '#ffffff' : '#940000' }}; font-weight: 800;">
-                                                    WEEK {{ $weekCounter++ }}
+                                    <tr class="duty-week-row {{ $isActiveWeek ? 'active-week' : '' }}"
+                                        data-start="{{ $startDate->format('Y-m-d') }}"
+                                        data-end="{{ $endDate->format('Y-m-d') }}">
+                                        <td class="py-3 px-4">
+                                            <span class="sx-pill sx-pill-week">{{ __('teacher.duty.week_n', ['n' => $weekCounter++]) }}</span>
+                                        </td>
+                                        <td class="py-3">
+                                            @foreach($weekGroup as $duty)
+                                                <span class="sx-pill sx-pill-teacher {{ $duty->teacherID == Session::get('teacherID') ? 'is-me' : '' }}">
+                                                    <i class="fa-solid fa-circle-user"></i> {{ $duty->teacher ? $duty->teacher->first_name . ' ' . $duty->teacher->last_name : 'N/A' }}
                                                 </span>
-                                            </td>
-                                            <td class="py-4 align-middle">
-                                                <div style="font-weight: 700; color: #2f2f2f;">
-                                                    @foreach($weekGroup as $duty)
-                                                        <span class="badge badge-light p-2 mb-1" style="font-weight: 700; {{ $duty->teacherID == Session::get('teacherID') ? 'background-color: #940000; color: #fff;' : '' }}">
-                                                            <i class="fa fa-user-circle mr-1"></i> {{ $duty->teacher ? $duty->teacher->first_name . ' ' . $duty->teacher->last_name : 'N/A' }}
-                                                        </span>
-                                                    @endforeach
-                                                </div>
-                                            </td>
-                                            <td class="py-4 align-middle" style="font-weight: 600; color: #6c757d;">
-                                                {{ $startDate->format('d M') }} - {{ $endDate->format('d M Y') }}
-                                            </td>
-                                            <td class="py-4 px-4 align-middle text-right">
-                                                <i class="fa fa-chevron-down text-muted transition-icon"></i>
-                                            </td>
-                                        </tr>
-                                        <!-- Expandable Day View -->
-                                        <tr class="day-view-container" id="days-{{ $startDate->format('Y-m-d') }}" style="display: none; background: #fdfdfd;">
-                                            <td colspan="4" class="p-0">
-                                                <div class="p-3">
-                                                    <table class="table table-sm table-bordered bg-white shadow-sm">
-                                                        <thead class="bg-light">
+                                            @endforeach
+                                        </td>
+                                        <td class="py-3 fw-semibold text-muted">
+                                            {{ $startDate->format('d M') }} - {{ $endDate->format('d M Y') }}
+                                        </td>
+                                        <td class="py-3 px-4 text-end">
+                                            <i class="fa-solid fa-chevron-down sx-duty-chevron"></i>
+                                        </td>
+                                    </tr>
+                                    <!-- Expandable Day View -->
+                                    <tr class="day-view-container" id="days-{{ $startDate->format('Y-m-d') }}" style="display: none;">
+                                        <td colspan="4" class="p-0">
+                                            <div class="p-3">
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-bordered align-middle mb-0 duty-days-table">
+                                                        <thead>
                                                             <tr>
-                                                                <th>Day</th>
-                                                                <th>Date</th>
-                                                                <th>Report Status</th>
-                                                                <th>Actions</th>
+                                                                <th>{{ __('teacher.duty.day') }}</th>
+                                                                <th>{{ __('teacher.date') }}</th>
+                                                                <th>{{ __('teacher.duty.report_status') }}</th>
+                                                                <th>{{ __('teacher.actions') }}</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            @php
-                                                                $studentLabel = (isset($school_details) && $school_details->school_type == 'Secondary') ? 'Student' : 'Pupil';
-                                                                $studentsLabel = (isset($school_details) && $school_details->school_type == 'Secondary') ? 'Students' : 'Pupils';
-                                                            @endphp
                                                             @for($i = 0; $i < 7; $i++)
                                                                 @php
                                                                     $currentDay = $startDate->copy()->addDays($i);
@@ -191,47 +396,47 @@
                                                                     $report = $reports[$dateStr] ?? null;
                                                                     $isFuture = $currentDay->isAfter($todayDate);
                                                                 @endphp
-                                                                <tr class="{{ $isToday ? 'table-warning' : '' }}">
-                                                                    <td>{{ $dayName }}</td>
+                                                                <tr class="{{ $isToday ? 'is-today' : '' }}">
+                                                                    <td class="duty-day-cell fw-semibold">{{ $dayName }}</td>
                                                                     <td>{{ $currentDay->format('d/m/Y') }}</td>
                                                                     <td>
                                                                         @if($report)
                                                                             @if($report->status === 'Approved')
-                                                                                <span class="badge badge-success"><i class="fa fa-check-circle"></i> Approved</span>
+                                                                                <span class="sx-pill sx-pill-approved"><i class="fa-solid fa-circle-check"></i> {{ __('teacher.approved') }}</span>
                                                                             @elseif($report->status === 'Sent')
-                                                                                <span class="badge badge-primary"><i class="fa fa-paper-plane"></i> Sent (Pending)</span>
+                                                                                <span class="sx-pill sx-pill-sent"><i class="fa-solid fa-paper-plane"></i> {{ __('teacher.duty.sent_pending') }}</span>
                                                                             @else
-                                                                                <span class="badge badge-info"><i class="fa fa-pencil"></i> Draft</span>
+                                                                                <span class="sx-pill sx-pill-draft"><i class="fa-solid fa-pencil"></i> {{ __('teacher.duty.draft') }}</span>
                                                                             @endif
                                                                         @elseif($isFuture)
-                                                                            <span class="badge badge-light">Upcoming</span>
+                                                                            <span class="sx-pill sx-pill-upcoming">{{ __('teacher.duty.upcoming') }}</span>
                                                                         @else
-                                                                            <span class="badge badge-secondary">Waiting</span>
+                                                                            <span class="sx-pill sx-pill-waiting">{{ __('teacher.duty.waiting') }}</span>
                                                                         @endif
                                                                     </td>
                                                                     <td>
                                                                         @if($isFuture)
-                                                                            <small class="text-muted"><i class="fa fa-lock"></i> Available on {{ $currentDay->format('d M') }}</small>
+                                                                            <small class="text-muted"><i class="fa-solid fa-lock"></i> {{ __('teacher.duty.available_on', ['date' => $currentDay->format('d M')]) }}</small>
                                                                         @else
-                                                                             <div class="btn-group">
+                                                                            <div class="d-flex flex-wrap gap-1">
                                                                                 @if($report)
-                                                                                    <button class="btn btn-sm btn-outline-info view-report" data-date="{{ $dateStr }}" data-day="{{ $dayName }}" data-mode="view">
-                                                                                        <i class="fa fa-eye"></i> View Filled Form
+                                                                                    <button type="button" class="btn btn-sm btn-outline-primary view-report" data-date="{{ $dateStr }}" data-day="{{ $dayName }}" data-mode="view">
+                                                                                        <i class="fa-solid fa-eye"></i> {{ __('teacher.duty.view_filled') }}
                                                                                     </button>
                                                                                     @if($report->status !== 'Approved' && $report->status !== 'Sent')
-                                                                                        <button class="btn btn-sm btn-info view-report" data-date="{{ $dateStr }}" data-day="{{ $dayName }}" data-mode="edit">
-                                                                                            <i class="fa fa-edit"></i> Fill Form
+                                                                                        <button type="button" class="btn btn-sm btn-primary view-report" data-date="{{ $dateStr }}" data-day="{{ $dayName }}" data-mode="edit">
+                                                                                            <i class="fa-solid fa-pen-to-square"></i> {{ __('teacher.duty.fill_form') }}
                                                                                         </button>
                                                                                     @endif
                                                                                 @else
-                                                                                    <button class="btn btn-sm btn-info view-report" data-date="{{ $dateStr }}" data-day="{{ $dayName }}" data-mode="edit">
-                                                                                        <i class="fa fa-plus"></i> Fill Form
+                                                                                    <button type="button" class="btn btn-sm btn-primary view-report" data-date="{{ $dateStr }}" data-day="{{ $dayName }}" data-mode="edit">
+                                                                                        <i class="fa-solid fa-plus"></i> {{ __('teacher.duty.fill_form') }}
                                                                                     </button>
                                                                                 @endif
 
                                                                                 @if(!$report || ($report->status !== 'Approved' && $report->status !== 'Sent'))
-                                                                                    <button class="btn btn-sm btn-success send-to-admin" data-date="{{ $dateStr }}">
-                                                                                        <i class="fa fa-paper-plane"></i> Send to Admin
+                                                                                    <button type="button" class="btn btn-sm btn-success send-to-admin" data-date="{{ $dateStr }}">
+                                                                                        <i class="fa-solid fa-paper-plane"></i> {{ __('teacher.duty.send_to_admin') }}
                                                                                     </button>
                                                                                 @endif
                                                                             </div>
@@ -242,17 +447,17 @@
                                                         </tbody>
                                                     </table>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                    @if($groupedDuties->isEmpty())
-                                        <tr>
-                                            <td colspan="4" class="text-center py-5 text-muted">You have no duty assignments for this period.</td>
-                                        </tr>
-                                    @endif
-                                </tbody>
-                            </table>
-                        </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                                @if($groupedDuties->isEmpty())
+                                    <tr>
+                                        <td colspan="4" class="text-center py-5 text-muted">{{ __('teacher.duty.no_assignments') }}</td>
+                                    </tr>
+                                @endif
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -261,32 +466,45 @@
 </div>
 
 @include('partials.duty_report_modal', ['classes' => $classes])
+@endsection
 
-<style>
-    .card { border-radius: 0; }
-    .table thead th { border-top: 0; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
-    .badge { border-radius: 0; font-family: 'Century Gothic', sans-serif; }
-    .active-week { border-left: 5px solid #940000 !important; }
-    .duty-week-row:hover { background-color: #fafafa; }
-    .btn { border-radius: 0; font-weight: 700; }
-    .btn-info { background: #940000; border: none; }
-    .btn-info:hover { background: #7b0000; }
-    .btn-outline-info { color: #940000; border-color: #940000; }
-    .btn-outline-info:hover { background: #940000; color: #fff; }
-    .transition-icon { transition: transform 0.3s; }
-    .fa-chevron-up { transform: rotate(180deg); }
-</style>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@push('scripts')
 <script>
+    var i18n = @json(__('teacher.duty'));
+    i18n.approved = @json(__('teacher.approved'));
+    i18n.pending = @json(__('teacher.pending'));
+    i18n.rejected = @json(__('teacher.rejected'));
+    i18n.close = @json(__('teacher.close'));
+    i18n.filter = @json(__('teacher.filter'));
+    i18n.date = @json(__('teacher.date'));
+    i18n.status = @json(__('teacher.status'));
+    i18n.actions = @json(__('teacher.actions'));
+    i18n.loading = @json(__('teacher.loading'));
+    window.dutyI18n = i18n;
+
+    function showDutyReportModal() {
+        var el = document.getElementById('dutyReportModal');
+        if (!el) return;
+        if (el.parentElement !== document.body) {
+            document.body.appendChild(el);
+        }
+        if (window.bootstrap && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(el, { backdrop: true, keyboard: true }).show();
+        } else if (window.jQuery && jQuery.fn.modal) {
+            jQuery(el).modal('show');
+        }
+    }
+
 $(document).ready(function() {
     // Toggle week expansion
     $('.duty-week-row').click(function() {
         let start = $(this).data('start');
         let $child = $('#days-' + start);
-        $('.day-view-container').not($child).hide(); // Close others
-        $child.toggle();
-        $(this).find('i.fa').toggleClass('fa-chevron-down fa-chevron-up');
+        const opening = !$child.is(':visible');
+        $('.day-view-container').not($child).hide();
+        $('.duty-week-row').not(this).removeClass('is-open');
+        $child.toggle(opening);
+        $(this).toggleClass('is-open', opening);
     });
 
     // Handle inputs for auto-totals
@@ -384,8 +602,8 @@ $(document).ready(function() {
 
             if (response.academic_year_label) {
                 $('#duty_enrollment_scope_note').html(
-                    '<i class="fa fa-lock mr-1" style="color: #940000;"></i> Counts from <strong>Active enrollments</strong> only' +
-                    ' (' + response.academic_year_label + '), not editable. Use Sync to refresh.'
+                    '<i class="fa fa-lock me-1" style="color: #940000;"></i> ' +
+                    String(i18n.counts_note || '').replace(':year', response.academic_year_label)
                 );
             }
 
@@ -393,12 +611,16 @@ $(document).ready(function() {
                 $('#reportID').val(report.reportID);
                 $('#display_teacher_name').text(report.teacher_name || '---');
                 // Set Status Badge
-                let badgeClass = 'badge-secondary';
-                if (report.status === 'Approved') badgeClass = 'badge-success';
-                else if (report.status === 'Sent') badgeClass = 'badge-primary';
-                else if (report.status === 'Draft') badgeClass = 'badge-info';
+                let badgeClass = 'bg-secondary';
+                if (report.status === 'Approved') badgeClass = 'bg-success';
+                else if (report.status === 'Sent') badgeClass = 'bg-primary';
+                else if (report.status === 'Draft') badgeClass = 'bg-info text-dark';
                 
-                $('#modal_status_badge').html('<span class="badge ' + badgeClass + '">' + report.status + '</span>');
+                var statusLabel = report.status;
+                if (report.status === 'Approved') statusLabel = i18n.approved;
+                else if (report.status === 'Sent') statusLabel = i18n.sent_status;
+                else if (report.status === 'Draft') statusLabel = i18n.draft;
+                $('#modal_status_badge').html('<span class="badge ' + badgeClass + '">' + statusLabel + '</span>');
 
                 // Load saved report data
                 $('input[name="attendance_percentage"]').val(report.attendance_percentage);
@@ -456,7 +678,7 @@ $(document).ready(function() {
                     });
                 }
             } else {
-                $('#modal_status_badge').html('<span class="badge badge-light">NEW REPORT</span>');
+                $('#modal_status_badge').html('<span class="badge bg-light text-dark">' + i18n.new_report + '</span>');
                 if (systemData) {
                     // New report: Pre-fill with system defaults
                     // Set calculated attendance percentage
@@ -486,7 +708,7 @@ $(document).ready(function() {
 
             // Refresh all totals and calculations
             refreshTableTotals();
-            $('#dutyReportModal').modal('show');
+            showDutyReportModal();
         });
     });
 
@@ -496,7 +718,7 @@ $(document).ready(function() {
         const $btn = $(this);
         const originalHtml = $btn.html();
         
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Syncing...');
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> ' + i18n.syncing);
 
         $.get("{{ route('teacher.duty_book.report') }}", { date: date }, function(response) {
             let systemData = response.system_attendance;
@@ -526,10 +748,10 @@ $(document).ready(function() {
                 });
                 refreshTableTotals();
                 Swal.fire({
-                    title: 'Synced',
+                    title: i18n.synced,
                     text: (response.attendance_source === 'fingerprint'
-                        ? 'Counts updated from fingerprint + Active enrollments'
-                        : 'Counts updated from system attendance + Active enrollments') +
+                        ? i18n.synced_fp
+                        : i18n.synced_sys) +
                         (response.academic_year_label ? ' (' + response.academic_year_label + ').' : '.'),
                     icon: 'success',
                     timer: 2500,
@@ -537,7 +759,7 @@ $(document).ready(function() {
                 });
             }
         }).fail(function() {
-            Swal.fire('Error', 'Failed to sync data.', 'error');
+            Swal.fire(i18n.error, i18n.fail_sync, 'error');
         }).always(function() {
             $btn.prop('disabled', false).html(originalHtml);
         });
@@ -550,7 +772,7 @@ $(document).ready(function() {
         const $btn = $(this);
         const originalHtml = $btn.html();
         
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Generating Roster...');
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> ' + i18n.generating_roster);
 
         fetch("{{ route('teacher.duty_book.export') }}?from_date=" + fromDate + "&to_date=" + toDate)
             .then(response => {
@@ -569,7 +791,7 @@ $(document).ready(function() {
             })
             .catch(error => {
                 console.error('Download error:', error);
-                Swal.fire('Error', 'Failed to generate Roster PDF.', 'error');
+                Swal.fire(i18n.error, i18n.fail_roster, 'error');
             })
             .finally(() => {
                 $btn.prop('disabled', false).html(originalHtml);
@@ -583,7 +805,7 @@ $(document).ready(function() {
         const $btn = $(this);
         const originalHtml = $btn.html();
         
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Generating PDF...');
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> ' + i18n.generating_pdf);
 
         fetch("{{ route('teacher.duty_book.export_report') }}?date=" + date + "&reportID=" + reportID)
             .then(response => {
@@ -600,11 +822,11 @@ $(document).ready(function() {
                 a.click();
                 window.URL.revokeObjectURL(url);
                 
-                Swal.fire({ title: 'Success', text: 'Report downloaded.', icon: 'success', timer: 1500, showConfirmButton: false });
+                Swal.fire({ title: i18n.success_short, text: i18n.report_downloaded, icon: 'success', timer: 1500, showConfirmButton: false });
             })
             .catch(error => {
                 console.error('Download error:', error);
-                Swal.fire('Error', 'Failed to generate PDF Report. ' + error.message, 'error');
+                Swal.fire(i18n.error, i18n.fail_pdf + ' ' + error.message, 'error');
             })
             .finally(() => {
                 $btn.prop('disabled', false).html(originalHtml);
@@ -658,8 +880,8 @@ $(document).ready(function() {
         
         if (action === 'send') {
             Swal.fire({
-                title: 'Sending Report...',
-                html: 'Please wait while we process and notify the admin.',
+                title: i18n.sending_report,
+                html: i18n.sending_wait,
                 allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading();
@@ -667,11 +889,11 @@ $(document).ready(function() {
             });
         }
 
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> ' + i18n.processing);
 
         $.post("{{ route('teacher.duty_book.save') }}", formData, function(response) {
             Swal.fire({
-                title: 'Success!',
+                title: i18n.success,
                 text: response.message,
                 icon: 'success',
                 timer: 2000,
@@ -680,9 +902,9 @@ $(document).ready(function() {
                 location.reload(); 
             });
         }).fail(function(err) {
-            let msg = 'Failed to save report. Please check your network.';
+            let msg = i18n.fail_save;
             if (err.responseJSON && err.responseJSON.message) msg = err.responseJSON.message;
-            Swal.fire('Error', msg, 'error');
+            Swal.fire(i18n.error, msg, 'error');
         }).always(function() {
             $btn.prop('disabled', false).html(originalHtml);
         });
@@ -692,15 +914,16 @@ $(document).ready(function() {
     $('.send-to-admin').click(function() {
         let date = $(this).data('date');
         Swal.fire({
-            title: 'Send to Admin?',
-            text: 'Are you sure you want to finalize and send this report?',
+            title: i18n.send_confirm_title,
+            text: i18n.send_confirm_text,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Yes, Send'
+            confirmButtonText: i18n.yes_send,
+            cancelButtonText: i18n.close
         }).then((res) => {
             if (res.isConfirmed) {
                 Swal.fire({
-                    title: 'Sending Report...',
+                    title: i18n.sending_report,
                     allowOutsideClick: false,
                     didOpen: () => {
                         Swal.showLoading();
@@ -713,8 +936,8 @@ $(document).ready(function() {
                     action: 'send'
                 }, function(response) {
                     Swal.fire({
-                        title: 'Sent!',
-                        text: 'Report sent successfully.',
+                        title: i18n.sent,
+                        text: i18n.sent_ok,
                         icon: 'success',
                         timer: 2000,
                         showConfirmButton: false
@@ -722,10 +945,11 @@ $(document).ready(function() {
                         location.reload();
                     });
                 }).fail(function() {
-                    Swal.fire('Error', 'Failed to send report.', 'error');
+                    Swal.fire(i18n.error, i18n.fail_send, 'error');
                 });
             }
         });
     });
 });
 </script>
+@endpush

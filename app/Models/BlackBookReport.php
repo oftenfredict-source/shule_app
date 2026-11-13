@@ -14,6 +14,7 @@ class BlackBookReport extends Model
         'studentID',
         'enrollmentID',
         'problem_categoryID',
+        'custom_problem_name',
         'description',
         'reported_by_type',
         'reported_by_id',

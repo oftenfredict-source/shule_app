@@ -18,6 +18,7 @@ use App\Services\SelectedAcademicYearService;
 use App\Services\StudentEnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -51,7 +52,10 @@ class CharacterAssessmentController extends Controller
         $terms = Term::where('schoolID', $schoolID)->orderBy('termID', 'desc')->get();
         $classes = ClassModel::where('schoolID', $schoolID)->where('status', 'active')->get();
         $subclasses = Subclass::whereIn('classID', $classes->pluck('classID'))->get();
-        $teachers = Teacher::where('schoolID', $schoolID)->where('status', 'active')->get();
+        $teachers = Teacher::where('schoolID', $schoolID)
+            ->whereRaw('LOWER(status) = ?', ['active'])
+            ->orderBy('first_name')
+            ->get();
 
         $yearService = app(SelectedAcademicYearService::class);
         $selectedYearIds = $yearService->selectedYearIds((int) $schoolID);
@@ -309,21 +313,38 @@ class CharacterAssessmentController extends Controller
                 $categoriesLimit = 5;
             }
 
-            if ($request->assignments && is_array($request->assignments)) {
-                foreach ($request->assignments as $asgn) {
-                    $selected = $asgn['selected_categories'] ?? [];
-                    if (is_array($selected) && count($selected) > $categoriesLimit) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => "Cannot select more than {$categoriesLimit} assessment categories per assignment.",
-                        ], 422);
-                    }
+            $assignments = $request->input('assignments', []);
+            if (!is_array($assignments) || count($assignments) === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Add at least one class assignment and assign a teacher (select teacher, then click + ADD). Without this, teachers will not see the assessment.',
+                ], 422);
+            }
+
+            foreach ($assignments as $asgn) {
+                if (empty($asgn['classID']) || empty($asgn['teacherID'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Each assignment must have a target class and a teacher.',
+                    ], 422);
+                }
+
+                $selected = $asgn['selected_categories'] ?? [];
+                if (is_array($selected) && count($selected) > $categoriesLimit) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Cannot select more than {$categoriesLimit} assessment categories per assignment.",
+                    ], 422);
                 }
             }
-            
+
+            DB::beginTransaction();
+
             // 2. Create or Update Timetable
             if ($id) {
-                $timetable = CharacterAssessmentTimetable::findOrFail($id);
+                $timetable = CharacterAssessmentTimetable::where('timetableID', $id)
+                    ->where('schoolID', $schoolID)
+                    ->firstOrFail();
                 $timetable->update([
                     'year' => $request->year,
                     'term' => $request->term,
@@ -345,20 +366,26 @@ class CharacterAssessmentController extends Controller
             }
 
             // 3. Create Assignments
-            if ($request->assignments && is_array($request->assignments)) {
-                foreach ($request->assignments as $asgn) {
-                    CharacterAssessmentAssignment::create([
-                        'timetableID' => $timetable->timetableID,
-                        'classID' => $asgn['classID'],
-                        'subclassID' => $asgn['subclassID'] == 'all' ? null : $asgn['subclassID'],
-                        'teacherID' => $asgn['teacherID'],
-                        'selected_categories' => $asgn['selected_categories'] ?? []
-                    ]);
+            foreach ($assignments as $asgn) {
+                $subclassID = $asgn['subclassID'] ?? null;
+                if ($subclassID === 'all' || $subclassID === '' || $subclassID === null) {
+                    $subclassID = null;
                 }
+
+                CharacterAssessmentAssignment::create([
+                    'timetableID' => $timetable->timetableID,
+                    'classID' => (int) $asgn['classID'],
+                    'subclassID' => $subclassID !== null ? (int) $subclassID : null,
+                    'teacherID' => (int) $asgn['teacherID'],
+                    'selected_categories' => $asgn['selected_categories'] ?? []
+                ]);
             }
+
+            DB::commit();
 
             return response()->json(['success' => true, 'message' => $id ? 'Timetable updated successfully' : 'Timetable defined successfully']);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }

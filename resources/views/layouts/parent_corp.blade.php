@@ -192,7 +192,7 @@
         font-weight: 800;
         letter-spacing: 0.03em;
         text-transform: uppercase;
-        color: #111 !important;
+        color: #000 !important;
         line-height: 1.2;
         margin: 0;
       }
@@ -201,9 +201,38 @@
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: #666 !important;
+        color: #000 !important;
         line-height: 1.25;
         margin: 2px 0 0;
+      }
+      /* Keep identity label black even when app is in dark mode */
+      html[data-sx-theme="dark"] .sx-sa-sidebar-identity,
+      html[data-bs-theme="dark"] .sx-sa-sidebar-identity {
+        background: #ffffff !important;
+        border-bottom-color: #ececec !important;
+        border-right-color: #eee !important;
+      }
+      html[data-sx-theme="dark"] .sx-sa-sidebar-identity .sx-sa-id-name,
+      html[data-bs-theme="dark"] .sx-sa-sidebar-identity .sx-sa-id-name,
+      html[data-sx-theme="dark"] .sx-sa-sidebar-identity .sx-sa-id-role,
+      html[data-bs-theme="dark"] .sx-sa-sidebar-identity .sx-sa-id-role,
+      html[data-sx-theme="dark"] .sx-sa-sidebar-identity p,
+      html[data-bs-theme="dark"] .sx-sa-sidebar-identity p,
+      html[data-sx-theme="dark"] .sx-sa-sidebar-identity .sx-sa-id-text,
+      html[data-bs-theme="dark"] .sx-sa-sidebar-identity .sx-sa-id-text {
+        color: #000 !important;
+      }
+      html[data-sx-theme="dark"] .app-header .dropdown-menu .fw-bold,
+      html[data-bs-theme="dark"] .app-header .dropdown-menu .fw-bold,
+      html[data-sx-theme="dark"] .app-header .dropdown-menu .text-dark,
+      html[data-bs-theme="dark"] .app-header .dropdown-menu .text-dark,
+      html[data-sx-theme="dark"] .app-header .dropdown-menu .text-body,
+      html[data-bs-theme="dark"] .app-header .dropdown-menu .text-body,
+      html[data-sx-theme="dark"] .app-header .dropdown-menu .sx-parent-id-name,
+      html[data-bs-theme="dark"] .app-header .dropdown-menu .sx-parent-id-name,
+      html[data-sx-theme="dark"] .app-header .dropdown-menu .sx-parent-id-role,
+      html[data-bs-theme="dark"] .app-header .dropdown-menu .sx-parent-id-role {
+        color: #000 !important;
       }
       [data-app-sidebar="mini"] .sx-sa-sidebar-identity {
         justify-content: center;
@@ -263,6 +292,7 @@
       }
       .app-header .dropdown-menu {
         color: var(--bs-body-color);
+        background: #fff;
       }
       .app-header .dropdown-menu .fw-bold,
       .app-header .dropdown-menu .text-dark,
@@ -270,6 +300,18 @@
       .app-header .dropdown-menu a,
       .app-header .dropdown-menu .fi {
         color: inherit !important;
+      }
+      .app-header .dropdown-menu .sx-parent-id-name,
+      .app-header .dropdown-menu .sx-parent-id-role,
+      html[data-sx-theme="dark"] .app-header .dropdown-menu .sx-parent-id-name,
+      html[data-bs-theme="dark"] .app-header .dropdown-menu .sx-parent-id-name,
+      html[data-sx-theme="dark"] .app-header .dropdown-menu .sx-parent-id-role,
+      html[data-bs-theme="dark"] .app-header .dropdown-menu .sx-parent-id-role,
+      html[data-sx-theme="dark"] .app-header .dropdown-menu .fw-bold.text-dark,
+      html[data-bs-theme="dark"] .app-header .dropdown-menu .fw-bold.text-dark,
+      html[data-sx-theme="dark"] .app-header .dropdown-menu small.text-body,
+      html[data-bs-theme="dark"] .app-header .dropdown-menu small.text-body {
+        color: #000 !important;
       }
       .app-header .dropdown-menu .text-danger,
       .app-header .dropdown-menu .text-danger .fi {
@@ -1392,8 +1434,8 @@
                     @endif
                   </div>
                   <div class="ms-2">
-                    <div class="fw-bold text-dark">{{ strtoupper($navParentName) }}</div>
-                    <small class="text-body d-block lh-sm">{{ __('parent.portal') }}</small>
+                    <div class="fw-bold text-dark sx-parent-id-name">{{ strtoupper($navParentName) }}</div>
+                    <small class="text-body d-block lh-sm sx-parent-id-role">{{ __('parent.portal') }}</small>
                   </div>
                 </li>
                 <li><div class="dropdown-divider my-1"></div></li>

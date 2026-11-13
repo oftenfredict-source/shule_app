@@ -1,20 +1,20 @@
 @extends('includes.superadmin_nav')
 
-@section('page_title', 'Registered Schools')
-@section('page_breadcrumb', 'Registered Schools')
+@section('page_title', __('superadmin.pages.registered_schools'))
+@section('page_breadcrumb', __('superadmin.pages.registered_schools'))
 
 @section('page_actions')
-    <button type="button" class="btn btn-primary waves-effect waves-light" id="btnDisableSmsAll" title="Stop all outbound SMS">
-        <i class="fi fi-rr-comment-xmark me-1"></i> Disable SMS
+    <button type="button" class="btn btn-primary waves-effect waves-light" id="btnDisableSmsAll" title="{{ __('superadmin.schools.disable_sms_title') }}">
+        <i class="fi fi-rr-comment-xmark me-1"></i> {{ __('superadmin.schools.disable_sms') }}
     </button>
-    <button type="button" class="btn btn-primary waves-effect waves-light" id="btnEnableSmsAll" title="Allow outbound SMS for all schools">
-        <i class="fi fi-rr-comment-check me-1"></i> Enable SMS
+    <button type="button" class="btn btn-primary waves-effect waves-light" id="btnEnableSmsAll" title="{{ __('superadmin.schools.enable_sms_title') }}">
+        <i class="fi fi-rr-comment-check me-1"></i> {{ __('superadmin.schools.enable_sms') }}
     </button>
     <a href="{{ route('superadmin.schools.registration_requests') }}" class="btn btn-primary waves-effect waves-light">
-        <i class="fi fi-rr-document me-1"></i> Requests
+        <i class="fi fi-rr-document me-1"></i> {{ __('superadmin.schools.requests') }}
     </a>
     <a href="{{ route('superadmin.schools.register') }}" class="btn btn-primary waves-effect waves-light">
-        <i class="fi fi-rr-add me-1"></i> Register School
+        <i class="fi fi-rr-add me-1"></i> {{ __('superadmin.schools.register_school') }}
     </a>
 @endsection
 
@@ -703,8 +703,21 @@
     @media (max-width: 767.98px) {
         .sx-sch .sx-grid { grid-template-columns: 1fr; }
     }
+    /* Dark mode — full coverage */
     html[data-sx-theme="dark"] .sx-sch,
     html[data-bs-theme="dark"] .sx-sch,
+    html[data-sx-theme="dark"] .sx-sch p,
+    html[data-bs-theme="dark"] .sx-sch p,
+    html[data-sx-theme="dark"] .sx-sch span:not(.sx-badge):not(.badge),
+    html[data-bs-theme="dark"] .sx-sch span:not(.sx-badge):not(.badge),
+    html[data-sx-theme="dark"] .sx-sch small,
+    html[data-bs-theme="dark"] .sx-sch small,
+    html[data-sx-theme="dark"] .sx-sch strong,
+    html[data-bs-theme="dark"] .sx-sch strong,
+    html[data-sx-theme="dark"] .sx-sch div:not(.sx-badge),
+    html[data-bs-theme="dark"] .sx-sch div:not(.sx-badge),
+    html[data-sx-theme="dark"] .sx-sch label,
+    html[data-bs-theme="dark"] .sx-sch label,
     html[data-sx-theme="dark"] .sx-sch .sx-sch-card-title,
     html[data-bs-theme="dark"] .sx-sch .sx-sch-card-title,
     html[data-sx-theme="dark"] .sx-sch .sx-school-name,
@@ -712,8 +725,40 @@
     html[data-sx-theme="dark"] .sx-sch .detail-value,
     html[data-bs-theme="dark"] .sx-sch .detail-value,
     html[data-sx-theme="dark"] .sx-sch .modal-title,
-    html[data-bs-theme="dark"] .sx-sch .modal-title {
-        color: #fff !important;
+    html[data-bs-theme="dark"] .sx-sch .modal-title,
+    html[data-sx-theme="dark"] .sx-sch .fw-semibold,
+    html[data-bs-theme="dark"] .sx-sch .fw-semibold,
+    html[data-sx-theme="dark"] .sx-sch .fw-bold,
+    html[data-bs-theme="dark"] .sx-sch .fw-bold,
+    html[data-sx-theme="dark"] .sx-sch .table,
+    html[data-bs-theme="dark"] .sx-sch .table,
+    html[data-sx-theme="dark"] .sx-sch .table tbody td,
+    html[data-bs-theme="dark"] .sx-sch .table tbody td,
+    html[data-sx-theme="dark"] .sx-sch .sx-grid-row span:last-child,
+    html[data-bs-theme="dark"] .sx-sch .sx-grid-row span:last-child,
+    html[data-sx-theme="dark"] .sx-sch .form-label,
+    html[data-bs-theme="dark"] .sx-sch .form-label,
+    html[data-sx-theme="dark"] .sx-sch label.fw-bold.small,
+    html[data-bs-theme="dark"] .sx-sch label.fw-bold.small,
+    html[data-sx-theme="dark"] .sx-sch .form-check-label,
+    html[data-bs-theme="dark"] .sx-sch .form-check-label,
+    html[data-sx-theme="dark"] .sx-sch .sx-action-menu .dropdown-item,
+    html[data-bs-theme="dark"] .sx-sch .sx-action-menu .dropdown-item {
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-meta,
+    html[data-bs-theme="dark"] .sx-sch .sx-meta,
+    html[data-sx-theme="dark"] .sx-sch .detail-label,
+    html[data-bs-theme="dark"] .sx-sch .detail-label,
+    html[data-sx-theme="dark"] .sx-sch .text-muted,
+    html[data-bs-theme="dark"] .sx-sch .text-muted,
+    html[data-sx-theme="dark"] .sx-sch .sx-empty,
+    html[data-bs-theme="dark"] .sx-sch .sx-empty,
+    html[data-sx-theme="dark"] .sx-sch .sx-grid-row span:first-child,
+    html[data-bs-theme="dark"] .sx-sch .sx-grid-row span:first-child,
+    html[data-sx-theme="dark"] .sx-sch .table thead th,
+    html[data-bs-theme="dark"] .sx-sch .table thead th {
+        color: #d7c4c8 !important;
     }
     html[data-sx-theme="dark"] .sx-sch .sx-sch-card,
     html[data-bs-theme="dark"] .sx-sch .sx-sch-card,
@@ -722,24 +767,136 @@
     html[data-sx-theme="dark"] .sx-sch .modal-content,
     html[data-bs-theme="dark"] .sx-sch .modal-content {
         background: #24181c !important;
-        border-color: rgba(255, 180, 180, 0.18);
-        border-top-color: #940000;
+        border-color: rgba(255, 180, 180, 0.18) !important;
+        border-top-color: #940000 !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-sch-card-head,
+    html[data-bs-theme="dark"] .sx-sch .sx-sch-card-head,
+    html[data-sx-theme="dark"] .sx-sch .modal-header,
+    html[data-bs-theme="dark"] .sx-sch .modal-header,
+    html[data-sx-theme="dark"] .sx-sch .modal-footer,
+    html[data-bs-theme="dark"] .sx-sch .modal-footer {
+        background: #1c1417 !important;
+        border-color: rgba(255, 180, 180, 0.14) !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-table-wrap,
+    html[data-bs-theme="dark"] .sx-sch .sx-table-wrap {
+        background: #24181c !important;
+        border-color: rgba(255, 180, 180, 0.16) !important;
     }
     html[data-sx-theme="dark"] .sx-sch .table thead th,
-    html[data-bs-theme="dark"] .sx-sch .table thead th,
-    html[data-sx-theme="dark"] .sx-sch .sx-view-btn,
-    html[data-bs-theme="dark"] .sx-sch .sx-view-btn,
-    html[data-sx-theme="dark"] .sx-sch .sx-search,
-    html[data-bs-theme="dark"] .sx-sch .sx-search {
-        background: #1c1417;
-        border-color: rgba(255, 180, 180, 0.16);
-        color: #fff;
+    html[data-bs-theme="dark"] .sx-sch .table thead th {
+        background: #1c1417 !important;
+        border-bottom-color: rgba(255, 180, 180, 0.16) !important;
     }
-    html[data-sx-theme="dark"] .sx-sch .sx-meta,
-    html[data-bs-theme="dark"] .sx-sch .sx-meta,
-    html[data-sx-theme="dark"] .sx-sch .detail-label,
-    html[data-bs-theme="dark"] .sx-sch .detail-label {
-        color: #d7c4c8;
+    html[data-sx-theme="dark"] .sx-sch .table tbody td,
+    html[data-bs-theme="dark"] .sx-sch .table tbody td {
+        border-color: rgba(255, 180, 180, 0.1) !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .table tbody tr:hover,
+    html[data-bs-theme="dark"] .sx-sch .table tbody tr:hover {
+        background: rgba(255, 180, 180, 0.06) !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-search,
+    html[data-bs-theme="dark"] .sx-sch .sx-search,
+    html[data-sx-theme="dark"] .sx-sch .form-control,
+    html[data-bs-theme="dark"] .sx-sch .form-control,
+    html[data-sx-theme="dark"] .sx-sch .form-select,
+    html[data-bs-theme="dark"] .sx-sch .form-select {
+        background-color: #1c1417 !important;
+        border-color: rgba(255, 180, 180, 0.2) !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-view-toggle,
+    html[data-bs-theme="dark"] .sx-sch .sx-view-toggle {
+        border-color: rgba(255, 180, 180, 0.18) !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-view-btn,
+    html[data-bs-theme="dark"] .sx-sch .sx-view-btn {
+        background: #1c1417 !important;
+        color: #f3e9eb !important;
+        border-color: rgba(255, 180, 180, 0.16) !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-view-btn.is-active,
+    html[data-bs-theme="dark"] .sx-sch .sx-view-btn.is-active {
+        background: #940000 !important;
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-dots-btn,
+    html[data-bs-theme="dark"] .sx-sch .sx-dots-btn {
+        background: #1c1417 !important;
+        border-color: rgba(255, 180, 180, 0.2) !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-dots-btn:hover,
+    html[data-bs-theme="dark"] .sx-sch .sx-dots-btn:hover,
+    html[data-sx-theme="dark"] .sx-sch .sx-dots-btn.show,
+    html[data-bs-theme="dark"] .sx-sch .sx-dots-btn.show {
+        background: rgba(148, 0, 0, 0.22) !important;
+        border-color: #940000 !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-action-menu .dropdown-menu,
+    html[data-bs-theme="dark"] .sx-sch .sx-action-menu .dropdown-menu {
+        background: #24181c !important;
+        border-color: rgba(255, 180, 180, 0.18) !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-action-menu .dropdown-item:hover,
+    html[data-bs-theme="dark"] .sx-sch .sx-action-menu .dropdown-item:hover {
+        background: rgba(148, 0, 0, 0.2) !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .school-logo-circle,
+    html[data-bs-theme="dark"] .sx-sch .school-logo-circle {
+        border-color: rgba(255, 180, 180, 0.25) !important;
+        background: #1c1417 !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .page-link,
+    html[data-bs-theme="dark"] .sx-sch .page-link {
+        background: #1c1417 !important;
+        border-color: rgba(255, 180, 180, 0.18) !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .page-item.active .page-link,
+    html[data-bs-theme="dark"] .sx-sch .page-item.active .page-link {
+        background: #940000 !important;
+        border-color: #940000 !important;
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .page-item.disabled .page-link,
+    html[data-bs-theme="dark"] .sx-sch .page-item.disabled .page-link {
+        color: #8a7579 !important;
+        background: #1a1215 !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .btn-outline-secondary,
+    html[data-bs-theme="dark"] .sx-sch .btn-outline-secondary {
+        color: #f3e9eb !important;
+        border-color: rgba(255, 180, 180, 0.28) !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .btn-primary,
+    html[data-bs-theme="dark"] .sx-sch .btn-primary,
+    html[data-sx-theme="dark"] .sx-sch .sx-badge-on,
+    html[data-bs-theme="dark"] .sx-sch .sx-badge-on,
+    html[data-sx-theme="dark"] .sx-sch .sx-view-btn.is-active,
+    html[data-bs-theme="dark"] .sx-sch .sx-view-btn.is-active {
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-badge-students,
+    html[data-bs-theme="dark"] .sx-sch .sx-badge-students,
+    html[data-sx-theme="dark"] .sx-sch .sx-badge-off,
+    html[data-bs-theme="dark"] .sx-sch .sx-badge-off {
+        background: rgba(148, 0, 0, 0.28) !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-badge-on,
+    html[data-bs-theme="dark"] .sx-sch .sx-badge-on {
+        background: rgba(20, 92, 42, 0.35) !important;
+        color: #8ce99a !important;
+    }
+    html[data-sx-theme="dark"] .sx-sch .sx-kv-item .detail-value,
+    html[data-bs-theme="dark"] .sx-sch .sx-kv-item .detail-value {
+        border-color: rgba(255, 180, 180, 0.14) !important;
     }
 </style>
 
@@ -751,15 +908,15 @@
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <i class="fi fi-rr-check-circle me-2"></i>{{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('superadmin.common.close') }}"></button>
         </div>
     @endif
 
     <div class="sx-sch-card">
         <div class="card-body">
             <div class="sx-sch-card-head">
-                <h2 class="sx-sch-card-title">Institution Directory</h2>
-                <div class="sx-meta" id="schoolTotalCount">{{ $schools->total() }} registered school(s)</div>
+                <h2 class="sx-sch-card-title">{{ __('superadmin.schools.directory') }}</h2>
+                <div class="sx-meta" id="schoolTotalCount">{{ __('superadmin.schools.registered_count', ['count' => $schools->total()]) }}</div>
             </div>
 
             <div class="sx-toolbar">
@@ -767,14 +924,14 @@
                        id="schoolSearch"
                        class="form-control sx-search"
                        value="{{ request('q') }}"
-                       placeholder="Search school name or reg no..."
+                       placeholder="{{ __('superadmin.schools.search_placeholder') }}"
                        autocomplete="off">
-                <div class="sx-view-toggle" role="group" aria-label="View mode">
+                <div class="sx-view-toggle" role="group" aria-label="{{ __('superadmin.schools.view_mode') }}">
                     <button type="button" class="sx-view-btn is-active" data-view="list" id="btnViewList">
-                        <i class="fi fi-rr-list"></i> List
+                        <i class="fi fi-rr-list"></i> {{ __('superadmin.schools.list') }}
                     </button>
                     <button type="button" class="sx-view-btn" data-view="grid" id="btnViewGrid">
-                        <i class="fi fi-rr-apps"></i> Grid
+                        <i class="fi fi-rr-apps"></i> {{ __('superadmin.schools.grid') }}
                     </button>
                 </div>
             </div>
@@ -786,10 +943,10 @@
                         <table class="table mb-0" id="schoolsTable">
                             <thead>
                                 <tr>
-                                    <th>School</th>
-                                    <th>Students</th>
-                                    <th>SMS</th>
-                                    <th>Action</th>
+                                    <th>{{ __('superadmin.schools.th_school') }}</th>
+                                    <th>{{ __('superadmin.schools.th_students') }}</th>
+                                    <th>{{ __('superadmin.schools.th_sms') }}</th>
+                                    <th>{{ __('superadmin.schools.th_action') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -807,7 +964,7 @@
                                                      onerror="this.onerror=null;this.src='{{ $placeholderLogo }}'">
                                                 <div>
                                                     <div class="sx-school-name">{{ $school->school_name }}</div>
-                                                    <div class="sx-meta">{{ $school->registration_number ?: 'No reg no.' }} · {{ $school->school_type }}</div>
+                                                    <div class="sx-meta">{{ $school->registration_number ?: __('superadmin.schools.no_reg_no') }} · {{ $school->school_type }}</div>
                                                 </div>
                                             </div>
                                         </td>
@@ -816,9 +973,9 @@
                                         </td>
                                         <td>
                                             @if($smsOn)
-                                                <span class="sx-badge sx-badge-on">ON</span>
+                                                <span class="sx-badge sx-badge-on">{{ __('superadmin.schools.sms_on') }}</span>
                                             @else
-                                                <span class="sx-badge sx-badge-off">OFF</span>
+                                                <span class="sx-badge sx-badge-off">{{ __('superadmin.schools.sms_off') }}</span>
                                             @endif
                                         </td>
                                         <td>
@@ -827,7 +984,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="sx-empty">No registered schools yet.</td>
+                                        <td colspan="4" class="sx-empty">{{ __('superadmin.schools.empty') }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -850,26 +1007,26 @@
                                  onerror="this.onerror=null;this.src='{{ $placeholderLogo }}'">
                             <div class="flex-grow-1">
                                 <div class="sx-school-name">{{ $school->school_name }}</div>
-                                <div class="sx-meta">{{ $school->registration_number ?: 'No reg no.' }}</div>
+                                <div class="sx-meta">{{ $school->registration_number ?: __('superadmin.schools.no_reg_no') }}</div>
                             </div>
                             @include('SuperAdmin.partials.school_actions_menu', ['school' => $school])
                         </div>
                         <div class="sx-grid-rows">
                             <div class="sx-grid-row">
-                                <span>Students</span>
+                                <span>{{ __('superadmin.schools.th_students') }}</span>
                                 <span class="sx-badge sx-badge-students">{{ number_format($sCount) }}</span>
                             </div>
                             <div class="sx-grid-row">
-                                <span>Level</span>
+                                <span>{{ __('superadmin.schools.level') }}</span>
                                 <span>{{ $school->school_type }}</span>
                             </div>
                             <div class="sx-grid-row">
-                                <span>SMS</span>
+                                <span>{{ __('superadmin.schools.th_sms') }}</span>
                                 <span>
                                     @if($smsOn)
-                                        <span class="sx-badge sx-badge-on">ON</span>
+                                        <span class="sx-badge sx-badge-on">{{ __('superadmin.schools.sms_on') }}</span>
                                     @else
-                                        <span class="sx-badge sx-badge-off">OFF</span>
+                                        <span class="sx-badge sx-badge-off">{{ __('superadmin.schools.sms_off') }}</span>
                                     @endif
                                 </span>
                             </div>
@@ -877,7 +1034,7 @@
                     </div>
                 @empty
                     <div class="sx-empty" style="grid-column: 1 / -1; border: 1px solid #ececec; border-radius: 0.45rem;">
-                        No registered schools yet.
+                        {{ __('superadmin.schools.empty') }}
                     </div>
                 @endforelse
             </div>
@@ -886,7 +1043,7 @@
             @if($schools->hasPages())
                 <div class="mt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div class="sx-meta mb-0">
-                        Showing {{ $schools->firstItem() }}–{{ $schools->lastItem() }} of {{ $schools->total() }}
+                        {{ __('superadmin.schools.showing', ['from' => $schools->firstItem(), 'to' => $schools->lastItem(), 'total' => $schools->total()]) }}
                     </div>
                     <div>
                         {{ $schools->onEachSide(1)->links('pagination::bootstrap-5') }}
@@ -903,7 +1060,7 @@
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content border">
                 <div class="modal-header">
-                    <h5 class="modal-title">School profile</h5>
+                    <h5 class="modal-title">{{ __('superadmin.schools.profile_title') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -925,97 +1082,97 @@
                     <div class="sx-detail-stats">
                         <div class="sx-stat">
                             <span class="sx-stat-num" id="v_students">0</span>
-                            <span class="sx-stat-label">Students</span>
+                            <span class="sx-stat-label">{{ __('superadmin.schools.students') }}</span>
                         </div>
                         <div class="sx-stat">
                             <span class="sx-stat-num" id="v_teachers">0</span>
-                            <span class="sx-stat-label">Teachers</span>
+                            <span class="sx-stat-label">{{ __('superadmin.schools.teachers') }}</span>
                         </div>
                         <div class="sx-stat">
                             <span class="sx-stat-num" id="v_staff">0</span>
-                            <span class="sx-stat-label">Staff</span>
+                            <span class="sx-stat-label">{{ __('superadmin.schools.staff') }}</span>
                         </div>
                         <div class="sx-stat">
                             <span class="sx-stat-num" id="v_parents">0</span>
-                            <span class="sx-stat-label">Parents</span>
+                            <span class="sx-stat-label">{{ __('superadmin.schools.parents') }}</span>
                         </div>
                     </div>
 
                     <div class="sx-detail-sections">
                         <div class="sx-detail-panel">
-                            <h6>Institution</h6>
+                            <h6>{{ __('superadmin.schools.institution') }}</h6>
                             <div class="sx-kv">
-                                <div class="sx-kv-item"><span class="detail-label">Ownership</span><span class="detail-value" id="v_ownership"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">Education level</span><span class="detail-value" id="v_type"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">Environment</span><span class="detail-value" id="v_env"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">Status</span><span class="detail-value" id="v_status"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">Established</span><span class="detail-value" id="v_est"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.ownership') }}</span><span class="detail-value" id="v_ownership"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.education_level') }}</span><span class="detail-value" id="v_type"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.environment') }}</span><span class="detail-value" id="v_env"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.status') }}</span><span class="detail-value" id="v_status"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.established') }}</span><span class="detail-value" id="v_est"></span></div>
                             </div>
                         </div>
 
                         <div class="sx-detail-panel">
-                            <h6>Location</h6>
+                            <h6>{{ __('superadmin.schools.location') }}</h6>
                             <div class="sx-kv">
-                                <div class="sx-kv-item"><span class="detail-label">Region</span><span class="detail-value" id="v_region"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">District</span><span class="detail-value" id="v_district"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">Ward</span><span class="detail-value" id="v_ward"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">Village</span><span class="detail-value" id="v_village"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">Address</span><span class="detail-value" id="v_address"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.region') }}</span><span class="detail-value" id="v_region"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.district') }}</span><span class="detail-value" id="v_district"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.ward') }}</span><span class="detail-value" id="v_ward"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.village') }}</span><span class="detail-value" id="v_village"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.address') }}</span><span class="detail-value" id="v_address"></span></div>
                             </div>
                         </div>
 
                         <div class="sx-detail-panel">
-                            <h6>Contact &amp; access</h6>
+                            <h6>{{ __('superadmin.schools.contact_access') }}</h6>
                             <div class="sx-kv">
-                                <div class="sx-kv-item"><span class="detail-label">Phone</span><span class="detail-value" id="v_phone"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">Email</span><span class="detail-value" id="v_email"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">Sender ID</span><span class="detail-value" id="v_sender"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">SMS sending</span><span class="detail-value" id="v_sms_enabled"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">Student portal</span><span class="detail-value" id="v_student_portal"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">2FA</span><span class="detail-value" id="v_2fa"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">Must change password</span><span class="detail-value" id="v_must_change_password"></span></div>
-                                <div class="sx-kv-item"><span class="detail-label">Login access</span><span class="detail-value" id="v_login_status"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.phone') }}</span><span class="detail-value" id="v_phone"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.email') }}</span><span class="detail-value" id="v_email"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.sender_id') }}</span><span class="detail-value" id="v_sender"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.sms_sending') }}</span><span class="detail-value" id="v_sms_enabled"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.student_portal') }}</span><span class="detail-value" id="v_student_portal"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.two_factor') }}</span><span class="detail-value" id="v_2fa"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.must_change_password') }}</span><span class="detail-value" id="v_must_change_password"></span></div>
+                                <div class="sx-kv-item"><span class="detail-label">{{ __('superadmin.schools.login_access') }}</span><span class="detail-value" id="v_login_status"></span></div>
                             </div>
                             <div class="mt-2" id="v_suspension_reason_row" style="display:none;">
-                                <div class="sx-meta mb-1">Suspension reason</div>
+                                <div class="sx-meta mb-1">{{ __('superadmin.schools.suspension_reason') }}</div>
                                 <div class="detail-value text-start" id="v_suspension_reason" style="color:#940000;"></div>
                             </div>
                         </div>
 
                         <div class="sx-detail-panel">
-                            <h6>Brand assets</h6>
+                            <h6>{{ __('superadmin.schools.brand_assets') }}</h6>
                             <div class="sx-assets-row">
                                 <div class="sx-asset-card">
                                     <div class="asset-preview-sm">
-                                        <img id="v_stamp" src="" title="School Stamp" alt="">
+                                        <img id="v_stamp" src="" title="{{ __('superadmin.schools.stamp_alt') }}" alt="">
                                     </div>
-                                    <small>Stamp</small>
+                                    <small>{{ __('superadmin.schools.stamp') }}</small>
                                 </div>
                                 <div class="sx-asset-card">
                                     <div class="asset-preview-sm">
-                                        <img id="v_sign" src="" title="Official Signature" alt="">
+                                        <img id="v_sign" src="" title="{{ __('superadmin.schools.signature_alt') }}" alt="">
                                     </div>
-                                    <small>Signature</small>
+                                    <small>{{ __('superadmin.schools.signature') }}</small>
                                 </div>
                                 <div class="sx-asset-card">
                                     <div class="asset-preview-sm">
-                                        <img id="v_logo_asset" src="" title="School Logo" alt="">
+                                        <img id="v_logo_asset" src="" title="{{ __('superadmin.schools.logo_alt') }}" alt="">
                                     </div>
-                                    <small>Logo</small>
+                                    <small>{{ __('superadmin.schools.logo') }}</small>
                                 </div>
                             </div>
                         </div>
 
                         <div class="sx-detail-panel is-wide">
-                            <h6>Classes</h6>
+                            <h6>{{ __('superadmin.schools.classes') }}</h6>
                             <button type="button" class="sx-expand-btn" id="btnToggleClasses">
-                                <span>Classes</span>
+                                <span>{{ __('superadmin.schools.classes') }}</span>
                                 <span class="count" id="v_classes_count">0</span>
                             </button>
                             <div id="v_classes_list" class="expand-list"></div>
 
                             <button type="button" class="sx-expand-btn mt-2" id="btnToggleSubclasses">
-                                <span>Sub-classes</span>
+                                <span>{{ __('superadmin.schools.subclasses') }}</span>
                                 <span class="count" id="v_subclasses_count">0</span>
                             </button>
                             <div id="v_subclasses_list" class="expand-list"></div>
@@ -1023,8 +1180,8 @@
                     </div>
                 </div>
                 <div class="modal-footer justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary-custom" id="btnOpenEditFromView">Edit school</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('superadmin.schools.close') }}</button>
+                    <button type="button" class="btn btn-primary-custom" id="btnOpenEditFromView">{{ __('superadmin.schools.edit_title') }}</button>
                 </div>
             </div>
         </div>
@@ -1035,26 +1192,26 @@
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content border">
                 <div class="modal-header">
-                    <h5 class="modal-title">Edit school</h5>
+                    <h5 class="modal-title">{{ __('superadmin.schools.edit_title') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="sx-edit-steps" aria-label="Edit steps">
+                    <div class="sx-edit-steps" aria-label="{{ __('superadmin.schools.edit_steps') }}">
                         <div class="sx-edit-step is-active" data-edit-step-indicator="1">
                             <span class="sx-edit-step-num">1</span>
-                            <span>Basic Info</span>
+                            <span>{{ __('superadmin.schools.step_basic') }}</span>
                         </div>
                         <div class="sx-edit-step" data-edit-step-indicator="2">
                             <span class="sx-edit-step-num">2</span>
-                            <span>Location</span>
+                            <span>{{ __('superadmin.schools.step_location') }}</span>
                         </div>
                         <div class="sx-edit-step" data-edit-step-indicator="3">
                             <span class="sx-edit-step-num">3</span>
-                            <span>System</span>
+                            <span>{{ __('superadmin.schools.step_system') }}</span>
                         </div>
                         <div class="sx-edit-step" data-edit-step-indicator="4">
                             <span class="sx-edit-step-num">4</span>
-                            <span>Review</span>
+                            <span>{{ __('superadmin.schools.step_review') }}</span>
                         </div>
                     </div>
 
@@ -1062,41 +1219,41 @@
                         <input type="hidden" name="schoolID" id="e_id">
 
                         <div class="sx-edit-pane is-active" data-edit-step="1">
-                            <h3 class="sx-edit-pane-title">Basic Information</h3>
+                            <h3 class="sx-edit-pane-title">{{ __('superadmin.schools.basic_information') }}</h3>
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="fw-bold small" for="e_name">Official School Name *</label>
+                                    <label class="fw-bold small" for="e_name">{{ __('superadmin.schools.school_name') }} *</label>
                                     <input type="text" class="form-control" name="school_name" id="e_name" required>
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="fw-bold small" for="e_reg_no">Registration Number</label>
+                                    <label class="fw-bold small" for="e_reg_no">{{ __('superadmin.schools.registration_number') }}</label>
                                     <input type="text" class="form-control" name="registration_number" id="e_reg_no">
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="fw-bold small" for="e_exam_center">Exam Center No.</label>
+                                    <label class="fw-bold small" for="e_exam_center">{{ __('superadmin.schools.exam_center') }}</label>
                                     <input type="text" class="form-control" name="exam_center_number" id="e_exam_center">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="fw-bold small" for="e_type">Education Level *</label>
+                                    <label class="fw-bold small" for="e_type">{{ __('superadmin.schools.education_level_req') }} *</label>
                                     <select class="form-select" name="school_type" id="e_type" required>
-                                        <option value="">Select level</option>
-                                        <option value="Primary">Primary Level</option>
-                                        <option value="Secondary">Secondary Level</option>
-                                        <option value="Advanced">Advanced Level</option>
+                                        <option value="">{{ __('superadmin.schools.select_level') }}</option>
+                                        <option value="Primary">{{ __('superadmin.schools.level_primary') }}</option>
+                                        <option value="Secondary">{{ __('superadmin.schools.level_secondary') }}</option>
+                                        <option value="Advanced">{{ __('superadmin.schools.level_advanced') }}</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="fw-bold small" for="e_ownership">Ownership Type *</label>
+                                    <label class="fw-bold small" for="e_ownership">{{ __('superadmin.schools.ownership_type') }} *</label>
                                     <select class="form-select" name="ownership" id="e_ownership" required>
-                                        <option value="">Select ownership</option>
-                                        <option value="Public">Public (Government)</option>
-                                        <option value="Private">Private / NGO</option>
+                                        <option value="">{{ __('superadmin.schools.select_ownership') }}</option>
+                                        <option value="Public">{{ __('superadmin.schools.ownership_public') }}</option>
+                                        <option value="Private">{{ __('superadmin.schools.ownership_private') }}</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="fw-bold small" for="e_established">Established Year</label>
+                                    <label class="fw-bold small" for="e_established">{{ __('superadmin.schools.established_year') }}</label>
                                     <select class="form-select" name="established_year" id="e_established">
-                                        <option value="">Select year</option>
+                                        <option value="">{{ __('superadmin.schools.select_year') }}</option>
                                         @for ($y = (int) date('Y'); $y >= 1900; $y--)
                                             <option value="{{ $y }}">{{ $y }}</option>
                                         @endfor
@@ -1106,86 +1263,86 @@
                         </div>
 
                         <div class="sx-edit-pane" data-edit-step="2">
-                            <h3 class="sx-edit-pane-title">Location &amp; Contact</h3>
+                            <h3 class="sx-edit-pane-title">{{ __('superadmin.schools.location_contact') }}</h3>
                             <div class="row g-3">
                                 <div class="col-md-4">
-                                    <label class="fw-bold small" for="e_region">Region *</label>
+                                    <label class="fw-bold small" for="e_region">{{ __('superadmin.schools.region') }} *</label>
                                     <select class="form-select" name="region" id="e_region" required>
-                                        <option value="">Select region</option>
+                                        <option value="">{{ __('superadmin.schools.select_region') }}</option>
                                     </select>
                                     <div class="sx-meta" id="e_region_hint"></div>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="fw-bold small" for="e_district">District *</label>
+                                    <label class="fw-bold small" for="e_district">{{ __('superadmin.schools.district') }} *</label>
                                     <select class="form-select" name="district" id="e_district" required disabled>
-                                        <option value="">Select region first</option>
+                                        <option value="">{{ __('superadmin.schools.select_region_first') }}</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="fw-bold small" for="e_ward">Ward</label>
+                                    <label class="fw-bold small" for="e_ward">{{ __('superadmin.schools.ward') }}</label>
                                     <select class="form-select" name="ward" id="e_ward" disabled>
-                                        <option value="">Select district first</option>
+                                        <option value="">{{ __('superadmin.schools.select_district_first') }}</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="fw-bold small" for="e_email">Official Email</label>
+                                    <label class="fw-bold small" for="e_email">{{ __('superadmin.schools.official_email') }}</label>
                                     <input type="email" class="form-control" name="email" id="e_email">
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="fw-bold small" for="e_phone">Primary Phone</label>
-                                    <input type="tel" class="form-control" name="phone" id="e_phone" placeholder="+255...">
+                                    <label class="fw-bold small" for="e_phone">{{ __('superadmin.schools.primary_phone') }}</label>
+                                    <input type="tel" class="form-control" name="phone" id="e_phone" placeholder="{{ __('superadmin.schools.phone_placeholder') }}">
                                 </div>
                                 <div class="col-12">
-                                    <label class="fw-bold small" for="e_address">Postal Address</label>
+                                    <label class="fw-bold small" for="e_address">{{ __('superadmin.schools.postal_address') }}</label>
                                     <input type="text" class="form-control" name="address" id="e_address">
                                 </div>
                             </div>
                         </div>
 
                         <div class="sx-edit-pane" data-edit-step="3">
-                            <h3 class="sx-edit-pane-title">System Settings</h3>
+                            <h3 class="sx-edit-pane-title">{{ __('superadmin.schools.system_settings') }}</h3>
                             <div class="row g-3">
                                 <div class="col-md-4">
-                                    <label class="fw-bold small" for="e_env">System Environment</label>
+                                    <label class="fw-bold small" for="e_env">{{ __('superadmin.schools.system_environment') }}</label>
                                     <select class="form-select" name="environment" id="e_env">
-                                        <option value="Demo">Demo / Testing</option>
-                                        <option value="Live">Live / Production</option>
+                                        <option value="Demo">{{ __('superadmin.schools.env_demo') }}</option>
+                                        <option value="Live">{{ __('superadmin.schools.env_live') }}</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="fw-bold small" for="e_sender">SMS Sender ID</label>
+                                    <label class="fw-bold small" for="e_sender">{{ __('superadmin.schools.sms_sender_id') }}</label>
                                     <input type="text" class="form-control" name="senderID" id="e_sender" maxlength="11">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="fw-bold small" for="e_status">Account Status *</label>
+                                    <label class="fw-bold small" for="e_status">{{ __('superadmin.schools.account_status') }} *</label>
                                     <select class="form-select" name="status" id="e_status" required>
-                                        <option value="Active">Active (Unlocked)</option>
-                                        <option value="Inactive">Inactive (Locked)</option>
+                                        <option value="Active">{{ __('superadmin.schools.status_active') }}</option>
+                                        <option value="Inactive">{{ __('superadmin.schools.status_inactive') }}</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="fw-bold small" for="e_sms_enabled">SMS Sending</label>
+                                    <label class="fw-bold small" for="e_sms_enabled">{{ __('superadmin.schools.sms_sending') }}</label>
                                     <select class="form-select" name="sms_enabled" id="e_sms_enabled">
-                                        <option value="1">Enabled (ON)</option>
-                                        <option value="0">Disabled (OFF)</option>
+                                        <option value="1">{{ __('superadmin.schools.sms_enabled') }}</option>
+                                        <option value="0">{{ __('superadmin.schools.sms_disabled') }}</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="fw-bold small" for="e_login_status">Login Access *</label>
+                                    <label class="fw-bold small" for="e_login_status">{{ __('superadmin.schools.login_access') }} *</label>
                                     <select class="form-select" name="login_status" id="e_login_status" required>
-                                        <option value="1">Grant Access</option>
-                                        <option value="0">Deny Access</option>
+                                        <option value="1">{{ __('superadmin.schools.grant_access') }}</option>
+                                        <option value="0">{{ __('superadmin.schools.deny_access') }}</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4" id="e_suspension_reason_row" style="display:none;">
-                                    <label class="fw-bold small text-danger" for="e_suspension_reason">Suspension Reason *</label>
+                                    <label class="fw-bold small text-danger" for="e_suspension_reason">{{ __('superadmin.schools.suspension_reason') }} *</label>
                                     <textarea class="form-control border-danger" name="suspension_reason" id="e_suspension_reason" rows="2"></textarea>
                                 </div>
 
                                 <div class="col-md-4 d-flex align-items-center">
                                     <div class="form-check form-switch mb-0">
                                         <input type="checkbox" class="form-check-input" id="e_under_org" name="is_under_organization" value="1">
-                                        <label class="form-check-label" for="e_under_org">Is under organization?</label>
+                                        <label class="form-check-label" for="e_under_org">{{ __('superadmin.schools.under_organization') }}</label>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
@@ -1199,7 +1356,7 @@
                                 <div class="col-md-4 d-flex align-items-center">
                                     <div class="form-check form-switch mb-0">
                                         <input type="checkbox" class="form-check-input" id="e_student_portal_switch" value="1">
-                                        <label class="form-check-label" for="e_student_portal_switch">Enable student portal</label>
+                                        <label class="form-check-label" for="e_student_portal_switch">{{ __('superadmin.schools.enable_student_portal') }}</label>
                                     </div>
                                     <input type="hidden" name="student_portal_enabled" id="e_student_portal" value="0">
                                 </div>
@@ -1207,11 +1364,11 @@
                                 <div class="col-12" id="e_org_fields" style="display:none;">
                                     <div class="row g-3">
                                         <div class="col-md-6">
-                                            <label class="fw-bold small" for="e_org_name">Organization Name</label>
+                                            <label class="fw-bold small" for="e_org_name">{{ __('superadmin.schools.organization_name') }}</label>
                                             <input type="text" class="form-control" name="organization_name" id="e_org_name">
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="fw-bold small">Organization Logo</label>
+                                            <label class="fw-bold small">{{ __('superadmin.schools.organization_logo') }}</label>
                                             <div class="asset-preview-sm mb-2 border">
                                                 <img id="p_org_logo" src="" alt="">
                                             </div>
@@ -1223,32 +1380,32 @@
                                 <div class="col-md-6">
                                     <div class="form-check form-switch">
                                         <input type="checkbox" class="form-check-input" id="e_2fa" name="two_factor_enabled" value="1">
-                                        <label class="form-check-label" for="e_2fa">Enforce two-factor authentication (2FA)</label>
+                                        <label class="form-check-label" for="e_2fa">{{ __('superadmin.schools.enforce_2fa') }}</label>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check form-switch">
                                         <input type="checkbox" class="form-check-input" id="e_must_change_password" name="must_change_default_password" value="1">
-                                        <label class="form-check-label" for="e_must_change_password">Must change default password</label>
+                                        <label class="form-check-label" for="e_must_change_password">{{ __('superadmin.schools.must_change_default_password') }}</label>
                                     </div>
                                 </div>
 
                                 <div class="col-md-4 text-center">
-                                    <label class="fw-bold small">School Logo</label>
+                                    <label class="fw-bold small">{{ __('superadmin.schools.school_logo') }}</label>
                                     <div class="asset-preview-sm mx-auto mb-2 border">
                                         <img id="p_logo" src="" alt="">
                                     </div>
                                     <input type="file" class="form-control form-control-sm" name="school_logo" onchange="readURL(this, 'p_logo')">
                                 </div>
                                 <div class="col-md-4 text-center">
-                                    <label class="fw-bold small">Stamp</label>
+                                    <label class="fw-bold small">{{ __('superadmin.schools.stamp') }}</label>
                                     <div class="asset-preview-sm mx-auto mb-2 border">
                                         <img id="p_stamp" src="" alt="">
                                     </div>
                                     <input type="file" class="form-control form-control-sm" name="school_stamp" onchange="readURL(this, 'p_stamp')">
                                 </div>
                                 <div class="col-md-4 text-center">
-                                    <label class="fw-bold small">Signature</label>
+                                    <label class="fw-bold small">{{ __('superadmin.schools.signature') }}</label>
                                     <div class="asset-preview-sm mx-auto mb-2 border">
                                         <img id="p_sign" src="" alt="">
                                     </div>
@@ -1258,50 +1415,50 @@
                         </div>
 
                         <div class="sx-edit-pane" data-edit-step="4">
-                            <h3 class="sx-edit-pane-title">Review &amp; Save</h3>
+                            <h3 class="sx-edit-pane-title">{{ __('superadmin.schools.review_save') }}</h3>
                             <div class="sx-edit-review" id="editReviewSummary">
                                 <div class="sx-edit-review-block">
-                                    <h6>Basic Information</h6>
+                                    <h6>{{ __('superadmin.schools.basic_information') }}</h6>
                                     <dl class="sx-edit-review-rows">
-                                        <div><dt>School Name</dt><dd data-edit-review="school_name">—</dd></div>
-                                        <div><dt>Registration No.</dt><dd data-edit-review="registration_number">—</dd></div>
-                                        <div><dt>Exam Center</dt><dd data-edit-review="exam_center_number">—</dd></div>
-                                        <div><dt>Education Level</dt><dd data-edit-review="school_type">—</dd></div>
-                                        <div><dt>Ownership</dt><dd data-edit-review="ownership">—</dd></div>
-                                        <div><dt>Established</dt><dd data-edit-review="established_year">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.review_school_name') }}</dt><dd data-edit-review="school_name">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.review_registration_no') }}</dt><dd data-edit-review="registration_number">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.review_exam_center') }}</dt><dd data-edit-review="exam_center_number">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.review_education_level') }}</dt><dd data-edit-review="school_type">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.ownership') }}</dt><dd data-edit-review="ownership">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.established') }}</dt><dd data-edit-review="established_year">—</dd></div>
                                     </dl>
                                 </div>
                                 <div class="sx-edit-review-block">
-                                    <h6>Location &amp; Contact</h6>
+                                    <h6>{{ __('superadmin.schools.location_contact') }}</h6>
                                     <dl class="sx-edit-review-rows">
-                                        <div><dt>Region</dt><dd data-edit-review="region">—</dd></div>
-                                        <div><dt>District</dt><dd data-edit-review="district">—</dd></div>
-                                        <div><dt>Ward</dt><dd data-edit-review="ward">—</dd></div>
-                                        <div><dt>Email</dt><dd data-edit-review="email">—</dd></div>
-                                        <div><dt>Phone</dt><dd data-edit-review="phone">—</dd></div>
-                                        <div><dt>Address</dt><dd data-edit-review="address">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.region') }}</dt><dd data-edit-review="region">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.district') }}</dt><dd data-edit-review="district">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.ward') }}</dt><dd data-edit-review="ward">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.email') }}</dt><dd data-edit-review="email">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.phone') }}</dt><dd data-edit-review="phone">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.address') }}</dt><dd data-edit-review="address">—</dd></div>
                                     </dl>
                                 </div>
                                 <div class="sx-edit-review-block">
-                                    <h6>System Settings</h6>
+                                    <h6>{{ __('superadmin.schools.system_settings') }}</h6>
                                     <dl class="sx-edit-review-rows">
-                                        <div><dt>Environment</dt><dd data-edit-review="environment">—</dd></div>
-                                        <div><dt>Status</dt><dd data-edit-review="status">—</dd></div>
-                                        <div><dt>SMS</dt><dd data-edit-review="sms_enabled">—</dd></div>
-                                        <div><dt>Login Access</dt><dd data-edit-review="login_status">—</dd></div>
-                                        <div><dt>Student Portal</dt><dd data-edit-review="student_portal">—</dd></div>
-                                        <div><dt>2FA</dt><dd data-edit-review="two_factor">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.environment') }}</dt><dd data-edit-review="environment">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.status') }}</dt><dd data-edit-review="status">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.th_sms') }}</dt><dd data-edit-review="sms_enabled">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.review_login_access') }}</dt><dd data-edit-review="login_status">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.review_student_portal') }}</dt><dd data-edit-review="student_portal">—</dd></div>
+                                        <div><dt>{{ __('superadmin.schools.two_factor') }}</dt><dd data-edit-review="two_factor">—</dd></div>
                                     </dl>
                                 </div>
                             </div>
                         </div>
 
                         <div class="sx-edit-actions">
-                            <button type="button" class="btn btn-outline-secondary" id="btnEditPrev" style="display:none;">Back</button>
+                            <button type="button" class="btn btn-outline-secondary" id="btnEditPrev" style="display:none;">{{ __('superadmin.schools.back') }}</button>
                             <div class="d-flex gap-2 ms-auto">
-                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="button" class="btn btn-primary-custom" id="btnEditNext">Continue</button>
-                                <button type="submit" class="btn btn-primary-custom" id="btn_update" style="display:none;">Save Changes</button>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('superadmin.schools.cancel') }}</button>
+                                <button type="button" class="btn btn-primary-custom" id="btnEditNext">{{ __('superadmin.schools.continue') }}</button>
+                                <button type="submit" class="btn btn-primary-custom" id="btn_update" style="display:none;">{{ __('superadmin.schools.save_changes') }}</button>
                             </div>
                         </div>
                     </form>
@@ -1314,6 +1471,8 @@
 
 @push('scripts')
 <script>
+    const SX = @json(__('superadmin.schools'));
+    const SXC = @json(__('superadmin.common'));
     function readURL(input, target) {
         if (input.files && input.files[0]) {
             var reader = new FileReader();
@@ -1326,11 +1485,11 @@
     let lastViewSchoolBtn = null;
 
     function bulkSmsToggle(enabled) {
-        var title = enabled ? 'Enable SMS for all schools?' : 'Disable SMS for all schools?';
+        var title = enabled ? SX.js.enable_all_title : SX.js.disable_all_title;
         var text = enabled
-            ? 'Outbound SMS will be allowed for every school.'
-            : 'No SMS will be sent to parents/clients until re-enabled.';
-        var confirmText = enabled ? 'Yes, enable' : 'Yes, disable';
+            ? SX.js.enable_all_text
+            : SX.js.disable_all_text;
+        var confirmText = enabled ? SX.js.confirm_enable : SX.js.confirm_disable;
 
         Swal.fire({
             title: title,
@@ -1340,13 +1499,13 @@
             confirmButtonColor: '#940000',
             cancelButtonColor: '#6c757d',
             confirmButtonText: confirmText,
-            cancelButtonText: 'Cancel'
+            cancelButtonText: SX.js.cancel
         }).then(function (result) {
             if (!result.isConfirmed) return;
 
             Swal.fire({
-                title: 'Please wait...',
-                text: enabled ? 'Enabling SMS...' : 'Disabling SMS...',
+                title: SX.js.please_wait,
+                text: enabled ? SX.js.enabling_sms : SX.js.disabling_sms,
                 allowOutsideClick: false,
                 allowEscapeKey: false,
                 didOpen: function () { Swal.showLoading(); }
@@ -1366,15 +1525,15 @@
                 if (data.success) {
                     Swal.fire({
                         icon: 'success',
-                        title: 'Done',
-                        text: data.message || (enabled ? 'SMS enabled for all schools.' : 'SMS disabled for all schools.'),
+                        title: SX.js.done,
+                        text: data.message || (enabled ? SX.js.sms_enabled_all : SX.js.sms_disabled_all),
                         confirmButtonColor: '#940000'
                     }).then(function () { location.reload(); });
                 } else {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Failed',
-                        text: data.message || 'Could not update SMS settings.',
+                        title: SX.js.failed,
+                        text: data.message || SX.js.sms_update_failed,
                         confirmButtonColor: '#940000'
                     });
                 }
@@ -1382,8 +1541,8 @@
             .catch(function () {
                 Swal.fire({
                     icon: 'error',
-                    title: 'Request failed',
-                    text: 'Please try again.',
+                    title: SX.js.request_failed,
+                    text: SX.js.try_again,
                     confirmButtonColor: '#940000'
                 });
             });
@@ -1505,7 +1664,7 @@
             $('#v_sign').attr('src', s.sign_url || '');
 
             $('#v_name_header').text(s.school_name || '—');
-            $('#v_reg_badge').text(s.registration_number || 'No registration number');
+            $('#v_reg_badge').text(s.registration_number || SX.js.no_reg_number);
 
             $('#v_ownership').text(s.ownership || '—');
             $('#v_type').text(s.school_type || '—');
@@ -1513,11 +1672,11 @@
             $('#v_status').text(s.status || '—');
             $('#v_est').text(s.established_year || '—');
 
-            setChip($('#v_type_chip'), s.school_type || 'Level');
-            setChip($('#v_ownership_chip'), s.ownership || 'Ownership');
-            setChip($('#v_env_chip'), s.environment || 'Env', String(s.environment).toLowerCase() === 'live' ? 'sx-chip-live' : 'sx-chip-demo');
-            setChip($('#v_status_chip'), s.status || 'Status', String(s.status).toLowerCase() === 'active' ? 'sx-chip-active' : 'sx-chip-inactive');
-            setChip($('#v_login_chip'), s.login_status != 0 ? 'Access granted' : 'Blocked', s.login_status != 0 ? 'sx-chip-active' : 'sx-chip-inactive');
+            setChip($('#v_type_chip'), s.school_type || SX.level);
+            setChip($('#v_ownership_chip'), s.ownership || SX.ownership);
+            setChip($('#v_env_chip'), s.environment || SX.environment, String(s.environment).toLowerCase() === 'live' ? 'sx-chip-live' : 'sx-chip-demo');
+            setChip($('#v_status_chip'), s.status || SX.status, String(s.status).toLowerCase() === 'active' ? 'sx-chip-active' : 'sx-chip-inactive');
+            setChip($('#v_login_chip'), s.login_status != 0 ? SX.js.access_granted : SX.js.blocked_title, s.login_status != 0 ? 'sx-chip-active' : 'sx-chip-inactive');
 
             $('#v_region').text(s.region || '—');
             $('#v_district').text(s.district || '—');
@@ -1529,15 +1688,15 @@
             $('#v_email').text(s.email || '—');
             $('#v_sender').text(s.senderID || '—');
             const smsOn = (s.sms_enabled === undefined || s.sms_enabled === null) ? true : !!(s.sms_enabled == 1 || s.sms_enabled === true);
-            $('#v_sms_enabled').html(smsOn ? '<span class="sx-badge sx-badge-on">ON</span>' : '<span class="sx-badge sx-badge-off">OFF</span>');
+            $('#v_sms_enabled').html(smsOn ? '<span class="sx-badge sx-badge-on">' + SX.js.on + '</span>' : '<span class="sx-badge sx-badge-off">' + SX.js.off + '</span>');
             const portalOn = !!(s.student_portal_enabled == 1 || s.student_portal_enabled === true);
-            $('#v_student_portal').html(portalOn ? '<span class="sx-badge sx-badge-on">YES</span>' : '<span class="sx-badge sx-badge-off">NO</span>');
-            $('#v_2fa').text(s.two_factor_enabled ? 'Yes' : 'No');
-            $('#v_must_change_password').text(s.must_change_default_password ? 'Yes' : 'No');
+            $('#v_student_portal').html(portalOn ? '<span class="sx-badge sx-badge-on">' + SX.js.yes + '</span>' : '<span class="sx-badge sx-badge-off">' + SX.js.no + '</span>');
+            $('#v_2fa').text(s.two_factor_enabled ? SX.js.yes_plain : SX.js.no_plain);
+            $('#v_must_change_password').text(s.must_change_default_password ? SX.js.yes_plain : SX.js.no_plain);
 
-            $('#v_login_status').html(s.login_status != 0 ? '<span class="sx-badge sx-badge-on">ACTIVE</span>' : '<span class="sx-badge sx-badge-off">BLOCKED</span>');
+            $('#v_login_status').html(s.login_status != 0 ? '<span class="sx-badge sx-badge-on">' + SX.js.active + '</span>' : '<span class="sx-badge sx-badge-off">' + SX.js.blocked + '</span>');
             if (s.login_status == 0) {
-                $('#v_suspension_reason').text(s.suspension_reason || 'No reason specified');
+                $('#v_suspension_reason').text(s.suspension_reason || SX.js.no_reason);
                 $('#v_suspension_reason_row').show();
             } else {
                 $('#v_suspension_reason_row').hide();
@@ -1552,10 +1711,10 @@
             $('#v_subclasses_count').text(b.data('subclasses-count'));
 
             const cList = JSON.parse(b.attr('data-classes-list') || '[]');
-            $('#v_classes_list').html(cList.length ? cList.map(c => `<div class="sx-expand-item">${c}</div>`).join('') : '<div class="sx-expand-item">None</div>');
+            $('#v_classes_list').html(cList.length ? cList.map(c => `<div class="sx-expand-item">${c}</div>`).join('') : '<div class="sx-expand-item">' + SX.js.none + '</div>');
 
             const scList = JSON.parse(b.attr('data-subclasses-list') || '[]');
-            $('#v_subclasses_list').html(scList.length ? scList.map(sc => `<div class="sx-expand-item">${sc}</div>`).join('') : '<div class="sx-expand-item">None</div>');
+            $('#v_subclasses_list').html(scList.length ? scList.map(sc => `<div class="sx-expand-item">${sc}</div>`).join('') : '<div class="sx-expand-item">' + SX.js.none + '</div>');
 
             $('.expand-list').hide();
             $('#btnToggleClasses, #btnToggleSubclasses').css('border-radius', '0.4rem');
@@ -1601,22 +1760,22 @@
             const $district = $('#e_district');
             const $ward = $('#e_ward');
             if (!regionSlug) {
-                fillSelect($district, [], 'Select region first', '');
+                fillSelect($district, [], SX.js.select_region_first, '');
                 $district.prop('disabled', true);
-                fillSelect($ward, [], 'Select district first', '');
+                fillSelect($ward, [], SX.js.select_district_first, '');
                 $ward.prop('disabled', true);
                 return;
             }
             $district.prop('disabled', true);
-            fillSelect($district, [], 'Loading districts...', '');
-            fillSelect($ward, [], 'Select district first', '');
+            fillSelect($district, [], SX.js.loading_districts, '');
+            fillSelect($ward, [], SX.js.select_district_first, '');
             $ward.prop('disabled', true);
             fetch(TZ_LOCATIONS_API + '/regions/' + encodeURIComponent(regionSlug) + '/districts', {
                 headers: { 'Accept': 'application/json' }
             })
                 .then(function (r) { return r.json(); })
                 .then(function (json) {
-                    fillSelect($district, (json && json.data) ? json.data : [], 'Select district', preferDistrict || '');
+                    fillSelect($district, (json && json.data) ? json.data : [], SX.js.select_district, preferDistrict || '');
                     $district.prop('disabled', false);
                     if (preferDistrict) {
                         const dSlug = selectedSlug($district);
@@ -1624,7 +1783,7 @@
                     }
                 })
                 .catch(function () {
-                    fillSelect($district, [], 'Failed to load districts', '');
+                    fillSelect($district, [], SX.js.districts_failed, '');
                     $district.prop('disabled', false);
                 });
         }
@@ -1632,22 +1791,22 @@
         function loadEditWards(districtSlug, preferWard) {
             const $ward = $('#e_ward');
             if (!districtSlug) {
-                fillSelect($ward, [], 'Select district first', '');
+                fillSelect($ward, [], SX.js.select_district_first, '');
                 $ward.prop('disabled', true);
                 return;
             }
             $ward.prop('disabled', true);
-            fillSelect($ward, [], 'Loading wards...', '');
+            fillSelect($ward, [], SX.js.loading_wards, '');
             fetch(TZ_LOCATIONS_API + '/districts/' + encodeURIComponent(districtSlug) + '/wards', {
                 headers: { 'Accept': 'application/json' }
             })
                 .then(function (r) { return r.json(); })
                 .then(function (json) {
-                    fillSelect($ward, (json && json.data) ? json.data : [], 'Select ward (optional)', preferWard || '');
+                    fillSelect($ward, (json && json.data) ? json.data : [], SX.js.select_ward, preferWard || '');
                     $ward.prop('disabled', false);
                 })
                 .catch(function () {
-                    fillSelect($ward, [], 'Failed to load wards', '');
+                    fillSelect($ward, [], SX.js.wards_failed, '');
                     $ward.prop('disabled', false);
                 });
         }
@@ -1655,11 +1814,11 @@
         function loadEditRegions(preferRegion, preferDistrict, preferWard) {
             const $region = $('#e_region');
             const $hint = $('#e_region_hint');
-            $hint.text('Loading regions...');
+            $hint.text(SX.js.loading_regions);
             fetch(TZ_LOCATIONS_API + '/regions', { headers: { 'Accept': 'application/json' } })
                 .then(function (r) { return r.json(); })
                 .then(function (json) {
-                    fillSelect($region, (json && json.data) ? json.data : [], 'Select region', preferRegion || '');
+                    fillSelect($region, (json && json.data) ? json.data : [], SX.js.select_region, preferRegion || '');
                     $hint.text('');
                     if (preferRegion) {
                         const slug = selectedSlug($region);
@@ -1667,7 +1826,7 @@
                     }
                 })
                 .catch(function () {
-                    $hint.text('Could not load regions.').css('color', '#940000');
+                    $hint.text(SX.js.regions_failed).css('color', '#940000');
                 });
         }
 
@@ -1738,8 +1897,8 @@
             setEditReview('status', editFieldText('e_status'));
             setEditReview('sms_enabled', editFieldText('e_sms_enabled'));
             setEditReview('login_status', editFieldText('e_login_status'));
-            setEditReview('student_portal', $('#e_student_portal_switch').is(':checked') ? 'Yes' : 'No');
-            setEditReview('two_factor', $('#e_2fa').is(':checked') ? 'Yes' : 'No');
+            setEditReview('student_portal', $('#e_student_portal_switch').is(':checked') ? SX.js.yes_plain : SX.js.no_plain);
+            setEditReview('two_factor', $('#e_2fa').is(':checked') ? SX.js.yes_plain : SX.js.no_plain);
         }
 
         $(document).on('input change', '#editForm input, #editForm select, #editForm textarea', function () {
@@ -1899,37 +2058,37 @@
             const id = $(this).data('id');
             const name = $(this).data('name') || 'this school';
             Swal.fire({
-                title: 'Block school?',
-                html: 'Users from <strong>' + name + '</strong> will not be able to log in.',
+                title: SX.js.block_title,
+                html: SX.js.block_text.replace(':name', name),
                 input: 'textarea',
-                inputLabel: 'Suspension reason',
-                inputPlaceholder: 'Reason shown when users try to log in...',
-                inputAttributes: { 'aria-label': 'Suspension reason' },
+                inputLabel: SX.js.suspension_reason,
+                inputPlaceholder: SX.js.suspension_placeholder,
+                inputAttributes: { 'aria-label': SX.js.suspension_reason },
                 showCancelButton: true,
                 confirmButtonColor: '#940000',
                 cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Block',
-                cancelButtonText: 'Cancel',
+                confirmButtonText: SX.js.block,
+                cancelButtonText: SX.js.cancel,
                 inputValidator: function (value) {
                     if (!value || !String(value).trim()) {
-                        return 'Suspension reason is required';
+                        return SX.js.suspension_required;
                     }
                 }
             }).then(function (result) {
                 if (!result.isConfirmed) return;
-                Swal.fire({ title: 'Please wait...', allowOutsideClick: false, didOpen: function () { Swal.showLoading(); } });
+                Swal.fire({ title: SX.js.please_wait, allowOutsideClick: false, didOpen: function () { Swal.showLoading(); } });
                 schoolActionPost('{{ route("superadmin.schools.block") }}', {
                     schoolID: id,
                     suspension_reason: String(result.value || '').trim()
                 }).then(function (data) {
                     if (data.success) {
-                        Swal.fire({ icon: 'success', title: 'Blocked', text: data.message || 'School blocked.', confirmButtonColor: '#940000' })
+                        Swal.fire({ icon: 'success', title: SX.js.blocked_title, text: data.message || SX.js.school_blocked, confirmButtonColor: '#940000' })
                             .then(function () { location.reload(); });
                     } else {
-                        Swal.fire({ icon: 'error', title: 'Failed', text: data.message || 'Could not block school.', confirmButtonColor: '#940000' });
+                        Swal.fire({ icon: 'error', title: SX.js.failed, text: data.message || SX.js.block_failed, confirmButtonColor: '#940000' });
                     }
                 }).catch(function () {
-                    Swal.fire({ icon: 'error', title: 'Request failed', text: 'Please try again.', confirmButtonColor: '#940000' });
+                    Swal.fire({ icon: 'error', title: SX.js.request_failed, text: SX.js.try_again, confirmButtonColor: '#940000' });
                 });
             });
         });
@@ -1939,26 +2098,26 @@
             const id = $(this).data('id');
             const name = $(this).data('name') || 'this school';
             Swal.fire({
-                title: 'Unblock school?',
-                html: 'Restore login access for <strong>' + name + '</strong>?',
+                title: SX.js.unblock_title,
+                html: SX.js.unblock_text.replace(':name', name),
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#940000',
                 cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Unblock',
-                cancelButtonText: 'Cancel'
+                confirmButtonText: SX.js.unblock,
+                cancelButtonText: SX.js.cancel
             }).then(function (result) {
                 if (!result.isConfirmed) return;
-                Swal.fire({ title: 'Please wait...', allowOutsideClick: false, didOpen: function () { Swal.showLoading(); } });
+                Swal.fire({ title: SX.js.please_wait, allowOutsideClick: false, didOpen: function () { Swal.showLoading(); } });
                 schoolActionPost('{{ route("superadmin.schools.unblock") }}', { schoolID: id }).then(function (data) {
                     if (data.success) {
-                        Swal.fire({ icon: 'success', title: 'Unblocked', text: data.message || 'School unblocked.', confirmButtonColor: '#940000' })
+                        Swal.fire({ icon: 'success', title: SX.js.unblocked_title, text: data.message || SX.js.school_unblocked, confirmButtonColor: '#940000' })
                             .then(function () { location.reload(); });
                     } else {
-                        Swal.fire({ icon: 'error', title: 'Failed', text: data.message || 'Could not unblock school.', confirmButtonColor: '#940000' });
+                        Swal.fire({ icon: 'error', title: SX.js.failed, text: data.message || SX.js.unblock_failed, confirmButtonColor: '#940000' });
                     }
                 }).catch(function () {
-                    Swal.fire({ icon: 'error', title: 'Request failed', text: 'Please try again.', confirmButtonColor: '#940000' });
+                    Swal.fire({ icon: 'error', title: SX.js.request_failed, text: SX.js.try_again, confirmButtonColor: '#940000' });
                 });
             });
         });
@@ -1968,33 +2127,33 @@
             const id = $(this).data('id');
             const name = $(this).data('name') || 'this school';
             Swal.fire({
-                title: 'Delete school?',
-                html: 'This will permanently remove <strong>' + name + '</strong>. Type the school name to confirm.',
+                title: SX.js.delete_title,
+                html: SX.js.delete_text.replace(':name', name),
                 input: 'text',
                 inputPlaceholder: name,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#940000',
                 cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Delete',
-                cancelButtonText: 'Cancel',
+                confirmButtonText: SX.js.delete,
+                cancelButtonText: SX.js.cancel,
                 inputValidator: function (value) {
                     if (String(value || '').trim() !== String(name).trim()) {
-                        return 'School name does not match';
+                        return SX.js.name_mismatch;
                     }
                 }
             }).then(function (result) {
                 if (!result.isConfirmed) return;
-                Swal.fire({ title: 'Please wait...', allowOutsideClick: false, didOpen: function () { Swal.showLoading(); } });
+                Swal.fire({ title: SX.js.please_wait, allowOutsideClick: false, didOpen: function () { Swal.showLoading(); } });
                 schoolActionPost('{{ route("superadmin.schools.delete") }}', { schoolID: id }).then(function (data) {
                     if (data.success) {
-                        Swal.fire({ icon: 'success', title: 'Deleted', text: data.message || 'School deleted.', confirmButtonColor: '#940000' })
+                        Swal.fire({ icon: 'success', title: SX.js.deleted_title, text: data.message || SX.js.school_deleted, confirmButtonColor: '#940000' })
                             .then(function () { location.reload(); });
                     } else {
-                        Swal.fire({ icon: 'error', title: 'Failed', text: data.message || 'Could not delete school.', confirmButtonColor: '#940000' });
+                        Swal.fire({ icon: 'error', title: SX.js.failed, text: data.message || SX.js.delete_failed, confirmButtonColor: '#940000' });
                     }
                 }).catch(function () {
-                    Swal.fire({ icon: 'error', title: 'Request failed', text: 'Please try again.', confirmButtonColor: '#940000' });
+                    Swal.fire({ icon: 'error', title: SX.js.request_failed, text: SX.js.try_again, confirmButtonColor: '#940000' });
                 });
             });
         });
@@ -2021,7 +2180,7 @@
             e.preventDefault();
             syncStudentPortalField();
             const $btn = $('#btn_update');
-            $btn.prop('disabled', true).text('Updating...');
+            $btn.prop('disabled', true).text(SX.js.updating);
 
             $.ajax({
                 url: '{{ route("superadmin.schools.update_comprehensive") }}',
@@ -2041,15 +2200,15 @@
                 headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 success: function(res) {
                     if(res.success) {
-                        Swal.fire('Updated', res.message, 'success').then(() => location.reload());
+                        Swal.fire(SX.js.updated, res.message, 'success').then(() => location.reload());
                     } else {
-                        Swal.fire('Error', res.message, 'error');
-                        $btn.prop('disabled', false).text('Save Changes');
+                        Swal.fire(SX.js.error, res.message, 'error');
+                        $btn.prop('disabled', false).text(SX.js.save_changes);
                     }
                 },
                 error: function(xhr) {
-                    $btn.prop('disabled', false).text('Save Changes');
-                    let msg = 'Update failed';
+                    $btn.prop('disabled', false).text(SX.js.save_changes);
+                    let msg = SX.js.update_failed;
                     if (xhr.responseJSON) {
                         if (xhr.responseJSON.message) {
                             msg = xhr.responseJSON.message;
@@ -2062,7 +2221,7 @@
                             msg = xhr.responseJSON.error;
                         }
                     }
-                    Swal.fire('Error', msg, 'error');
+                    Swal.fire(SX.js.error, msg, 'error');
                 }
             });
         });

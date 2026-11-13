@@ -1,11 +1,11 @@
 @extends('includes.superadmin_nav')
 
-@section('page_title', 'Register School')
-@section('page_breadcrumb', 'Register School')
+@section('page_title', __('superadmin.pages.register_school'))
+@section('page_breadcrumb', __('superadmin.pages.register_school'))
 
 @section('page_actions')
     <a href="{{ route('superadmin.schools.index') }}" class="btn btn-primary waves-effect waves-light">
-        <i class="fi fi-rr-building me-1"></i> Registered Schools
+        <i class="fi fi-rr-building me-1"></i> {{ __('superadmin.school_registration.registered_schools') }}
     </a>
 @endsection
 
@@ -524,28 +524,28 @@
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <i class="fi fi-rr-check-circle me-2"></i>{{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('superadmin.common.close') }}"></button>
         </div>
     @endif
 
     <div class="sx-reg-card">
         <div class="card-body">
-            <div class="sx-steps" role="tablist" aria-label="Registration steps">
+            <div class="sx-steps" role="tablist" aria-label="{{ __('superadmin.school_registration.steps_label') }}">
                 <div class="sx-step is-active" data-step-indicator="1">
                     <span class="sx-step-num">1</span>
-                    <span class="sx-step-label">Basic Info</span>
+                    <span class="sx-step-label">{{ __('superadmin.school_registration.step_basic') }}</span>
                 </div>
                 <div class="sx-step" data-step-indicator="2">
                     <span class="sx-step-num">2</span>
-                    <span class="sx-step-label">Location</span>
+                    <span class="sx-step-label">{{ __('superadmin.school_registration.step_location') }}</span>
                 </div>
                 <div class="sx-step" data-step-indicator="3">
                     <span class="sx-step-num">3</span>
-                    <span class="sx-step-label">System</span>
+                    <span class="sx-step-label">{{ __('superadmin.school_registration.step_system') }}</span>
                 </div>
                 <div class="sx-step" data-step-indicator="4">
                     <span class="sx-step-num">4</span>
-                    <span class="sx-step-label">Review</span>
+                    <span class="sx-step-label">{{ __('superadmin.school_registration.step_review') }}</span>
                 </div>
             </div>
 
@@ -553,42 +553,42 @@
                 @csrf
 
                 <div class="sx-reg-pane is-active" data-step="1">
-                    <h2 class="sx-reg-section-title">Basic Information</h2>
+                    <h2 class="sx-reg-section-title">{{ __('superadmin.school_registration.basic_information') }}</h2>
                     <div class="row g-3">
                         <div class="col-md-6 col-xl-5">
-                            <label class="form-label required" for="school_name">Official School Name</label>
-                            <input type="text" id="school_name" name="school_name" class="form-control @error('school_name') is-invalid @enderror" value="{{ old('school_name') }}" placeholder="Full institutional name" required>
+                            <label class="form-label required" for="school_name">{{ __('superadmin.school_registration.school_name') }}</label>
+                            <input type="text" id="school_name" name="school_name" class="form-control @error('school_name') is-invalid @enderror" value="{{ old('school_name') }}" placeholder="{{ __('superadmin.school_registration.school_name_placeholder') }}" required>
                             @error('school_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-6 col-xl-4">
-                            <label class="form-label" for="registration_number">Registration Number</label>
-                            <input type="text" id="registration_number" name="registration_number" class="form-control @error('registration_number') is-invalid @enderror" value="{{ old('registration_number') }}" placeholder="e.g. S927/123">
+                            <label class="form-label" for="registration_number">{{ __('superadmin.school_registration.registration_number') }}</label>
+                            <input type="text" id="registration_number" name="registration_number" class="form-control @error('registration_number') is-invalid @enderror" value="{{ old('registration_number') }}" placeholder="{{ __('superadmin.school_registration.registration_number_placeholder') }}">
                         </div>
                         <div class="col-md-6 col-xl-3">
-                            <label class="form-label" for="exam_center_number">Exam Center No.</label>
-                            <input type="text" id="exam_center_number" name="exam_center_number" class="form-control @error('exam_center_number') is-invalid @enderror" value="{{ old('exam_center_number') }}" placeholder="e.g. S0101">
+                            <label class="form-label" for="exam_center_number">{{ __('superadmin.school_registration.exam_center') }}</label>
+                            <input type="text" id="exam_center_number" name="exam_center_number" class="form-control @error('exam_center_number') is-invalid @enderror" value="{{ old('exam_center_number') }}" placeholder="{{ __('superadmin.school_registration.exam_center_placeholder') }}">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label required" for="school_type">Education Level</label>
+                            <label class="form-label required" for="school_type">{{ __('superadmin.school_registration.education_level') }}</label>
                             <select id="school_type" name="school_type" class="form-select @error('school_type') is-invalid @enderror" required>
-                                <option value="" disabled {{ old('school_type') ? '' : 'selected' }}>Select level</option>
-                                <option value="Primary" {{ old('school_type') == 'Primary' ? 'selected' : '' }}>Primary Level</option>
-                                <option value="Secondary" {{ old('school_type') == 'Secondary' ? 'selected' : '' }}>Secondary Level</option>
-                                <option value="Advanced" {{ old('school_type') == 'Advanced' ? 'selected' : '' }}>Advanced Level</option>
+                                <option value="" disabled {{ old('school_type') ? '' : 'selected' }}>{{ __('superadmin.school_registration.select_level') }}</option>
+                                <option value="Primary" {{ old('school_type') == 'Primary' ? 'selected' : '' }}>{{ __('superadmin.school_registration.level_primary') }}</option>
+                                <option value="Secondary" {{ old('school_type') == 'Secondary' ? 'selected' : '' }}>{{ __('superadmin.school_registration.level_secondary') }}</option>
+                                <option value="Advanced" {{ old('school_type') == 'Advanced' ? 'selected' : '' }}>{{ __('superadmin.school_registration.level_advanced') }}</option>
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label required" for="ownership">Ownership Type</label>
+                            <label class="form-label required" for="ownership">{{ __('superadmin.school_registration.ownership_type') }}</label>
                             <select id="ownership" name="ownership" class="form-select @error('ownership') is-invalid @enderror" required>
-                                <option value="" disabled {{ old('ownership') ? '' : 'selected' }}>Select ownership</option>
-                                <option value="Public" {{ old('ownership') == 'Public' ? 'selected' : '' }}>Public (Government)</option>
-                                <option value="Private" {{ old('ownership') == 'Private' ? 'selected' : '' }}>Private / NGO</option>
+                                <option value="" disabled {{ old('ownership') ? '' : 'selected' }}>{{ __('superadmin.school_registration.select_ownership') }}</option>
+                                <option value="Public" {{ old('ownership') == 'Public' ? 'selected' : '' }}>{{ __('superadmin.school_registration.ownership_public') }}</option>
+                                <option value="Private" {{ old('ownership') == 'Private' ? 'selected' : '' }}>{{ __('superadmin.school_registration.ownership_private') }}</option>
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label" for="established_year">Established Year</label>
+                            <label class="form-label" for="established_year">{{ __('superadmin.school_registration.established_year') }}</label>
                             <select id="established_year" name="established_year" class="form-select">
-                                <option value="">Select year</option>
+                                <option value="">{{ __('superadmin.school_registration.select_year') }}</option>
                                 @for ($y = (int) date('Y'); $y >= 1900; $y--)
                                     <option value="{{ $y }}" {{ (string) old('established_year') === (string) $y ? 'selected' : '' }}>{{ $y }}</option>
                                 @endfor
@@ -598,33 +598,33 @@
                 </div>
 
                 <div class="sx-reg-pane" data-step="2">
-                    <h2 class="sx-reg-section-title">Location &amp; Contact</h2>
+                    <h2 class="sx-reg-section-title">{{ __('superadmin.school_registration.location_contact') }}</h2>
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <label class="form-label required" for="region">Region</label>
+                            <label class="form-label required" for="region">{{ __('superadmin.school_registration.region') }}</label>
                             <select id="region" name="region" class="form-select" required data-old="{{ old('region') }}">
-                                <option value="">Select region</option>
+                                <option value="">{{ __('superadmin.school_registration.select_region') }}</option>
                             </select>
-                            <div class="help" id="regionLoadHint">Loading regions...</div>
+                            <div class="help" id="regionLoadHint">{{ __('superadmin.school_registration.loading_regions') }}</div>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label required" for="district">District</label>
+                            <label class="form-label required" for="district">{{ __('superadmin.school_registration.district') }}</label>
                             <select id="district" name="district" class="form-select" required disabled data-old="{{ old('district') }}">
-                                <option value="">Select region first</option>
+                                <option value="">{{ __('superadmin.school_registration.select_region_first') }}</option>
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label" for="ward">Ward</label>
+                            <label class="form-label" for="ward">{{ __('superadmin.school_registration.ward') }}</label>
                             <select id="ward" name="ward" class="form-select" disabled data-old="{{ old('ward') }}">
-                                <option value="">Select district first</option>
+                                <option value="">{{ __('superadmin.school_registration.select_district_first') }}</option>
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label" for="email">Official Email</label>
-                            <input type="email" id="email" name="email" class="form-control" value="{{ old('email') }}" placeholder="contact@school.com">
+                            <label class="form-label" for="email">{{ __('superadmin.school_registration.official_email') }}</label>
+                            <input type="email" id="email" name="email" class="form-control" value="{{ old('email') }}" placeholder="{{ __('superadmin.school_registration.email_placeholder') }}">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label" for="phone_local">Primary Phone</label>
+                            <label class="form-label" for="phone_local">{{ __('superadmin.school_registration.primary_phone') }}</label>
                             <div class="sx-phone" id="phonePicker" data-old-phone="{{ $oldPhoneDigits }}">
                                 <div class="sx-phone-cc">
                                     <button type="button" class="sx-phone-cc-btn" id="phoneCcBtn" aria-haspopup="listbox" aria-expanded="false">
@@ -634,59 +634,59 @@
                                     </button>
                                     <div class="sx-phone-menu" id="phoneCcMenu" role="listbox"></div>
                                 </div>
-                                <input type="tel" id="phone_local" class="form-control sx-phone-local" inputmode="numeric" autocomplete="tel-national" placeholder="7XXXXXXXX" maxlength="15">
+                                <input type="tel" id="phone_local" class="form-control sx-phone-local" inputmode="numeric" autocomplete="tel-national" placeholder="{{ __('superadmin.school_registration.phone_placeholder') }}" maxlength="15">
                                 <input type="hidden" id="phone" name="phone" value="{{ $oldPhoneDigits }}">
                             </div>
                         </div>
                         <div class="col-12">
-                            <label class="form-label" for="address">Postal Address</label>
-                            <input type="text" id="address" name="address" class="form-control" value="{{ old('address') }}" placeholder="P.O. Box 1234, ...">
+                            <label class="form-label" for="address">{{ __('superadmin.school_registration.postal_address') }}</label>
+                            <input type="text" id="address" name="address" class="form-control" value="{{ old('address') }}" placeholder="{{ __('superadmin.school_registration.postal_placeholder') }}">
                         </div>
                     </div>
                 </div>
 
                 <div class="sx-reg-pane" data-step="3">
-                    <h2 class="sx-reg-section-title">System Settings</h2>
+                    <h2 class="sx-reg-section-title">{{ __('superadmin.school_registration.system_settings') }}</h2>
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <label class="form-label" for="environment">System Environment</label>
+                            <label class="form-label" for="environment">{{ __('superadmin.school_registration.system_environment') }}</label>
                             <select id="environment" name="environment" class="form-select">
-                                <option value="Demo" {{ old('environment', 'Demo') == 'Demo' ? 'selected' : '' }}>Demo / Testing</option>
-                                <option value="Live" {{ old('environment') == 'Live' ? 'selected' : '' }}>Live / Production</option>
+                                <option value="Demo" {{ old('environment', 'Demo') == 'Demo' ? 'selected' : '' }}>{{ __('superadmin.school_registration.env_demo') }}</option>
+                                <option value="Live" {{ old('environment') == 'Live' ? 'selected' : '' }}>{{ __('superadmin.school_registration.env_live') }}</option>
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label" for="senderID">SMS Sender ID</label>
+                            <label class="form-label" for="senderID">{{ __('superadmin.school_registration.sms_sender_id') }}</label>
                             <input type="text" id="senderID" name="senderID" class="form-control" value="{{ old('senderID') }}" placeholder="e.g. KILIMANJARO" maxlength="11">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label required" for="status">Account Status</label>
+                            <label class="form-label required" for="status">{{ __('superadmin.school_registration.account_status') }}</label>
                             <select id="status" name="status" class="form-select" required>
-                                <option value="Active">Active (Unlocked)</option>
-                                <option value="Inactive">Inactive (Locked)</option>
+                                <option value="Active">{{ __('superadmin.school_registration.status_active') }}</option>
+                                <option value="Inactive">{{ __('superadmin.school_registration.status_inactive') }}</option>
                             </select>
                         </div>
                         <div class="col-12">
-                            <label class="form-label" for="school_logo">School Brand Logo</label>
+                            <label class="form-label" for="school_logo">{{ __('superadmin.school_registration.brand_logo') }}</label>
                             <input type="file" id="school_logo" name="school_logo" class="form-control" accept="image/*">
                         </div>
 
                         <div class="col-md-4 d-flex align-items-start">
                             <div class="form-check form-switch mb-0">
                                 <input class="form-check-input" type="checkbox" id="is_under_organization" name="is_under_organization" value="1" {{ old('is_under_organization') ? 'checked' : '' }}>
-                                <label class="form-check-label" for="is_under_organization">Is under organization?</label>
+                                <label class="form-check-label" for="is_under_organization">{{ __('superadmin.school_registration.under_organization') }}</label>
                             </div>
                         </div>
                         <div class="col-md-4 d-flex align-items-start">
                             <div class="form-check form-switch mb-0">
                                 <input class="form-check-input" type="checkbox" id="reg_ssm_ui_toggle" {{ old('enable_social_media') ? 'checked' : '' }}>
-                                <label class="form-check-label" for="reg_ssm_ui_toggle">School Social Media A/C</label>
+                                <label class="form-check-label" for="reg_ssm_ui_toggle">{{ __('superadmin.school_registration.social_media') }}</label>
                             </div>
                         </div>
                         <div class="col-md-4 d-flex align-items-start">
                             <div class="form-check form-switch mb-0">
                                 <input class="form-check-input" type="checkbox" id="student_portal_enabled" name="student_portal_enabled" value="1" {{ old('student_portal_enabled') ? 'checked' : '' }}>
-                                <label class="form-check-label" for="student_portal_enabled">Enable student portal</label>
+                                <label class="form-check-label" for="student_portal_enabled">{{ __('superadmin.school_registration.enable_student_portal') }}</label>
                             </div>
                         </div>
 
@@ -694,11 +694,11 @@
                             <div class="sx-reg-panel">
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label class="form-label" for="organization_name">Organization Name</label>
-                                        <input type="text" id="organization_name" name="organization_name" class="form-control" value="{{ old('organization_name') }}" placeholder="e.g. Roman Catholic Diocese">
+                                        <label class="form-label" for="organization_name">{{ __('superadmin.school_registration.organization_name') }}</label>
+                                        <input type="text" id="organization_name" name="organization_name" class="form-control" value="{{ old('organization_name') }}" placeholder="{{ __('superadmin.school_registration.organization_name_placeholder') }}">
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label" for="organization_logo">Organization Logo</label>
+                                        <label class="form-label" for="organization_logo">{{ __('superadmin.school_registration.organization_logo') }}</label>
                                         <input type="file" id="organization_logo" name="organization_logo" class="form-control" accept="image/*">
                                     </div>
                                 </div>
@@ -717,65 +717,65 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label required" for="login_status">Login Access</label>
+                            <label class="form-label required" for="login_status">{{ __('superadmin.school_registration.login_access') }}</label>
                             <select id="login_status" name="login_status" class="form-select" required>
-                                <option value="1" selected>Grant Access</option>
-                                <option value="0">Deny Access</option>
+                                <option value="1" selected>{{ __('superadmin.school_registration.grant_access') }}</option>
+                                <option value="0">{{ __('superadmin.school_registration.deny_access') }}</option>
                             </select>
                         </div>
                         <div class="col-md-6" id="suspension_reason_container" style="display: none;">
-                            <label class="form-label required" for="suspension_reason">Suspension Reason</label>
-                            <textarea id="suspension_reason" name="suspension_reason" class="form-control" rows="2" placeholder="Shown to users when they try to login."></textarea>
+                            <label class="form-label required" for="suspension_reason">{{ __('superadmin.school_registration.suspension_reason') }}</label>
+                            <textarea id="suspension_reason" name="suspension_reason" class="form-control" rows="2" placeholder="{{ __('superadmin.school_registration.suspension_placeholder') }}"></textarea>
                         </div>
 
                         <div class="col-12">
                             <div class="form-check form-switch mb-0">
                                 <input class="form-check-input" type="checkbox" id="two_factor_enabled" name="two_factor_enabled" value="1" {{ old('two_factor_enabled') ? 'checked' : '' }}>
-                                <label class="form-check-label" for="two_factor_enabled">Enforce two-factor authentication (2FA)</label>
+                                <label class="form-check-label" for="two_factor_enabled">{{ __('superadmin.school_registration.enforce_2fa') }}</label>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="sx-reg-pane" data-step="4">
-                    <h2 class="sx-reg-section-title">Review &amp; Register</h2>
+                    <h2 class="sx-reg-section-title">{{ __('superadmin.school_registration.review_register') }}</h2>
 
                     <div class="sx-review-grid" id="reviewSummary">
                         <div class="sx-review-block">
-                            <h3>Basic Information</h3>
+                            <h3>{{ __('superadmin.school_registration.basic_information') }}</h3>
                             <dl class="sx-review-rows">
-                                <div class="sx-review-item"><dt>School Name</dt><dd data-review="school_name">—</dd></div>
-                                <div class="sx-review-item"><dt>Registration No.</dt><dd data-review="registration_number">—</dd></div>
-                                <div class="sx-review-item"><dt>Exam Center</dt><dd data-review="exam_center_number">—</dd></div>
-                                <div class="sx-review-item"><dt>Education Level</dt><dd data-review="school_type">—</dd></div>
-                                <div class="sx-review-item"><dt>Ownership</dt><dd data-review="ownership">—</dd></div>
-                                <div class="sx-review-item"><dt>Established</dt><dd data-review="established_year">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_school_name') }}</dt><dd data-review="school_name">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_registration_no') }}</dt><dd data-review="registration_number">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_exam_center') }}</dt><dd data-review="exam_center_number">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.education_level') }}</dt><dd data-review="school_type">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_ownership') }}</dt><dd data-review="ownership">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_established') }}</dt><dd data-review="established_year">—</dd></div>
                             </dl>
                         </div>
                         <div class="sx-review-block">
-                            <h3>Location &amp; Contact</h3>
+                            <h3>{{ __('superadmin.school_registration.location_contact') }}</h3>
                             <dl class="sx-review-rows">
-                                <div class="sx-review-item"><dt>Region</dt><dd data-review="region">—</dd></div>
-                                <div class="sx-review-item"><dt>District</dt><dd data-review="district">—</dd></div>
-                                <div class="sx-review-item"><dt>Ward</dt><dd data-review="ward">—</dd></div>
-                                <div class="sx-review-item"><dt>Email</dt><dd data-review="email">—</dd></div>
-                                <div class="sx-review-item"><dt>Phone</dt><dd data-review="phone">—</dd></div>
-                                <div class="sx-review-item is-full"><dt>Postal Address</dt><dd data-review="address">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.region') }}</dt><dd data-review="region">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.district') }}</dt><dd data-review="district">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.ward') }}</dt><dd data-review="ward">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_email') }}</dt><dd data-review="email">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_phone') }}</dt><dd data-review="phone">—</dd></div>
+                                <div class="sx-review-item is-full"><dt>{{ __('superadmin.school_registration.postal_address') }}</dt><dd data-review="address">—</dd></div>
                             </dl>
                         </div>
                         <div class="sx-review-block">
-                            <h3>System Settings</h3>
+                            <h3>{{ __('superadmin.school_registration.system_settings') }}</h3>
                             <dl class="sx-review-rows">
-                                <div class="sx-review-item"><dt>Environment</dt><dd data-review="environment">—</dd></div>
-                                <div class="sx-review-item"><dt>SMS Sender ID</dt><dd data-review="senderID">—</dd></div>
-                                <div class="sx-review-item"><dt>Account Status</dt><dd data-review="status">—</dd></div>
-                                <div class="sx-review-item"><dt>Login Access</dt><dd data-review="login_status">—</dd></div>
-                                <div class="sx-review-item"><dt>School Logo</dt><dd data-review="school_logo">—</dd></div>
-                                <div class="sx-review-item"><dt>Under Organization</dt><dd data-review="is_under_organization">—</dd></div>
-                                <div class="sx-review-item"><dt>Organization</dt><dd data-review="organization_name">—</dd></div>
-                                <div class="sx-review-item"><dt>Student Portal</dt><dd data-review="student_portal_enabled">—</dd></div>
-                                <div class="sx-review-item"><dt>2FA</dt><dd data-review="two_factor_enabled">—</dd></div>
-                                <div class="sx-review-item is-full"><dt>Suspension Reason</dt><dd data-review="suspension_reason">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_environment') }}</dt><dd data-review="environment">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.sms_sender_id') }}</dt><dd data-review="senderID">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.account_status') }}</dt><dd data-review="status">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.login_access') }}</dt><dd data-review="login_status">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_school_logo') }}</dt><dd data-review="school_logo">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_under_org') }}</dt><dd data-review="is_under_organization">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_organization') }}</dt><dd data-review="organization_name">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_student_portal') }}</dt><dd data-review="student_portal_enabled">—</dd></div>
+                                <div class="sx-review-item"><dt>{{ __('superadmin.school_registration.review_2fa') }}</dt><dd data-review="two_factor_enabled">—</dd></div>
+                                <div class="sx-review-item is-full"><dt>{{ __('superadmin.school_registration.suspension_reason') }}</dt><dd data-review="suspension_reason">—</dd></div>
                             </dl>
                         </div>
                     </div>
@@ -784,19 +784,19 @@
                 <div class="sx-reg-actions">
                     <div>
                         <button type="button" class="btn btn-outline-secondary" id="btnPrev" style="display:none;">
-                            Back
+                            {{ __('superadmin.common.back') }}
                         </button>
                     </div>
                     <div class="d-flex flex-wrap gap-2 align-items-center">
                         <div class="form-check me-2" id="agreeWrap" style="display:none;">
                             <input class="form-check-input" type="checkbox" id="agree" required>
-                            <label class="form-check-label" for="agree">I confirm all details are accurate</label>
+                            <label class="form-check-label" for="agree">{{ __('superadmin.school_registration.confirm_accurate') }}</label>
                         </div>
                         <button type="button" class="btn btn-primary" id="btnNext">
-                            Continue
+                            {{ __('superadmin.common.continue') }}
                         </button>
                         <button type="submit" class="btn btn-primary" id="btnSubmit" style="display:none;">
-                            <i class="fi fi-rr-disk me-1"></i> Register School
+                            <i class="fi fi-rr-disk me-1"></i> {{ __('superadmin.school_registration.btn_register') }}
                         </button>
                     </div>
                 </div>
@@ -808,6 +808,8 @@
 
 @push('scripts')
 <script>
+    const SX = @json(__('superadmin.school_registration'));
+    const SXC = @json(__('superadmin.common'));
     document.addEventListener('DOMContentLoaded', function () {
         const form = document.getElementById('schoolForm');
         const panes = Array.from(document.querySelectorAll('.sx-reg-pane'));
@@ -902,21 +904,21 @@
         }
 
         function resetDistrictWard(districtPlaceholder, wardPlaceholder) {
-            fillSelect(districtSelect, [], districtPlaceholder || 'Select region first', '');
+            fillSelect(districtSelect, [], districtPlaceholder || SX.js.select_region_first, '');
             districtSelect.disabled = true;
-            fillSelect(wardSelect, [], wardPlaceholder || 'Select district first', '');
+            fillSelect(wardSelect, [], wardPlaceholder || SX.js.select_district_first, '');
             wardSelect.disabled = true;
         }
 
         function loadRegions() {
             if (!regionSelect) return;
-            regionLoadHint.textContent = 'Loading regions...';
+            regionLoadHint.textContent = SX.js.loading_regions;
             regionLoadHint.style.color = '';
             fetch(TZ_LOCATIONS_API + '/regions', { headers: { 'Accept': 'application/json' } })
                 .then(function (r) { return r.json(); })
                 .then(function (json) {
                     const rows = (json && json.data) ? json.data : [];
-                    fillSelect(regionSelect, rows, 'Select region', oldRegion);
+                    fillSelect(regionSelect, rows, SX.js.select_region, oldRegion);
                     regionLoadHint.textContent = '';
                     if (oldRegion) {
                         const slug = selectedSlug(regionSelect);
@@ -924,7 +926,7 @@
                     }
                 })
                 .catch(function () {
-                    regionLoadHint.textContent = 'Could not load regions. Refresh and try again.';
+                    regionLoadHint.textContent = SX.js.regions_failed;
                     regionLoadHint.style.color = '#940000';
                 });
         }
@@ -935,8 +937,8 @@
                 return;
             }
             districtSelect.disabled = true;
-            fillSelect(districtSelect, [], 'Loading districts...', '');
-            fillSelect(wardSelect, [], 'Select district first', '');
+            fillSelect(districtSelect, [], SX.js.loading_districts, '');
+            fillSelect(wardSelect, [], SX.js.select_district_first, '');
             wardSelect.disabled = true;
 
             fetch(TZ_LOCATIONS_API + '/regions/' + encodeURIComponent(regionSlug) + '/districts', {
@@ -945,7 +947,7 @@
                 .then(function (r) { return r.json(); })
                 .then(function (json) {
                     const rows = (json && json.data) ? json.data : [];
-                    fillSelect(districtSelect, rows, 'Select district', preferDistrict || '');
+                    fillSelect(districtSelect, rows, SX.js.select_district, preferDistrict || '');
                     districtSelect.disabled = false;
                     if (preferDistrict) {
                         const dSlug = selectedSlug(districtSelect);
@@ -953,19 +955,19 @@
                     }
                 })
                 .catch(function () {
-                    fillSelect(districtSelect, [], 'Failed to load districts', '');
+                    fillSelect(districtSelect, [], SX.js.districts_failed, '');
                     districtSelect.disabled = false;
                 });
         }
 
         function loadWards(districtSlug, preferWard) {
             if (!districtSlug) {
-                fillSelect(wardSelect, [], 'Select district first', '');
+                fillSelect(wardSelect, [], SX.js.select_district_first, '');
                 wardSelect.disabled = true;
                 return;
             }
             wardSelect.disabled = true;
-            fillSelect(wardSelect, [], 'Loading wards...', '');
+            fillSelect(wardSelect, [], SX.js.loading_wards, '');
 
             fetch(TZ_LOCATIONS_API + '/districts/' + encodeURIComponent(districtSlug) + '/wards', {
                 headers: { 'Accept': 'application/json' }
@@ -973,11 +975,11 @@
                 .then(function (r) { return r.json(); })
                 .then(function (json) {
                     const rows = (json && json.data) ? json.data : [];
-                    fillSelect(wardSelect, rows, 'Select ward (optional)', preferWard || '');
+                    fillSelect(wardSelect, rows, SX.js.select_ward, preferWard || '');
                     wardSelect.disabled = false;
                 })
                 .catch(function () {
-                    fillSelect(wardSelect, [], 'Failed to load wards', '');
+                    fillSelect(wardSelect, [], SX.js.wards_failed, '');
                     wardSelect.disabled = false;
                 });
         }
@@ -1108,9 +1110,9 @@
         function val(id) {
             const el = document.getElementById(id);
             if (!el) return '';
-            if (el.type === 'checkbox') return el.checked ? 'Yes' : 'No';
+            if (el.type === 'checkbox') return el.checked ? SX.js.yes : SX.js.no;
             if (el.type === 'file') {
-                return el.files && el.files[0] ? el.files[0].name : 'Not uploaded';
+                return el.files && el.files[0] ? el.files[0].name : SX.js.not_uploaded;
             }
             if (el.tagName === 'SELECT') {
                 const opt = el.options[el.selectedIndex];

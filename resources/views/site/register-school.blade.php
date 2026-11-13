@@ -39,103 +39,123 @@
                         <p class="sx-reg-steps mb-0">{{ __('site.register_steps') }}</p>
                     </div>
 
-                <form id="schoolRegForm" class="sx-reg-form" method="POST" action="{{ route('site.register_school.submit') }}">
+                @php
+                    $oldPhone = (string) old('phone', '');
+                    $oldPhoneDigits = preg_replace('/\D+/', '', $oldPhone);
+                @endphp
+                <form id="schoolRegForm" class="sx-reg sx-reg-form" method="POST" action="{{ route('site.register_school.submit') }}">
                     @csrf
                     <input type="hidden" name="otp_token" id="otp_token" value="">
 
-                    <h6 class="sx-reg-section-title">{{ __('site.register_basic') }}</h6>
-                    <div class="row">
-                        <div class="col-md-6 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_school_name') }} <span class="text-danger">*</span></label>
-                            <input type="text" name="school_name" class="form-control" value="{{ old('school_name') }}" required>
-                            @error('school_name')<small class="text-danger">{{ $message }}</small>@enderror
+                    <h2 class="sx-reg-section-title">{{ __('site.register_basic') }}</h2>
+                    <div class="row g-3">
+                        <div class="col-md-6 col-xl-5">
+                            <label class="form-label required" for="school_name">{{ __('site.register_school_name') }}</label>
+                            <input type="text" id="school_name" name="school_name" class="form-control @error('school_name') is-invalid @enderror" value="{{ old('school_name') }}" required>
+                            @error('school_name')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-3 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_reg_no') }}</label>
-                            <input type="text" name="registration_number" id="registration_number" class="form-control" value="{{ old('registration_number') }}" placeholder="e.g. S927/123" autocomplete="off">
+                        <div class="col-md-6 col-xl-4">
+                            <label class="form-label" for="registration_number">{{ __('site.register_reg_no') }}</label>
+                            <input type="text" id="registration_number" name="registration_number" class="form-control @error('registration_number') is-invalid @enderror" value="{{ old('registration_number') }}" placeholder="e.g. S927/123" autocomplete="off">
                             <small id="registration_numberFeedback" class="d-block mt-1 sx-reg-feedback"></small>
-                            @error('registration_number')<small class="text-danger">{{ $message }}</small>@enderror
+                            @error('registration_number')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-3 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_exam_center') }}</label>
-                            <input type="text" name="exam_center_number" class="form-control" value="{{ old('exam_center_number') }}">
+                        <div class="col-md-6 col-xl-3">
+                            <label class="form-label" for="exam_center_number">{{ __('site.register_exam_center') }}</label>
+                            <input type="text" id="exam_center_number" name="exam_center_number" class="form-control" value="{{ old('exam_center_number') }}">
                         </div>
-                        <div class="col-md-4 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_level') }} <span class="text-danger">*</span></label>
-                            <select name="school_type" class="form-control" required>
-                                <option value="">{{ __('site.register_select') }}</option>
+                        <div class="col-md-4">
+                            <label class="form-label required" for="school_type">{{ __('site.register_level') }}</label>
+                            <select id="school_type" name="school_type" class="form-select @error('school_type') is-invalid @enderror" required>
+                                <option value="" disabled {{ old('school_type') ? '' : 'selected' }}>{{ __('site.register_select') }}</option>
                                 <option value="Primary" {{ old('school_type') === 'Primary' ? 'selected' : '' }}>Primary</option>
                                 <option value="Secondary" {{ old('school_type') === 'Secondary' ? 'selected' : '' }}>Secondary</option>
                             </select>
-                            @error('school_type')<small class="text-danger">{{ $message }}</small>@enderror
+                            @error('school_type')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-4 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_ownership') }} <span class="text-danger">*</span></label>
-                            <select name="ownership" class="form-control" required>
-                                <option value="">{{ __('site.register_select') }}</option>
+                        <div class="col-md-4">
+                            <label class="form-label required" for="ownership">{{ __('site.register_ownership') }}</label>
+                            <select id="ownership" name="ownership" class="form-select @error('ownership') is-invalid @enderror" required>
+                                <option value="" disabled {{ old('ownership') ? '' : 'selected' }}>{{ __('site.register_select') }}</option>
                                 <option value="Public" {{ old('ownership') === 'Public' ? 'selected' : '' }}>{{ __('site.register_public') }}</option>
                                 <option value="Private" {{ old('ownership') === 'Private' ? 'selected' : '' }}>{{ __('site.register_private') }}</option>
                             </select>
-                            @error('ownership')<small class="text-danger">{{ $message }}</small>@enderror
+                            @error('ownership')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-4 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_established') }}</label>
-                            <input type="text" name="established_year" class="form-control" value="{{ old('established_year') }}" placeholder="e.g. 1998">
+                        <div class="col-md-4">
+                            <label class="form-label" for="established_year">{{ __('site.register_established') }}</label>
+                            <select id="established_year" name="established_year" class="form-select">
+                                <option value="">{{ __('site.register_select') }}</option>
+                                @for ($y = (int) date('Y'); $y >= 1900; $y--)
+                                    <option value="{{ $y }}" {{ (string) old('established_year') === (string) $y ? 'selected' : '' }}>{{ $y }}</option>
+                                @endfor
+                            </select>
                         </div>
-                        <div class="col-md-4 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_students') }} <span class="text-danger">*</span></label>
-                            <input type="number" name="number_of_students" class="form-control" value="{{ old('number_of_students') }}" min="1" required>
-                            @error('number_of_students')<small class="text-danger">{{ $message }}</small>@enderror
+                        <div class="col-md-4">
+                            <label class="form-label required" for="number_of_students">{{ __('site.register_students') }}</label>
+                            <input type="number" id="number_of_students" name="number_of_students" class="form-control @error('number_of_students') is-invalid @enderror" value="{{ old('number_of_students') }}" min="1" required>
+                            @error('number_of_students')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-4 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_contact_person') }}</label>
-                            <input type="text" name="contact_person" class="form-control" value="{{ old('contact_person') }}" placeholder="Headmaster / Admin name">
+                        <div class="col-md-8">
+                            <label class="form-label" for="contact_person">{{ __('site.register_contact_person') }}</label>
+                            <input type="text" id="contact_person" name="contact_person" class="form-control" value="{{ old('contact_person') }}" placeholder="Headmaster / Admin name">
                         </div>
                     </div>
 
-                    <h6 class="sx-reg-section-title sx-reg-section-title--spaced">{{ __('site.register_location') }}</h6>
-                    <div class="row">
-                        <div class="col-md-4 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_region') }} <span class="text-danger">*</span></label>
-                            <select name="region" id="region" class="form-control" required data-old="{{ old('region') }}">
+                    <h2 class="sx-reg-section-title sx-reg-section-title--spaced">{{ __('site.register_location') }}</h2>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label required" for="region">{{ __('site.register_region') }}</label>
+                            <select name="region" id="region" class="form-select @error('region') is-invalid @enderror" required data-old="{{ old('region') }}">
                                 <option value="">Select region</option>
                             </select>
-                            <small id="regionLoadHint" class="sx-reg-muted d-block mt-1">Loading regions...</small>
-                            @error('region')<small class="text-danger">{{ $message }}</small>@enderror
+                            <div class="help" id="regionLoadHint">Loading regions...</div>
+                            @error('region')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-4 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_district') }} <span class="text-danger">*</span></label>
-                            <select name="district" id="district" class="form-control" required disabled data-old="{{ old('district') }}">
+                        <div class="col-md-4">
+                            <label class="form-label required" for="district">{{ __('site.register_district') }}</label>
+                            <select name="district" id="district" class="form-select @error('district') is-invalid @enderror" required disabled data-old="{{ old('district') }}">
                                 <option value="">Select region first</option>
                             </select>
-                            @error('district')<small class="text-danger">{{ $message }}</small>@enderror
+                            @error('district')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-4 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_ward') }}</label>
-                            <select name="ward" id="ward" class="form-control" disabled data-old="{{ old('ward') }}">
+                        <div class="col-md-4">
+                            <label class="form-label" for="ward">{{ __('site.register_ward') }}</label>
+                            <select name="ward" id="ward" class="form-select" disabled data-old="{{ old('ward') }}">
                                 <option value="">Select district first</option>
                             </select>
-                            @error('ward')<small class="text-danger">{{ $message }}</small>@enderror
+                            @error('ward')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-6 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_email') }}</label>
-                            <input type="email" name="email" id="email" class="form-control" value="{{ old('email') }}" autocomplete="email">
+                        <div class="col-md-6">
+                            <label class="form-label" for="email">{{ __('site.register_email') }}</label>
+                            <input type="email" name="email" id="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email') }}" autocomplete="email">
                             <small id="emailFeedback" class="d-block mt-1 sx-reg-feedback"></small>
-                            @error('email')<small class="text-danger">{{ $message }}</small>@enderror
+                            @error('email')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-6 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_phone') }} <span class="text-danger">*</span></label>
-                            <input type="text" name="phone" id="phone" class="form-control" value="{{ old('phone', '255') }}" required placeholder="2557XXXXXXXX" maxlength="12" autocomplete="tel">
+                        <div class="col-md-6">
+                            <label class="form-label required" for="phone_local">{{ __('site.register_phone') }}</label>
+                            <div class="sx-phone" id="phonePicker" data-old-phone="{{ $oldPhoneDigits }}">
+                                <div class="sx-phone-cc">
+                                    <button type="button" class="sx-phone-cc-btn" id="phoneCcBtn" aria-haspopup="listbox" aria-expanded="false">
+                                        <img class="sx-phone-flag" id="phoneFlag" src="https://flagcdn.com/w40/tz.png" width="22" height="15" alt="">
+                                        <span class="sx-phone-dial" id="phoneDialLabel">+255</span>
+                                        <span class="sx-phone-cc-caret">▾</span>
+                                    </button>
+                                    <div class="sx-phone-menu" id="phoneCcMenu" role="listbox"></div>
+                                </div>
+                                <input type="tel" id="phone_local" class="form-control sx-phone-local" inputmode="numeric" autocomplete="tel-national" placeholder="7XXXXXXXX" maxlength="15" required>
+                                <input type="hidden" id="phone" name="phone" value="{{ $oldPhoneDigits }}">
+                            </div>
                             <small id="phoneFeedback" class="d-block mt-1 sx-reg-feedback"></small>
-                            @error('phone')<small class="text-danger d-block">{{ $message }}</small>@enderror
+                            @error('phone')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-12 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_address') }}</label>
-                            <textarea name="address" class="form-control" rows="2">{{ old('address') }}</textarea>
+                        <div class="col-12">
+                            <label class="form-label" for="address">{{ __('site.register_address') }}</label>
+                            <textarea id="address" name="address" class="form-control" rows="2">{{ old('address') }}</textarea>
                         </div>
-                        <div class="col-12 form-group mb-3">
-                            <label class="sx-reg-label">{{ __('site.register_notes') }}</label>
-                            <textarea name="notes" class="form-control" rows="2" placeholder="Optional message to the ShuleXpert team">{{ old('notes') }}</textarea>
+                        <div class="col-12">
+                            <label class="form-label" for="notes">{{ __('site.register_notes') }}</label>
+                            <textarea id="notes" name="notes" class="form-control" rows="2" placeholder="Optional message to the ShuleXpert team">{{ old('notes') }}</textarea>
                         </div>
                     </div>
 
@@ -187,6 +207,12 @@
 (function () {
     var form = document.getElementById('schoolRegForm');
     var phoneInput = document.getElementById('phone');
+    var phoneLocal = document.getElementById('phone_local');
+    var phoneCcBtn = document.getElementById('phoneCcBtn');
+    var phoneCcMenu = document.getElementById('phoneCcMenu');
+    var phoneFlag = document.getElementById('phoneFlag');
+    var phoneDialLabel = document.getElementById('phoneDialLabel');
+    var phonePicker = document.getElementById('phonePicker');
     var otpToken = document.getElementById('otp_token');
     var otpStep = document.getElementById('otpStep');
     var otpInput = document.getElementById('otpInput');
@@ -204,6 +230,29 @@
     var oldRegion = regionSelect ? (regionSelect.getAttribute('data-old') || '') : '';
     var oldDistrict = districtSelect ? (districtSelect.getAttribute('data-old') || '') : '';
     var oldWard = wardSelect ? (wardSelect.getAttribute('data-old') || '') : '';
+
+    var countries = [
+        { iso: 'tz', name: 'Tanzania', dial: '255' },
+        { iso: 'ke', name: 'Kenya', dial: '254' },
+        { iso: 'ug', name: 'Uganda', dial: '256' },
+        { iso: 'rw', name: 'Rwanda', dial: '250' },
+        { iso: 'bi', name: 'Burundi', dial: '257' },
+        { iso: 'zm', name: 'Zambia', dial: '260' },
+        { iso: 'mw', name: 'Malawi', dial: '265' },
+        { iso: 'mz', name: 'Mozambique', dial: '258' },
+        { iso: 'cd', name: 'DR Congo', dial: '243' },
+        { iso: 'ss', name: 'South Sudan', dial: '211' },
+        { iso: 'et', name: 'Ethiopia', dial: '251' },
+        { iso: 'so', name: 'Somalia', dial: '252' },
+        { iso: 'za', name: 'South Africa', dial: '27' },
+        { iso: 'ae', name: 'United Arab Emirates', dial: '971' },
+        { iso: 'sa', name: 'Saudi Arabia', dial: '966' },
+        { iso: 'in', name: 'India', dial: '91' },
+        { iso: 'gb', name: 'United Kingdom', dial: '44' },
+        { iso: 'us', name: 'United States', dial: '1' },
+        { iso: 'cn', name: 'China', dial: '86' }
+    ];
+    var selectedCountry = countries[0];
 
     function fillSelect(selectEl, items, placeholder, selectedName) {
         selectEl.innerHTML = '';
@@ -345,18 +394,44 @@
         return i ? i.value : '';
     }
     function digitsOnly(v) { return String(v || '').replace(/\D+/g, ''); }
+    function syncPhoneHidden() {
+        var local = digitsOnly(phoneLocal.value).replace(/^0+/, '');
+        var full = local ? (selectedCountry.dial + local) : '';
+        phoneInput.value = full.slice(0, 20);
+        return phoneInput.value;
+    }
     function normalizePhone(v) {
-        var d = digitsOnly(v);
-        if (d.startsWith('255')) d = d.slice(3);
-        if (d.startsWith('0')) d = d.slice(1);
-        return ('255' + d).slice(0, 12);
+        var d = digitsOnly(v || phoneInput.value);
+        if (!d) return '';
+        if (selectedCountry.dial === '255' || d.indexOf('255') === 0) {
+            if (d.startsWith('255')) d = d.slice(3);
+            if (d.startsWith('0')) d = d.slice(1);
+            return ('255' + d).slice(0, 12);
+        }
+        return d.slice(0, 20);
     }
     function isValidTzMobile(phone) {
         return /^255[67]\d{8}$/.test(phone);
     }
+    function setCountry(country) {
+        selectedCountry = country;
+        phoneFlag.src = 'https://flagcdn.com/w40/' + country.iso + '.png';
+        phoneFlag.alt = country.name;
+        phoneDialLabel.textContent = '+' + country.dial;
+        Array.from(phoneCcMenu.querySelectorAll('.sx-phone-option')).forEach(function (btn) {
+            btn.classList.toggle('is-active', btn.getAttribute('data-iso') === country.iso);
+        });
+        syncPhoneHidden();
+    }
+    function closePhoneMenu() {
+        phoneCcMenu.classList.remove('is-open');
+        phoneCcBtn.setAttribute('aria-expanded', 'false');
+    }
     function setFieldFeedback(field, message, state) {
         var el = document.getElementById(field + 'Feedback');
-        var input = document.getElementById(field === 'registration_number' ? 'registration_number' : field);
+        var input = field === 'phone'
+            ? phoneLocal
+            : document.getElementById(field === 'registration_number' ? 'registration_number' : field);
         if (!el) return;
         el.textContent = message || '';
         if (state === 'error') {
@@ -377,7 +452,7 @@
         if (checkTimers[field]) clearTimeout(checkTimers[field]);
         checkTimers[field] = setTimeout(function () {
             var trimmed = String(value || '').trim();
-            if (trimmed === '' || (field === 'phone' && (trimmed === '255' || trimmed.length < 12))) {
+            if (trimmed === '' || (field === 'phone' && (!isValidTzMobile(normalizePhone(trimmed)) || trimmed.length < 12))) {
                 fieldAvailability[field] = true;
                 setFieldFeedback(field, '', 'neutral');
                 return;
@@ -471,31 +546,71 @@
         setStatus('', true);
     }
 
-    phoneInput.addEventListener('input', function () {
-        var d = digitsOnly(phoneInput.value);
-        if (!d.startsWith('255')) {
-            d = '255' + d.replace(/^255/, '').replace(/^0+/, '');
-        }
-        phoneInput.value = d.slice(0, 12);
+    countries.forEach(function (c) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'sx-phone-option';
+        btn.setAttribute('role', 'option');
+        btn.setAttribute('data-iso', c.iso);
+        btn.innerHTML =
+            '<img class="sx-phone-flag" src="https://flagcdn.com/w40/' + c.iso + '.png" width="22" height="15" alt="">' +
+            '<span class="sx-phone-option-name">' + c.name + '</span>' +
+            '<span class="sx-phone-option-dial">+' + c.dial + '</span>';
+        btn.addEventListener('click', function () {
+            setCountry(c);
+            closePhoneMenu();
+            phoneLocal.focus();
+            if ((otpSent || verified) && verifiedPhone && phoneInput.value !== verifiedPhone) {
+                resetVerification();
+            }
+            checkFieldAvailability('phone', phoneInput.value);
+        });
+        phoneCcMenu.appendChild(btn);
+    });
+
+    phoneCcBtn.addEventListener('click', function () {
+        var open = !phoneCcMenu.classList.contains('is-open');
+        phoneCcMenu.classList.toggle('is-open', open);
+        phoneCcBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+
+    document.addEventListener('click', function (e) {
+        if (phonePicker && !phonePicker.contains(e.target)) closePhoneMenu();
+    });
+
+    phoneLocal.addEventListener('input', function () {
+        phoneLocal.value = digitsOnly(phoneLocal.value).slice(0, 15);
+        syncPhoneHidden();
         if ((otpSent || verified) && verifiedPhone && phoneInput.value !== verifiedPhone) {
             resetVerification();
         }
         checkFieldAvailability('phone', phoneInput.value);
     });
-    if (phoneInput.value && phoneInput.value !== '255') {
-        checkFieldAvailability('phone', phoneInput.value);
-    }
 
-    if (!digitsOnly(phoneInput.value).startsWith('255')) {
-        phoneInput.value = '255';
-    }
+    (function initPhoneFromOld() {
+        var old = digitsOnly(phonePicker.getAttribute('data-old-phone') || '');
+        if (!old) {
+            setCountry(countries[0]);
+            return;
+        }
+        var matched = countries
+            .slice()
+            .sort(function (a, b) { return b.dial.length - a.dial.length; })
+            .find(function (c) { return old.indexOf(c.dial) === 0; });
+        var country = matched || countries[0];
+        setCountry(country);
+        phoneLocal.value = old.slice(country.dial.length);
+        syncPhoneHidden();
+        if (phoneInput.value) checkFieldAvailability('phone', phoneInput.value);
+    })();
 
     function sendOtp() {
+        syncPhoneHidden();
         var phone = normalizePhone(phoneInput.value);
         phoneInput.value = phone;
-        if (!isValidTzMobile(phone)) {
+        if (selectedCountry.dial !== '255' || !isValidTzMobile(phone)) {
             otpStep.style.display = 'block';
-            setStatus('Enter a valid number: 2557XXXXXXXX or 2556XXXXXXXX', false);
+            setStatus('Enter a valid Tanzania mobile: +255 7XXXXXXXX or +255 6XXXXXXXX', false);
             return Promise.resolve(false);
         }
         if (anyFieldTaken()) {
@@ -571,11 +686,12 @@
             return;
         }
 
+        syncPhoneHidden();
         var phone = normalizePhone(phoneInput.value);
         phoneInput.value = phone;
-        if (!isValidTzMobile(phone)) {
+        if (selectedCountry.dial !== '255' || !isValidTzMobile(phone)) {
             otpStep.style.display = 'block';
-            setStatus('Enter a valid number: 2557XXXXXXXX or 2556XXXXXXXX', false);
+            setStatus('Enter a valid Tanzania mobile: +255 7XXXXXXXX or +255 6XXXXXXXX', false);
             return;
         }
 
@@ -598,6 +714,7 @@
     });
 
     btnVerify.addEventListener('click', function () {
+        syncPhoneHidden();
         var phone = normalizePhone(phoneInput.value);
         var otp = digitsOnly(otpInput.value);
         phoneInput.value = phone;
@@ -754,29 +871,130 @@
     font-size: 13px;
 }
 .sx-reg-section-title {
+    margin: 0 0 1rem;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #000;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.65rem;
+}
+.sx-reg-section-title--spaced { margin-top: 1.5rem; }
+.sx-reg .form-label {
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: #222;
+    margin-bottom: 0.35rem;
+}
+.sx-reg .form-label.required::after {
+    content: " *";
     color: #940000;
     font-weight: 800;
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    border-bottom: 1px solid #f0e4e4;
-    padding-bottom: 8px;
-    margin-bottom: 16px;
 }
-.sx-reg-section-title--spaced { margin-top: 22px; }
-.sx-reg-label {
-    display: block;
-    color: #333;
-    font-weight: 700;
-    font-size: 13px;
-    margin-bottom: 6px;
-}
-.sx-reg-form .form-control {
-    border-radius: 10px;
-    border-color: #e8d5d5;
+.sx-reg .form-control,
+.sx-reg .form-select {
+    border-radius: 0.45rem;
+    border-color: #d9d9d9;
     min-height: 42px;
+    font-size: 0.92rem;
+    color: #000;
+}
+.sx-reg .form-control:focus,
+.sx-reg .form-select:focus {
+    border-color: #940000;
+    box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.12);
+}
+.sx-reg .help {
+    font-size: 0.75rem;
+    color: #555;
+    margin-top: 0.3rem;
 }
 .sx-reg-form textarea.form-control { min-height: 72px; }
+.sx-reg .sx-phone {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+.sx-reg .sx-phone-cc {
+    position: relative;
+    flex: 0 0 auto;
+    min-width: 118px;
+}
+.sx-reg .sx-phone-cc-btn {
+    width: 100%;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0 0.65rem;
+    border: 1px solid #d9d9d9;
+    border-radius: 0.45rem;
+    background: #fff;
+    color: #000;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+.sx-reg .sx-phone-cc-btn:focus {
+    border-color: #940000;
+    box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.12);
+    outline: 0;
+}
+.sx-reg .sx-phone-flag {
+    width: 22px;
+    height: 15px;
+    object-fit: cover;
+    border-radius: 2px;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+}
+.sx-reg .sx-phone-dial { white-space: nowrap; }
+.sx-reg .sx-phone-cc-caret {
+    margin-left: auto;
+    color: #666;
+    font-size: 0.7rem;
+}
+.sx-reg .sx-phone-menu {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 280px;
+    max-height: 260px;
+    overflow: auto;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 0.45rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    display: none;
+    padding: 0.35rem;
+}
+.sx-reg .sx-phone-menu.is-open { display: block; }
+.sx-reg .sx-phone-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    border: 0;
+    background: transparent;
+    padding: 0.45rem 0.55rem;
+    border-radius: 0.35rem;
+    text-align: left;
+    cursor: pointer;
+    color: #000;
+    font-size: 0.86rem;
+}
+.sx-reg .sx-phone-option:hover,
+.sx-reg .sx-phone-option.is-active { background: #fff5f5; }
+.sx-reg .sx-phone-option-name { flex: 1; font-weight: 600; }
+.sx-reg .sx-phone-option-dial { color: #555; font-weight: 700; }
+.sx-reg .sx-phone-local { flex: 1; min-width: 0; }
+@media (max-width: 767.98px) {
+    .sx-reg .sx-phone { flex-direction: column; }
+    .sx-reg .sx-phone-cc { min-width: 0; width: 100%; }
+    .sx-reg .sx-phone-menu { width: 100%; }
+}
 .sx-reg-muted { color: #777 !important; }
 .sx-reg-feedback { min-height: 18px; }
 .sx-reg-otp {
@@ -867,25 +1085,43 @@ html[data-sx-theme="dark"] .sx-reg-form-card {
     color: #f3e9eb !important;
 }
 html[data-sx-theme="dark"] .sx-reg-heading,
-html[data-sx-theme="dark"] .sx-reg-section-title,
 html[data-sx-theme="dark"] .sx-reg-otp__title,
 html[data-sx-theme="dark"] .sx-reg-kicker {
     color: #ffb4b4 !important;
 }
+html[data-sx-theme="dark"] .sx-reg .sx-reg-section-title,
+html[data-sx-theme="dark"] .sx-reg .form-label,
+html[data-sx-theme="dark"] .sx-reg .sx-phone-cc-btn,
+html[data-sx-theme="dark"] .sx-reg .sx-phone-option {
+    color: #fff !important;
+}
 html[data-sx-theme="dark"] .sx-reg-text,
 html[data-sx-theme="dark"] .sx-reg-steps,
-html[data-sx-theme="dark"] .sx-reg-label,
 html[data-sx-theme="dark"] .sx-reg-muted,
+html[data-sx-theme="dark"] .sx-reg .help,
 html[data-sx-theme="dark"] #verifyHint,
 html[data-sx-theme="dark"] #otpStatus,
 html[data-sx-theme="dark"] #regionLoadHint {
     color: #f3e9eb !important;
 }
-html[data-sx-theme="dark"] .sx-reg-form .form-control,
+html[data-sx-theme="dark"] .sx-reg .form-control,
+html[data-sx-theme="dark"] .sx-reg .form-select,
 html[data-sx-theme="dark"] .sx-reg-otp .form-control {
-    background: #2a1a1f !important;
+    background: #1a1215 !important;
     border-color: rgba(255,180,180,0.22) !important;
     color: #fff !important;
+}
+html[data-sx-theme="dark"] .sx-reg .sx-phone-cc-btn,
+html[data-sx-theme="dark"] .sx-reg .sx-phone-menu {
+    background: #1c1417 !important;
+    border-color: rgba(255,180,180,0.16) !important;
+}
+html[data-sx-theme="dark"] .sx-reg .sx-phone-option-dial {
+    color: #d7c4c8 !important;
+}
+html[data-sx-theme="dark"] .sx-reg .sx-phone-option:hover,
+html[data-sx-theme="dark"] .sx-reg .sx-phone-option.is-active {
+    background: rgba(148, 0, 0, 0.22) !important;
 }
 html[data-sx-theme="dark"] .sx-reg-otp {
     background: #2a171c !important;

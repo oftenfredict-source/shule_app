@@ -311,10 +311,16 @@
     html[data-sx-theme="dark"] .sx-parent-perm .empty-state,
     html[data-bs-theme="dark"] .sx-parent-perm .empty-state,
     html[data-sx-theme="dark"] .sx-parent-perm .perm-table,
-    html[data-bs-theme="dark"] .sx-parent-perm .perm-table {
+    html[data-bs-theme="dark"] .sx-parent-perm .perm-table,
+    html[data-sx-theme="dark"] .sx-parent-perm .permission-tabs,
+    html[data-bs-theme="dark"] .sx-parent-perm .permission-tabs {
         background: #24181c !important;
         border-color: rgba(255, 180, 180, 0.16) !important;
         color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-parent-perm .permission-tabs,
+    html[data-bs-theme="dark"] .sx-parent-perm .permission-tabs {
+        border-bottom: 1px solid rgba(255, 180, 180, 0.16) !important;
     }
     html[data-sx-theme="dark"] .sx-parent-perm,
     html[data-bs-theme="dark"] .sx-parent-perm,
@@ -334,16 +340,27 @@
     html[data-bs-theme="dark"] .sx-parent-perm .text-muted,
     html[data-sx-theme="dark"] .sx-parent-perm .child-name,
     html[data-bs-theme="dark"] .sx-parent-perm .child-name,
-    html[data-sx-theme="dark"] .sx-parent-perm .permission-tabs .nav-link,
-    html[data-bs-theme="dark"] .sx-parent-perm .permission-tabs .nav-link {
+    html[data-sx-theme="dark"] .sx-parent-perm .form-label,
+    html[data-bs-theme="dark"] .sx-parent-perm .form-label {
         color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-parent-perm .permission-tabs .nav-link,
+    html[data-bs-theme="dark"] .sx-parent-perm .permission-tabs .nav-link,
+    html[data-sx-theme="dark"] .sx-parent-perm .permission-tabs .parent-perm-tab,
+    html[data-bs-theme="dark"] .sx-parent-perm .permission-tabs .parent-perm-tab {
+        background: transparent !important;
+        color: #d7c6c9 !important;
+        border-bottom-color: transparent !important;
+    }
+    html[data-sx-theme="dark"] .sx-parent-perm .permission-tabs .nav-link:hover,
+    html[data-bs-theme="dark"] .sx-parent-perm .permission-tabs .nav-link:hover {
+        color: #ffb4b4 !important;
+        background: rgba(255, 180, 180, 0.06) !important;
     }
     html[data-sx-theme="dark"] .sx-parent-perm .section-label,
     html[data-bs-theme="dark"] .sx-parent-perm .section-label,
     html[data-sx-theme="dark"] .sx-parent-perm .form-heading,
     html[data-bs-theme="dark"] .sx-parent-perm .form-heading,
-    html[data-sx-theme="dark"] .sx-parent-perm .permission-tabs .nav-link.active,
-    html[data-bs-theme="dark"] .sx-parent-perm .permission-tabs .nav-link.active,
     html[data-sx-theme="dark"] .sx-parent-perm .perm-table thead th,
     html[data-bs-theme="dark"] .sx-parent-perm .perm-table thead th,
     html[data-sx-theme="dark"] .sx-parent-perm .days-chip,
@@ -351,8 +368,12 @@
         color: #ffb4b4 !important;
     }
     html[data-sx-theme="dark"] .sx-parent-perm .permission-tabs .nav-link.active,
-    html[data-bs-theme="dark"] .sx-parent-perm .permission-tabs .nav-link.active {
-        background: rgba(148, 0, 0, 0.18) !important;
+    html[data-bs-theme="dark"] .sx-parent-perm .permission-tabs .nav-link.active,
+    html[data-sx-theme="dark"] .sx-parent-perm .permission-tabs .parent-perm-tab.active,
+    html[data-bs-theme="dark"] .sx-parent-perm .permission-tabs .parent-perm-tab.active {
+        background: rgba(148, 0, 0, 0.28) !important;
+        color: #ffb4b4 !important;
+        border-bottom-color: #940000 !important;
     }
     html[data-sx-theme="dark"] .sx-parent-perm .perm-table thead th,
     html[data-bs-theme="dark"] .sx-parent-perm .perm-table thead th {

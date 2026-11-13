@@ -40,7 +40,7 @@
 
 <div class="mobile-header">
     <h5 class="mb-0 font-weight-bold">
-        <i class="fa fa-university mr-2"></i>Dept Tasks
+        <i class="fa fa-university mr-2"></i>{{ __('teacher.goals.dept_tasks') }}
     </h5>
     <span class="badge badge-light text-maroon p-2" style="border-radius: 10px;">{{ $department->department_name }}</span>
 </div>
@@ -51,7 +51,7 @@
             <div class="col-md-12 text-dark">
                 <div class="card shadow-sm border-0 desktop-header" style="border-radius: 12px;">
                     <div class="card-header bg-white py-3 px-4 border-bottom">
-                         <h5 class="mb-0 font-weight-bold"><i class="fa fa-university text-maroon mr-2"></i>Dept Strategic Tasks</h5>
+                         <h5 class="mb-0 font-weight-bold"><i class="fa fa-university text-maroon mr-2"></i>{{ __('teacher.goals.dept_strategic') }}</h5>
                          <p class="text-muted small mb-0">{{ $department->department_name }}</p>
                     </div>
                 </div>
@@ -63,10 +63,10 @@
                                 <table class="table table-hover mb-0" style="vertical-align: middle;">
                                     <thead class="bg-light">
                                         <tr class="small text-uppercase font-weight-bold text-muted">
-                                            <th class="border-0 px-4 py-3">Task / Goal</th>
-                                            <th class="border-0 py-3">Weight</th>
-                                            <th class="border-0 py-3">Deadline</th>
-                                            <th class="border-0 text-center py-3 px-4">Actions</th>
+                                            <th class="border-0 px-4 py-3">{{ __('teacher.goals.task_goal') }}</th>
+                                            <th class="border-0 py-3">{{ __('teacher.goals.weight') }}</th>
+                                            <th class="border-0 py-3">{{ __('teacher.goals.deadline') }}</th>
+                                            <th class="border-0 text-center py-3 px-4">{{ __('teacher.goals.actions') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -81,16 +81,16 @@
                                                 <td class="text-center py-3 px-4">
                                                     <div class="btn-group">
                                                         <button class="btn btn-sm btn-outline-maroon btn-assign-member mr-2 px-3" data-id="{{ $task->id }}" data-name="{{ $task->task_name }}">
-                                                            <i class="fa fa-user-plus mr-1"></i> Delegate
+                                                            <i class="fa fa-user-plus mr-1"></i> {{ __('teacher.goals.delegate') }}
                                                         </button>
                                                         <a href="{{ route('hod.goals.viewTask', $task->id) }}" class="btn btn-sm btn-outline-info px-3">
-                                                            <i class="fa fa-line-chart"></i> Progress
+                                                            <i class="fa fa-line-chart"></i> {{ __('teacher.goals.progress') }}
                                                         </a>
                                                     </div>
                                                 </td>
                                             </tr>
                                         @empty
-                                            <tr><td colspan="4" class="text-center py-5">No departmental tasks found.</td></tr>
+                                            <tr><td colspan="4" class="text-center py-5">{{ __('teacher.goals.no_dept_tasks') }}</td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>
@@ -108,22 +108,22 @@
                                 <span class="badge badge-maroon text-white">{{ $task->weight }}%</span>
                             </div>
                             <div class="text-muted small mb-3 border-bottom pb-2">
-                                <i class="fa fa-bullseye text-primary mr-1"></i> Goal: {{ $task->goal->goal_name }}
+                                <i class="fa fa-bullseye text-primary mr-1"></i> {{ $task->goal->goal_name }}
                             </div>
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="small text-muted"><i class="fa fa-calendar-o mr-1"></i> {{ \Carbon\Carbon::parse($task->goal->deadline)->format('d M, Y') }}</span>
                                 <div class="d-flex">
                                     <button class="btn btn-xs btn-outline-maroon btn-assign-member mr-2" data-id="{{ $task->id }}" data-name="{{ $task->task_name }}">
-                                        <i class="fa fa-user-plus"></i> Delegate
+                                        <i class="fa fa-user-plus"></i> {{ __('teacher.goals.delegate') }}
                                     </button>
                                     <a href="{{ route('hod.goals.viewTask', $task->id) }}" class="btn btn-xs btn-outline-info">
-                                        <i class="fa fa-line-chart"></i> Progress
+                                        <i class="fa fa-line-chart"></i> {{ __('teacher.goals.progress') }}
                                     </a>
                                 </div>
                             </div>
                         </div>
                     @empty
-                        <div class="text-center py-5 text-muted">Hakuna kazi yoyote iliyopangwa kwa sasa.</div>
+                        <div class="text-center py-5 text-muted">{{ __('teacher.goals.no_dept_tasks_empty') }}</div>
                     @endforelse
                 </div>
             </div>
@@ -136,10 +136,10 @@
     <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 70%;">
         <div class="modal-content" style="border-radius: 15px; border: none;">
             <div class="modal-header d-flex justify-content-between align-items-center" style="background-color: #940000; color: white;">
-                <h5 class="modal-title" id="assignMemberModalLabel">Delegate Task to Members: <span id="modal_task_name"></span></h5>
+                <h5 class="modal-title" id="assignMemberModalLabel">{{ __('teacher.goals.delegate_title') }} <span id="modal_task_name"></span></h5>
                 <div id="task_budget_display" class="px-3 py-1 bg-white text-dark rounded-pill shadow-sm" style="font-size: 0.85rem; font-weight: 700;">
-                    Budget: <span id="budget_parent_weight">0</span>% | 
-                    Left: <span id="budget_remaining">0</span>%
+                    {{ __('teacher.goals.budget') }} <span id="budget_parent_weight">0</span>% |
+                    {{ __('teacher.goals.left') }} <span id="budget_remaining">0</span>%
                 </div>
                 <button type="button" class="close text-white ml-0" data-dismiss="modal">&times;</button>
             </div>
@@ -150,17 +150,17 @@
                     
                     <!-- Existing Delegations Summary -->
                     <div id="existing_assignments_section" class="mb-4" style="display: none;">
-                        <h6 class="font-weight-bold mb-2 text-muted small uppercase">Current Delegations</h6>
+                        <h6 class="font-weight-bold mb-2 text-muted small uppercase">{{ __('teacher.goals.current_delegations') }}</h6>
                         <div id="existing_assignments_list" class="list-group list-group-flush border rounded bg-white">
                             <!-- Existing tasks loaded here -->
                         </div>
                     </div>
 
-                    <h6 class="font-weight-bold mb-3 text-maroon small uppercase">Add New Delegation</h6>
+                    <h6 class="font-weight-bold mb-3 text-maroon small uppercase">{{ __('teacher.goals.add_delegation') }}</h6>
                     <div id="member_tasks_container">
                         <!-- Dynamic rows here -->
                     </div>
-                    <button type="button" id="add_member_row" class="btn btn-outline-success btn-sm mt-2"><i class="fa fa-plus-circle"></i> Add Member Row</button>
+                    <button type="button" id="add_member_row" class="btn btn-outline-success btn-sm mt-2"><i class="fa fa-plus-circle"></i> {{ __('teacher.goals.add_member_row') }}</button>
                 </div>
                 <div class="modal-footer d-flex justify-content-between align-items-center">
                     <div id="assign_progress_container" class="flex-grow-1 mr-3" style="display: none;">
@@ -169,9 +169,9 @@
                         </div>
                     </div>
                     <div>
-                        <button type="button" class="btn btn-secondary btn-sm px-4" data-dismiss="modal" style="border-radius: 20px;">Cancel</button>
+                        <button type="button" class="btn btn-secondary btn-sm px-4" data-dismiss="modal" style="border-radius: 20px;">{{ __('teacher.goals.cancel') }}</button>
                         <button type="submit" id="btn_save_member_tasks" class="btn btn-primary btn-sm px-4" style="background-color: #940000; border: none; border-radius: 20px;">
-                             Save Assignments
+                             {{ __('teacher.goals.save_assignments') }}
                         </button>
                     </div>
                 </div>
@@ -181,6 +181,9 @@
 </div>
 
 <script>
+const G = @json(__('teacher.goals'));
+G.loading = @json(__('teacher.loading'));
+
 $(document).ready(function() {
     let memberRowCount = 0;
     let deptMembers = [];
@@ -243,14 +246,14 @@ $(document).ready(function() {
         });
 
         if ((global_assigned_weight + currentModalWeight) >= global_parent_weight) {
-            Swal.fire('No Budget Left', 'You have already allocated your full task weight of ' + global_parent_weight + '%. Remove some rows or reduce weight to add more.', 'warning');
+            Swal.fire(G.budget, G.weight_label.replace(':pct', global_parent_weight), 'warning');
             return;
         }
         addMemberRow();
     });
 
     function addMemberRow() {
-        let options = '<option value="">Select Member</option>';
+        let options = '<option value="">' + G.select_member + '</option>';
         deptMembers.forEach(m => {
             options += `<option value="${m.id}" data-type="${m.type}">${m.name} (${m.type})</option>`;
         });
@@ -259,26 +262,26 @@ $(document).ready(function() {
             <div class="task-row border p-3 mb-3 rounded bg-light shadow-sm" style="position: relative;">
                 <div class="row">
                     <div class="col-md-5 form-group mb-2">
-                        <label class="small font-weight-bold">Task Name</label>
-                        <input type="text" name="tasks[${memberRowCount}][task_name]" class="form-control form-control-sm" required placeholder="e.g. Conduct Practical Exams">
+                        <label class="small font-weight-bold">${G.task_name}</label>
+                        <input type="text" name="tasks[${memberRowCount}][task_name]" class="form-control form-control-sm" required placeholder="${G.task_name_ph}">
                     </div>
                     <div class="col-md-4 form-group mb-2">
-                        <label class="small font-weight-bold">Target Member</label>
+                        <label class="small font-weight-bold">${G.target_member}</label>
                         <select name="tasks[${memberRowCount}][member_id]" class="form-control form-control-sm member-select" required>
                             ${options}
                         </select>
                         <input type="hidden" name="tasks[${memberRowCount}][member_type]" class="member-type-hidden">
                     </div>
                     <div class="col-md-2 form-group mb-2">
-                        <label class="small font-weight-bold">Weight (%)</label>
+                        <label class="small font-weight-bold">${G.weight_pct}</label>
                         <input type="number" name="tasks[${memberRowCount}][weight]" class="form-control form-control-sm member-weight-input" required min="0.1" step="0.1" value="0">
                     </div>
                     <div class="col-md-1 d-flex align-items-end mb-2">
                         <button type="button" class="btn btn-danger btn-sm remove-member-row"><i class="fa fa-times"></i></button>
                     </div>
                     <div class="col-md-12 form-group mb-0">
-                        <label class="small font-weight-bold">Task Instructions / Description</label>
-                        <textarea name="tasks[${memberRowCount}][description]" class="form-control form-control-sm" rows="2" placeholder="Describe the expectations for this task..."></textarea>
+                        <label class="small font-weight-bold">${G.task_instructions}</label>
+                        <textarea name="tasks[${memberRowCount}][description]" class="form-control form-control-sm" rows="2" placeholder="${G.task_instructions_ph}"></textarea>
                     </div>
                 </div>
             </div>
@@ -339,15 +342,15 @@ $(document).ready(function() {
 
         if ((global_assigned_weight + currentModalWeight) > global_parent_weight) {
             Swal.fire({
-                title: 'Limit Exceeded',
-                text: 'Hujaweza kuhifadhi kwa sababu uzito (weight) unazidi ' + global_parent_weight + '%. Tafadhali kagua viwango ulivyopanga.',
+                title: G.weight_pct,
+                text: G.weight_label.replace(':pct', global_parent_weight),
                 icon: 'error'
             });
             return;
         }
 
         const $btn = $('#btn_save_member_tasks');
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Saving...');
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> ' + G.loading);
         $('#assign_progress_container').show();
         $('#assign_progress_bar').css('width', '50%').text('50%');
 
@@ -359,18 +362,18 @@ $(document).ready(function() {
                 if (response.success) {
                     $('#assign_progress_bar').css('width', '100%').text('100%');
                     setTimeout(() => {
-                        Swal.fire('Hongera', response.message, 'success').then(() => location.reload());
+                        Swal.fire(G.save_assignments, response.message, 'success').then(() => location.reload());
                     }, 500);
                 } else {
-                    $btn.prop('disabled', false).text('Save Assignments');
+                    $btn.prop('disabled', false).text(G.save_assignments);
                     $('#assign_progress_container').hide();
-                    Swal.fire('Error', response.message, 'error');
+                    Swal.fire(G.fail_load_subtasks, response.message, 'error');
                 }
             },
             error: function() {
-                $btn.prop('disabled', false).text('Save Assignments');
+                $btn.prop('disabled', false).text(G.save_assignments);
                 $('#assign_progress_container').hide();
-                Swal.fire('Error', 'Tatizo limetokea wakati wa kuhifadhi.', 'error');
+                Swal.fire(G.fail_load_subtasks, G.fail_load_subtasks, 'error');
             }
         });
     });

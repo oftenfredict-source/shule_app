@@ -1218,6 +1218,118 @@ class TeachersController extends Controller
                 );
         }
 
+        // Next / current session for dashboard welcome card
+        $upcomingSession = null;
+        $schoolID = Session::get("schoolID");
+        if ($teacherID && $schoolID) {
+            $definition = DB::table("session_timetable_definitions")
+                ->where("schoolID", $schoolID)
+                ->first();
+
+            if ($definition) {
+                $today = Carbon::today(config("app.timezone"));
+                $now = Carbon::now(config("app.timezone"));
+                $todayDayName = $today->format("l");
+
+                $isHoliday = Holiday::where("schoolID", $schoolID)
+                    ->where(function ($query) use ($today) {
+                        $query
+                            ->whereDate("start_date", "<=", $today)
+                            ->whereDate("end_date", ">=", $today);
+                    })
+                    ->exists();
+                $isNonWorkingEvent = Event::where("schoolID", $schoolID)
+                    ->whereDate("event_date", $today)
+                    ->where("is_non_working_day", true)
+                    ->exists();
+
+                if (!$today->isWeekend() && !$isHoliday && !$isNonWorkingEvent) {
+                    $todaySessions = ClassSessionTimetable::with([
+                        "subject",
+                        "classSubject.subject",
+                        "subclass.class",
+                    ])
+                        ->where("teacherID", $teacherID)
+                        ->where("definitionID", $definition->definitionID)
+                        ->where("day", $todayDayName)
+                        ->get()
+                        ->map(function ($session) use ($today) {
+                            $startTimeStr =
+                                $session->start_time instanceof \DateTime
+                                    ? $session->start_time->format("H:i:s")
+                                    : (is_string($session->start_time)
+                                        ? $session->start_time
+                                        : "00:00:00");
+                            $endTimeStr =
+                                $session->end_time instanceof \DateTime
+                                    ? $session->end_time->format("H:i:s")
+                                    : (is_string($session->end_time)
+                                        ? $session->end_time
+                                        : "00:00:00");
+
+                            $session->parsed_start = $today
+                                ->copy()
+                                ->setTimeFromTimeString($startTimeStr);
+                            $session->parsed_end = $today
+                                ->copy()
+                                ->setTimeFromTimeString($endTimeStr);
+
+                            return $session;
+                        })
+                        ->sortBy(function ($session) {
+                            return $session->parsed_start->timestamp;
+                        })
+                        ->values();
+
+                    $current = $todaySessions->first(function ($session) use ($now) {
+                        return $now->gte($session->parsed_start)
+                            && $now->lte($session->parsed_end);
+                    });
+                    $next = $todaySessions->first(function ($session) use ($now) {
+                        return $session->parsed_start->gt($now);
+                    });
+                    $picked = $current ?: $next;
+
+                    if ($picked) {
+                        $subjectName = "N/A";
+                        if (
+                            $picked->classSubject &&
+                            $picked->classSubject->subject &&
+                            $picked->classSubject->subject->subject_name
+                        ) {
+                            $subjectName =
+                                $picked->classSubject->subject->subject_name;
+                        } elseif (
+                            $picked->subject &&
+                            $picked->subject->subject_name
+                        ) {
+                            $subjectName = $picked->subject->subject_name;
+                        }
+                        if ($picked->is_prepo) {
+                            $subjectName .= " (Prepo)";
+                        }
+
+                        $className = $picked->subclass
+                            ? trim(
+                                ($picked->subclass->class->class_name ?? "") .
+                                    " " .
+                                    ($picked->subclass->subclass_name ?? ""),
+                            )
+                            : "";
+
+                        $upcomingSession = [
+                            "subject" => $subjectName,
+                            "class" => $className !== "" ? $className : null,
+                            "start" => $picked->parsed_start->format("h:i A"),
+                            "end" => $picked->parsed_end->format("h:i A"),
+                            "is_now" => (bool) $current,
+                            "link" => route("teacher.mySessions"),
+                        ];
+                    }
+                }
+            }
+        }
+
         return view(
             "Teacher.dashboard",
             compact(
@@ -1236,6 +1348,7 @@ class TeachersController extends Controller
                 "isOnDuty",
                 "tangeTeacher",
                 "teacherTodayAttendance",
+                "upcomingSession",
             ),
         );
     }
@@ -1306,7 +1419,7 @@ class TeachersController extends Controller
             ->where("type", $readType)
             ->update(["is_read_by_teacher" => true]);
 
-        return view("Teacher.manage_feedback", [
+        return view("Teacher.manage_feedback_corp", [
             "activeTab" => $tab,
             "activeSection" => $section,
             "suggestions" => $suggestions,
@@ -1986,7 +2099,7 @@ class TeachersController extends Controller
 
         $user = User::where("name", $teacher->employee_number)->first();
 
-        return view("Teacher.profile", [
+        return view("Teacher.profile_corp", [
             "teacher" => $teacher,
             "user" => $user,
         ]);
@@ -18630,7 +18743,7 @@ class TeachersController extends Controller
                 ->first();
         }
 
-        return view("Teacher.manage_permissions", [
+        return view("Teacher.manage_permissions_corp", [
             "activeTab" => $activeTab,
             "pendingPermissions" => $pendingPermissions,
             "approvedPermissions" => $approvedPermissions,

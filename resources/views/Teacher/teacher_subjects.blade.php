@@ -1,7 +1,19 @@
-@include('includes.teacher_nav')
+@extends('layouts.teacher_corp')
 
-<meta name="csrf-token" content="{{ csrf_token() }}">
+@section('title', __('teacher.pages.my_subjects').' - ShuleXpert')
+@section('page_title', __('teacher.pages.my_subjects'))
+@section('page_breadcrumb', __('teacher.pages.my_subjects_bc'))
 
+@section('page_actions')
+    @if(!empty($resultButtonStatus))
+    <button type="button" class="btn btn-primary btn-sm waves-effect" id="btnOpenBulkResults">
+        <i class="fa-solid fa-plus me-1"></i> {{ __('teacher.subjects.add_result') }}
+    </button>
+    @endif
+@endsection
+
+@push('styles')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <style>
     /* Color scheme for #940000 */
     .bg-primary-custom {
@@ -263,304 +275,751 @@
     tr.question-details-row.is-search-hidden {
         display: none !important;
     }
+
+    .sx-teacher-subjects .sx-subjects-toolbar,
+    .sx-teacher-subjects .sx-subject-panel {
+        background: #fff !important;
+        border: 1px solid #e6e6e6 !important;
+        border-radius: 0 !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+        border-top: 4px solid #940000 !important;
+    }
+    .sx-teacher-subjects .sx-subjects-toolbar {
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 0.85rem;
+    }
+    .sx-teacher-subjects .form-label {
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #666 !important;
+        margin-bottom: 0.3rem;
+    }
+    .sx-teacher-subjects .form-control,
+    .sx-teacher-subjects .form-select,
+    .sx-teacher-subjects .btn {
+        border-radius: 0 !important;
+    }
+    .sx-teacher-subjects .form-select,
+    .sx-teacher-subjects .form-control {
+        min-height: 42px;
+        font-weight: 600;
+        border: 1px solid #cfcfcf;
+    }
+    .sx-teacher-subjects .form-select:focus,
+    .sx-teacher-subjects .form-control:focus {
+        border-color: #940000;
+        box-shadow: 0 0 0 0.18rem rgba(148,0,0,0.12);
+    }
+    .sx-teacher-subjects .subject-item { display: none; }
+    .sx-teacher-subjects .subject-item.is-active { display: block; }
+    .sx-teacher-subjects .sx-subject-panel { padding: 1rem 1.1rem; }
+    .sx-teacher-subjects .sx-subject-head {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: flex-start;
+        margin-bottom: 0.85rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(148,0,0,0.1);
+    }
+    .sx-teacher-subjects .sx-subject-title {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #940000 !important;
+        margin: 0;
+    }
+    .sx-teacher-subjects .sx-subject-meta {
+        font-size: 0.84rem;
+        color: #666 !important;
+        margin-top: 0.2rem;
+    }
+    .sx-teacher-subjects .sx-action-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 0.45rem;
+    }
+    .sx-teacher-subjects .sx-action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+        min-height: 72px;
+        padding: 0.55rem 0.4rem;
+        border: 1px solid #e6e6e6;
+        background: #fff;
+        color: #940000;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-align: center;
+        cursor: pointer;
+    }
+    .sx-teacher-subjects .sx-action-btn:hover {
+        background: #fcf7f7;
+        border-color: #940000;
+    }
+    .sx-teacher-subjects .sx-action-btn i { font-size: 1.15rem; line-height: 1; }
+    .sx-teacher-subjects .stat-badge { border-radius: 0 !important; }
+    .sx-teacher-subjects .action-icon {
+        border-radius: 0 !important;
+        width: auto;
+        height: auto;
+        padding: 0;
+        background: transparent !important;
+    }
+    .sx-teacher-subjects .action-icon:hover {
+        transform: none;
+        background: transparent !important;
+    }
+    .sx-teacher-subjects .subject-card {
+        box-shadow: none !important;
+        border: none !important;
+        transform: none !important;
+    }
+    .sx-teacher-subjects .subject-card:hover {
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-subjects,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-subjects p,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-subjects small,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-subjects strong,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-subjects label,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-subjects td {
+        color: #000 !important;
+    }
+    .modal-header.bg-primary-custom {
+        background: linear-gradient(135deg, #940000 0%, #6e0000 100%) !important;
+        border: none;
+    }
+    .modal-content { border-radius: 0 !important; }
+
+    /* Add Result modal */
+    #bulkResultsFilterModal .modal-dialog {
+        max-width: 640px;
+        margin: 1.25rem auto;
+    }
+    #bulkResultsFilterModal .sx-bulk-modal {
+        border: none;
+        border-radius: 0;
+        overflow: visible;
+        background: #fff;
+        box-shadow: 0 22px 56px rgba(15, 23, 42, 0.22);
+    }
+    #bulkResultsFilterModal .modal-header {
+        border: none;
+        padding: 1.15rem 1.4rem;
+        background: linear-gradient(135deg, #940000 0%, #6e0000 100%);
+        color: #fff !important;
+    }
+    #bulkResultsFilterModal .modal-title {
+        margin: 0;
+        font-size: 0.9rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: #fff !important;
+    }
+    #bulkResultsFilterModal .modal-body {
+        padding: 1.15rem 1.35rem 0.5rem;
+        background: #faf7f7;
+    }
+    #bulkResultsFilterModal .sx-bulk-lead {
+        font-size: 0.86rem;
+        font-weight: 600;
+        color: #555 !important;
+        margin: 0 0 0.95rem;
+        line-height: 1.45;
+    }
+    #bulkResultsFilterModal .sx-bulk-section {
+        background: #fff;
+        border: 1px solid rgba(148, 0, 0, 0.1);
+        border-top: 3px solid #940000;
+        padding: 1rem 1.05rem 1.1rem;
+        margin-bottom: 0.85rem;
+    }
+    #bulkResultsFilterModal .sx-bulk-section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin: 0 0 0.85rem;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #940000 !important;
+    }
+    #bulkResultsFilterModal .sx-bulk-step {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #940000;
+        color: #fff !important;
+        font-size: 0.7rem;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    #bulkResultsFilterModal .form-label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #222 !important;
+        margin-bottom: 0.4rem;
+        text-transform: none;
+        letter-spacing: 0;
+    }
+    #bulkResultsFilterModal .form-hint {
+        display: block;
+        margin-top: 0.4rem;
+        font-size: 0.78rem;
+        color: #666 !important;
+        line-height: 1.4;
+    }
+    #bulkResultsFilterModal .form-control {
+        border-radius: 0 !important;
+        min-height: 46px !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        color: #111 !important;
+        background: #fff !important;
+        border: 1px solid #cfcfcf !important;
+        box-shadow: none !important;
+    }
+    #bulkResultsFilterModal .form-control:focus {
+        border-color: #940000 !important;
+        box-shadow: 0 0 0 0.18rem rgba(148, 0, 0, 0.12) !important;
+    }
+    #bulkResultsFilterModal .form-control:disabled {
+        background: #f3f3f3 !important;
+        color: #888 !important;
+    }
+    #bulkResultsFilterModal .sx-bulk-duo-hint {
+        margin-top: 0.65rem;
+        padding: 0.65rem 0.8rem;
+        background: #fcf7f7;
+        border: 1px solid rgba(148, 0, 0, 0.12);
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #940000 !important;
+    }
+    #bulkResultsFilterModal .modal-footer {
+        border-top: 1px solid rgba(148, 0, 0, 0.1);
+        background: #fff;
+        padding: 0.9rem 1.35rem 1.1rem;
+        gap: 0.5rem;
+    }
+    #bulkResultsFilterModal .modal-footer .btn {
+        border-radius: 0 !important;
+        font-weight: 800;
+        min-height: 42px;
+        padding: 0.5rem 1rem;
+    }
+    #bulkResultsFilterModal .modal-footer .btn-primary-custom {
+        background: #940000;
+        border-color: #940000;
+        color: #fff;
+    }
+    #bulkResultsFilterModal .modal-footer .btn-primary-custom:disabled {
+        opacity: 0.55;
+    }
+    #bulkResultsFilterModal .modal-footer .btn-outline-primary {
+        color: #940000 !important;
+        border-color: #940000;
+    }
+    #bulkResultsFilterModal .modal-footer .btn-outline-primary:hover:not(:disabled) {
+        background: #940000;
+        color: #fff !important;
+    }
+    #bulkResultsFilterModal .modal-footer .btn-outline-secondary {
+        color: #555;
+        border-color: #cfcfcf;
+    }
+    @media (max-width: 576px) {
+        #bulkResultsFilterModal .modal-footer .btn { width: 100%; }
+    }
+
+    /* Dark mode — toolbar, panels, labels, actions, modals */
+    html[data-sx-theme="dark"] .sx-teacher-subjects .sx-subjects-toolbar,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .sx-subjects-toolbar,
+    html[data-sx-theme="dark"] .sx-teacher-subjects .sx-subject-panel,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .sx-subject-panel {
+        background: #24181c !important;
+        border-color: #3a2a2e !important;
+        box-shadow: none !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-subjects .form-label,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .form-label,
+    html[data-sx-theme="dark"] .sx-teacher-subjects label.form-label,
+    html[data-bs-theme="dark"] .sx-teacher-subjects label.form-label {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-subjects .form-control,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .form-control,
+    html[data-sx-theme="dark"] .sx-teacher-subjects .form-select,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .form-select {
+        background: #1c1417 !important;
+        border-color: #4a383c !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-subjects .form-select option,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .form-select option {
+        background: #1c1417;
+        color: #f3e9eb;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-subjects .sx-subject-title,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .sx-subject-title {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-subjects .sx-subject-meta,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .sx-subject-meta {
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-subjects .sx-subject-head,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .sx-subject-head {
+        border-bottom-color: rgba(255, 180, 180, 0.18) !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-subjects .stat-badge,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .stat-badge {
+        background-color: rgba(148, 0, 0, 0.35) !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-subjects .sx-action-btn,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .sx-action-btn {
+        background: #1c1417 !important;
+        border-color: #3a2a2e !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-subjects .sx-action-btn:hover,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .sx-action-btn:hover {
+        background: #2a1c20 !important;
+        border-color: #940000 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-subjects .badge.bg-light,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .badge.bg-light {
+        background: #3a2a2e !important;
+        color: #f3e9eb !important;
+        border-color: #4a383c !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-subjects .alert-info,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .alert-info {
+        background: #2a1c20 !important;
+        border-color: #3a2a2e !important;
+        color: #e8c9cd !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-subjects .btn-outline-secondary,
+    html[data-bs-theme="dark"] .sx-teacher-subjects .btn-outline-secondary {
+        color: #e8c9cd !important;
+        border-color: #4a383c !important;
+    }
+    html[data-sx-theme="dark"] .results-tools-bar,
+    html[data-bs-theme="dark"] .results-tools-bar {
+        background: #24181c !important;
+        border-color: #3a2a2e !important;
+    }
+    html[data-sx-theme="dark"] .results-tools-bar label,
+    html[data-bs-theme="dark"] .results-tools-bar label {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .percentage-text,
+    html[data-bs-theme="dark"] .percentage-text {
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .marks-max-hint,
+    html[data-bs-theme="dark"] .marks-max-hint,
+    html[data-sx-theme="dark"] .duo-marks-label:not(.duo-state-pass):not(.duo-state-fail):not(.duo-state-invalid),
+    html[data-bs-theme="dark"] .duo-marks-label:not(.duo-state-pass):not(.duo-state-fail):not(.duo-state-invalid) {
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] .enrollment-inactive-row,
+    html[data-bs-theme="dark"] .enrollment-inactive-row {
+        background-color: #2a2226 !important;
+        color: #b0a0a4 !important;
+    }
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .sx-bulk-modal,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .sx-bulk-modal {
+        background: #24181c !important;
+    }
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .modal-body,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .modal-body {
+        background: #1c1417 !important;
+    }
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .sx-bulk-lead,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .sx-bulk-lead,
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .sx-bulk-lead strong,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .sx-bulk-lead strong {
+        color: #e8c9cd !important;
+    }
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .sx-bulk-section,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .sx-bulk-section {
+        background: #24181c !important;
+        border-color: #3a2a2e !important;
+    }
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .sx-bulk-section-title,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .sx-bulk-section-title {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .form-label,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .form-label {
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .form-hint,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .form-hint {
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .form-control,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .form-control {
+        background: #1c1417 !important;
+        border-color: #4a383c !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .form-control:disabled,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .form-control:disabled {
+        background: #2a2226 !important;
+        color: #a8989c !important;
+    }
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .sx-bulk-duo-hint,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .sx-bulk-duo-hint {
+        background: #2a1c20 !important;
+        border-color: #4a383c !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .modal-footer,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .modal-footer {
+        background: #24181c !important;
+        border-top-color: #3a2a2e !important;
+    }
+    html[data-sx-theme="dark"] #bulkResultsFilterModal .modal-footer .btn-outline-secondary,
+    html[data-bs-theme="dark"] #bulkResultsFilterModal .modal-footer .btn-outline-secondary {
+        color: #e8c9cd !important;
+        border-color: #4a383c !important;
+    }
+    html[data-sx-theme="dark"] #viewStudentsModal .modal-content,
+    html[data-bs-theme="dark"] #viewStudentsModal .modal-content,
+    html[data-sx-theme="dark"] #sessionAttendanceModal .modal-content,
+    html[data-bs-theme="dark"] #sessionAttendanceModal .modal-content,
+    html[data-sx-theme="dark"] #examAttendanceModal .modal-content,
+    html[data-bs-theme="dark"] #examAttendanceModal .modal-content,
+    html[data-sx-theme="dark"] #viewResultsModal .modal-content,
+    html[data-bs-theme="dark"] #viewResultsModal .modal-content,
+    html[data-sx-theme="dark"] #addEditResultsModal .modal-content,
+    html[data-bs-theme="dark"] #addEditResultsModal .modal-content,
+    html[data-sx-theme="dark"] #uploadExcelModal .modal-content,
+    html[data-bs-theme="dark"] #uploadExcelModal .modal-content,
+    html[data-sx-theme="dark"] #subjectElectionModal .modal-content,
+    html[data-bs-theme="dark"] #subjectElectionModal .modal-content {
+        background: #24181c !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] #viewStudentsModal .modal-body,
+    html[data-bs-theme="dark"] #viewStudentsModal .modal-body,
+    html[data-sx-theme="dark"] #sessionAttendanceModal .modal-body,
+    html[data-bs-theme="dark"] #sessionAttendanceModal .modal-body,
+    html[data-sx-theme="dark"] #examAttendanceModal .modal-body,
+    html[data-bs-theme="dark"] #examAttendanceModal .modal-body,
+    html[data-sx-theme="dark"] #viewResultsModal .modal-body,
+    html[data-bs-theme="dark"] #viewResultsModal .modal-body,
+    html[data-sx-theme="dark"] #addEditResultsModal .modal-body,
+    html[data-bs-theme="dark"] #addEditResultsModal .modal-body,
+    html[data-sx-theme="dark"] #uploadExcelModal .modal-body,
+    html[data-bs-theme="dark"] #uploadExcelModal .modal-body,
+    html[data-sx-theme="dark"] #subjectElectionModal .modal-body,
+    html[data-bs-theme="dark"] #subjectElectionModal .modal-body {
+        background: #1c1417 !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] #viewStudentsModal .modal-body .text-muted,
+    html[data-bs-theme="dark"] #viewStudentsModal .modal-body .text-muted,
+    html[data-sx-theme="dark"] #subjectElectionModal .text-muted,
+    html[data-bs-theme="dark"] #subjectElectionModal .text-muted,
+    html[data-sx-theme="dark"] #uploadExcelModal .text-muted,
+    html[data-bs-theme="dark"] #uploadExcelModal .text-muted,
+    html[data-sx-theme="dark"] #viewResultsModal .text-muted,
+    html[data-bs-theme="dark"] #viewResultsModal .text-muted,
+    html[data-sx-theme="dark"] #addEditResultsModal .text-muted,
+    html[data-bs-theme="dark"] #addEditResultsModal .text-muted {
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] #viewStudentsModal .table,
+    html[data-bs-theme="dark"] #viewStudentsModal .table,
+    html[data-sx-theme="dark"] #viewResultsModal .table,
+    html[data-bs-theme="dark"] #viewResultsModal .table,
+    html[data-sx-theme="dark"] #addEditResultsModal .table,
+    html[data-bs-theme="dark"] #addEditResultsModal .table,
+    html[data-sx-theme="dark"] #subjectElectionModal .table,
+    html[data-bs-theme="dark"] #subjectElectionModal .table {
+        color: #f3e9eb !important;
+        --bs-table-bg: transparent;
+        --bs-table-color: #f3e9eb;
+        --bs-table-striped-bg: #24181c;
+        --bs-table-hover-bg: #2a1c20;
+        --bs-table-border-color: #3a2a2e;
+    }
+    html[data-sx-theme="dark"] #viewStudentsModal .table thead th,
+    html[data-bs-theme="dark"] #viewStudentsModal .table thead th,
+    html[data-sx-theme="dark"] #viewResultsModal .table thead th,
+    html[data-bs-theme="dark"] #viewResultsModal .table thead th,
+    html[data-sx-theme="dark"] #addEditResultsModal .table thead th,
+    html[data-bs-theme="dark"] #addEditResultsModal .table thead th,
+    html[data-sx-theme="dark"] #subjectElectionModal .table thead th,
+    html[data-bs-theme="dark"] #subjectElectionModal .table thead th {
+        background: #24181c !important;
+        color: #ffb4b4 !important;
+        border-color: #3a2a2e !important;
+    }
 </style>
+@endpush
 
-<!-- Bootstrap Icons -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-
-<!-- jsPDF Library for PDF generation -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
-<!-- SheetJS for Excel export/import (client-side, respects current sort) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-12">
+@section('content')
+<div class="sx-teacher-subjects">
             @if(session('success'))
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     <i class="bi bi-check-circle"></i> {{ session('success') }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('teacher.close') }}"></button>
                 </div>
             @endif
 
             @if(session('error'))
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="bi bi-exclamation-triangle"></i> {{ session('error') }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('teacher.close') }}"></button>
                 </div>
             @endif
 
-            <!-- Page Header -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body bg-primary-custom text-white rounded">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap">
-                        <h4 class="mb-0">
-                            <i class="bi bi-book"></i> My Subjects
-                        </h4>
-                        @if(!empty($resultButtonStatus))
-                        <button type="button" class="btn btn-light btn-sm mb-1 mb-md-0" id="btnOpenBulkResults"
-                                style="border-radius:0;font-weight:600;color:#940000;">
-                            <i class="bi bi-plus-circle"></i> Add Result
-                        </button>
-                        @endif
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bulk Class Results Modal (like Admin add-results filters) -->
-            <div class="modal fade" id="bulkResultsFilterModal" tabindex="-1" role="dialog" aria-labelledby="bulkResultsFilterModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg" role="document">
-                    <div class="modal-content" style="border-radius:0;">
-                        <div class="modal-header bg-primary-custom text-white">
+            <!-- Bulk Class Results Modal -->
+            <div class="modal fade" id="bulkResultsFilterModal" tabindex="-1" aria-labelledby="bulkResultsFilterModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content sx-bulk-modal">
+                        <div class="modal-header">
                             <h5 class="modal-title" id="bulkResultsFilterModalLabel">
-                                <i class="bi bi-plus-circle"></i> Add Result
+                                <i class="bi bi-plus-circle me-1"></i> {{ __('teacher.subjects.add_result') }}
                             </h5>
-                            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
                         </div>
                         <div class="modal-body">
-                            <p class="small text-muted mb-3">
-                                Select a class you teach, then stream(s) and subject. Use <strong>All Subclasses</strong> to enter marks for every stream that takes the subject (e.g. Form 5 PCM + PCB + PMC Physics) in one form.
+                            <p class="sx-bulk-lead">
+                                {!! __('teacher.subjects.bulk_lead') !!}
                             </p>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label class="small fw-bold text-muted"><i class="bi bi-columns"></i> Class</label>
-                                    <select class="form-control" id="bulkClassID">
-                                        <option value="">Select Class</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="small fw-bold text-muted"><i class="bi bi-list-ul"></i> Subclass</label>
-                                    <select class="form-control" id="bulkSubclassID" disabled>
-                                        <option value="">All Subclasses</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="small fw-bold text-muted"><i class="bi bi-book"></i> Subject</label>
-                                    <select class="form-control" id="bulkSubjectID" disabled>
-                                        <option value="">Select Subject</option>
-                                    </select>
-                                    <small class="text-muted" id="bulkDuoHint" style="display:none;">
-                                        <i class="bi bi-layers"></i> DUO subject, you will pick a paper next.
-                                    </small>
+
+                            <div class="sx-bulk-section">
+                                <h6 class="sx-bulk-section-title"><span class="sx-bulk-step">1</span> {{ __('teacher.class') }}</h6>
+                                <label class="form-label" for="bulkClassID">{{ __('teacher.subjects.select_class') }}</label>
+                                <select class="form-control" id="bulkClassID">
+                                    <option value="">{{ __('teacher.subjects.select_class_opt') }}</option>
+                                </select>
+                            </div>
+
+                            <div class="sx-bulk-section">
+                                <h6 class="sx-bulk-section-title"><span class="sx-bulk-step">2</span> {{ __('teacher.subjects.stream') }}</h6>
+                                <label class="form-label" for="bulkSubclassID">{{ __('teacher.subjects.subclass_stream') }}</label>
+                                <select class="form-control" id="bulkSubclassID" disabled>
+                                    <option value="">{{ __('teacher.subjects.all_subclasses') }}</option>
+                                </select>
+                                <span class="form-hint">{{ __('teacher.subjects.all_subclasses_hint') }}</span>
+                            </div>
+
+                            <div class="sx-bulk-section">
+                                <h6 class="sx-bulk-section-title"><span class="sx-bulk-step">3</span> {{ __('teacher.subject') }}</h6>
+                                <label class="form-label" for="bulkSubjectID">{{ __('teacher.subjects.select_subject') }}</label>
+                                <select class="form-control" id="bulkSubjectID" disabled>
+                                    <option value="">{{ __('teacher.subjects.select_subject_opt') }}</option>
+                                </select>
+                                <div class="sx-bulk-duo-hint" id="bulkDuoHint" style="display:none;">
+                                    <i class="bi bi-layers"></i> {{ __('teacher.subjects.duo_hint') }}
                                 </div>
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-success" id="bulkBtnViewResult" disabled>
-                                <i class="bi bi-eye"></i> View
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('teacher.cancel') }}</button>
+                            <button type="button" class="btn btn-outline-primary" id="bulkBtnViewResult" disabled>
+                                <i class="bi bi-eye"></i> {{ __('teacher.subjects.view') }}
                             </button>
                             <button type="button" class="btn btn-primary-custom" id="bulkBtnAddResult" disabled>
-                                <i class="bi bi-pencil-square"></i> Add
+                                <i class="bi bi-pencil-square"></i> {{ __('teacher.subjects.add_result') }}
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Search Section -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="form-group">
-                                <label for="subjectSearchInput">
-                                    <i class="bi bi-search"></i> Search Subjects or Classes
-                                </label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="subjectSearchInput" placeholder="Search by subject name, subject code, or class name...">
-                                    <div class="input-group-append">
-                                        <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn" style="display: none;">
-                                            <i class="bi bi-x-circle"></i> Clear
-                                        </button>
-                                    </div>
-                                </div>
-                                <small class="form-text text-muted">
-                                    <i class="bi bi-info-circle"></i> Type to filter subjects by name, code, or class name.
-                                </small>
-                            </div>
+            @php
+                $activeSubjects = ($classSubjects ?? collect())->filter(function ($cs) {
+                    return $cs->subject && $cs->subject->status === 'Active' && $cs->status === 'Active';
+                })->values();
+                $firstSubjectId = optional($activeSubjects->first())->class_subjectID;
+            @endphp
+
+            <div class="sx-subjects-toolbar">
+                <div class="row g-3 align-items-end">
+                    <div class="col-lg-8">
+                        <label class="form-label" for="subjectSelect">{{ __('teacher.subjects.select_subject') }}</label>
+                        <select id="subjectSelect" class="form-select">
+                            @if($activeSubjects->isEmpty())
+                                <option value="">{{ __('teacher.subjects.no_subjects_assigned') }}</option>
+                            @else
+                                @foreach($activeSubjects as $classSubject)
+                                    @php
+                                        $allSubLabel = __('teacher.subjects.all_subclasses');
+                                        $labelClass = $classSubject->subclass
+                                            ? trim((optional(optional($classSubject->subclass)->class)->class_name ?? '') . ' - ' . ($classSubject->subclass->subclass_name ?? ''), ' -')
+                                            : (optional($classSubject->class)->class_name ? (optional($classSubject->class)->class_name . ' - ' . $allSubLabel) : $allSubLabel);
+                                        $optLabel = ($classSubject->subject->subject_name ?? 'N/A')
+                                            . ($classSubject->subject->subject_code ? ' (' . $classSubject->subject->subject_code . ')' : '')
+                                            . ' · ' . $labelClass
+                                            . (!empty($classSubject->is_duo_subject) ? ' · DUO' : '');
+                                    @endphp
+                                    <option value="{{ $classSubject->class_subjectID }}" @selected($classSubject->class_subjectID == $firstSubjectId)>
+                                        {{ $optLabel }}
+                                    </option>
+                                @endforeach
+                            @endif
+                        </select>
+                    </div>
+                    <div class="col-lg-4">
+                        <label class="form-label" for="subjectSearchInput">{{ __('teacher.subjects.quick_filter') }}</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="subjectSearchInput" placeholder="{{ __('teacher.subjects.filter_placeholder') }}">
+                            <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn" style="display:none;">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Subjects Grid -->
-            <div class="row" id="subjectsGrid">
-                @if($classSubjects && $classSubjects->count() > 0)
-                    @foreach($classSubjects as $classSubject)
+            <div id="subjectsGrid">
+                @if($activeSubjects->isEmpty())
+                    <div class="alert alert-info text-center mb-0">
+                        <i class="bi bi-info-circle"></i> {{ __('teacher.subjects.no_subjects_yet') }}
+                    </div>
+                @else
+                    @foreach($activeSubjects as $classSubject)
                         @php
-                            // Only display if subject exists and has Active status
-                            if (!$classSubject->subject || $classSubject->subject->status !== 'Active' || $classSubject->status !== 'Active') {
-                                continue;
-                            }
+                            $allSubLabel = __('teacher.subjects.all_subclasses');
                             $subjectName = strtolower($classSubject->subject->subject_name ?? '');
                             $subjectCode = strtolower($classSubject->subject->subject_code ?? '');
                             $className = $classSubject->subclass ? strtolower($classSubject->subclass->subclass_name ?? '') : 'all subclasses';
+                            $displayClass = $classSubject->subclass
+                                ? (optional(optional($classSubject->subclass)->class)->class_name
+                                    ? optional($classSubject->subclass->class)->class_name . ' - ' . $classSubject->subclass->subclass_name
+                                    : ($classSubject->subclass->subclass_name ?? 'N/A'))
+                                : (optional($classSubject->class)->class_name
+                                    ? optional($classSubject->class)->class_name . ' - ' . $allSubLabel
+                                    : $allSubLabel);
+                            $studentsCount = (int) ($classSubject->total_students ?? 0);
+                            $studentsLabel = $studentsCount === 1
+                                ? __('teacher.subjects.student_count', ['count' => $studentsCount])
+                                : __('teacher.subjects.students_count', ['count' => $studentsCount]);
                         @endphp
-                        <div class="col-md-6 col-lg-4 mb-4 subject-item"
+                        <div class="subject-item {{ $classSubject->class_subjectID == $firstSubjectId ? 'is-active' : '' }}"
+                             data-subject-id="{{ $classSubject->class_subjectID }}"
                              data-subject-name="{{ $subjectName }}"
                              data-subject-code="{{ $subjectCode }}"
                              data-class-name="{{ $className }}"
                              data-main-class="{{ optional(optional($classSubject->subclass)->class)->class_name ?? optional($classSubject->class)->class_name }}"
                              data-is-duo="{{ !empty($classSubject->is_duo_subject) ? '1' : '0' }}">
-                            <div class="card subject-card border-0 h-100">
-                                <div class="card-body">
-                                    <!-- Subject Icon and Name -->
-                                    <div class="d-flex align-items-center mb-3">
-                                        <i class="bi bi-book-half text-primary-custom" style="font-size: 2.5rem;"></i>
-                                        <div class="ml-3">
-                                            <h5 class="card-title text-primary-custom mb-0">
-                                                {{ $classSubject->subject->subject_name ?? 'N/A' }}
-                                                @if(!empty($classSubject->is_duo_subject))
-                                                    <span class="badge badge-danger" style="border-radius:0;background:#940000;font-size:0.65rem;vertical-align:middle;">DUO</span>
-                                                @endif
-                                            </h5>
+                            <div class="sx-subject-panel subject-card card border-0">
+                                <div class="sx-subject-head">
+                                    <div>
+                                        <h5 class="sx-subject-title">
+                                            {{ $classSubject->subject->subject_name ?? 'N/A' }}
+                                            @if(!empty($classSubject->is_duo_subject))
+                                                <span class="badge bg-danger" style="background:#940000 !important;font-size:0.65rem;vertical-align:middle;">DUO</span>
+                                            @endif
+                                        </h5>
+                                        <div class="sx-subject-meta">
                                             @if($classSubject->subject->subject_code)
-                                                <small class="text-muted">Code: {{ $classSubject->subject->subject_code }}</small>
+                                                {{ __('teacher.subjects.code') }}: {{ $classSubject->subject->subject_code }} ·
                                             @endif
-                                            @if(!empty($classSubject->is_duo_subject) && !empty($classSubject->my_assigned_papers) && $classSubject->my_assigned_papers->count())
-                                                <div class="mt-1">
-                                                    <small class="text-muted d-block">Your papers:</small>
-                                                    @foreach($classSubject->my_assigned_papers as $paper)
-                                                        <span class="badge badge-light border mr-1 mb-1" style="border-radius:0;">{{ $paper['component_name'] }}</span>
-                                                    @endforeach
-                                                </div>
-                                            @endif
+                                            {{ $displayClass }} ·
+                                            <span class="stat-badge">{{ $studentsLabel }}</span>
                                         </div>
-                                    </div>
-
-                                    <!-- Statistics -->
-                                    <div class="mb-3">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span class="text-muted">
-                                                <i class="bi bi-people"></i> Total Students:
-                                            </span>
-                                            <span class="stat-badge">{{ $classSubject->total_students ?? 0 }}</span>
-                                        </div>
-
-                                        @if($classSubject->subclass)
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <span class="text-muted">
-                                                    <i class="bi bi-diagram-3"></i> Class:
-                                                </span>
-                                                <strong>
-                                                    @if($classSubject->subclass->class)
-                                                        {{ $classSubject->subclass->class->class_name }} - {{ $classSubject->subclass->subclass_name }}
-                                                    @else
-                                                        {{ $classSubject->subclass->subclass_name ?? 'N/A' }}
-                                                    @endif
-                                                </strong>
-                                            </div>
-                                        @else
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <span class="text-muted">
-                                                    <i class="bi bi-diagram-3"></i> Class:
-                                                </span>
-                                                <strong class="text-info">
-                                                    @if($classSubject->class)
-                                                        {{ $classSubject->class->class_name }} - All Subclasses
-                                                    @else
-                                                        All Subclasses
-                                                    @endif
-                                                </strong>
-                                            </div>
-                                        @endif
-                                    </div>
-
-                                    <!-- Action Icons -->
-                                    <div class="d-flex justify-content-around align-items-center pt-3 border-top flex-wrap">
-                                        <div class="text-center mb-2" title="Home Package">
-                                            <i class="bi bi-house-door-fill action-icon"
-                                               style="color: #940000; cursor:pointer;"
-                                               role="button"
-                                               data-class-subject-id="{{ $classSubject->class_subjectID }}"
-                                               data-subject-name="{{ e($classSubject->subject->subject_name ?? 'Somo') }}"
-                                               onclick="openHomePackageModal(this.getAttribute('data-class-subject-id'), this.getAttribute('data-subject-name'))"></i>
-                                            <small class="d-block text-muted mt-1">Home Package</small>
-                                        </div>
-                                        <div class="text-center mb-2" title="Notes">
-                                            <i class="bi bi-journal-text action-icon"
-                                               style="color: #940000; cursor:pointer;"
-                                               role="button"
-                                               data-class-subject-id="{{ $classSubject->class_subjectID }}"
-                                               data-subject-name="{{ e($classSubject->subject->subject_name ?? 'Somo') }}"
-                                               onclick="openSubjectNotesModal(this.getAttribute('data-class-subject-id'), this.getAttribute('data-subject-name'), 'note')"></i>
-                                            <small class="d-block text-muted mt-1">Notes</small>
-                                        </div>
-                                        <div class="text-center mb-2" title="Past Papers">
-                                            <i class="bi bi-file-earmark-text action-icon"
-                                               style="color: #940000; cursor:pointer;"
-                                               role="button"
-                                               data-class-subject-id="{{ $classSubject->class_subjectID }}"
-                                               data-subject-name="{{ e($classSubject->subject->subject_name ?? 'Somo') }}"
-                                               onclick="openSubjectNotesModal(this.getAttribute('data-class-subject-id'), this.getAttribute('data-subject-name'), 'past_paper')"></i>
-                                            <small class="d-block text-muted mt-1">Past Papers</small>
-                                        </div>
-                                        <div class="text-center mb-2" title="View Students">
-                                            <i class="bi bi-people-fill action-icon view-students" onclick="viewStudents({{ $classSubject->class_subjectID }})"></i>
-                                            <small class="d-block text-muted mt-1">Students</small>
-                                        </div>
-                                        @if(!empty($classSubject->is_duo_subject))
-                                        <div class="text-center mb-2" title="View Papers / Teachers">
-                                            <i class="bi bi-layers action-icon" style="color: #940000;"
-                                               onclick='viewDuoPapers(@json([
-                                                   "subject" => $classSubject->subject->subject_name ?? "Subject",
-                                                   "papers" => $classSubject->all_paper_teachers ?? []
-                                               ]))'></i>
-                                            <small class="d-block text-muted mt-1">Papers</small>
-                                        </div>
-                                        @endif
-                                        <div class="text-center mb-2" title="Session Attendance">
-                                            <i class="bi bi-clock-history action-icon" style="color: #17a2b8;" onclick="viewSessionAttendance({{ $classSubject->class_subjectID }})"></i>
-                                            <small class="d-block text-muted mt-1">Session Attendance</small>
-                                        </div>
-                                        <div class="text-center mb-2" title="Exam Attendance">
-                                            <i class="bi bi-calendar-check action-icon" style="color: #940000;" onclick="viewExamAttendance({{ $classSubject->class_subjectID }}, {{ $classSubject->subject->subjectID ?? 0 }})"></i>
-                                            <small class="d-block text-muted mt-1">Exam Attendance</small>
-                                        </div>
-                                        <div class="text-center mb-2" title="View Results">
-                                            <i class="bi bi-clipboard-check action-icon view-results" onclick="viewResults({{ $classSubject->class_subjectID }})"></i>
-                                            <small class="d-block text-muted mt-1">View Results</small>
-                                        </div>
-                                        @if($resultButtonStatus)
-                                        <div class="text-center mb-2" title="Edit Results">
-                                            <i class="bi bi-pencil-square action-icon edit-results" onclick="editResults({{ $classSubject->class_subjectID }})"></i>
-                                            <small class="d-block text-muted mt-1">Edit Result</small>
-                                        </div>
-                                        <div class="text-center mb-2" title="Add Results">
-                                            <i class="bi bi-plus-circle-fill action-icon add-results" onclick="addResults({{ $classSubject->class_subjectID }})"></i>
-                                            <small class="d-block text-muted mt-1">Add Result</small>
-                                        </div>
-                                        @endif
-                                        @if($classSubject->student_status === 'Optional')
-                                            <div class="text-center mb-2" title="Subject Election">
-                                                <i class="bi bi-person-check action-icon" style="color: #007bff;" 
-                                                   onclick="openElectionModal({{ $classSubject->class_subjectID }}, '{{ $classSubject->subject->subject_name }}', {{ $classSubject->subclassID ?? 0 }})"></i>
-                                                <small class="d-block text-muted mt-1">Election</small>
+                                        @if(!empty($classSubject->is_duo_subject) && !empty($classSubject->my_assigned_papers) && $classSubject->my_assigned_papers->count())
+                                            <div class="mt-1">
+                                                @foreach($classSubject->my_assigned_papers as $paper)
+                                                    <span class="badge bg-light text-dark border me-1">{{ $paper['component_name'] }}</span>
+                                                @endforeach
                                             </div>
                                         @endif
                                     </div>
                                 </div>
+
+                                <div class="sx-action-grid">
+                                    <div class="sx-action-btn" role="button" tabindex="0"
+                                        data-class-subject-id="{{ $classSubject->class_subjectID }}"
+                                        data-subject-name="{{ e($classSubject->subject->subject_name ?? __('teacher.subject')) }}"
+                                        onclick="openHomePackageModal(this.getAttribute('data-class-subject-id'), this.getAttribute('data-subject-name'))">
+                                        <i class="bi bi-house-door-fill action-icon" style="color:#940000;"></i>
+                                        {{ __('teacher.subjects.home_package') }}
+                                    </div>
+                                    <div class="sx-action-btn" role="button" tabindex="0"
+                                        data-class-subject-id="{{ $classSubject->class_subjectID }}"
+                                        data-subject-name="{{ e($classSubject->subject->subject_name ?? __('teacher.subject')) }}"
+                                        onclick="openSubjectNotesModal(this.getAttribute('data-class-subject-id'), this.getAttribute('data-subject-name'), 'note')">
+                                        <i class="bi bi-journal-text action-icon" style="color:#940000;"></i>
+                                        {{ __('teacher.subjects.notes') }}
+                                    </div>
+                                    <div class="sx-action-btn" role="button" tabindex="0"
+                                        data-class-subject-id="{{ $classSubject->class_subjectID }}"
+                                        data-subject-name="{{ e($classSubject->subject->subject_name ?? __('teacher.subject')) }}"
+                                        onclick="openSubjectNotesModal(this.getAttribute('data-class-subject-id'), this.getAttribute('data-subject-name'), 'past_paper')">
+                                        <i class="bi bi-file-earmark-text action-icon" style="color:#940000;"></i>
+                                        {{ __('teacher.subjects.past_papers') }}
+                                    </div>
+                                    <div class="sx-action-btn" role="button" tabindex="0">
+                                        <i class="bi bi-people-fill action-icon view-students" onclick="viewStudents({{ $classSubject->class_subjectID }})"></i>
+                                        {{ __('teacher.subjects.students') }}
+                                    </div>
+                                    @if(!empty($classSubject->is_duo_subject))
+                                    <div class="sx-action-btn" role="button" tabindex="0"
+                                        onclick='viewDuoPapers(@json([
+                                            "subject" => $classSubject->subject->subject_name ?? __("teacher.subject"),
+                                            "papers" => $classSubject->all_paper_teachers ?? []
+                                        ]))'>
+                                        <i class="bi bi-layers action-icon" style="color:#940000;"></i>
+                                        {{ __('teacher.subjects.papers') }}
+                                    </div>
+                                    @endif
+                                    <div class="sx-action-btn" role="button" tabindex="0">
+                                        <i class="bi bi-clock-history action-icon" style="color:#17a2b8;" onclick="viewSessionAttendance({{ $classSubject->class_subjectID }})"></i>
+                                        {{ __('teacher.subjects.session_att') }}
+                                    </div>
+                                    <div class="sx-action-btn" role="button" tabindex="0">
+                                        <i class="bi bi-calendar-check action-icon" style="color:#940000;" onclick="viewExamAttendance({{ $classSubject->class_subjectID }}, {{ $classSubject->subject->subjectID ?? 0 }})"></i>
+                                        {{ __('teacher.subjects.exam_att') }}
+                                    </div>
+                                    <div class="sx-action-btn" role="button" tabindex="0">
+                                        <i class="bi bi-clipboard-check action-icon view-results" onclick="viewResults({{ $classSubject->class_subjectID }})"></i>
+                                        {{ __('teacher.subjects.view_results') }}
+                                    </div>
+                                    @if($resultButtonStatus)
+                                    <div class="sx-action-btn" role="button" tabindex="0">
+                                        <i class="bi bi-pencil-square action-icon edit-results" onclick="editResults({{ $classSubject->class_subjectID }})"></i>
+                                        {{ __('teacher.subjects.edit_result') }}
+                                    </div>
+                                    <div class="sx-action-btn" role="button" tabindex="0">
+                                        <i class="bi bi-plus-circle-fill action-icon add-results" onclick="addResults({{ $classSubject->class_subjectID }})"></i>
+                                        {{ __('teacher.subjects.add_result') }}
+                                    </div>
+                                    @endif
+                                    @if($classSubject->student_status === 'Optional')
+                                    <div class="sx-action-btn" role="button" tabindex="0">
+                                        <i class="bi bi-person-check action-icon" style="color:#007bff;"
+                                           onclick="openElectionModal({{ $classSubject->class_subjectID }}, '{{ addslashes($classSubject->subject->subject_name) }}', {{ $classSubject->subclassID ?? 0 }})"></i>
+                                        {{ __('teacher.subjects.election') }}
+                                    </div>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     @endforeach
-                @else
-                    <div class="col-12">
-                        <div class="alert alert-info text-center">
-                            <i class="bi bi-info-circle"></i> No subjects assigned to you yet.
-                        </div>
-                    </div>
                 @endif
             </div>
-        </div>
-    </div>
 </div>
 
 <!-- Subject Election Modal -->
@@ -569,41 +1028,39 @@
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="subjectElectionModalLabel">
-                    <i class="bi bi-person-check"></i> <span id="electionSubjectTitle">Subject Election</span>
+                    <i class="bi bi-person-check"></i> <span id="electionSubjectTitle">{{ __('teacher.subjects.subject_election') }}</span>
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
             </div>
             <div class="modal-body">
                 <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded border">
                     <div class="small text-muted">
-                        <i class="bi bi-info-circle"></i> Tick students who take this optional subject, then Save. Untick to remove. Use Select All / Deselect All for bulk changes.
+                        <i class="bi bi-info-circle"></i> {{ __('teacher.subjects.election_hint') }}
                     </div>
                     <div class="btn-group">
                         <button type="button" class="btn btn-sm btn-outline-success" id="electionSelectAllBtn">
-                            <i class="bi bi-check-all"></i> Select All
+                            <i class="bi bi-check-all"></i> {{ __('teacher.subjects.select_all') }}
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-danger" id="electionDeselectAllBtn">
-                            <i class="bi bi-dash-circle"></i> Deselect All
+                            <i class="bi bi-dash-circle"></i> {{ __('teacher.subjects.deselect_all') }}
                         </button>
                     </div>
                 </div>
                 <div id="electionStudentsContainer">
                     <div class="text-center py-4">
                         <div class="spinner-border text-primary-custom" role="status">
-                            <span class="visually-hidden">Loading...</span>
+                            <span class="visually-hidden">{{ __('teacher.loading') }}</span>
                         </div>
-                        <p class="mt-2">Loading students...</p>
+                        <p class="mt-2">{{ __('teacher.subjects.loading_students') }}</p>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                    <i class="bi bi-x-circle"></i> Cancel
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> {{ __('teacher.cancel') }}
                 </button>
                 <button type="button" class="btn btn-primary-custom" id="saveElectionBtn">
-                    <i class="bi bi-save"></i> Save Election
+                    <i class="bi bi-save"></i> {{ __('teacher.subjects.save_election') }}
                 </button>
             </div>
         </div>
@@ -616,11 +1073,9 @@
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="viewStudentsModalLabel">
-                    <i class="bi bi-people"></i> Students
+                    <i class="bi bi-people"></i> {{ __('teacher.subjects.students') }}
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
             </div>
             <div class="modal-body" id="studentsModalBody" style="max-height: 80vh; overflow-y: scroll; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none;">
                 <style>
@@ -637,7 +1092,7 @@
                 </style>
                 <div class="text-center">
                     <div class="spinner-border text-primary-custom" role="status">
-                        <span class="sr-only">Loading...</span>
+                        <span class="sr-only">{{ __('teacher.loading') }}</span>
                     </div>
                 </div>
             </div>
@@ -651,11 +1106,9 @@
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="sessionAttendanceModalLabel">
-                    <i class="bi bi-clock-history"></i> Session Attendance
+                    <i class="bi bi-clock-history"></i> {{ __('teacher.subjects.session_attendance') }}
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
             </div>
             <div class="modal-body" id="sessionAttendanceModalBody" style="max-height: 80vh; overflow-y: scroll; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none;">
                 <style>
@@ -672,7 +1125,7 @@
                 </style>
                 <div class="text-center">
                     <div class="spinner-border text-primary-custom" role="status">
-                        <span class="sr-only">Loading...</span>
+                        <span class="sr-only">{{ __('teacher.loading') }}</span>
                     </div>
                 </div>
             </div>
@@ -686,11 +1139,9 @@
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="examAttendanceModalLabel">
-                    <i class="bi bi-calendar-check"></i> Exam Attendance
+                    <i class="bi bi-calendar-check"></i> {{ __('teacher.subjects.exam_attendance') }}
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
             </div>
             <div class="modal-body" id="examAttendanceModalBody" style="max-height: 80vh; overflow-y: scroll; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none;">
                 <style>
@@ -707,7 +1158,7 @@
                 </style>
                 <div class="text-center">
                     <div class="spinner-border text-primary-custom" role="status">
-                        <span class="sr-only">Loading...</span>
+                        <span class="sr-only">{{ __('teacher.loading') }}</span>
                     </div>
                 </div>
             </div>
@@ -721,16 +1172,14 @@
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="viewResultsModalLabel">
-                    <i class="bi bi-clipboard-check"></i> Results
+                    <i class="bi bi-clipboard-check"></i> {{ __('teacher.subjects.results') }}
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
             </div>
             <div class="modal-body" id="resultsModalBody" style="max-height: 75vh; overflow-y: auto; overflow-x: hidden;">
                 <div class="text-center">
                     <div class="spinner-border text-primary-custom" role="status">
-                        <span class="sr-only">Loading...</span>
+                        <span class="sr-only">{{ __('teacher.loading') }}</span>
                     </div>
                 </div>
             </div>
@@ -744,16 +1193,14 @@
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="addEditResultsModalLabel">
-                    <i class="bi bi-plus-circle"></i> Add Results
+                    <i class="bi bi-plus-circle"></i> {{ __('teacher.subjects.add_results') }}
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
             </div>
             <div class="modal-body" id="addEditResultsModalBody" style="max-height: 75vh; overflow-y: auto; overflow-x: hidden;">
                 <div class="text-center">
                     <div class="spinner-border text-primary-custom" role="status">
-                        <span class="sr-only">Loading...</span>
+                        <span class="sr-only">{{ __('teacher.loading') }}</span>
                     </div>
                 </div>
             </div>
@@ -767,38 +1214,35 @@
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="uploadExcelModalLabel">
-                    <i class="bi bi-upload"></i> Upload Excel Results
+                    <i class="bi bi-upload"></i> {{ __('teacher.subjects.upload_excel_results') }}
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
             </div>
             <form id="uploadExcelForm" enctype="multipart/form-data">
                 <div class="modal-body">
                     <input type="hidden" id="upload_class_subject_id" name="class_subject_id">
                     <input type="hidden" id="upload_exam_id" name="exam_id">
                     <div class="form-group">
-                        <label>Select Microsoft Excel Worksheet File <span class="text-danger">*</span></label>
+                        <label>{{ __('teacher.subjects.select_excel_file') }} <span class="text-danger">*</span></label>
                         <div class="custom-file">
                             <input type="file" class="custom-file-input" id="excel_file" name="excel_file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" required>
                             <label class="custom-file-label" for="excel_file" id="excel_file_label">
-                                <i class="bi bi-file-earmark-excel"></i> Choose Excel file (.xlsx or .xls)
+                                <i class="bi bi-file-earmark-excel"></i> {{ __('teacher.subjects.choose_excel_file') }}
                             </label>
                         </div>
                         <small class="form-text text-muted">
-                            <i class="bi bi-info-circle"></i> Only Microsoft Excel Worksheet files (.xlsx or .xls) are allowed.
+                            <i class="bi bi-info-circle"></i> {{ __('teacher.subjects.excel_file_hint') }}
                         </small>
                     </div>
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle"></i>
-                        <strong>Note:</strong> Upload fills Marks into the form and <strong>auto-calculates grade/remark</strong>.
-                        You can still edit below, then click <strong>Save Results</strong>.
+                        <strong>{{ __('teacher.subjects.note') }}:</strong> {!! __('teacher.subjects.excel_note') !!}
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('teacher.cancel') }}</button>
                     <button type="button" class="btn btn-primary-custom" id="btnLoadExcelIntoForm">
-                        <i class="bi bi-upload"></i> Load into Form
+                        <i class="bi bi-upload"></i> {{ __('teacher.subjects.load_into_form') }}
                     </button>
                 </div>
             </form>
@@ -806,14 +1250,51 @@
     </div>
 </div>
 
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@include('Teacher.partials.home_package_modal')
+@include('Teacher.partials.subject_notes_modal')
+@endsection
 
+@push('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+window.sxShowModal = function(el) {
+    var node = typeof el === 'string' ? document.querySelector(el) : (el && el.jquery ? el[0] : el);
+    if (!node) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(node).show();
+        return;
+    }
+    if (window.jQuery && jQuery.fn.modal) jQuery(node).modal('show');
+};
+window.sxHideModal = function(el) {
+    var node = typeof el === 'string' ? document.querySelector(el) : (el && el.jquery ? el[0] : el);
+    if (!node) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        var inst = bootstrap.Modal.getInstance(node) || bootstrap.Modal.getOrCreateInstance(node);
+        inst.hide();
+        return;
+    }
+    if (window.jQuery && jQuery.fn.modal) jQuery(node).modal('hide');
+};
+</script>
 <script>
 // Ensure jQuery is available
 if (typeof $ === 'undefined') {
     var $ = jQuery;
 }
+
+var i18nSub = @json(__('teacher.subjects'));
+i18nSub.cancel = @json(__('teacher.cancel'));
+i18nSub.save = @json(__('teacher.save'));
+i18nSub.loading = @json(__('teacher.loading'));
+i18nSub.close = @json(__('teacher.close'));
+i18nSub.subject = @json(__('teacher.subject'));
+i18nSub.class = @json(__('teacher.class'));
+i18nSub.search = @json(__('teacher.search'));
+i18nSub.active = @json(__('teacher.active'));
+i18nSub.inactive = @json(__('teacher.inactive'));
 
 const isSecondarySchool = @json(strtolower($schoolType ?? 'Secondary')) === 'secondary';
 const questionColspan = isSecondarySchool ? 7 : 6;
@@ -951,7 +1432,7 @@ function restoreMarksFromCache() {
             toast: true,
             position: 'top-end',
             icon: 'info',
-            title: 'Unsaved marks restored from local cache.',
+            title: i18nSub.unsaved_marks_restored,
             showConfirmButton: false,
             timer: 4000
         });
@@ -1020,7 +1501,9 @@ jQuery(document).on('keydown', '#resultsForm .marks-input', function(e) {
     }
 });
 
-function showPremiumLoading(targetID, title = "Preparing Data...", detail = "Fetching information from server...") {
+function showPremiumLoading(targetID, title, detail) {
+    title = title || i18nSub.preparing_data;
+    detail = detail || i18nSub.fetching_info;
     jQuery(`#${targetID}`).html(`
         <div class="p-5 text-center">
             <div class="loading-text"><i class="bi bi-hourglass-split"></i> <span>${title}</span></div>
@@ -1080,59 +1563,61 @@ jQuery(document).ready(function($) {
     initializeSubjectSearch();
 });
 
-// Initialize Subject Search
+function showSelectedSubjectPanel(subjectId) {
+    jQuery('.subject-item').removeClass('is-active');
+    if (!subjectId) return;
+    jQuery('.subject-item[data-subject-id="' + subjectId + '"]').addClass('is-active');
+}
+
 function initializeSubjectSearch() {
-    jQuery('#subjectSearchInput').on('keyup', function() {
-        var searchTerm = jQuery(this).val().toLowerCase().trim();
+    var $select = jQuery('#subjectSelect');
 
-        if (searchTerm.length > 0) {
-            jQuery('#clearSearchBtn').show();
-        } else {
-            jQuery('#clearSearchBtn').hide();
-        }
-
-        // Filter subject cards
-        jQuery('.subject-item').each(function() {
-            var subjectName = jQuery(this).data('subject-name') || '';
-            var subjectCode = jQuery(this).data('subject-code') || '';
-            var className = jQuery(this).data('class-name') || '';
-
-            var matches = subjectName.includes(searchTerm) ||
-                         subjectCode.includes(searchTerm) ||
-                         className.includes(searchTerm);
-
-            if (matches) {
-                jQuery(this).show();
-            } else {
-                jQuery(this).hide();
+    function filterSelectOptions(term) {
+        term = (term || '').toLowerCase().trim();
+        var firstVisible = null;
+        $select.find('option').each(function() {
+            var text = (jQuery(this).text() || '').toLowerCase();
+            var match = !term || text.indexOf(term) !== -1;
+            jQuery(this).prop('disabled', !match).toggle(match);
+            if (match && firstVisible === null && jQuery(this).val()) {
+                firstVisible = jQuery(this).val();
             }
         });
-
-        // Show message if no results
-        var visibleCount = jQuery('.subject-item:visible').length;
-
-        if (searchTerm.length > 0 && visibleCount === 0) {
-            if (jQuery('#noResultsMessage').length === 0) {
+        if (term) {
+            jQuery('#clearSearchBtn').show();
+            if (firstVisible) {
+                $select.val(firstVisible);
+                showSelectedSubjectPanel(firstVisible);
+            } else {
+                showSelectedSubjectPanel(null);
+                jQuery('#noResultsMessage').remove();
                 jQuery('#subjectsGrid').append(
-                    '<div class="col-12" id="noResultsMessage">' +
-                    '<div class="alert alert-info text-center">' +
-                    '<i class="bi bi-info-circle"></i> No subjects or classes found matching "' + searchTerm + '".' +
-                    '</div>' +
-                    '</div>'
+                    '<div id="noResultsMessage" class="alert alert-info text-center mt-2">' +
+                    '<i class="bi bi-info-circle"></i> No subjects match "' + term + '".</div>'
                 );
             }
         } else {
+            jQuery('#clearSearchBtn').hide();
             jQuery('#noResultsMessage').remove();
+            $select.find('option').prop('disabled', false).show();
+            showSelectedSubjectPanel($select.val());
         }
+    }
+
+    $select.on('change', function() {
+        showSelectedSubjectPanel(jQuery(this).val());
     });
 
-    // Clear search button
+    jQuery('#subjectSearchInput').on('keyup', function() {
+        filterSelectOptions(jQuery(this).val());
+    });
+
     jQuery('#clearSearchBtn').on('click', function() {
         jQuery('#subjectSearchInput').val('');
-        jQuery('#clearSearchBtn').hide();
-        jQuery('.subject-item').show();
-        jQuery('#noResultsMessage').remove();
+        filterSelectOptions('');
     });
+
+    showSelectedSubjectPanel($select.val());
 }
 
 // Show student photo in larger view
@@ -1426,7 +1911,7 @@ function resetQuestionData() {
     };
     if (isSecondarySchool) {
         jQuery('.question-details-row').addClass('d-none').removeClass('loaded');
-        jQuery('.question-detail-container').html('<div class="text-muted small">Select examination to load question formats.</div>');
+        jQuery('.question-detail-container').html('<div class="text-muted small">' + i18nSub.select_exam_load_qn + '</div>');
     }
     jQuery('#test_week_display_group').hide();
     jQuery('#selected_week_label').text('');
@@ -1731,8 +2216,8 @@ function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan
         const canEnter = canEnterResultForStudent(student);
         const rowClass = canEnter ? '' : 'enrollment-inactive-row';
         const statusBadge = canEnter
-            ? '<span class="badge badge-success enrollment-status-badge ml-1">Active</span>'
-            : `<span class="badge badge-secondary enrollment-status-badge ml-1">${student.enrollment_status || 'Inactive'}</span>`;
+            ? '<span class="badge badge-success enrollment-status-badge ml-1">' + i18nSub.active + '</span>'
+            : `<span class="badge badge-secondary enrollment-status-badge ml-1">${student.enrollment_status || i18nSub.inactive}</span>`;
         const disabledAttr = canEnter ? '' : 'disabled readonly';
         const marksReadonly = (!canEnter || isSecondarySchool) ? 'readonly' : '';
         const btnDisabled = canEnter ? '' : 'disabled';
@@ -1756,12 +2241,12 @@ function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan
                            data-student="${student.studentID}"
                            placeholder="A, B, C..." readonly ${disabledAttr}>`;
         const remarkCell = duoMode
-            ? `<small class="text-muted">No A/B yet<br><span style="font-size:0.7rem;">(paper total later)</span></small>`
+            ? `<small class="text-muted">${i18nSub.no_ab_yet}<br><span style="font-size:0.7rem;">${i18nSub.paper_total_later}</span></small>`
             : `<input type="text" class="form-control form-control-sm remark-input"
                            name="remark[${student.studentID}]"
                            id="remark_${student.studentID}"
                            data-student="${student.studentID}"
-                           placeholder="Remark" readonly ${disabledAttr}>`;
+                           placeholder="${i18nSub.remark}" readonly ${disabledAttr}>`;
 
         html += `
             <tr class="result-student-row ${rowClass}"
@@ -1776,7 +2261,7 @@ function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan
                 <td>${fullName}${statusBadge}</td>
                 <td>${indexNo}</td>
                 <td class="text-center questions-column-cell" style="${isSecondarySchool ? '' : 'display:none;'}">
-                    <button type="button" class="btn btn-sm btn-outline-primary toggle-question-btn" data-student="${student.studentID}" title="${canEnter ? 'Add result questions' : 'Not editable: enrollment not Active'}" ${btnDisabled}>
+                    <button type="button" class="btn btn-sm btn-outline-primary toggle-question-btn" data-student="${student.studentID}" title="${canEnter ? i18nSub.add_result_questions : i18nSub.not_editable_enrollment}" ${btnDisabled}>
                         <i class="bi bi-list-check"></i>
                     </button>
                 </td>
@@ -1789,7 +2274,7 @@ function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan
                            step="0.01" min="0" max="${marksMax}" placeholder="${canEnter ? '0.00' : '-'}"
                            oninput="autoCalculateGrade(${student.studentID})"
                            ${marksReadonly} ${disabledAttr}>
-                    <small class="marks-max-hint">Max ${marksMax}</small>
+                    <small class="marks-max-hint">${String(i18nSub.max_marks).replace(':max', marksMax)}</small>
                     <small class="marks-max-error" data-student="${student.studentID}"></small>
                 </td>
                 <td>
@@ -1802,7 +2287,7 @@ function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan
             <tr class="question-details-row questions-detail-row d-none ${rowClass}" id="question_details_${student.studentID}" data-student="${student.studentID}">
                 <td colspan="${questionColspan}">
                     <div class="question-detail-container" data-student="${student.studentID}">
-                        <div class="text-muted small">${canEnter ? 'Select examination to load question formats.' : 'Marks locked: enrollment is not Active for this academic year.'}</div>
+                        <div class="text-muted small">${canEnter ? i18nSub.select_exam_load_qn : i18nSub.marks_locked}</div>
                     </div>
                 </td>
             </tr>
@@ -1814,7 +2299,7 @@ function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan
 function handleNoActiveEnrollments(xhr) {
     const payload = xhr && xhr.responseJSON ? xhr.responseJSON : {};
     const msg = payload.error || 'Selected academic year has no Active enrollments. Result entry cannot continue.';
-    jQuery('#addEditResultsModal').modal('hide');
+    sxHideModal('#addEditResultsModal');
     Swal.fire({
         title: 'No Active Enrollment',
         text: msg,
@@ -1825,37 +2310,38 @@ function handleNoActiveEnrollments(xhr) {
 
 // View Students
 function viewStudents(classSubjectID) {
-    jQuery('#viewStudentsModal').modal('show');
-    const loader = showPremiumLoading('studentsModalBody', "Loading Student List...", "Fetching all registered students for this subject...");
+    sxShowModal('#viewStudentsModal');
+    const loader = showPremiumLoading('studentsModalBody', i18nSub.loading_student_list, i18nSub.fetching_registered);
 
     jQuery.ajax({
         url: withAllSubclassesParam('/get_subject_students/' + classSubjectID),
         method: 'GET',
         success: function(response) {
-            loader.update(100, "Formatting student list...");
+            loader.update(100, i18nSub.formatting_student_list);
             setTimeout(() => {
             if (response.success && response.students) {
+                const activeCnt = response.active_enrollment_count != null ? response.active_enrollment_count : response.students.length;
                 let html = `
                     <div class="mb-3">
                         <h6 class="text-primary-custom">
-                            <i class="bi bi-book"></i> ${response.class_subject.subject ? response.class_subject.subject.subject_name : 'Subject'}
-                            <span class="badge badge-primary ml-2">${response.active_enrollment_count != null ? response.active_enrollment_count : response.students.length} Active</span>
-                            <span class="badge badge-light border ml-1">${response.students.length} total (year)</span>
+                            <i class="bi bi-book"></i> ${response.class_subject.subject ? response.class_subject.subject.subject_name : i18nSub.subject}
+                            <span class="badge badge-primary ml-2">${String(i18nSub.active_count).replace(':count', activeCnt)}</span>
+                            <span class="badge badge-light border ml-1">${String(i18nSub.total_year).replace(':count', response.students.length)}</span>
                         </h6>
-                        <small class="text-muted"><i class="bi bi-info-circle"></i> Only Active enrollments for the selected academic year can receive marks.</small>
+                        <small class="text-muted"><i class="bi bi-info-circle"></i> ${i18nSub.only_active_can_marks}</small>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover table-striped">
                             <thead class="bg-primary-custom text-white">
                                 <tr>
                                     <th>#</th>
-                                    <th>Photo</th>
-                                    <th>Index No.</th>
-                                    <th>Name</th>
-                                    <th>Class</th>
-                                    <th>Enrollment</th>
-                                    <th>Gender</th>
-                                    <th>Date of Birth</th>
+                                    <th>${i18nSub.photo}</th>
+                                    <th>${i18nSub.index_no}</th>
+                                    <th>${i18nSub.name}</th>
+                                    <th>${i18nSub.class}</th>
+                                    <th>${i18nSub.enrollment}</th>
+                                    <th>${i18nSub.gender}</th>
+                                    <th>${i18nSub.date_of_birth}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1879,8 +2365,8 @@ function viewStudents(classSubjectID) {
                     const canEnter = canEnterResultForStudent(student);
                     const rowClass = canEnter ? '' : 'enrollment-inactive-row';
                     const statusBadge = canEnter
-                        ? '<span class="badge badge-success enrollment-status-badge">Active</span>'
-                        : `<span class="badge badge-secondary enrollment-status-badge">${student.enrollment_status || 'Inactive'}</span>`;
+                        ? '<span class="badge badge-success enrollment-status-badge">' + i18nSub.active + '</span>'
+                        : `<span class="badge badge-secondary enrollment-status-badge">${student.enrollment_status || i18nSub.inactive}</span>`;
 
                     // Add red alarm icon if student has health conditions
                     let healthAlarmIcon = '';
@@ -1919,7 +2405,7 @@ function viewStudents(classSubjectID) {
 
                 jQuery('#studentsModalBody').html(html);
             } else {
-                jQuery('#studentsModalBody').html('<div class="alert alert-info">No students found.</div>');
+                jQuery('#studentsModalBody').html('<div class="alert alert-info">' + i18nSub.no_students_found + '</div>');
             }
             }, 400); // end of setTimeout
         },
@@ -1927,18 +2413,18 @@ function viewStudents(classSubjectID) {
             if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.error_code === 'no_active_enrollments') {
                 jQuery('#studentsModalBody').html(
                     '<div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle"></i> ' +
-                    (xhr.responseJSON.error || 'No Active enrollments for the selected academic year.') +
+                    (xhr.responseJSON.error || i18nSub.only_active_can_marks) +
                     '</div>'
                 );
                 return;
             }
             Swal.fire({
-                title: 'Error!',
-                text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to load students',
+                title: i18nSub.error,
+                text: (xhr.responseJSON && xhr.responseJSON.error) || i18nSub.fail_load_students,
                 icon: 'error',
                 confirmButtonColor: '#940000'
             });
-            jQuery('#viewStudentsModal').modal('hide');
+            sxHideModal('#viewStudentsModal');
         }
     });
 }
@@ -1966,7 +2452,7 @@ function viewResults(classSubjectID) {
     window.currentViewIsDuo = isDuoSubject;
     window.currentResultClassName = mainClassName;
 
-    jQuery('#viewResultsModal').modal('show');
+    sxShowModal('#viewResultsModal');
     jQuery('#viewResultsModalLabel').html(`<i class="bi bi-clipboard-check"></i> Results: ${subjectName} (${className})`);
     const loader = showPremiumLoading('resultsModalBody', "Preparing Results View...", "Fetching examination structure for this subject...");
 
@@ -2889,7 +3375,7 @@ function addResults(classSubjectID, isEdit = false) {
         resetTeacherBulkMode();
     }
     window._bulkResultsLaunch = false;
-    const modalTitle = isEdit ? 'Edit Results' : 'Add Results';
+    const modalTitle = isEdit ? i18nSub.edit_result : i18nSub.add_results;
     const item = jQuery(`.subject-item`).has(`[onclick*="addResults(${classSubjectID})"], [onclick*="editResults(${classSubjectID})"]`).first();
     if (item.length) {
         window.currentResultClassName = item.data('main-class') || '';
@@ -2897,9 +3383,9 @@ function addResults(classSubjectID, isEdit = false) {
     }
 
     jQuery('#addEditResultsModalLabel').html(`<i class="bi bi-${isEdit ? 'pencil' : 'plus-circle'}"></i> ${modalTitle}`);
-    jQuery('#addEditResultsModal').modal('show');
+    sxShowModal('#addEditResultsModal');
 
-    const loader = showPremiumLoading('addEditResultsModalBody', "Preparing Details...", "Checking assigned papers...");
+    const loader = showPremiumLoading('addEditResultsModalBody', i18nSub.preparing_data, i18nSub.fetching_info);
     window.examDataCache = {};
     resetQuestionData();
     window.selectedComponentID = null;
@@ -3113,12 +3599,12 @@ function loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, 
                                     <thead class="bg-primary-custom text-white">
                                         <tr>
                                             <th>#</th>
-                                            <th>Student Name</th>
-                                            <th>Index No.</th>
+                                            <th>${i18nSub.student_name}</th>
+                                            <th>${i18nSub.index_no}</th>
                                              <th class="text-center questions-column-header" style="${isSecondarySchool ? '' : 'display:none;'}"><i class="bi bi-list-check"></i></th>
-                                            <th>Marks</th>
-                                            <th>Grade</th>
-                                            <th>Remark</th>
+                                            <th>${i18nSub.marks}</th>
+                                            <th>${i18nSub.grade}</th>
+                                            <th>${i18nSub.remark}</th>
                                         </tr>
                                     </thead>
                                     <tbody id="resultsTableBody">
@@ -3137,9 +3623,9 @@ function loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, 
                                 </table>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">${i18nSub.cancel}</button>
                                 <button type="submit" class="btn btn-primary-custom">
-                                    <i class="bi bi-check-circle"></i> ${isEdit ? 'Update' : 'Save'} Results
+                                    <i class="bi bi-check-circle"></i> ${isEdit ? i18nSub.update_results : i18nSub.save_results}
                                 </button>
                             </div>
                         </form>
@@ -3447,7 +3933,7 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
                 icon: 'success',
                 confirmButtonColor: '#940000'
             }).then(() => {
-                jQuery('#addEditResultsModal').modal('hide');
+                sxHideModal('#addEditResultsModal');
             });
         },
         error: function(xhr) {
@@ -3554,7 +4040,7 @@ function loadExcelResultsIntoForm(formEl) {
 
             if (jQuery('#uploadExcelModal').is(':visible') || jQuery('#uploadExcelModal').hasClass('show')) {
                 jQuery('#uploadExcelModal').one('hidden.bs.modal', finish);
-                jQuery('#uploadExcelModal').modal('hide');
+                sxHideModal('#uploadExcelModal');
             } else {
                 finish();
             }
@@ -4417,7 +4903,7 @@ function showUploadExcelModal(classSubjectID) {
     jQuery('#upload_exam_id').val(examID);
     jQuery('#excel_file').val('');
     jQuery('#excel_file_label').html('<i class="bi bi-file-earmark-excel"></i> Choose Excel file (.xlsx or .xls)');
-    jQuery('#uploadExcelModal').modal('show');
+    sxShowModal('#uploadExcelModal');
 
     // Update file label when file is selected
     jQuery('#excel_file').off('change.excelLabel').on('change.excelLabel', function() {
@@ -4432,7 +4918,7 @@ function showUploadExcelModal(classSubjectID) {
 
 // View Session Attendance
 function viewSessionAttendance(classSubjectID) {
-    jQuery('#sessionAttendanceModal').modal('show');
+    sxShowModal('#sessionAttendanceModal');
     const loader = showPremiumLoading('sessionAttendanceModalBody', "Loading Session Attendance...", "Fetching attendance records for this subject...");
 
     // Load session attendance view
@@ -4450,7 +4936,7 @@ function viewSessionAttendance(classSubjectID) {
 
 // View Exam Attendance
 function viewExamAttendance(classSubjectID, subjectID) {
-    jQuery('#examAttendanceModal').modal('show');
+    sxShowModal('#examAttendanceModal');
     const loader = showPremiumLoading('examAttendanceModalBody', "Loading Exam Attendance...", "Identifying student participation in examinations...");
 
     // Load exam attendance view
@@ -4546,20 +5032,20 @@ function openElectionModal(classSubjectID, subjectName, subclassID) {
         return;
     }
 
-    jQuery('#electionSubjectTitle').text(subjectName + ' Election');
+    jQuery('#electionSubjectTitle').text(String(i18nSub.election_title).replace(':name', subjectName));
     jQuery('#electionStudentsContainer').html(
         '<div class="text-center py-4">' +
         '<div class="spinner-border text-primary-custom" role="status">' +
-        '<span class="visually-hidden">Loading...</span>' +
+        '<span class="visually-hidden">' + i18nSub.loading + '</span>' +
         '</div>' +
-        '<p class="mt-2">Loading students...</p>' +
+        '<p class="mt-2">' + i18nSub.loading_students + '</p>' +
         '</div>'
     );
 
     jQuery('#saveElectionBtn').data('class-subject-id', classSubjectID);
     jQuery('#saveElectionBtn').data('subclass-id', subclassID);
 
-    jQuery('#subjectElectionModal').modal('show');
+    sxShowModal('#subjectElectionModal');
 
     // Load students
     loadStudentsForElection(classSubjectID, subclassID);
@@ -4590,9 +5076,9 @@ function loadStudentsForElection(classSubjectID, subclassID) {
                         html += '<thead class="bg-primary-custom text-white">';
                         html += '<tr>';
                         html += '<th>#</th>';
-                        html += '<th>Student Name</th>';
-                        html += '<th>Index No</th>';
-                        html += '<th style="text-align: center;">Election</th>';
+                        html += '<th>' + i18nSub.student_name + '</th>';
+                        html += '<th>' + i18nSub.index_no + '</th>';
+                        html += '<th style="text-align: center;">' + i18nSub.election + '</th>';
                         html += '</tr>';
                         html += '</thead>';
                         html += '<tbody>';
@@ -4637,7 +5123,7 @@ function loadStudentsForElection(classSubjectID, subclassID) {
                     }
                 });
             } else {
-                jQuery('#electionStudentsContainer').html('<div class="alert alert-info">No students found in this subclass.</div>');
+                jQuery('#electionStudentsContainer').html('<div class="alert alert-info">' + i18nSub.no_students_subclass + '</div>');
             }
         },
         error: function() {
@@ -4735,7 +5221,7 @@ jQuery(document).on('click', '#saveElectionBtn', function() {
         success: function(response) {
             $btn.prop('disabled', false).html(originalText);
             if (response.success) {
-                jQuery('#subjectElectionModal').modal('hide');
+                sxHideModal('#subjectElectionModal');
                 Swal.fire('Success', response.success, 'success').then(() => {
                     location.reload();
                 });
@@ -4842,7 +5328,7 @@ jQuery(document).on('click', '.deselect-student-btn', function() {
 
     function fillClasses() {
         const $c = jQuery('#bulkClassID');
-        $c.html('<option value="">Select Class</option>');
+        $c.html('<option value="">' + i18nSub.select_class_opt + '</option>');
         uniqueClasses().forEach(function(c) {
             $c.append('<option value="' + c.classID + '">' + jQuery('<div>').text(c.class_name).html() + '</option>');
         });
@@ -4850,7 +5336,7 @@ jQuery(document).on('click', '.deselect-student-btn', function() {
 
     function fillSubclasses(classID) {
         const $s = jQuery('#bulkSubclassID');
-        $s.html('<option value="">All Subclasses</option>');
+        $s.html('<option value="">' + i18nSub.all_subclasses + '</option>');
         if (!classID) {
             $s.prop('disabled', true);
             return;
@@ -4863,7 +5349,7 @@ jQuery(document).on('click', '.deselect-student-btn', function() {
 
     function fillSubjects(classID, subclassID) {
         const $sub = jQuery('#bulkSubjectID');
-        $sub.html('<option value="">Select Subject</option>');
+        $sub.html('<option value="">' + i18nSub.select_subject_opt + '</option>');
         if (!classID) {
             $sub.prop('disabled', true);
             syncBulkActionButtons();
@@ -4892,7 +5378,7 @@ jQuery(document).on('click', '.deselect-student-btn', function() {
         const subclassID = jQuery('#bulkSubclassID').val();
         const subjectID = jQuery('#bulkSubjectID').val();
         if (!classID || !subjectID) {
-            Swal.fire('Error', 'Please select a Class and Subject.', 'error');
+            Swal.fire(i18nSub.error, i18nSub.please_select_class_subject, 'error');
             return;
         }
 
@@ -4903,15 +5389,15 @@ jQuery(document).on('click', '.deselect-student-btn', function() {
         window.currentViewSubject = subjectName;
         window.currentViewClass = subclassID
             ? jQuery('#bulkSubclassID option:selected').text().trim()
-            : (className + ' (All streams)');
+            : (className + ' (' + i18nSub.all_streams + ')');
         window.currentViewIsDuo = String(jQuery('#bulkSubjectID option:selected').data('is-duo')) === '1';
         window.currentResultIsALevel = typeof isALevelClassName === 'function'
             ? isALevelClassName(className)
             : false;
 
         Swal.fire({
-            title: 'Mapping Subject...',
-            html: 'Finding your teaching assignment for the selected class and subject.',
+            title: i18nSub.mapping_subject,
+            html: i18nSub.mapping_subject_detail,
             allowOutsideClick: false,
             didOpen: function() { Swal.showLoading(); }
         });
@@ -4929,7 +5415,7 @@ jQuery(document).on('click', '.deselect-student-btn', function() {
                 window._allSubclassesMode = !!res.all_subclasses;
                 window._classSubjectMap = res.class_subject_map || {};
                 window._bulkResultsLaunch = true;
-                jQuery('#bulkResultsFilterModal').modal('hide');
+                sxHideModal('#bulkResultsFilterModal');
                 if (action === 'add') {
                     if (typeof addResults === 'function') addResults(res.class_subjectID);
                 } else if (typeof viewResults === 'function') {
@@ -4948,14 +5434,14 @@ jQuery(document).on('click', '.deselect-student-btn', function() {
 
     jQuery(document).on('click', '#btnOpenBulkResults', function() {
         if (!scope.length) {
-            Swal.fire('No subjects', 'You have no assigned subjects to enter results for.', 'info');
+            Swal.fire(i18nSub.no_subjects, i18nSub.no_subjects_enter, 'info');
             return;
         }
         fillClasses();
-        jQuery('#bulkSubclassID').html('<option value="">All Subclasses</option>').prop('disabled', true);
-        jQuery('#bulkSubjectID').html('<option value="">Select Subject</option>').prop('disabled', true);
+        jQuery('#bulkSubclassID').html('<option value="">' + i18nSub.all_subclasses + '</option>').prop('disabled', true);
+        jQuery('#bulkSubjectID').html('<option value="">' + i18nSub.select_subject_opt + '</option>').prop('disabled', true);
         syncBulkActionButtons();
-        jQuery('#bulkResultsFilterModal').modal('show');
+        sxShowModal('#bulkResultsFilterModal');
     });
 
     jQuery(document).on('change', '#bulkClassID', function() {
@@ -4973,9 +5459,5 @@ jQuery(document).on('click', '.deselect-student-btn', function() {
     jQuery(document).on('click', '#bulkBtnViewResult', function() { launchBulk('view'); });
 })();
 </script>
-
-@include('Teacher.partials.home_package_modal')
-@include('Teacher.partials.subject_notes_modal')
-
-@include('includes.footer')
+@endpush
 

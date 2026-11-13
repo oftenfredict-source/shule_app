@@ -1,318 +1,443 @@
-@include('includes.teacher_nav')
+@extends('layouts.teacher_corp')
 
-<meta name="csrf-token" content="{{ csrf_token() }}">
+@section('title', __('teacher.pages.scheme_of_work').' - ShuleXpert')
+@section('page_title', __('teacher.pages.scheme_of_work'))
+@section('page_breadcrumb', __('teacher.pages.scheme_of_work_bc'))
 
+@push('styles')
 <style>
-    /* Century Gothic Font Family for everything except icons */
-    body, h1, h2, h3, h4, h5, h6, p, span, div, a, button, input, select, textarea, label, .card, .btn, .form-control, .alert {
-        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-scheme,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-scheme p,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-scheme small,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-scheme strong,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-scheme label {
+        color: #000 !important;
     }
-    
-    /* Exclude Font Awesome icons from font-family override */
-    .fa, .fa:before, i.fa, [class*="fa-"]:before, [class^="fa-"]:before {
-        font-family: 'FontAwesome' !important;
+    .sx-teacher-scheme .sx-scheme-toolbar,
+    .sx-teacher-scheme .sx-scheme-actions {
+        background: #fff !important;
+        border: 1px solid #e6e6e6 !important;
+        border-radius: 0 !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+        border-top: 4px solid #940000 !important;
     }
-    
-    /* Color scheme for #940000 */
-    .bg-primary-custom {
-        background-color: #940000 !important;
+    .sx-teacher-scheme .sx-scheme-toolbar {
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 0.85rem;
     }
-    .text-primary-custom {
-        color: #940000 !important;
+    .sx-teacher-scheme .form-label {
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #666 !important;
+        margin-bottom: 0.3rem;
     }
-    .border-primary-custom {
-        border-color: #940000 !important;
+    .sx-teacher-scheme .form-hint {
+        display: block;
+        margin-top: 0.4rem;
+        font-size: 0.78rem;
+        color: #666 !important;
     }
-    .btn-primary-custom {
-        background-color: #940000;
-        border-color: #940000;
-        color: #ffffff;
-        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
-    }
-    .btn-primary-custom:hover {
-        background-color: #b30000;
-        border-color: #b30000;
-        color: #ffffff;
-    }
-    .btn-outline-primary-custom {
-        border-color: #940000;
-        color: #940000;
-        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
-    }
-    .btn-outline-primary-custom:hover {
-        background-color: #940000;
-        border-color: #940000;
-        color: #ffffff;
-    }
-    .welcome-card {
-        background: #f8f9fa;
-        color: #333333;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e9ecef;
-    }
-    .widget-card {
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        border: 1px solid rgba(148, 0, 0, 0.1);
-        cursor: pointer;
-    }
-    .widget-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 6px 15px rgba(148, 0, 0, 0.2);
-        border-color: #940000;
-    }
-    .widget-icon {
-        font-size: 2rem;
-        color: #940000;
-    }
-    .subject-select-card {
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        border: 1px solid rgba(148, 0, 0, 0.1);
-    }
-    /* No border radius as requested */
-    .card, .btn, .form-control, .alert {
+    .sx-teacher-scheme .form-select,
+    .sx-teacher-scheme .form-control,
+    .sx-teacher-scheme .btn {
         border-radius: 0 !important;
     }
-    .widgets-container {
-        display: none;
+    .sx-teacher-scheme .form-select {
+        min-height: 46px;
+        font-weight: 600;
+        border: 1px solid #cfcfcf;
     }
-    .widgets-container.show {
+    .sx-teacher-scheme .form-select:focus {
+        border-color: #940000;
+        box-shadow: 0 0 0 0.18rem rgba(148, 0, 0, 0.12);
+    }
+    .sx-teacher-scheme .sx-scheme-actions {
+        display: none;
+        padding: 1rem 1.1rem;
+    }
+    .sx-teacher-scheme .sx-scheme-actions.is-open {
         display: block;
     }
-    /* Reduced widget sizes */
-    .widget-card .card-body {
-        padding: 1.5rem !important;
+    .sx-teacher-scheme .sx-scheme-actions-title {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #940000 !important;
+        margin: 0 0 0.85rem;
     }
-    .widget-card h5 {
-        font-size: 1rem;
-        margin-bottom: 0.75rem;
+    .sx-teacher-scheme .sx-action-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.55rem;
     }
-    .widget-card p {
-        font-size: 0.85rem;
-        margin-bottom: 1rem;
+    .sx-teacher-scheme .sx-action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.35rem;
+        min-height: 96px;
+        padding: 0.85rem 0.95rem;
+        border: 1px solid #e6e6e6;
+        border-top: 3px solid #940000;
+        background: #fff;
+        color: #111;
+        text-align: left;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
     }
-    .widget-card .btn {
+    .sx-teacher-scheme .sx-action-btn:hover {
+        background: #fcf7f7;
+        border-color: #940000;
+    }
+    .sx-teacher-scheme .sx-action-btn i {
+        color: #940000;
+        font-size: 1.15rem;
+    }
+    .sx-teacher-scheme .sx-action-btn .t {
+        font-size: 0.88rem;
+        font-weight: 800;
+        color: #940000 !important;
+    }
+    .sx-teacher-scheme .sx-action-btn .d {
+        font-size: 0.78rem;
+        color: #666 !important;
+        line-height: 1.35;
+        font-weight: 600;
+    }
+    .sx-teacher-scheme .btn-primary-custom,
+    .btn-primary-custom {
+        background: #940000;
+        border-color: #940000;
+        color: #fff;
+        font-weight: 800;
+    }
+    .sx-teacher-scheme .btn-primary-custom:hover,
+    .btn-primary-custom:hover {
+        background: #7b0000;
+        border-color: #7b0000;
+        color: #fff;
+    }
+
+    #createOptionsModal .modal-dialog { max-width: 560px; }
+    #createOptionsModal .modal-content {
+        border: none;
+        border-radius: 0;
+        box-shadow: 0 22px 56px rgba(15, 23, 42, 0.22);
+    }
+    #createOptionsModal .modal-header {
+        border: none;
+        padding: 1.1rem 1.35rem;
+        background: linear-gradient(135deg, #940000 0%, #6e0000 100%);
+        color: #fff !important;
+    }
+    #createOptionsModal .modal-title {
+        margin: 0;
         font-size: 0.9rem;
-        padding: 0.5rem 1rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: #fff !important;
+    }
+    #createOptionsModal .modal-body {
+        background: #faf7f7;
+        padding: 1.15rem 1.35rem 0.5rem;
+    }
+    #createOptionsModal .sx-create-lead {
+        font-size: 0.86rem;
+        font-weight: 600;
+        color: #555 !important;
+        margin: 0 0 0.9rem;
+    }
+    #createOptionsModal .sx-create-option {
+        background: #fff;
+        border: 1px solid rgba(148, 0, 0, 0.1);
+        border-top: 3px solid #940000;
+        padding: 1rem 1.05rem;
+        height: 100%;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    #createOptionsModal .sx-create-option:hover {
+        background: #fcf7f7;
+        border-color: #940000;
+    }
+    #createOptionsModal .sx-create-option i {
+        color: #940000;
+        font-size: 1.4rem;
+        margin-bottom: 0.45rem;
+        display: block;
+    }
+    #createOptionsModal .sx-create-option .t {
+        font-size: 0.88rem;
+        font-weight: 800;
+        color: #940000 !important;
+        margin-bottom: 0.25rem;
+    }
+    #createOptionsModal .sx-create-option .d {
+        font-size: 0.78rem;
+        color: #666 !important;
+        font-weight: 600;
+        margin: 0;
+    }
+    #createOptionsModal .modal-footer {
+        border-top: 1px solid rgba(148, 0, 0, 0.1);
+        background: #fff;
+        padding: 0.85rem 1.35rem 1.05rem;
+    }
+    #createOptionsModal .modal-footer .btn {
+        border-radius: 0 !important;
+        font-weight: 800;
+    }
+
+    /* Dark mode */
+    html[data-sx-theme="dark"] .sx-teacher-scheme .sx-scheme-toolbar,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .sx-scheme-toolbar,
+    html[data-sx-theme="dark"] .sx-teacher-scheme .sx-scheme-actions,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .sx-scheme-actions {
+        background: #24181c !important;
+        border-color: #3a2a2e !important;
+        box-shadow: none !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-scheme .form-label,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .form-label {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-scheme .form-hint,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .form-hint {
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-scheme .form-select,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .form-select,
+    html[data-sx-theme="dark"] .sx-teacher-scheme .form-control,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .form-control {
+        background: #1c1417 !important;
+        border-color: #4a383c !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-scheme .form-select option,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .form-select option {
+        background: #1c1417;
+        color: #f3e9eb;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-scheme .sx-scheme-actions-title,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .sx-scheme-actions-title {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-scheme .sx-action-btn,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .sx-action-btn {
+        background: #1c1417 !important;
+        border-color: #3a2a2e !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-scheme .sx-action-btn:hover,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .sx-action-btn:hover {
+        background: #2a1c20 !important;
+        border-color: #940000 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-scheme .sx-action-btn i,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .sx-action-btn i,
+    html[data-sx-theme="dark"] .sx-teacher-scheme .sx-action-btn .t,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .sx-action-btn .t {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-scheme .sx-action-btn .d,
+    html[data-bs-theme="dark"] .sx-teacher-scheme .sx-action-btn .d {
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] #createOptionsModal .modal-content,
+    html[data-bs-theme="dark"] #createOptionsModal .modal-content {
+        background: #24181c !important;
+    }
+    html[data-sx-theme="dark"] #createOptionsModal .modal-body,
+    html[data-bs-theme="dark"] #createOptionsModal .modal-body {
+        background: #1c1417 !important;
+    }
+    html[data-sx-theme="dark"] #createOptionsModal .sx-create-lead,
+    html[data-bs-theme="dark"] #createOptionsModal .sx-create-lead {
+        color: #e8c9cd !important;
+    }
+    html[data-sx-theme="dark"] #createOptionsModal .sx-create-option,
+    html[data-bs-theme="dark"] #createOptionsModal .sx-create-option {
+        background: #24181c !important;
+        border-color: #3a2a2e !important;
+    }
+    html[data-sx-theme="dark"] #createOptionsModal .sx-create-option:hover,
+    html[data-bs-theme="dark"] #createOptionsModal .sx-create-option:hover {
+        background: #2a1c20 !important;
+        border-color: #940000 !important;
+    }
+    html[data-sx-theme="dark"] #createOptionsModal .sx-create-option i,
+    html[data-bs-theme="dark"] #createOptionsModal .sx-create-option i,
+    html[data-sx-theme="dark"] #createOptionsModal .sx-create-option .t,
+    html[data-bs-theme="dark"] #createOptionsModal .sx-create-option .t {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] #createOptionsModal .sx-create-option .d,
+    html[data-bs-theme="dark"] #createOptionsModal .sx-create-option .d {
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] #createOptionsModal .modal-footer,
+    html[data-bs-theme="dark"] #createOptionsModal .modal-footer {
+        background: #24181c !important;
+        border-top-color: #3a2a2e !important;
     }
 </style>
+@endpush
 
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-12">
-            @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="fa fa-check-circle"></i> {{ session('success') }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-            @endif
+@section('content')
+<div class="sx-teacher-scheme">
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fa-solid fa-circle-check"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('teacher.close') }}"></button>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fa-solid fa-triangle-exclamation"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('teacher.close') }}"></button>
+        </div>
+    @endif
 
-            @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fa fa-exclamation-triangle"></i> {{ session('error') }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-            @endif
-
-            <!-- Welcome Message Card -->
-            <div class="card border-0 mb-4 welcome-card">
-                <div class="card-body p-3">
-                    <div class="row align-items-center">
-                        <div class="col-md-1 text-center">
-                            <i class="fa fa-file-text-o text-primary-custom" style="font-size: 3rem;"></i>
-                        </div>
-                        <div class="col-md-11">
-                            <h4 class="mb-2 text-primary-custom" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;">
-                                <i class="fa fa-hand-paper-o"></i> Welcome to the Scheme of Work
-                            </h4>
-                            <p class="mb-0 text-muted" style="font-size: 1rem; font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;">
-                                Let's you simplify your work. Create, manage, and view your scheme of work for each subject you teach.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Subject Selection Card -->
-            <div class="card border-0 mb-4 subject-select-card">
-                <div class="card-body p-4">
-                    <h5 class="text-primary-custom mb-3">
-                        <i class="fa fa-book"></i> Select Subject
-                    </h5>
-                    <div class="form-group">
-                        <label for="subjectSelect" class="font-weight-bold">Choose a subject to manage its scheme of work:</label>
-                        <select class="form-control" id="subjectSelect" name="subject_id" style="height: 50px; font-size: 1rem;">
-                            <option value="">-- Select Subject --</option>
-                            @if(isset($teacherSubjects) && $teacherSubjects->count() > 0)
-                                @foreach($teacherSubjects as $classSubject)
-                                    @if($classSubject->subject && $classSubject->subject->status === 'Active')
-                                        <option value="{{ $classSubject->class_subjectID }}" 
-                                                data-subject-name="{{ $classSubject->subject->subject_name }}"
-                                                data-subject-code="{{ $classSubject->subject->subject_code ?? '' }}">
-                                            {{ $classSubject->subject->subject_name }}
-                                            @if($classSubject->subject->subject_code)
-                                                ({{ $classSubject->subject->subject_code }})
-                                            @endif
-                                            @if($classSubject->subclass && $classSubject->subclass->class)
-                                                - {{ $classSubject->subclass->class->class_name }} {{ $classSubject->subclass->subclass_name }}
-                                            @elseif($classSubject->class)
-                                                - {{ $classSubject->class->class_name }}
-                                            @endif
-                                        </option>
-                                    @endif
-                                @endforeach
+    <div class="sx-scheme-toolbar">
+        <label class="form-label" for="subjectSelect">{{ __('teacher.scheme.select_subject') }}</label>
+        <select class="form-select" id="subjectSelect" name="subject_id">
+            <option value="">{{ __('teacher.scheme.select_subject_opt') }}</option>
+            @if(isset($teacherSubjects) && $teacherSubjects->count() > 0)
+                @foreach($teacherSubjects as $classSubject)
+                    @if($classSubject->subject && $classSubject->subject->status === 'Active')
+                        <option value="{{ $classSubject->class_subjectID }}"
+                                data-subject-name="{{ $classSubject->subject->subject_name }}"
+                                data-subject-code="{{ $classSubject->subject->subject_code ?? '' }}">
+                            {{ $classSubject->subject->subject_name }}
+                            @if($classSubject->subject->subject_code)
+                                ({{ $classSubject->subject->subject_code }})
                             @endif
-                        </select>
-                        <small class="form-text text-muted">
-                            <i class="fa fa-info-circle"></i> Select a subject to view available actions for managing its scheme of work.
-                        </small>
-                    </div>
-                </div>
-            </div>
+                            @if($classSubject->subclass && $classSubject->subclass->class)
+                                - {{ $classSubject->subclass->class->class_name }} {{ $classSubject->subclass->subclass_name }}
+                            @elseif($classSubject->class)
+                                - {{ $classSubject->class->class_name }}
+                            @endif
+                        </option>
+                    @endif
+                @endforeach
+            @endif
+        </select>
+        <span class="form-hint">{{ __('teacher.scheme.hint') }}</span>
+    </div>
 
-            <!-- Widgets Container (Shown when subject is selected) -->
-            <div class="widgets-container" id="widgetsContainer">
-                <div class="row">
-                    <!-- Create Widget -->
-                    <div class="col-md-4 mb-3">
-                        <div class="card border-0 widget-card h-100" id="createWidget">
-                            <div class="card-body text-center">
-                                <div class="widget-icon mb-2">
-                                    <i class="fa fa-plus-circle"></i>
-                                </div>
-                                <h5 class="text-primary-custom mb-2">Create</h5>
-                                <p class="text-muted mb-2" style="font-size: 0.85rem;">Create a new scheme of work or use an existing one</p>
-                                <button class="btn btn-primary-custom btn-block" onclick="handleCreate()" style="font-size: 0.9rem; padding: 0.5rem;">
-                                    <i class="fa fa-plus"></i> Create Scheme of Work
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- View Widget -->
-                    <div class="col-md-4 mb-3">
-                        <div class="card border-0 widget-card h-100" id="viewWidget">
-                            <div class="card-body text-center">
-                                <div class="widget-icon mb-2">
-                                    <i class="fa fa-eye"></i>
-                                </div>
-                                <h5 class="text-primary-custom mb-2">View</h5>
-                                <p class="text-muted mb-2" style="font-size: 0.85rem;">View your existing scheme of work</p>
-                                <button class="btn btn-outline-primary-custom btn-block" onclick="handleView()" style="font-size: 0.9rem; padding: 0.5rem;">
-                                    <i class="fa fa-eye"></i> View Scheme of Work
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Manage Widget -->
-                    <div class="col-md-4 mb-3">
-                        <div class="card border-0 widget-card h-100" id="manageWidget">
-                            <div class="card-body text-center">
-                                <div class="widget-icon mb-2">
-                                    <i class="fa fa-cog"></i>
-                                </div>
-                                <h5 class="text-primary-custom mb-2">Manage</h5>
-                                <p class="text-muted mb-2" style="font-size: 0.85rem;">Update or delete your scheme of work</p>
-                                <button class="btn btn-outline-primary-custom btn-block" onclick="handleManage()" style="font-size: 0.9rem; padding: 0.5rem;">
-                                    <i class="fa fa-cog"></i> Manage Scheme of Work
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Create Options Modal (for Create widget) -->
-            <div class="modal fade" id="createOptionsModal" tabindex="-1" role="dialog" aria-labelledby="createOptionsModalLabel" aria-hidden="true">
-                <div class="modal-dialog" role="document">
-                    <div class="modal-content" style="border-radius: 0;">
-                        <div class="modal-header bg-primary-custom text-white">
-                            <h5 class="modal-title" id="createOptionsModalLabel" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;">
-                                <i class="fa fa-plus-circle"></i> Create Scheme of Work
-                            </h5>
-                            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                        </div>
-                        <div class="modal-body">
-                            <p class="mb-3" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;">Choose an option:</p>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <div class="card border-0 widget-card h-100" onclick="createNewScheme()" style="cursor: pointer;">
-                                        <div class="card-body text-center p-3">
-                                            <i class="fa fa-file-o widget-icon mb-2" style="font-size: 1.8rem;"></i>
-                                            <h6 class="text-primary-custom mb-2" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;">Create New</h6>
-                                            <p class="text-muted small mb-0" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;">Create a brand new scheme of work from scratch</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="card border-0 widget-card h-100" onclick="useExistingScheme()" style="cursor: pointer;">
-                                        <div class="card-body text-center p-3">
-                                            <i class="fa fa-files-o widget-icon mb-2" style="font-size: 1.8rem;"></i>
-                                            <h6 class="text-primary-custom mb-2" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;">Use Existing</h6>
-                                            <p class="text-muted small mb-0" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;">Use or copy from an existing scheme of work</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+    <div class="sx-scheme-actions" id="widgetsContainer">
+        <div class="sx-scheme-actions-title">{{ __('teacher.scheme.actions_title') }}</div>
+        <div class="sx-action-grid">
+            <button type="button" class="sx-action-btn" id="createWidget" onclick="handleCreate()">
+                <i class="fa-solid fa-plus"></i>
+                <span class="t">{{ __('teacher.scheme.create') }}</span>
+                <span class="d">{{ __('teacher.scheme.create_d') }}</span>
+            </button>
+            <button type="button" class="sx-action-btn" id="viewWidget" onclick="handleView()">
+                <i class="fa-solid fa-eye"></i>
+                <span class="t">{{ __('teacher.scheme.view') }}</span>
+                <span class="d">{{ __('teacher.scheme.view_d') }}</span>
+            </button>
+            <button type="button" class="sx-action-btn" id="manageWidget" onclick="handleManage()">
+                <i class="fa-solid fa-gear"></i>
+                <span class="t">{{ __('teacher.scheme.manage') }}</span>
+                <span class="d">{{ __('teacher.scheme.manage_d') }}</span>
+            </button>
         </div>
     </div>
 </div>
 
-<script src="{{ asset('vendors/jquery/dist/jquery.min.js') }}"></script>
-<script src="{{ asset('vendors/popper.js/dist/umd/popper.min.js') }}"></script>
-<script src="{{ asset('vendors/bootstrap/dist/js/bootstrap.min.js') }}"></script>
+{{-- Create Options Modal --}}
+<div class="modal fade" id="createOptionsModal" tabindex="-1" aria-labelledby="createOptionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createOptionsModalLabel">
+                    <i class="fa-solid fa-plus me-1"></i> {{ __('teacher.scheme.create_title') }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="sx-create-lead">{{ __('teacher.scheme.choose_how') }}</p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="sx-create-option" onclick="createNewScheme()" role="button" tabindex="0">
+                            <i class="fa-regular fa-file"></i>
+                            <div class="t">{{ __('teacher.scheme.create_new') }}</div>
+                            <p class="d">{{ __('teacher.scheme.create_new_d') }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="sx-create-option" onclick="useExistingScheme()" role="button" tabindex="0">
+                            <i class="fa-regular fa-copy"></i>
+                            <div class="t">{{ __('teacher.scheme.use_existing') }}</div>
+                            <p class="d">{{ __('teacher.scheme.use_existing_d') }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('teacher.cancel') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
 
+@push('scripts')
 <script>
+var i18nScheme = @json(__('teacher.scheme'));
+window.sxShowModal = function(el) {
+    var node = typeof el === 'string' ? document.querySelector(el) : (el && el.jquery ? el[0] : el);
+    if (!node) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(node).show();
+        return;
+    }
+    if (window.jQuery && jQuery.fn.modal) jQuery(node).modal('show');
+};
+window.sxHideModal = function(el) {
+    var node = typeof el === 'string' ? document.querySelector(el) : (el && el.jquery ? el[0] : el);
+    if (!node) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        var inst = bootstrap.Modal.getInstance(node) || bootstrap.Modal.getOrCreateInstance(node);
+        inst.hide();
+        return;
+    }
+    if (window.jQuery && jQuery.fn.modal) jQuery(node).modal('hide');
+};
+
+(function () {
     let selectedSubjectId = null;
     let selectedSubjectName = null;
 
-    // Handle subject selection
-    document.getElementById('subjectSelect').addEventListener('change', function() {
+    const subjectSelect = document.getElementById('subjectSelect');
+    const widgetsContainer = document.getElementById('widgetsContainer');
+
+    subjectSelect.addEventListener('change', function () {
         selectedSubjectId = this.value;
         const selectedOption = this.options[this.selectedIndex];
         selectedSubjectName = selectedOption.getAttribute('data-subject-name');
-        
-        if (selectedSubjectId) {
-            // Show widgets container
-            document.getElementById('widgetsContainer').classList.add('show');
-        } else {
-            // Hide widgets container
-            document.getElementById('widgetsContainer').classList.remove('show');
-        }
+        widgetsContainer.classList.toggle('is-open', !!selectedSubjectId);
     });
 
-    // Handle Create button click
-    function handleCreate() {
+    window.handleCreate = function () {
         if (!selectedSubjectId) {
-            alert('Please select a subject first');
+            alert(i18nScheme.select_first);
             return;
         }
-        // Show create options modal
-        $('#createOptionsModal').modal('show');
-    }
+        sxShowModal('#createOptionsModal');
+    };
 
-    // Handle View button click
-    function handleView() {
+    window.handleView = function () {
         if (!selectedSubjectId) {
-            alert('Please select a subject first');
+            alert(i18nScheme.select_first);
             return;
         }
-        // Get scheme of work ID for this subject and year
         const year = new Date().getFullYear();
         $.ajax({
             url: '{{ route("teacher.checkExistingScheme") }}',
@@ -322,26 +447,24 @@
                 year: year,
                 _token: '{{ csrf_token() }}'
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.exists && response.scheme) {
                     window.location.href = '/teacher/scheme-of-work/view/' + response.scheme.id;
                 } else {
-                    alert('No scheme of work found for this subject. Please create one first.');
+                    alert(i18nScheme.none_found);
                 }
             },
-            error: function() {
-                alert('Error checking for scheme of work');
+            error: function () {
+                alert(i18nScheme.check_error);
             }
         });
-    }
+    };
 
-    // Handle Manage button click
-    function handleManage() {
+    window.handleManage = function () {
         if (!selectedSubjectId) {
-            alert('Please select a subject first');
+            alert(i18nScheme.select_first);
             return;
         }
-        // Get scheme of work ID for this subject and year
         const year = new Date().getFullYear();
         $.ajax({
             url: '{{ route("teacher.checkExistingScheme") }}',
@@ -351,27 +474,25 @@
                 year: year,
                 _token: '{{ csrf_token() }}'
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.exists && response.scheme) {
                     window.location.href = '/teacher/scheme-of-work/manage/' + response.scheme.id;
                 } else {
-                    alert('No scheme of work found for this subject. Please create one first.');
+                    alert(i18nScheme.none_found);
                 }
             },
-            error: function() {
-                alert('Error checking for scheme of work');
+            error: function () {
+                alert(i18nScheme.check_error);
             }
         });
-    }
+    };
 
-    // Create new scheme of work
-    function createNewScheme() {
-        $('#createOptionsModal').modal('hide');
+    window.createNewScheme = function () {
+        sxHideModal('#createOptionsModal');
         if (!selectedSubjectId) {
-            alert('Please select a subject first');
+            alert(i18nScheme.select_first);
             return;
         }
-        // Check if scheme already exists
         $.ajax({
             url: '{{ route("teacher.checkExistingScheme") }}',
             method: 'POST',
@@ -380,31 +501,29 @@
                 year: new Date().getFullYear(),
                 _token: '{{ csrf_token() }}'
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.exists) {
-                    if (confirm('Scheme of work already exists for this subject. Do you want to view it instead?')) {
+                    if (confirm(i18nScheme.already_exists)) {
                         handleView();
                     }
                 } else {
                     window.location.href = '/teacher/scheme-of-work/create/' + selectedSubjectId;
                 }
             },
-            error: function() {
-                // If check fails, proceed anyway
+            error: function () {
                 window.location.href = '/teacher/scheme-of-work/create/' + selectedSubjectId;
             }
         });
-    }
+    };
 
-    // Use existing scheme of work
-    function useExistingScheme() {
+    window.useExistingScheme = function () {
         if (!selectedSubjectId) {
-            alert('Please select a subject first');
+            alert(i18nScheme.select_first);
             return;
         }
-        $('#createOptionsModal').modal('hide');
-        // Navigate to use existing schemes page
+        sxHideModal('#createOptionsModal');
         window.location.href = '{{ route("teacher.useExistingSchemes", ":subjectId") }}'.replace(':subjectId', selectedSubjectId);
-    }
+    };
+})();
 </script>
-
+@endpush

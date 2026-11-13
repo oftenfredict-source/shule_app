@@ -1,290 +1,415 @@
-@include('includes.teacher_nav')
+@extends('layouts.teacher_corp')
 
+@section('title', __('teacher.pages.lesson_plans').' - ShuleXpert')
+@section('page_title', __('teacher.pages.lesson_plans'))
+@section('page_breadcrumb', __('teacher.pages.lesson_plans_bc'))
+
+@push('styles')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
-<!-- jsPDF Library for PDF generation -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<!-- html2canvas for converting HTML to image -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<meta name="csrf-token" content="{{ csrf_token() }}">
-
 <style>
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-lp,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-lp p,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-lp small,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-lp strong,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-lp label,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-lp td,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-lp th {
+        color: #000 !important;
+    }
+    .sx-teacher-lp .sx-lp-toolbar,
+    .sx-teacher-lp .sx-lp-panel {
+        background: #fff !important;
+        border: 1px solid #e6e6e6 !important;
+        border-radius: 0 !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+        border-top: 4px solid #940000 !important;
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 0.85rem;
+    }
+    .sx-teacher-lp .form-label {
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #666 !important;
+        margin-bottom: 0.3rem;
+    }
+    .sx-teacher-lp .form-select,
+    .sx-teacher-lp .form-control,
+    .sx-teacher-lp .btn,
+    #lessonPlanModal .form-select,
+    #lessonPlanModal .form-control,
+    #lessonPlanModal .btn,
+    #lessonPlanModal .modal-content {
+        border-radius: 0 !important;
+    }
+    .sx-teacher-lp .form-select {
+        min-height: 46px;
+        font-weight: 600;
+        border: 1px solid #cfcfcf;
+    }
+    .sx-teacher-lp .form-select:focus,
+    #lessonPlanModal .form-control:focus,
+    #lessonPlanModal .form-select:focus {
+        border-color: #940000;
+        box-shadow: 0 0 0 0.18rem rgba(148, 0, 0, 0.12);
+    }
     .bg-primary-custom {
-        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
+        background: #fff5f5 !important;
         color: #940000 !important;
         border-bottom: 2px solid #940000 !important;
     }
-
-    .text-primary-custom {
-        color: #940000 !important;
-    }
-
-    div,
-    .card,
-    .session-card,
-    .alert,
-    .btn {
-        border-radius: 8px !important;
-    }
-
-    .session-card {
-        border: 1px solid #FFF5F5;
-        padding: 20px;
-        margin-bottom: 20px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        background: #FFFFFF;
-        box-shadow: 0 2px 4px rgba(148, 0, 0, 0.05);
-    }
-
-    .session-card:hover {
-        box-shadow: 0 8px 16px rgba(148, 0, 0, 0.1);
-        transform: translateY(-4px);
-        background: #FFF5F5;
-        border-color: #940000;
-    }
-
-    .time-badge {
-        background: #FFF5F5;
-        color: #940000;
-        padding: 6px 14px;
-        font-size: 0.85rem;
-        font-weight: 700;
-        border: 1px solid #940000;
-        border-radius: 20px !important;
-    }
-
-    .btn-session-action {
+    .text-primary-custom { color: #940000 !important; }
+    .btn-session-action,
+    .btn-primary-custom,
+    #lessonPlanModal .btn-session-action,
+    #lessonPlanModal .btn-primary-custom {
         background: #940000 !important;
-        color: #FFFFFF !important;
+        color: #fff !important;
         border: none !important;
-        padding: 10px 24px;
-        font-weight: 600;
-        transition: all 0.3s ease;
+        font-weight: 800;
     }
-
-    .btn-session-action:hover {
-        background: #7a0000 !important;
-        transform: scale(1.05);
-        box-shadow: 0 4px 8px rgba(148, 0, 0, 0.2);
+    .btn-session-action:hover,
+    .btn-primary-custom:hover,
+    .btn-session-action *,
+    .btn-primary-custom * {
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
     }
-
+    .btn-session-action:hover,
+    .btn-primary-custom:hover {
+        background: #7b0000 !important;
+    }
+    .btn-outline-corporate {
+        background: transparent;
+        color: #940000 !important;
+        border: 1px solid #940000 !important;
+        font-weight: 800;
+    }
+    .btn-outline-corporate:hover {
+        background: #940000;
+        color: #fff !important;
+    }
     .lesson-plan-table {
         width: 100%;
         border-collapse: collapse;
-        margin: 20px 0;
+        margin: 16px 0;
         border: 2px solid #940000;
         font-size: 0.9rem;
-        background: #FFFFFF;
+        background: #fff;
     }
-
     .lesson-plan-table td,
     .lesson-plan-table th {
         border: 1px solid #940000 !important;
         padding: 5px 8px;
         text-align: left;
     }
-
     .lesson-plan-table th {
-        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
-        color: #940000;
+        background: #fff5f5;
+        color: #940000 !important;
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
-
-    .lesson-plan-table tbody tr:nth-child(even) {
-        background-color: #FFF5F5;
-    }
-
-    .lesson-plan-table tbody tr:hover {
-        background-color: rgba(148, 0, 0, 0.05);
-    }
-
+    .lesson-plan-table tbody tr:nth-child(even) { background-color: #fff5f5; }
     .lesson-plan-table input,
     .lesson-plan-table textarea {
         width: 100%;
         border: 1px solid rgba(148, 0, 0, 0.2);
         padding: 6px 10px;
-        background-color: white;
+        background-color: #fff;
         font-size: 0.9rem;
-        border-radius: 4px !important;
-        transition: border-color 0.3s ease;
+        border-radius: 0 !important;
     }
-
-    .lesson-plan-table input:focus,
-    .lesson-plan-table textarea:focus {
-        border-color: #940000;
-        outline: none;
-        box-shadow: 0 0 0 2px rgba(148, 0, 0, 0.1);
-    }
-
     .lesson-plan-header {
         text-align: center;
         font-weight: 800;
         font-size: 22px;
-        margin: 25px 0;
+        margin: 20px 0;
         color: #940000;
     }
-
     #lessonPlanTabs .nav-link {
         color: #666;
         border: none;
-        padding: 12px 25px;
-        font-weight: 600;
+        border-radius: 0 !important;
+        padding: 12px 20px;
+        font-weight: 700;
     }
-
     #lessonPlanTabs .nav-link.active {
-        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
+        background: #fff5f5 !important;
         color: #940000 !important;
         border-bottom: 3px solid #940000;
     }
-
     .dotted-line {
         border-bottom: 2px dotted #940000;
         min-height: 35px;
         padding: 8px 0;
         margin: 8px 0;
     }
-
     .signature-container {
-        margin: 30px 0;
-        background: #FFF5F5;
-        padding: 20px;
-        border-radius: 8px;
+        margin: 24px 0;
+        background: #fff5f5;
+        padding: 16px;
+        border-radius: 0;
     }
-
     .signature-label {
         color: #940000;
         font-weight: 700;
-        margin-bottom: 15px;
-        font-size: 0.95rem;
+        margin-bottom: 12px;
     }
-
-    .signature-canvas {
+    .signature-canvas,
+    .signature-preview {
         border: 2px solid #940000;
-        border-radius: 8px;
+        border-radius: 0;
+        background: #fff;
+        max-width: 100%;
+    }
+    .signature-canvas {
         cursor: crosshair;
-        background-color: white;
         width: 100%;
         max-width: 400px;
     }
-
-    .signature-preview {
-        border: 2px solid #940000;
-        border-radius: 8px;
-        max-width: 100%;
-        height: auto;
-        background: white;
+    .signature-actions button { margin-right: 8px; }
+    #lessonPlanModal .modal-header .btn-close { box-shadow: none; }
+    .sx-teacher-lp .sx-lp-meta {
+        font-size: 0.86rem;
+        font-weight: 600;
+        color: #444 !important;
+    }
+    .sx-teacher-lp .sx-lp-meta strong { color: #940000 !important; }
+    .sx-teacher-lp .form-hint {
+        font-size: 0.78rem;
+        color: #666 !important;
     }
 
-    .signature-actions {
-        margin-top: 15px;
+    /* Dark mode */
+    html[data-sx-theme="dark"] .sx-teacher-lp .sx-lp-toolbar,
+    html[data-bs-theme="dark"] .sx-teacher-lp .sx-lp-toolbar,
+    html[data-sx-theme="dark"] .sx-teacher-lp .sx-lp-panel,
+    html[data-bs-theme="dark"] .sx-teacher-lp .sx-lp-panel {
+        background: #24181c !important;
+        border-color: #3a2a2e !important;
+        box-shadow: none !important;
+        color: #f3e9eb !important;
     }
-
-    .signature-actions button {
-        margin-right: 8px;
-        padding: 8px 20px;
-        font-size: 0.85rem;
-        border-radius: 4px !important;
+    html[data-sx-theme="dark"] .sx-teacher-lp .form-label,
+    html[data-bs-theme="dark"] .sx-teacher-lp .form-label {
+        color: #ffb4b4 !important;
     }
-    
-    .btn-outline-corporate {
-        background: transparent;
-        color: #940000;
-        border: 1px solid #940000 !important;
+    html[data-sx-theme="dark"] .sx-teacher-lp .form-hint,
+    html[data-bs-theme="dark"] .sx-teacher-lp .form-hint {
+        color: #d7c4c8 !important;
     }
-    
-    .btn-outline-corporate:hover {
-        background: #940000;
-        color: #FFFFFF;
+    html[data-sx-theme="dark"] .sx-teacher-lp .form-select,
+    html[data-bs-theme="dark"] .sx-teacher-lp .form-select,
+    html[data-sx-theme="dark"] .sx-teacher-lp .form-control,
+    html[data-bs-theme="dark"] .sx-teacher-lp .form-control {
+        background: #1c1417 !important;
+        border-color: #4a383c !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-lp .form-select option,
+    html[data-bs-theme="dark"] .sx-teacher-lp .form-select option {
+        background: #1c1417;
+        color: #f3e9eb;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-lp .text-muted,
+    html[data-bs-theme="dark"] .sx-teacher-lp .text-muted,
+    html[data-sx-theme="dark"] .sx-teacher-lp .text-muted p,
+    html[data-bs-theme="dark"] .sx-teacher-lp .text-muted p {
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-lp .sx-lp-meta,
+    html[data-bs-theme="dark"] .sx-teacher-lp .sx-lp-meta {
+        color: #e8c9cd !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-lp .sx-lp-meta strong,
+    html[data-bs-theme="dark"] .sx-teacher-lp .sx-lp-meta strong {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-lp .alert-warning,
+    html[data-bs-theme="dark"] .sx-teacher-lp .alert-warning {
+        background: #3a2a1a !important;
+        border-color: #5a4030 !important;
+        color: #f5e6c8 !important;
+    }
+    html[data-sx-theme="dark"] #lessonPlanModal .modal-content,
+    html[data-bs-theme="dark"] #lessonPlanModal .modal-content {
+        background: #24181c !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] #lessonPlanModal .modal-header.bg-primary-custom,
+    html[data-bs-theme="dark"] #lessonPlanModal .modal-header.bg-primary-custom {
+        background: linear-gradient(135deg, #940000 0%, #6e0000 100%) !important;
+        color: #fff !important;
+        border-bottom: none !important;
+    }
+    html[data-sx-theme="dark"] #lessonPlanModal .modal-header.bg-primary-custom .modal-title,
+    html[data-bs-theme="dark"] #lessonPlanModal .modal-header.bg-primary-custom .modal-title,
+    html[data-sx-theme="dark"] #lessonPlanModal .modal-header.bg-primary-custom i,
+    html[data-bs-theme="dark"] #lessonPlanModal .modal-header.bg-primary-custom i {
+        color: #fff !important;
+    }
+    html[data-sx-theme="dark"] #lessonPlanModal .modal-header .btn-close,
+    html[data-bs-theme="dark"] #lessonPlanModal .modal-header .btn-close {
+        filter: invert(1) grayscale(100%) brightness(200%);
+    }
+    html[data-sx-theme="dark"] #lessonPlanModal .modal-body,
+    html[data-bs-theme="dark"] #lessonPlanModal .modal-body {
+        background: #1c1417 !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] #lessonPlanTabs .nav-link,
+    html[data-bs-theme="dark"] #lessonPlanTabs .nav-link {
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] #lessonPlanTabs .nav-link.active,
+    html[data-bs-theme="dark"] #lessonPlanTabs .nav-link.active {
+        background: #2a1c20 !important;
+        color: #ffb4b4 !important;
+        border-bottom-color: #940000 !important;
+    }
+    html[data-sx-theme="dark"] #lessonPlanModal .text-muted,
+    html[data-bs-theme="dark"] #lessonPlanModal .text-muted {
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] #lessonPlanModal .form-control,
+    html[data-bs-theme="dark"] #lessonPlanModal .form-control,
+    html[data-sx-theme="dark"] #lessonPlanModal .form-select,
+    html[data-bs-theme="dark"] #lessonPlanModal .form-select {
+        background: #24181c !important;
+        border-color: #4a383c !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] #lessonPlanModal .form-label,
+    html[data-bs-theme="dark"] #lessonPlanModal .form-label,
+    html[data-sx-theme="dark"] #lessonPlanModal label,
+    html[data-bs-theme="dark"] #lessonPlanModal label {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .lesson-plan-table,
+    html[data-bs-theme="dark"] .lesson-plan-table {
+        background: #24181c !important;
+        color: #f3e9eb !important;
+        border-color: #940000 !important;
+    }
+    html[data-sx-theme="dark"] .lesson-plan-table th,
+    html[data-bs-theme="dark"] .lesson-plan-table th {
+        background: #2a1c20 !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .lesson-plan-table tbody tr:nth-child(even),
+    html[data-bs-theme="dark"] .lesson-plan-table tbody tr:nth-child(even) {
+        background-color: #1c1417 !important;
+    }
+    html[data-sx-theme="dark"] .lesson-plan-table tbody tr:nth-child(odd),
+    html[data-bs-theme="dark"] .lesson-plan-table tbody tr:nth-child(odd) {
+        background-color: #24181c !important;
+    }
+    html[data-sx-theme="dark"] .lesson-plan-table td,
+    html[data-bs-theme="dark"] .lesson-plan-table td {
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .lesson-plan-table input,
+    html[data-bs-theme="dark"] .lesson-plan-table input,
+    html[data-sx-theme="dark"] .lesson-plan-table textarea,
+    html[data-bs-theme="dark"] .lesson-plan-table textarea {
+        background-color: #1c1417 !important;
+        border-color: #4a383c !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .lesson-plan-table input[readonly],
+    html[data-bs-theme="dark"] .lesson-plan-table input[readonly],
+    html[data-sx-theme="dark"] .lesson-plan-table input[style*="background-color: #f5f5f5"],
+    html[data-bs-theme="dark"] .lesson-plan-table input[style*="background-color: #f5f5f5"] {
+        background-color: #2a2226 !important;
+        color: #e8c9cd !important;
+    }
+    html[data-sx-theme="dark"] .lesson-plan-header,
+    html[data-bs-theme="dark"] .lesson-plan-header,
+    html[data-sx-theme="dark"] .text-primary-custom,
+    html[data-bs-theme="dark"] .text-primary-custom {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .signature-container,
+    html[data-bs-theme="dark"] .signature-container {
+        background: #2a1c20 !important;
+    }
+    html[data-sx-theme="dark"] .signature-label,
+    html[data-bs-theme="dark"] .signature-label {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .signature-canvas,
+    html[data-bs-theme="dark"] .signature-canvas,
+    html[data-sx-theme="dark"] .signature-preview,
+    html[data-bs-theme="dark"] .signature-preview {
+        background: #fff !important;
+    }
+    html[data-sx-theme="dark"] .btn-outline-corporate,
+    html[data-bs-theme="dark"] .btn-outline-corporate {
+        color: #ffb4b4 !important;
+        border-color: #940000 !important;
     }
 </style>
+@endpush
 
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-12">
-            <!-- Welcome Header -->
-            <div class="card border-0 shadow-sm mb-4" style="border-top: 3px solid #940000 !important;">
-                <div class="card-body bg-primary-custom">
-                    <h4 class="mb-2">
-                        <i class="bi bi-book"></i> Welcome to Lesson Plan Management
-                    </h4>
-                    <p class="mb-0">Let's simplify your teaching style</p>
+@section('content')
+<div class="sx-teacher-lp">
+    @if(isset($message))
+        <div class="alert alert-warning rounded-0">
+            <i class="bi bi-exclamation-triangle"></i> {{ $message }}
+        </div>
+    @else
+        <div class="sx-lp-toolbar">
+            <label class="form-label" for="subjectSelector">{{ __('teacher.subject') }}</label>
+            <select class="form-select" id="subjectSelector" onchange="loadSessionsBySubject()">
+                <option value="">{{ __('teacher.plans.select_subject') }}</option>
+                @foreach($subjects as $subject)
+                    <option value="{{ $subject->subjectID ?? $subject['subjectID'] ?? '' }}">{{ $subject->subject_name ?? $subject['subject_name'] ?? '' }}</option>
+                @endforeach
+            </select>
+            <span class="form-hint d-block mt-2">{{ __('teacher.plans.hint') }}</span>
+        </div>
+
+        <div class="sx-lp-panel" id="sessionsContainer">
+            <div id="sessionsList">
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-info-circle" style="font-size: 2rem; color:#940000;"></i>
+                    <p class="mt-2 mb-0">{{ __('teacher.plans.select_subject_sessions') }}</p>
                 </div>
             </div>
-
-            @if(isset($message))
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i> {{ $message }}
-                </div>
-            @else
-                <!-- Subject Selector -->
-                <div class="card border-0 shadow-sm mb-4" style="border-top: 3px solid #940000 !important;">
-                    <div class="card-body">
-                        <h5 class="mb-3">Select Subject</h5>
-                        <div class="form-group">
-                            <label>Subject</label>
-                            <select class="form-control" id="subjectSelector" onchange="loadSessionsBySubject()"
-                                style="width: 100%;">
-                                <option value="">-- Select Subject --</option>
-                                @foreach($subjects as $subject)
-                                    <option value="{{ $subject->subjectID ?? $subject['subjectID'] ?? '' }}">{{ $subject->subject_name ?? $subject['subject_name'] ?? '' }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sessions Display -->
-                <div id="sessionsContainer">
-                    <div class="card border-0 shadow-sm" style="border-top: 3px solid #940000 !important;">
-                        <div class="card-body">
-                            <h5 class="mb-3">Sessions</h5>
-                            <div id="sessionsList">
-                                <div class="text-center text-muted py-5">
-                                    <i class="bi bi-info-circle" style="font-size: 3rem;"></i>
-                                    <p class="mt-3">Please select a subject to view sessions</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @endif
         </div>
-    </div>
+    @endif
 </div>
 
 <!-- Lesson Plan Modal -->
-<div class="modal fade" id="lessonPlanModal" tabindex="-1" role="dialog" style="z-index: 1050;">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document" style="max-width: 95%;">
-        <div class="modal-content">
-            <div class="modal-header bg-primary-custom">
+<div class="modal fade" id="lessonPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width: 95%;">
+        <div class="modal-content rounded-0">
+            <div class="modal-header bg-primary-custom rounded-0">
                 <h5 class="modal-title">
-                    <i class="bi bi-journal-text"></i> Lesson Plan Management
+                    <i class="bi bi-journal-text"></i> {{ __('teacher.plans.management') }}
                 </h5>
-                <button type="button" class="close" data-dismiss="modal" style="color: #940000; opacity: 1;">
-                    <span>&times;</span>
-                </button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
             </div>
             <div class="modal-body" style="max-height: calc(100vh - 120px); overflow-y: auto;">
                     <div id="modalAlertContainer"></div>
                 <!-- Tabs -->
                 <ul class="nav nav-tabs mb-3" role="tablist" id="lessonPlanTabs">
-                    <li class="nav-item">
-                        <a class="nav-link active" id="create-tab" data-toggle="tab" href="#create-lesson-plan"
-                            role="tab">
-                            <i class="bi bi-plus-circle"></i> Create Lesson Plan
-                        </a>
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link active" id="create-tab" data-bs-toggle="tab" data-bs-target="#create-lesson-plan" role="tab" aria-controls="create-lesson-plan" aria-selected="true">
+                            <i class="bi bi-plus-circle"></i> {{ __('teacher.plans.create_tab') }}
+                        </button>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="manage-tab" data-toggle="tab" href="#manage-lesson-plan" role="tab">
-                            <i class="bi bi-pencil-square"></i> Manage Lesson Plan
-                        </a>
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link" id="manage-tab" data-bs-toggle="tab" data-bs-target="#manage-lesson-plan" role="tab" aria-controls="manage-lesson-plan" aria-selected="false">
+                            <i class="bi bi-pencil-square"></i> {{ __('teacher.plans.manage_tab') }}
+                        </button>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="view-tab" data-toggle="tab" href="#view-lesson-plan" role="tab">
-                            <i class="bi bi-eye"></i> View Lesson Plan
-                        </a>
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link" id="view-tab" data-bs-toggle="tab" data-bs-target="#view-lesson-plan" role="tab" aria-controls="view-lesson-plan" aria-selected="false">
+                            <i class="bi bi-eye"></i> {{ __('teacher.plans.view_tab') }}
+                        </button>
                     </li>
                 </ul>
 
@@ -293,13 +418,12 @@
                     <!-- Create Tab -->
                     <div class="tab-pane fade show active" id="create-lesson-plan" role="tabpanel">
                         <div id="createTabContent">
-                            <div class="text-center mb-3">
-                                <button class="btn btn-lg mr-3" onclick="showCreateNewForm()"
-                                    style="background: #940000; color: #FFFFFF;">
-                                    <i class="bi bi-file-plus"></i> Create New Lesson Plan
+                            <div class="text-center mb-3 d-flex flex-wrap gap-2 justify-content-center">
+                                <button type="button" class="btn btn-lg btn-session-action text-white" onclick="showCreateNewForm()">
+                                    <i class="bi bi-file-plus"></i> <span class="text-white">{{ __('teacher.plans.create_new') }}</span>
                                 </button>
-                                <button class="btn btn-lg btn-outline-corporate" onclick="showUseExistingForm()">
-                                    <i class="bi bi-folder"></i> Use Existing Lesson Plan
+                                <button type="button" class="btn btn-lg btn-outline-corporate" onclick="showUseExistingForm()">
+                                    <i class="bi bi-folder"></i> {{ __('teacher.plans.use_existing') }}
                                 </button>
                             </div>
                             <div id="createNewForm" style="display: none;">
@@ -309,9 +433,9 @@
                                 <div id="existingLessonPlansList">
                                     <div class="text-center py-3">
                                         <div class="spinner-border" role="status" style="color: #940000;">
-                                            <span class="sr-only">Loading...</span>
+                                            <span class="visually-hidden">{{ __('teacher.loading') }}</span>
                                         </div>
-                                        <p class="mt-2">Loading existing lesson plans...</p>
+                                        <p class="mt-2">{{ __('teacher.plans.loading_existing') }}</p>
                                     </div>
                                 </div>
                                 <div id="existingLessonPlanContent" style="display: none;"></div>
@@ -324,41 +448,41 @@
                         <div id="manageTabContent">
                             <div class="card mb-3">
                                 <div class="card-body">
-                                    <h6 class="mb-3">Filter Lesson Plans to Manage</h6>
+                                    <h6 class="mb-3">{{ __('teacher.plans.filter_manage') }}</h6>
                                     <div class="row">
                                         <div class="col-md-4">
                                             <div class="form-group">
-                                                <label>Filter Type</label>
-                                                <select class="form-control" id="manageFilterType"
+                                                <label>{{ __('teacher.plans.filter_type') }}</label>
+                                                <select class="form-select" id="manageFilterType"
                                                     onchange="toggleManageFilterOptions()">
-                                                    <option value="single_date">Single Date</option>
-                                                    <option value="date_range">Date Range</option>
-                                                    <option value="year">By Year</option>
+                                                    <option value="single_date">{{ __('teacher.plans.single_date') }}</option>
+                                                    <option value="date_range">{{ __('teacher.plans.date_range') }}</option>
+                                                    <option value="year">{{ __('teacher.plans.by_year') }}</option>
                                                 </select>
                                             </div>
                                         </div>
                                         <div class="col-md-4" id="manageSingleDateFilter">
                                             <div class="form-group">
-                                                <label>Select Date</label>
+                                                <label>{{ __('teacher.plans.select_date') }}</label>
                                                 <input type="date" class="form-control" id="manageLessonDate"
                                                     onchange="loadLessonPlanForManage()">
                                             </div>
                                         </div>
                                         <div class="col-md-4" id="manageDateRangeFilter1" style="display: none;">
                                             <div class="form-group">
-                                                <label>From Date</label>
+                                                <label>{{ __('teacher.plans.from_date') }}</label>
                                                 <input type="date" class="form-control" id="manageFromDate">
                                             </div>
                                         </div>
                                         <div class="col-md-4" id="manageDateRangeFilter2" style="display: none;">
                                             <div class="form-group">
-                                                <label>To Date</label>
+                                                <label>{{ __('teacher.plans.to_date') }}</label>
                                                 <input type="date" class="form-control" id="manageToDate">
                                             </div>
                                         </div>
                                         <div class="col-md-4" id="manageYearFilter" style="display: none;">
                                             <div class="form-group">
-                                                <label>Year</label>
+                                                <label>{{ __('teacher.year') }}</label>
                                                 <input type="number" class="form-control" id="manageYear" min="2020"
                                                     max="2100" value="{{ date('Y') }}">
                                             </div>
@@ -366,8 +490,8 @@
                                         <div class="col-md-4">
                                             <div class="form-group">
                                                 <label>&nbsp;</label>
-                                                <button class="btn btn-block btn-session-action" onclick="loadLessonPlansForManage()">
-                                                    <i class="bi bi-search"></i> Load Lesson Plans
+                                                <button type="button" class="btn w-100 btn-session-action text-white" onclick="loadLessonPlansForManage()">
+                                                    <i class="bi bi-search"></i> <span class="text-white">{{ __('teacher.plans.load_plans') }}</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -377,7 +501,7 @@
                             <div id="manageLessonPlanContent">
                                 <div class="text-center text-muted py-5">
                                     <i class="bi bi-info-circle" style="font-size: 3rem;"></i>
-                                    <p class="mt-3">Please select filter options and click "Load Lesson Plans"</p>
+                                    <p class="mt-3">{{ __('teacher.plans.filter_hint') }}</p>
                                 </div>
                             </div>
                         </div>
@@ -388,33 +512,33 @@
                         <div id="viewTabContent">
                             <div class="card mb-3">
                                 <div class="card-body">
-                                    <h6 class="mb-3">Filter Lesson Plans</h6>
+                                    <h6 class="mb-3">{{ __('teacher.plans.filter_plans') }}</h6>
                                     <div class="row">
                                         <div class="col-md-4">
                                             <div class="form-group">
-                                                <label>Filter Type</label>
-                                                <select class="form-control" id="filterType"
+                                                <label>{{ __('teacher.plans.filter_type') }}</label>
+                                                <select class="form-select" id="filterType"
                                                     onchange="toggleFilterOptions()">
-                                                    <option value="date_range">Date Range</option>
-                                                    <option value="year">By Year</option>
+                                                    <option value="date_range">{{ __('teacher.plans.date_range') }}</option>
+                                                    <option value="year">{{ __('teacher.plans.by_year') }}</option>
                                                 </select>
                                             </div>
                                         </div>
                                         <div class="col-md-4" id="dateRangeFilter">
                                             <div class="form-group">
-                                                <label>From Date</label>
+                                                <label>{{ __('teacher.plans.from_date') }}</label>
                                                 <input type="date" class="form-control" id="viewFromDate">
                                             </div>
                                         </div>
                                         <div class="col-md-4" id="dateRangeFilter2">
                                             <div class="form-group">
-                                                <label>To Date</label>
+                                                <label>{{ __('teacher.plans.to_date') }}</label>
                                                 <input type="date" class="form-control" id="viewToDate">
                                             </div>
                                         </div>
                                         <div class="col-md-4" id="yearFilter" style="display: none;">
                                             <div class="form-group">
-                                                <label>Year</label>
+                                                <label>{{ __('teacher.year') }}</label>
                                                 <input type="number" class="form-control" id="viewYear" min="2020"
                                                     max="2100" value="{{ date('Y') }}">
                                             </div>
@@ -422,8 +546,8 @@
                                         <div class="col-md-4">
                                             <div class="form-group">
                                                 <label>&nbsp;</label>
-                                                <button class="btn btn-block btn-session-action" onclick="loadLessonPlansByFilter()">
-                                                    <i class="bi bi-search"></i> Load Lesson Plans
+                                                <button type="button" class="btn w-100 btn-session-action text-white" onclick="loadLessonPlansByFilter()">
+                                                    <i class="bi bi-search"></i> <span class="text-white">{{ __('teacher.plans.load_plans') }}</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -433,7 +557,7 @@
                             <div id="viewLessonPlanContent">
                                 <div class="text-center text-muted py-5">
                                     <i class="bi bi-info-circle" style="font-size: 3rem;"></i>
-                                    <p class="mt-3">Please select filter options and click "Load Lesson Plans"</p>
+                                    <p class="mt-3">{{ __('teacher.plans.filter_hint') }}</p>
                                 </div>
                             </div>
                         </div>
@@ -446,37 +570,79 @@
 
 
 <!-- PDF Download Progress Modal -->
-<div class="modal fade" id="downloadProgressModal" tabindex="-1" role="dialog" aria-labelledby="downloadProgressModalLabel"
-    aria-hidden="true" data-backdrop="static" data-keyboard="false" style="z-index: 2000;">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content" style="border-radius: 8px !important;">
-            <div class="modal-header bg-primary-custom" style="border-bottom: 1px solid #e9ecef;">
+<div class="modal fade" id="downloadProgressModal" tabindex="-1" aria-labelledby="downloadProgressModalLabel"
+    aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-0">
+            <div class="modal-header bg-primary-custom rounded-0">
                 <h5 class="modal-title" id="downloadProgressModalLabel">
-                    <i class="bi bi-file-pdf"></i> Generating Lesson Plan PDF
+                    <i class="bi bi-file-pdf"></i> {{ __('teacher.plans.generating_pdf') }}
                 </h5>
             </div>
             <div class="modal-body text-center py-4">
-                <p class="mb-3">Please wait while we prepare your lesson plan document...</p>
-                <div class="progress mb-2" style="height: 25px; border-radius: 4px !important;">
+                <p class="mb-3">{{ __('teacher.plans.wait_pdf') }}</p>
+                <div class="progress mb-2 rounded-0" style="height: 25px;">
                     <div id="pdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated"
                         role="progressbar" style="width: 0%; background-color: #940000;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
                     </div>
                 </div>
-                <div id="pdfProgressPercent" class="font-weight-bold" style="color: #940000;">0%</div>
+                <div id="pdfProgressPercent" class="fw-bold" style="color: #940000;">0%</div>
             </div>
         </div>
     </div>
 </div>
+@endsection
 
-@include('includes.footer')
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap4.min.css">
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+window.sxShowModal = function(el) {
+    var node = typeof el === 'string' ? document.querySelector(el) : (el && el.jquery ? el[0] : el);
+    if (!node) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(node).show();
+        return;
+    }
+    if (window.jQuery && jQuery.fn.modal) jQuery(node).modal('show');
+};
+window.sxHideModal = function(el) {
+    var node = typeof el === 'string' ? document.querySelector(el) : (el && el.jquery ? el[0] : el);
+    if (!node) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        var inst = bootstrap.Modal.getInstance(node) || bootstrap.Modal.getOrCreateInstance(node);
+        inst.hide();
+        return;
+    }
+    if (window.jQuery && jQuery.fn.modal) jQuery(node).modal('hide');
+};
+window.sxShowTab = function(selector) {
+    var node = document.querySelector(selector);
+    if (!node) return;
+    if (window.bootstrap && bootstrap.Tab) {
+        bootstrap.Tab.getOrCreateInstance(node).show();
+        return;
+    }
+    if (window.jQuery && jQuery.fn.tab) jQuery(node).tab('show');
+};
+</script>
 <script>
     // Ensure jQuery is available globally as $ to prevent "TypeError: $ is not a function"
     if (typeof jQuery !== 'undefined') {
         window.$ = jQuery;
     }
+
+    var i18n = @json(__('teacher.plans'));
+    i18n.loading = @json(__('teacher.loading'));
+    i18n.cancel = @json(__('teacher.cancel'));
+    i18n.subject = @json(__('teacher.subject'));
+    i18n.class = @json(__('teacher.class'));
+    i18n.year = @json(__('teacher.year'));
+    i18n.date = @json(__('teacher.date'));
+    i18n.time = @json(__('teacher.time'));
+    i18n.status = @json(__('teacher.status'));
+    i18n.actions = @json(__('teacher.actions'));
 
     // Make sure functions are globally accessible
     let currentSubjectSessions = [];
@@ -542,7 +708,7 @@
                     toast: true,
                     position: 'top-end',
                     icon: 'info',
-                    title: 'Draft saved, opens again with your data.',
+                    title: i18n.draft_saved,
                     showConfirmButton: false,
                     timer: 2500
                 });
@@ -629,7 +795,7 @@
             $('#sessionsList').html(`
             <div class="text-center text-muted py-5">
                 <i class="bi bi-info-circle" style="font-size: 3rem;"></i>
-                <p class="mt-3">Please select a subject to view sessions</p>
+                <p class="mt-3">${i18n.select_subject_sessions}</p>
             </div>
         `);
             return;
@@ -639,9 +805,9 @@
         $('#sessionsList').html(`
         <div class="text-center py-5">
             <div class="spinner-border" role="status" style="color: #940000;">
-                <span class="sr-only">Loading...</span>
+                <span class="visually-hidden">${i18n.loading}</span>
             </div>
-            <p class="mt-3 text-muted">Loading sessions...</p>
+            <p class="mt-3 text-muted">${i18n.loading_sessions}</p>
         </div>
     `);
 
@@ -663,7 +829,7 @@
                     $('#sessionsList').html(`
                     <div class="text-center text-danger py-5">
                         <i class="bi bi-x-circle" style="font-size: 3rem;"></i>
-                        <p class="mt-3">Invalid response from server</p>
+                        <p class="mt-3">${i18n.invalid_response}</p>
                     </div>
                 `);
                     return;
@@ -677,7 +843,7 @@
                         $('#sessionsList').html(`
                         <div class="text-center text-muted py-5">
                             <i class="bi bi-exclamation-circle" style="font-size: 3rem;"></i>
-                            <p class="mt-3">No valid session found for this subject</p>
+                            <p class="mt-3">${i18n.no_valid_session}</p>
                         </div>
                     `);
                         return;
@@ -685,29 +851,36 @@
 
                     const startTime = formatTime(firstSession.start_time);
                     const endTime = formatTime(firstSession.end_time);
-                    const subjectName = firstSession.subject_name || 'N/A';
-                    const className = firstSession.class_name || 'N/A';
+                    const subjectName = firstSession.subject_name || i18n.na;
+                    const className = firstSession.class_name || i18n.na;
                     const subclassName = firstSession.subclass_name || '';
-                    const day = firstSession.day || 'N/A';
+                    const day = firstSession.day || i18n.na;
 
+                    const sid = firstSession.session_timetableID;
+                    const esc = (v) => String(v ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                     $('#sessionsList').html(`
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-info-circle" style="font-size: 2.5rem;"></i>
-                        <p class="mt-3 mb-1">Session selected automatically for this subject.</p>
-                        <small>${subjectName} | ${className}${subclassName ? ' - ' + subclassName : ''} | ${day} | ${startTime} - ${endTime}</small>
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <div class="sx-lp-meta">
+                            <div><strong>${i18n.session_ready}</strong></div>
+                            <div>${subjectName} · ${className}${subclassName ? ' - ' + subclassName : ''} · ${day} · ${startTime} - ${endTime}</div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-session-action text-white"
+                            onclick="openLessonPlanModal(${sid}, '${esc(day)}', '${esc(firstSession.start_time)}', '${esc(firstSession.end_time)}', '${esc(subjectName)}', '${esc(className)}')">
+                            <i class="bi bi-journal-text"></i> <span class="text-white">${i18n.open_plan}</span>
+                        </button>
                     </div>
                 `);
 
                     openLessonPlanModal(
-                        firstSession.session_timetableID,
+                        sid,
                         day,
                         firstSession.start_time,
                         firstSession.end_time,
-                        subjectName.replace(/'/g, "\\'"),
-                        className.replace(/'/g, "\\'")
+                        subjectName,
+                        className
                     );
                 } else {
-                    const errorMsg = response.error || response.message || 'No session available for this subject';
+                    const errorMsg = response.error || response.message || i18n.no_session;
                     $('#sessionsList').html(`
                     <div class="text-center text-muted py-5">
                         <i class="bi bi-exclamation-circle" style="font-size: 3rem;"></i>
@@ -720,12 +893,12 @@
                 console.error('Error loading sessions:', xhr);
                 console.error('Response:', xhr.responseJSON);
                 console.error('Status:', xhr.status);
-                const error = xhr.responseJSON?.error || xhr.responseJSON?.message || 'Failed to load sessions';
+                const error = xhr.responseJSON?.error || xhr.responseJSON?.message || i18n.fail_load_sessions;
                 $('#sessionsList').html(`
                 <div class="text-center text-danger py-5">
                     <i class="bi bi-x-circle" style="font-size: 3rem;"></i>
                     <p class="mt-3">${error}</p>
-                    <p class="mt-2 small text-muted">Status: ${xhr.status}</p>
+                    <p class="mt-2 small text-muted">${(i18n.status_label || 'Status: :status').replace(':status', xhr.status)}</p>
                 </div>
             `);
             }
@@ -767,19 +940,19 @@
                     }
 
                     $('#sessionDates_' + sessionTimetableID).html(
-                        '<i class="bi bi-calendar3"></i> <span class="text-info">' + totalSessions + ' sessions/year</span> | ' +
-                        '<span class="text-success">' + sessionsWithPlans + ' with plans</span><br>' +
+                        '<i class="bi bi-calendar3"></i> <span class="text-info">' + (i18n.sessions_year || ':count sessions/year').replace(':count', totalSessions) + '</span> | ' +
+                        '<span class="text-success">' + (i18n.with_plans || ':count with plans').replace(':count', sessionsWithPlans) + '</span><br>' +
                         '<small class="text-muted">' + datesText + '</small>'
                     );
                 } else {
                     $('#sessionDates_' + sessionTimetableID).html(
-                        '<i class="bi bi-calendar3"></i> <span class="text-muted">No sessions available</span>'
+                        '<i class="bi bi-calendar3"></i> <span class="text-muted">' + i18n.no_sessions + '</span>'
                     );
                 }
             },
             error: function () {
                 $('#sessionDates_' + sessionTimetableID).html(
-                    '<i class="bi bi-calendar3"></i> <span class="text-danger">Error loading dates</span>'
+                    '<i class="bi bi-calendar3"></i> <span class="text-danger">' + i18n.error_loading_dates + '</span>'
                 );
             }
         });
@@ -796,8 +969,8 @@
             date: date || null
         };
 
-        $('#lessonPlanModal').modal('show');
-        $('#create-tab').tab('show');
+        sxShowModal('#lessonPlanModal');
+        sxShowTab('#create-tab');
 
         if (autoOpenCreate && date) {
             // Auto-open create form with session details
@@ -829,7 +1002,7 @@
 
     function loadAllExistingLessonPlans() {
         if (!currentSessionData || !currentSessionData.sessionTimetableID) {
-            $('#existingLessonPlansList').html('<div class="alert alert-warning">No session selected</div>');
+            $('#existingLessonPlansList').html('<div class="alert alert-warning">' + i18n.no_session_selected + '</div>');
             return;
         }
 
@@ -865,35 +1038,35 @@
                                 $('#existingLessonPlansList').html(`
                                 <div class="alert alert-info text-center">
                                     <i class="bi bi-info-circle" style="font-size: 2rem;"></i>
-                                    <p class="mt-2">No existing lesson plans found for this subject.</p>
-                                    <p>Please create a new lesson plan.</p>
+                                    <p class="mt-2">${i18n.no_existing}</p>
+                                    <p>${i18n.please_create_new}</p>
                                 </div>
                             `);
                             }
                         },
                         error: function () {
-                            $('#existingLessonPlansList').html('<div class="alert alert-danger">Failed to load lesson plans</div>');
+                            $('#existingLessonPlansList').html('<div class="alert alert-danger">' + i18n.fail_load_plans + '</div>');
                         }
                     });
                 }
             },
             error: function () {
-                $('#existingLessonPlansList').html('<div class="alert alert-danger">Failed to load lesson plans</div>');
+                $('#existingLessonPlansList').html('<div class="alert alert-danger">' + i18n.fail_load_plans + '</div>');
             }
         });
     }
 
     function displayExistingLessonPlansList(lessonPlans) {
-        let html = '<div class="mb-3"><h6>Select a lesson plan to use:</h6></div>';
+        let html = '<div class="mb-3"><h6>' + i18n.select_plan_use + '</h6></div>';
         html += '<div class="table-responsive" style="max-height: 400px; overflow-y: auto;">';
         html += '<table class="table table-hover table-bordered">';
         html += '<thead class="thead-light" style="position: sticky; top: 0; background: white; z-index: 10;">';
         html += '<tr>';
-        html += '<th>Date</th>';
-        html += '<th>Subject</th>';
-        html += '<th>Class</th>';
-        html += '<th>Time</th>';
-        html += '<th>Action</th>';
+        html += '<th>' + i18n.th_date + '</th>';
+        html += '<th>' + i18n.th_subject + '</th>';
+        html += '<th>' + i18n.th_class + '</th>';
+        html += '<th>' + i18n.th_time + '</th>';
+        html += '<th>' + i18n.th_action + '</th>';
         html += '</tr>';
         html += '</thead>';
         html += '<tbody>';
@@ -907,7 +1080,7 @@
             });
 
             const formatTime = (timeStr) => {
-                if (!timeStr) return 'N/A';
+                if (!timeStr) return i18n.na;
                 try {
                     const parts = timeStr.split(':');
                     const hours = parseInt(parts[0]);
@@ -925,12 +1098,12 @@
 
             html += '<tr>';
             html += '<td>' + formattedDate + '</td>';
-            html += '<td>' + (plan.subject || 'N/A') + '</td>';
-            html += '<td>' + (plan.class_name || 'N/A') + '</td>';
+            html += '<td>' + (plan.subject || i18n.na) + '</td>';
+            html += '<td>' + (plan.class_name || i18n.na) + '</td>';
             html += '<td>' + startTime + ' - ' + endTime + '</td>';
             html += '<td>';
             html += '<button class="btn btn-sm btn-primary-custom" onclick="useExistingLessonPlan(' + plan.lesson_planID + ')">';
-            html += '<i class="bi bi-check-circle"></i> Use This';
+            html += '<i class="bi bi-check-circle"></i> ' + i18n.use_this;
             html += '</button>';
             html += '</td>';
             html += '</tr>';
@@ -957,8 +1130,8 @@
                     showDateTimePickerForExistingPlan(response.data);
                 } else {
                     Swal.fire({
-                        title: 'Error!',
-                        text: response.error || 'Failed to load lesson plan',
+                        title: i18n.error,
+                        text: response.error || i18n.fail_load_plan,
                         icon: 'error',
                         confirmButtonColor: '#f5f5f5'
                     });
@@ -966,8 +1139,8 @@
             },
             error: function () {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'Failed to load lesson plan',
+                    title: i18n.error,
+                    text: i18n.fail_load_plan,
                     icon: 'error',
                     confirmButtonColor: '#f5f5f5'
                 });
@@ -993,26 +1166,26 @@
         const currentEndTime = currentSessionData.endTime || formatTime(lessonPlan.lesson_time_end);
 
         Swal.fire({
-            title: 'Select New Date and Time',
+            title: i18n.select_new_datetime,
             html: `
             <div class="form-group text-left">
-                <label>Date:</label>
+                <label>${i18n.date_label}</label>
                 <input type="date" id="swal-new-date" class="form-control" value="${currentDate}" required>
             </div>
             <div class="form-group text-left">
-                <label>Start Time:</label>
+                <label>${i18n.start_time}</label>
                 <input type="time" id="swal-new-start-time" class="form-control" value="${currentStartTime}" required>
             </div>
             <div class="form-group text-left">
-                <label>End Time:</label>
+                <label>${i18n.end_time}</label>
                 <input type="time" id="swal-new-end-time" class="form-control" value="${currentEndTime}" required>
             </div>
         `,
             showCancelButton: true,
             confirmButtonColor: '#940000',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Continue',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: i18n.continue,
+            cancelButtonText: i18n.cancel,
             width: '500px',
             preConfirm: () => {
                 const date = document.getElementById('swal-new-date').value;
@@ -1020,7 +1193,7 @@
                 const endTime = document.getElementById('swal-new-end-time').value;
 
                 if (!date || !startTime || !endTime) {
-                    Swal.showValidationMessage('Please fill all fields');
+                    Swal.showValidationMessage(i18n.fill_all);
                     return false;
                 }
 
@@ -1088,8 +1261,8 @@
                     $('#createNewForm').show();
                 } else {
                     Swal.fire({
-                        title: 'Error!',
-                        text: response.error || 'Failed to load attendance statistics',
+                        title: i18n.error,
+                        text: response.error || i18n.fail_attendance,
                         icon: 'error',
                         confirmButtonColor: '#f5f5f5'
                     });
@@ -1097,8 +1270,8 @@
             },
             error: function () {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'Failed to load attendance statistics',
+                    title: i18n.error,
+                    text: i18n.fail_attendance,
                     icon: 'error',
                     confirmButtonColor: '#f5f5f5'
                 });
@@ -1114,13 +1287,13 @@
     function loadCreateNewForm() {
         // Show date picker first
         Swal.fire({
-            title: 'Select Date for Lesson Plan',
+            title: i18n.select_date_plan,
             html: '<input type="date" id="swal-date" class="swal2-input" value="' + new Date().toISOString().split('T')[0] + '">',
             showCancelButton: true,
             confirmButtonColor: '#f5f5f5',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Continue',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: i18n.continue,
+            cancelButtonText: i18n.cancel,
             preConfirm: () => {
                 return document.getElementById('swal-date').value;
             }
@@ -1139,8 +1312,8 @@
                     success: function (checkResponse) {
                         if (checkResponse.success && checkResponse.exists) {
                             Swal.fire({
-                                title: 'Already Exists!',
-                                text: 'Lesson plan already exists for this date. Please use "Manage Lesson Plan" tab to edit or "Use Existing Lesson Plan" to view.',
+                                title: i18n.already_exists,
+                                text: i18n.already_exists_text,
                                 icon: 'warning',
                                 confirmButtonColor: '#f5f5f5',
                                 confirmButtonText: 'OK'
@@ -1160,7 +1333,7 @@
                                 if (response.success) {
                                     renderLessonPlanForm(response.data, sessionDate);
                                 } else {
-                                    let errorMessage = response.error || 'Failed to load attendance statistics';
+                                    let errorMessage = response.error || i18n.fail_attendance;
                                     let icon = 'error';
 
                                     // Check date status
@@ -1173,7 +1346,7 @@
                                     }
 
                                     Swal.fire({
-                                        title: icon === 'error' ? 'Error!' : 'Notice',
+                                        title: icon === 'error' ? i18n.error : i18n.notice,
                                         text: errorMessage,
                                         icon: icon,
                                         confirmButtonColor: '#f5f5f5',
@@ -1183,8 +1356,8 @@
                             },
                             error: function () {
                                 Swal.fire({
-                                    title: 'Error!',
-                                    text: 'Failed to load attendance statistics',
+                                    title: i18n.error,
+                                    text: i18n.fail_attendance,
                                     icon: 'error',
                                     confirmButtonColor: '#f5f5f5'
                                 });
@@ -1204,7 +1377,7 @@
                                 if (response.success) {
                                     renderLessonPlanForm(response.data, sessionDate);
                                 } else {
-                                    let errorMessage = response.error || 'Failed to load attendance statistics';
+                                    let errorMessage = response.error || i18n.fail_attendance;
                                     let icon = 'error';
 
                                     if (response.date_status === 'weekend') {
@@ -1216,7 +1389,7 @@
                                     }
 
                                     Swal.fire({
-                                        title: icon === 'error' ? 'Error!' : 'Notice',
+                                        title: icon === 'error' ? i18n.error : i18n.notice,
                                         text: errorMessage,
                                         icon: icon,
                                         confirmButtonColor: '#f5f5f5',
@@ -1226,8 +1399,8 @@
                             },
                             error: function () {
                                 Swal.fire({
-                                    title: 'Error!',
-                                    text: 'Failed to load attendance statistics',
+                                    title: i18n.error,
+                                    text: i18n.fail_attendance,
                                     icon: 'error',
                                     confirmButtonColor: '#f5f5f5'
                                 });
@@ -1257,8 +1430,8 @@
             success: function (checkResponse) {
                 if (checkResponse.success && checkResponse.exists) {
                     Swal.fire({
-                        title: 'Already Exists!',
-                        text: 'Lesson plan already exists for this date. Please use "Manage Lesson Plan" tab to edit or "Use Existing Lesson Plan" to view.',
+                        title: i18n.already_exists,
+                        text: i18n.already_exists_text,
                         icon: 'warning',
                         confirmButtonColor: '#f5f5f5',
                         confirmButtonText: 'OK'
@@ -1278,7 +1451,7 @@
                         if (response.success) {
                             renderLessonPlanForm(response.data, date);
                         } else {
-                            let errorMessage = response.error || 'Failed to load attendance statistics';
+                            let errorMessage = response.error || i18n.fail_attendance;
                             let icon = 'error';
 
                             // Check date status
@@ -1291,7 +1464,7 @@
                             }
 
                             Swal.fire({
-                                title: icon === 'error' ? 'Error!' : 'Notice',
+                                title: icon === 'error' ? i18n.error : i18n.notice,
                                 text: errorMessage,
                                 icon: icon,
                                 confirmButtonColor: '#f5f5f5',
@@ -1301,8 +1474,8 @@
                     },
                     error: function () {
                         Swal.fire({
-                            title: 'Error!',
-                            text: 'Failed to load attendance statistics',
+                            title: i18n.error,
+                            text: i18n.fail_attendance,
                             icon: 'error',
                             confirmButtonColor: '#f5f5f5'
                         });
@@ -1322,7 +1495,7 @@
                         if (response.success) {
                             renderLessonPlanForm(response.data, date);
                         } else {
-                            let errorMessage = response.error || 'Failed to load attendance statistics';
+                            let errorMessage = response.error || i18n.fail_attendance;
                             let icon = 'error';
 
                             if (response.date_status === 'weekend') {
@@ -1334,7 +1507,7 @@
                             }
 
                             Swal.fire({
-                                title: icon === 'error' ? 'Error!' : 'Notice',
+                                title: icon === 'error' ? i18n.error : i18n.notice,
                                 text: errorMessage,
                                 icon: icon,
                                 confirmButtonColor: '#f5f5f5',
@@ -1344,8 +1517,8 @@
                     },
                     error: function () {
                         Swal.fire({
-                            title: 'Error!',
-                            text: 'Failed to load attendance statistics',
+                            title: i18n.error,
+                            text: i18n.fail_attendance,
                             icon: 'error',
                             confirmButtonColor: '#f5f5f5'
                         });
@@ -1583,7 +1756,7 @@
 
         if (draft && draft.fields) {
             applyLessonPlanFields(draft.fields);
-            finishRestore('Unsaved lesson plan draft restored.');
+            finishRestore(i18n.draft_restored);
             return;
         }
 
@@ -1650,7 +1823,7 @@
                 success: function (resp) {
                     if (resp && resp.success && resp.found && resp.data) {
                         applyLessonPlanFields(resp.data);
-                        finishRestore('Previous lesson plan for this subject loaded, edit and save.');
+                        finishRestore(i18n.prev_loaded);
                     } else {
                         finishRestore(null);
                     }
@@ -1715,26 +1888,26 @@
                         formData.lesson_date
                     );
                     Swal.fire({
-                        title: 'Success!',
+                        title: i18n.success,
                         text: response.message,
                         icon: 'success',
                         confirmButtonColor: '#940000'
                     }).then(() => {
-                        $('#lessonPlanModal').modal('hide');
+                        sxHideModal('#lessonPlanModal');
                     });
                 } else {
                     Swal.fire({
-                        title: 'Error!',
-                        text: response.error || 'Failed to save lesson plan',
+                        title: i18n.error,
+                        text: response.error || i18n.fail_save,
                         icon: 'error',
                         confirmButtonColor: '#940000'
                     });
                 }
             },
             error: function (xhr) {
-                const error = xhr.responseJSON?.error || 'Failed to save lesson plan';
+                const error = xhr.responseJSON?.error || i18n.fail_save;
                 Swal.fire({
-                    title: 'Error!',
+                    title: i18n.error,
                     text: error,
                     icon: 'error',
                     confirmButtonColor: '#940000'
@@ -1797,8 +1970,8 @@
             const date = $('#manageLessonDate').val();
             if (!date) {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'Please select a date',
+                    title: i18n.error,
+                    text: i18n.please_select_date,
                     icon: 'error',
                     confirmButtonColor: '#f5f5f5'
                 });
@@ -1813,8 +1986,8 @@
 
             if (!fromDate || !toDate) {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'Please select both from and to dates',
+                    title: i18n.error,
+                    text: i18n.please_select_range,
                     icon: 'error',
                     confirmButtonColor: '#f5f5f5'
                 });
@@ -1823,8 +1996,8 @@
 
             if (new Date(fromDate) > new Date(toDate)) {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'From date cannot be greater than To date',
+                    title: i18n.error,
+                    text: i18n.from_gt_to,
                     icon: 'error',
                     confirmButtonColor: '#f5f5f5'
                 });
@@ -1837,8 +2010,8 @@
             const year = $('#manageYear').val();
             if (!year) {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'Please enter a year',
+                    title: i18n.error,
+                    text: i18n.please_enter_year,
                     icon: 'error',
                     confirmButtonColor: '#f5f5f5'
                 });
@@ -1850,9 +2023,9 @@
         $('#manageLessonPlanContent').html(`
         <div class="text-center py-5">
             <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
+                <span class="visually-hidden">${i18n.loading}</span>
             </div>
-            <p class="mt-3 text-muted">Loading lesson plans...</p>
+            <p class="mt-3 text-muted">${i18n.loading_plans}</p>
         </div>
     `);
 
@@ -1863,7 +2036,7 @@
         if (sessionsForManage.length === 0) {
             $('#manageLessonPlanContent').html(`
             <div class="alert alert-warning">
-                <i class="bi bi-exclamation-triangle"></i> Please select a subject first.
+                <i class="bi bi-exclamation-triangle"></i> ${i18n.select_subject_first}
             </div>
         `);
             return;
@@ -1902,13 +2075,13 @@
                 } else {
                     $('#manageLessonPlanContent').html(`
                     <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> No lesson plans found for the selected filter.
+                        <i class="bi bi-info-circle"></i> ${i18n.none_for_filter}
                     </div>
                 `);
                 }
             })
             .fail(function (xhr) {
-                const error = xhr.responseJSON?.error || 'Failed to load lesson plans';
+                const error = xhr.responseJSON?.error || i18n.fail_load_plans;
                 $('#manageLessonPlanContent').html(`
                 <div class="alert alert-danger">
                     <i class="bi bi-x-circle"></i> ${error}
@@ -1921,19 +2094,19 @@
         let html = `
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Found ${lessonPlans.length} Lesson Plan(s) to Manage</h6>
+                <h6 class="mb-0">${(i18n.found_manage || '').replace(':count', lessonPlans.length)}</h6>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-bordered">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Subject</th>
-                                <th>Class</th>
-                                <th>Time</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th>${i18n.th_date}</th>
+                                <th>${i18n.th_subject}</th>
+                                <th>${i18n.th_class}</th>
+                                <th>${i18n.th_time}</th>
+                                <th>${i18n.th_status}</th>
+                                <th>${i18n.th_actions}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1960,13 +2133,13 @@
                 <td>${formatTime(plan.lesson_time_start)} - ${formatTime(plan.lesson_time_end)}</td>
                 <td>
                     ${plan.sent_to_admin ?
-                    '<span class="badge badge-success">Sent to Admin</span>' :
-                    '<span class="badge badge-secondary">Not Sent</span>'
+                    '<span class="badge badge-success">' + i18n.sent_admin + '</span>' :
+                    '<span class="badge badge-secondary">' + i18n.not_sent + '</span>'
                 }
                 </td>
                 <td>
                     <button class="btn btn-sm" onclick="loadLessonPlanForManageByID(${plan.lesson_planID})" style="background-color: #f5f5f5; color: #212529; border: 1px solid #e9ecef;">
-                        <i class="bi bi-pencil-square"></i> Edit
+                        <i class="bi bi-pencil-square"></i> ${i18n.edit}
                     </button>
                 </td>
             </tr>
@@ -1995,8 +2168,8 @@
                     renderLessonPlanFormForEdit(response.data);
                 } else {
                     Swal.fire({
-                        title: 'Error!',
-                        text: response.error || 'Failed to load lesson plan',
+                        title: i18n.error,
+                        text: response.error || i18n.fail_load_plan,
                         icon: 'error',
                         confirmButtonColor: '#f5f5f5'
                     });
@@ -2004,8 +2177,8 @@
             },
             error: function () {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'Failed to load lesson plan',
+                    title: i18n.error,
+                    text: i18n.fail_load_plan,
                     icon: 'error',
                     confirmButtonColor: '#f5f5f5'
                 });
@@ -2387,7 +2560,7 @@
             success: function (response) {
                 if (response.success) {
                     Swal.fire({
-                        title: 'Success!',
+                        title: i18n.success,
                         text: response.message,
                         icon: 'success',
                         confirmButtonColor: '#940000'
@@ -2396,17 +2569,17 @@
                     });
                 } else {
                     Swal.fire({
-                        title: 'Error!',
-                        text: response.error || 'Failed to update lesson plan',
+                        title: i18n.error,
+                        text: response.error || i18n.fail_update,
                         icon: 'error',
                         confirmButtonColor: '#940000'
                     });
                 }
             },
             error: function (xhr) {
-                const error = xhr.responseJSON?.error || 'Failed to update lesson plan';
+                const error = xhr.responseJSON?.error || i18n.fail_update;
                 Swal.fire({
-                    title: 'Error!',
+                    title: i18n.error,
                     text: error,
                     icon: 'error',
                     confirmButtonColor: '#940000'
@@ -2621,7 +2794,7 @@
         
         <div class="text-center mt-4 mb-3">
             <button class="btn btn-lg btn-session-action" onclick="downloadLessonPlanPDF('${data.lesson_plan_id || data.lesson_planID || ''}', '${data.lesson_date || ''}')">
-                <i class="bi bi-download"></i> Download PDF
+                <i class="bi bi-download"></i> ${i18n.download_pdf}
             </button>
         </div>
     `;
@@ -2632,7 +2805,7 @@
     function downloadLessonPlanPDF(lessonPlanID, date) {
         if (!lessonPlanID) {
             Swal.fire({
-                title: 'Error!',
+                title: i18n.error,
                 text: 'Lesson plan ID is missing',
                 icon: 'error',
                 confirmButtonColor: '#f5f5f5'
@@ -2641,7 +2814,7 @@
         }
 
         // Show progress modal
-        $('#downloadProgressModal').modal('show');
+        sxShowModal('#downloadProgressModal');
         $('#pdfProgressBar').css('width', '0%');
         $('#pdfProgressPercent').text('0%');
 
@@ -2688,7 +2861,7 @@
                     document.body.removeChild(a);
                     
                     setTimeout(() => {
-                        $('#downloadProgressModal').modal('hide');
+                        sxHideModal('#downloadProgressModal');
                         setTimeout(() => {
                             $('#pdfProgressBar').css('width', '0%');
                             $('#pdfProgressPercent').text('0%');
@@ -2698,9 +2871,9 @@
             })
             .catch(error => {
                 clearInterval(interval);
-                $('#downloadProgressModal').modal('hide');
+                sxHideModal('#downloadProgressModal');
                 Swal.fire({
-                    title: 'Error!',
+                    title: i18n.error,
                     text: 'Failed to generate PDF: ' + error.message,
                     icon: 'error',
                     confirmButtonColor: '#f5f5f5'
@@ -2735,8 +2908,8 @@
 
             if (!fromDate || !toDate) {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'Please select both from and to dates',
+                    title: i18n.error,
+                    text: i18n.please_select_range,
                     icon: 'error',
                     confirmButtonColor: '#f5f5f5'
                 });
@@ -2745,8 +2918,8 @@
 
             if (new Date(fromDate) > new Date(toDate)) {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'From date cannot be greater than To date',
+                    title: i18n.error,
+                    text: i18n.from_gt_to,
                     icon: 'error',
                     confirmButtonColor: '#f5f5f5'
                 });
@@ -2759,8 +2932,8 @@
             const year = $('#viewYear').val();
             if (!year) {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'Please enter a year',
+                    title: i18n.error,
+                    text: i18n.please_enter_year,
                     icon: 'error',
                     confirmButtonColor: '#f5f5f5'
                 });
@@ -2772,9 +2945,9 @@
         $('#viewLessonPlanContent').html(`
         <div class="text-center py-5">
             <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
+                <span class="visually-hidden">${i18n.loading}</span>
             </div>
-            <p class="mt-3 text-muted">Loading lesson plans...</p>
+            <p class="mt-3 text-muted">${i18n.loading_plans}</p>
         </div>
     `);
 
@@ -2785,7 +2958,7 @@
         if (sessionsForView.length === 0) {
             $('#viewLessonPlanContent').html(`
             <div class="alert alert-warning">
-                <i class="bi bi-exclamation-triangle"></i> Please select a subject first.
+                <i class="bi bi-exclamation-triangle"></i> ${i18n.select_subject_first}
             </div>
         `);
             return;
@@ -2824,13 +2997,13 @@
                 } else {
                     $('#viewLessonPlanContent').html(`
                     <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> No lesson plans found for the selected filter.
+                        <i class="bi bi-info-circle"></i> ${i18n.none_for_filter}
                     </div>
                 `);
                 }
             })
             .fail(function (xhr) {
-                const error = xhr.responseJSON?.error || 'Failed to load lesson plans';
+                const error = xhr.responseJSON?.error || i18n.fail_load_plans;
                 $('#viewLessonPlanContent').html(`
                 <div class="alert alert-danger">
                     <i class="bi bi-x-circle"></i> ${error}
@@ -2843,9 +3016,9 @@
         let html = `
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Found ${lessonPlans.length} Lesson Plan(s)</h6>
+                <h6 class="mb-0">${(i18n.found_view || '').replace(':count', lessonPlans.length)}</h6>
                 <button class="btn btn-sm" onclick="downloadAllLessonPlansPDF()" style="background-color: #940000; color: #ffffff; border: 1px solid #940000;">
-                    <i class="bi bi-download"></i> Download All as PDF
+                    <i class="bi bi-download"></i> ${i18n.download_pdf}
                 </button>
             </div>
             <div class="card-body">
@@ -2853,12 +3026,12 @@
                     <table class="table table-bordered">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Subject</th>
-                                <th>Class</th>
-                                <th>Time</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th>${i18n.th_date}</th>
+                                <th>${i18n.th_subject}</th>
+                                <th>${i18n.th_class}</th>
+                                <th>${i18n.th_time}</th>
+                                <th>${i18n.th_status}</th>
+                                <th>${i18n.th_actions}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2885,16 +3058,16 @@
                 <td>${formatTime(plan.lesson_time_start)} - ${formatTime(plan.lesson_time_end)}</td>
                 <td>
                     ${plan.sent_to_admin ?
-                    '<span class="badge badge-success">Sent to Admin</span>' :
-                    '<span class="badge badge-secondary">Not Sent</span>'
+                    '<span class="badge badge-success">' + i18n.sent_admin + '</span>' :
+                    '<span class="badge badge-secondary">' + i18n.not_sent + '</span>'
                 }
                 </td>
                 <td>
                     <button class="btn btn-sm btn-outline-corporate" onclick="viewSingleLessonPlan(${plan.lesson_planID})">
-                        <i class="bi bi-eye"></i> View
+                        <i class="bi bi-eye"></i> ${i18n.view}
                     </button>
                     <button class="btn btn-sm btn-outline-corporate" onclick="downloadLessonPlanPDF(${plan.lesson_planID}, '${plan.lesson_date}')">
-                        <i class="bi bi-download"></i> PDF
+                        <i class="bi bi-download"></i> ${i18n.download_pdf}
                     </button>
                 </td>
             </tr>
@@ -2923,11 +3096,11 @@
             success: function (response) {
                 if (response.success) {
                     renderLessonPlanView(response.data);
-                    $('#view-tab').tab('show');
+                    sxShowTab('#view-tab');
                 } else {
                     Swal.fire({
-                        title: 'Error!',
-                        text: response.error || 'Failed to load lesson plan',
+                        title: i18n.error,
+                        text: response.error || i18n.fail_load_plan,
                         icon: 'error',
                         confirmButtonColor: '#f5f5f5'
                     });
@@ -2935,8 +3108,8 @@
             },
             error: function () {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'Failed to load lesson plan',
+                    title: i18n.error,
+                    text: i18n.fail_load_plan,
                     icon: 'error',
                     confirmButtonColor: '#f5f5f5'
                 });
@@ -2947,14 +3120,14 @@
 
     function downloadAllLessonPlansPDF() {
         if (!window.filteredLessonPlans || window.filteredLessonPlans.length === 0) {
-            Swal.fire({ title: 'Error!', text: 'No lesson plans to download', icon: 'error', confirmButtonColor: '#940000' });
+            Swal.fire({ title: i18n.error, text: i18n.no_plans_download, icon: 'error', confirmButtonColor: '#940000' });
             return;
         }
 
         const lessonPlanIDs = window.filteredLessonPlans.map(p => p.lesson_planID);
 
         // Show progress modal
-        $('#downloadProgressModal').modal('show');
+        sxShowModal('#downloadProgressModal');
         $('#pdfProgressBar').css('width', '0%');
         $('#pdfProgressPercent').text('0%');
 
@@ -2998,15 +3171,15 @@
                 window.URL.revokeObjectURL(downloadUrl);
                 document.body.removeChild(a);
                 setTimeout(() => {
-                    $('#downloadProgressModal').modal('hide');
+                    sxHideModal('#downloadProgressModal');
                     setTimeout(() => { $('#pdfProgressBar').css('width', '0%'); $('#pdfProgressPercent').text('0%'); }, 500);
                 }, 800);
             }, 400);
         })
         .catch(error => {
             clearInterval(interval);
-            $('#downloadProgressModal').modal('hide');
-            Swal.fire({ title: 'Error!', text: 'Failed to generate PDF: ' + error.message, icon: 'error', confirmButtonColor: '#940000' });
+            sxHideModal('#downloadProgressModal');
+            Swal.fire({ title: i18n.error, text: 'Failed to generate PDF: ' + error.message, icon: 'error', confirmButtonColor: '#940000' });
             console.error('Bulk PDF Error:', error);
         });
     }
@@ -3033,7 +3206,7 @@
                     success: function (response) {
                         if (response.success) {
                             Swal.fire({
-                                title: 'Success!',
+                                title: i18n.success,
                                 text: response.message || 'Lesson plan sent to admin successfully',
                                 icon: 'success',
                                 confirmButtonColor: '#940000'
@@ -3042,7 +3215,7 @@
                             });
                         } else {
                             Swal.fire({
-                                title: 'Error!',
+                                title: i18n.error,
                                 text: response.error || 'Failed to send lesson plan',
                                 icon: 'error',
                                 confirmButtonColor: '#940000'
@@ -3052,7 +3225,7 @@
                     error: function (xhr) {
                         const error = xhr.responseJSON?.error || 'Failed to send lesson plan';
                         Swal.fire({
-                            title: 'Error!',
+                            title: i18n.error,
                             text: error,
                             icon: 'error',
                             confirmButtonColor: '#940000'
@@ -3099,3 +3272,4 @@
         }
     });
 </script>
+@endpush

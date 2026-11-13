@@ -7,9 +7,7 @@
                     <i class="bi bi-journal-text" id="snModalIcon"></i> <span id="snModalKindLabel">Notes</span>
                     <small class="d-block" style="font-size:13px;font-weight:500;" id="snSubjectLabel"></small>
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="snClassSubjectId" value="">
@@ -26,10 +24,10 @@
                 </div>
                 <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item">
-                        <a class="nav-link active" id="sn-upload-tab" data-toggle="tab" href="#snUploadPane" role="tab">Upload</a>
+                        <a class="nav-link active" id="sn-upload-tab" data-bs-toggle="tab" href="#snUploadPane" role="tab">Upload</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" id="sn-list-tab" data-toggle="tab" href="#snListPane" role="tab">My Notes</a>
+                        <a class="nav-link" id="sn-list-tab" data-bs-toggle="tab" href="#snListPane" role="tab">My Notes</a>
                     </li>
                 </ul>
                 <div class="tab-content pt-3">
@@ -58,7 +56,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary-custom" id="snSaveBtn">Save</button>
             </div>
         </div>
@@ -70,14 +68,14 @@
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="snViewTitle">View Note</h5>
-                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0" style="height:75vh;">
                 <iframe id="snViewFrame" src="" style="width:100%;height:100%;border:0;"></iframe>
             </div>
             <div class="modal-footer">
                 <a href="#" class="btn btn-outline-primary" id="snViewDownloadBtn" target="_blank">Download</a>
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -314,7 +312,7 @@
             resetUploadForm();
             loadNotes();
             $('#sn-list-tab').tab('show');
-            $('#subjectNotesModal').modal('show');
+            if (typeof sxShowModal === 'function') { sxShowModal('#subjectNotesModal'); } else { $('#subjectNotesModal').modal('show'); }
         };
 
         $('#snApplyAllBtn').off('click.snall').on('click.snall', function() {
@@ -458,7 +456,7 @@
             $('#snViewTitle').text($(this).attr('data-title') || 'Note');
             $('#snViewFrame').attr('src', $(this).attr('data-url'));
             $('#snViewDownloadBtn').attr('href', $(this).attr('data-dl'));
-            $('#subjectNoteViewModal').modal('show');
+            if (typeof sxShowModal === 'function') { sxShowModal('#subjectNoteViewModal'); } else { $('#subjectNoteViewModal').modal('show'); }
         });
 
         $(document).off('click.sn', '.sn-edit-btn').on('click.sn', '.sn-edit-btn', function() {

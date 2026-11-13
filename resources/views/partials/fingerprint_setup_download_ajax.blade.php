@@ -2,6 +2,9 @@
 <script>
 (function () {
     if (window.FpSetupDownload && window.FpSetupDownload.ready) return;
+    var FP = @json(__('superadmin.fingerprint_setup'));
+    var FPC = @json(__('superadmin.common'));
+    var FPJS = FP.js || {};
 
     function parseFilename(header, fallback) {
         if (!header) return fallback;
@@ -38,11 +41,11 @@
         ui.wrap.classList.add('d-none');
         if (ui.bar) ui.bar.style.width = '0%';
         if (ui.percent) ui.percent.textContent = '0%';
-        if (ui.label) ui.label.textContent = 'Downloading...';
+        if (ui.label) ui.label.textContent = FP.downloading;
     }
 
     function swalProgressHtml() {
-        return 'Please wait while the file is downloading.<br><br>' +
+        return (FP.downloading_wait || '') + '<br><br>' +
             '<b id="fpSetupDlPercent">0%</b><br>' +
             '<div class="progress mt-2" style="height: 10px; border-radius: 5px; overflow: hidden;">' +
             '<div id="fpSetupDlBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%; background-color: #940000;"></div>' +
@@ -78,15 +81,15 @@
                 reader.onload = function () {
                     try {
                         var json = JSON.parse(reader.result);
-                        resolve(json.message || 'Download failed.');
+                        resolve(json.message || FP.download_failed);
                     } catch (e) {
-                        resolve('Download failed.');
+                        resolve(FP.download_failed);
                     }
                 };
-                reader.onerror = function () { resolve('Download failed.'); };
+                reader.onerror = function () { resolve(FP.download_failed); };
                 reader.readAsText(xhr.response);
             } catch (e) {
-                resolve('Download failed.');
+                resolve(FP.download_failed);
             }
         });
     }
@@ -105,14 +108,14 @@
             var originalHtml = btn.innerHTML;
 
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Downloading...';
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> ' + FP.downloading;
 
             if (inlineUi) {
                 resetInlineProgress(inlineUi);
-                updateInlineProgress(inlineUi, 0, 'Downloading...');
+                updateInlineProgress(inlineUi, 0, FP.downloading);
             } else if (useSwal) {
                 Swal.fire({
-                    title: 'Downloading Setup...',
+                    title: FP.downloading_setup,
                     html: swalProgressHtml(),
                     allowOutsideClick: false,
                     allowEscapeKey: false,
@@ -128,10 +131,10 @@
 
             xhr.onprogress = function (evt) {
                 var percent = 0;
-                var label = 'Downloading...';
+                var label = FP.downloading;
                 if (evt.lengthComputable && evt.total > 0) {
                     percent = Math.min(100, Math.round((evt.loaded / evt.total) * 100));
-                    label = percent >= 100 ? 'Finalizing...' : 'Downloading...';
+                    label = percent >= 100 ? FP.finalizing : FP.downloading;
                 } else if (evt.loaded > 0) {
                     percent = 50;
                 }
@@ -139,7 +142,7 @@
                 if (inlineUi) {
                     updateInlineProgress(inlineUi, percent, label);
                 } else if (useSwal) {
-                    updateSwalProgress(percent, percent >= 100 ? 'Finalizing...' : 'Downloading Setup...');
+                    updateSwalProgress(percent, percent >= 100 ? FP.finalizing : FP.downloading_setup);
                 }
             };
 
@@ -149,8 +152,9 @@
 
                 if (xhr.status === 200) {
                     var filename = parseFilename(xhr.getResponseHeader('Content-Disposition'), fallbackName);
-                    if (inlineUi) updateInlineProgress(inlineUi, 100, 'Complete!');
-                    else if (useSwal) updateSwalProgress(100, 'Complete!');
+                    var doneLabel = FPJS.complete || FPC.done || 'Complete!';
+                    if (inlineUi) updateInlineProgress(inlineUi, 100, doneLabel);
+                    else if (useSwal) updateSwalProgress(100, doneLabel);
 
                     saveBlob(xhr.response, filename);
 
@@ -163,7 +167,7 @@
 
                 if (inlineUi) resetInlineProgress(inlineUi);
                 readBlobError(xhr).then(function (msg) {
-                    if (useSwal) Swal.fire('Error', msg, 'error');
+                    if (useSwal) Swal.fire(FPC.error || 'Error', msg, 'error');
                     else alert(msg);
                 });
             };
@@ -172,8 +176,8 @@
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
                 if (inlineUi) resetInlineProgress(inlineUi);
-                var msg = 'Network error. Check your connection.';
-                if (useSwal) Swal.fire('Error', msg, 'error');
+                var msg = FPC.network_error || FPJS.network_error || 'Network error.';
+                if (useSwal) Swal.fire(FPC.error || 'Error', msg, 'error');
                 else alert(msg);
             };
 

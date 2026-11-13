@@ -5912,7 +5912,11 @@ class ManageExaminationController extends Controller
             $historyLogs = collect();
         }
 
-        return view('Admin.exam_paper_approval', compact(
+        $view = strtolower((string) $userType) === 'teacher'
+            ? 'Teacher.exam_paper_approval'
+            : 'Admin.exam_paper_approval';
+
+        return view($view, compact(
             'pendingLogs',
             'historyLogs',
             'filter_examinations',

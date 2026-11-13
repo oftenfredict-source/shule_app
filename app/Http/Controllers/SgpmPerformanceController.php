@@ -249,9 +249,14 @@ class SgpmPerformanceController extends Controller
     public function staffDashboard()
     {
         $userID = Session::get('userID');
+        $userType = Session::get('user_type');
         $tasks = SgpmTask::where('assigned_to', $userID)->get();
         $avgScore = $tasks->avg('total_score') ?? 0;
 
-        return view('sgpm.dashboards.staff', compact('tasks', 'avgScore'));
+        $view = strtolower((string) $userType) === 'teacher'
+            ? 'sgpm.dashboards.staff_corp'
+            : 'sgpm.dashboards.staff';
+
+        return view($view, compact('tasks', 'avgScore', 'userType'));
     }
 }

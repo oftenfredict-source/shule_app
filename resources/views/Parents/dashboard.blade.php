@@ -246,8 +246,8 @@
     html[data-bs-theme="dark"] .sx-parent-dash small,
     html[data-sx-theme="dark"] .sx-parent-dash strong,
     html[data-bs-theme="dark"] .sx-parent-dash strong,
-    html[data-sx-theme="dark"] .sx-parent-dash div:not(.avatar):not(.badge),
-    html[data-bs-theme="dark"] .sx-parent-dash div:not(.avatar):not(.badge),
+    html[data-sx-theme="dark"] .sx-parent-dash div:not(.avatar):not(.badge):not(.child-avatar),
+    html[data-bs-theme="dark"] .sx-parent-dash div:not(.avatar):not(.badge):not(.child-avatar),
     html[data-sx-theme="dark"] .sx-parent-dash h1,
     html[data-sx-theme="dark"] .sx-parent-dash h2,
     html[data-sx-theme="dark"] .sx-parent-dash h3,
@@ -330,6 +330,12 @@
     html[data-sx-theme="dark"] .sx-parent-dash .child-row,
     html[data-bs-theme="dark"] .sx-parent-dash .child-row {
         border-bottom-color: rgba(255, 180, 180, 0.12);
+    }
+    html[data-sx-theme="dark"] .sx-parent-dash .child-avatar,
+    html[data-bs-theme="dark"] .sx-parent-dash .child-avatar {
+        background: rgba(148, 0, 0, 0.35) !important;
+        border-color: rgba(255, 180, 180, 0.4) !important;
+        color: #ffb4b4 !important;
     }
 </style>
 

@@ -229,13 +229,67 @@ class TimeTableController extends Controller
 
     public function teacher_time_table()
     {
-         $user = Session::get('user_type');
+        $user = Session::get('user_type');
 
-        if (!$user) {
+        if (!$user || $user !== 'Teacher') {
             return redirect()->route('login')->with('error', 'Unauthorized access');
         }
 
-        return view('Teacher.teacher_timetable');
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$teacherID || !$schoolID) {
+            return redirect()->route('login')->with('error', 'Session expired');
+        }
+
+        $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        $definition = DB::table('session_timetable_definitions')
+            ->where('schoolID', $schoolID)
+            ->first();
+
+        if (!$definition) {
+            return view('Teacher.teacher_timetable', [
+                'sessionsByDay' => collect($days)->mapWithKeys(fn ($d) => [$d => collect()]),
+                'days' => $days,
+                'timeSlots' => [],
+                'message' => 'No timetable definition found. Please contact admin.',
+            ]);
+        }
+
+        $sessions = \App\Models\ClassSessionTimetable::with([
+                'subclass.class',
+                'subject',
+                'classSubject.subject',
+            ])
+            ->where('teacherID', $teacherID)
+            ->where('definitionID', $definition->definitionID)
+            ->orderByRaw("FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')")
+            ->orderBy('start_time')
+            ->get();
+
+        $sessionsByDay = [];
+        foreach ($days as $day) {
+            $sessionsByDay[$day] = $sessions->where('day', $day)->values();
+        }
+
+        $timeSlots = $sessions
+            ->map(function ($s) {
+                return [
+                    'start' => substr((string) $s->start_time, 0, 5),
+                    'end' => substr((string) $s->end_time, 0, 5),
+                ];
+            })
+            ->unique(fn ($slot) => $slot['start'] . '-' . $slot['end'])
+            ->sortBy('start')
+            ->values()
+            ->all();
+
+        return view('Teacher.teacher_timetable', [
+            'sessionsByDay' => $sessionsByDay,
+            'days' => $days,
+            'timeSlots' => $timeSlots,
+            'sessions' => $sessions,
+        ]);
     }
 
     public function supervise_exam_time_table()

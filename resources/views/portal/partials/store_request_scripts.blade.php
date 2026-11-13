@@ -1,5 +1,8 @@
 <script>
 (function () {
+    var i18n = window.i18nReq || @json(__('teacher.req'));
+    i18n.cancel = i18n.cancel || @json(__('teacher.cancel'));
+    i18n.loading = i18n.loading || @json(__('teacher.loading'));
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     let availableStockList = @json($availableStockList);
     const reportItemsList = @json($reportItemsList);
@@ -14,7 +17,7 @@
             $select.select2({
                 theme: 'bootstrap-5',
                 width: '100%',
-                placeholder: $select.find('option:first').text() || 'Select...',
+                placeholder: $select.find('option:first').text() || (i18n.select || 'Select...'),
                 allowClear: true,
                 minimumResultsForSearch: 0,
                 dropdownParent: $('#requestItemModal'),
@@ -27,10 +30,10 @@
         const isWarning = type === 'warning';
         Swal.fire({
             icon: isSuccess ? 'success' : (isWarning ? 'warning' : 'error'),
-            title: isSuccess ? 'Success' : (isWarning ? 'Notice' : 'Error'),
-            text: message || (isSuccess ? 'Done successfully.' : 'Something went wrong.'),
+            title: isSuccess ? (i18n.success || 'Success') : (isWarning ? (i18n.notice || 'Notice') : (i18n.error || 'Error')),
+            text: message || (isSuccess ? (i18n.done_ok || 'Done successfully.') : (i18n.something_wrong || 'Something went wrong.')),
             confirmButtonColor: '#940000',
-            confirmButtonText: 'OK',
+            confirmButtonText: i18n.ok || 'OK',
             customClass: {
                 popup: 'store-swal-popup',
                 confirmButton: 'store-swal-confirm',
@@ -41,13 +44,13 @@
     async function storeConfirm(message, title) {
         const result = await Swal.fire({
             icon: 'warning',
-            title: title || 'Are you sure?',
+            title: title || (i18n.are_you_sure || 'Are you sure?'),
             text: message,
             showCancelButton: true,
             confirmButtonColor: '#940000',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Yes, continue',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: i18n.yes_continue || 'Yes, continue',
+            cancelButtonText: i18n.cancel || 'Cancel',
             reverseButtons: true,
             customClass: {
                 popup: 'store-swal-popup',
@@ -62,17 +65,17 @@
 
     function storeLoadingMessage(url, method) {
         const u = String(url || '').toLowerCase();
-        if (u.includes('/delete') || u.includes('delete')) return 'Deleting...';
-        if (u.includes('/update') || u.includes('update')) return 'Updating...';
-        if (u.includes('/return')) return 'Processing return...';
-        if (u.includes('requisition')) return 'Saving requisition...';
-        if (u.includes('/stock')) return 'Saving stock...';
-        if (u.includes('/items')) return method === 'GET' ? 'Loading items...' : 'Saving item...';
-        if (u.includes('report')) return 'Generating report...';
-        if (u.includes('package')) return 'Saving package...';
-        if (u.includes('categor')) return 'Saving category...';
-        if (u.includes('measurement') || u.includes('/units') || u.includes('/unit')) return 'Saving...';
-        return method === 'GET' ? 'Loading...' : 'Saving...';
+        if (u.includes('/delete') || u.includes('delete')) return i18n.deleting || 'Deleting...';
+        if (u.includes('/update') || u.includes('update')) return i18n.updating || 'Updating...';
+        if (u.includes('/return')) return i18n.processing_return || 'Processing return...';
+        if (u.includes('requisition')) return i18n.saving_requisition || 'Saving requisition...';
+        if (u.includes('/stock')) return i18n.saving_stock || 'Saving stock...';
+        if (u.includes('/items')) return method === 'GET' ? (i18n.loading_items || 'Loading items...') : (i18n.saving_item || 'Saving item...');
+        if (u.includes('report')) return i18n.generating_report || 'Generating report...';
+        if (u.includes('package')) return i18n.saving_package || 'Saving package...';
+        if (u.includes('categor')) return i18n.saving_category || 'Saving category...';
+        if (u.includes('measurement') || u.includes('/units') || u.includes('/unit')) return i18n.saving || 'Saving...';
+        return method === 'GET' ? (i18n.loading || 'Loading...') : (i18n.saving || 'Saving...');
     }
 
     function storeLoadingStart(message) {
@@ -81,7 +84,7 @@
         const $bar = $('#storeAjaxBar');
         const $overlay = $('#storeAjaxOverlay');
         $bar.removeClass('is-finishing').addClass('is-active').attr('aria-hidden', 'false');
-        $('#storeAjaxText').text(message || 'Working...');
+        $('#storeAjaxText').text(message || (i18n.working || 'Working...'));
         $overlay.addClass('is-active').attr('aria-hidden', 'false');
         $('body').addClass('store-ajax-busy');
     }
@@ -114,7 +117,7 @@
                 body: JSON.stringify(data),
             });
             const json = await res.json();
-            if (!res.ok) throw new Error(json.message || 'Request failed');
+            if (!res.ok) throw new Error(json.message || (i18n.request_failed || 'Request failed'));
             return json;
         } finally {
             storeLoadingStop();
@@ -129,7 +132,7 @@
                 headers: { 'Accept': 'application/json' },
             });
             const json = await res.json();
-            if (!res.ok) throw new Error(json.message || 'Request failed');
+            if (!res.ok) throw new Error(json.message || (i18n.request_failed || 'Request failed'));
             return json;
         } finally {
             storeLoadingStop();
@@ -225,10 +228,17 @@
         const typeName = $('#itemMeasurementTypeSelect option:selected').text();
         if (!typeId || isAddOption(typeId)) return;
         returnToAddItemAfter = 'unit';
-        $('#addItemModal').modal('hide');
+        if (window.bootstrap && bootstrap.Modal) {
+            const addItemEl = document.getElementById('addItemModal');
+            const addUnitEl = document.getElementById('addUnitModal');
+            if (addItemEl) bootstrap.Modal.getOrCreateInstance(addItemEl).hide();
+            if (addUnitEl) bootstrap.Modal.getOrCreateInstance(addUnitEl).show();
+        } else {
+            $('#addItemModal').modal('hide');
+            $('#addUnitModal').modal('show');
+        }
         $('#addUnitTypeId').val(typeId);
         $('#addUnitTypeName').text(typeName);
-        $('#addUnitModal').modal('show');
     }
 
     $(document).on('select2:open', '#addItemModal .item-form-select, #editItemModal .item-form-select, #addItemModal .item-unit-select, #editItemModal .item-unit-select', function () {
@@ -257,11 +267,11 @@
 
     function resetIssueForm() {
         $('#issueCategoryFilter').val('');
-        $('#issueItemSelect').empty().append('<option value="">Search or select item in stock...</option>');
+        $('#issueItemSelect').empty().append('<option value="">' + (i18n.select_item_ph || 'Search or select item in stock...') + '</option>');
         $('#issueStockInfo, #issueLabelsSection, #issueTakeSection, #issueExpectedReturnSection').hide();
         $('#issueLabelsList').empty();
-        $('#issueTakeMethod').empty().append('<option value="">Choose request method...</option>');
-        $('#issueTakeTarget').empty().append('<option value="">Choose...</option>').hide();
+        $('#issueTakeMethod').empty().append('<option value="">' + (i18n.choose_method || 'Choose request method...') + '</option>');
+        $('#issueTakeTarget').empty().append('<option value="">' + (i18n.choose || 'Choose...') + '</option>').hide();
         $('#issueTakeTargetList').empty().hide();
         $('#issueTakeTargetToolbar').hide();
         $('#issueTakeChainInfo').hide().empty();
@@ -318,13 +328,13 @@
         const pkgUnits = [...new Set(units.map(u => u.package_unit_display))];
         const remainingTotal = units.reduce((sum, u) => sum + (parseFloat(u.remaining_items) || 0), 0);
         $('#issuePackageUnit').text(pkgUnits.join(', '));
-        $('#issueAvailableCount').text(units.length + ' label(s), ' + remainingTotal + ' item(s) left');
+        $('#issueAvailableCount').text((i18n.labels_left || ':labels label(s), :items item(s) left').replace(':labels', units.length).replace(':items', remainingTotal));
         $('#issueStockInfo, #issueLabelsSection').show();
 
         units.forEach(u => {
             const returnBadge = u.requisition_status === 'can_return'
-                ? '<span class="store-badge-pill store-badge-return-yes ml-1">Can Return</span>'
-                : '<span class="store-badge-pill store-badge-return-no ml-1">Can\'t Return</span>';
+                ? '<span class="store-badge-pill store-badge-return-yes ml-1">' + (i18n.can_return || 'Can Return') + '</span>'
+                : '<span class="store-badge-pill store-badge-return-no ml-1">' + (i18n.cant_return || 'Can\'t Return') + '</span>';
             const remainText = u.store_method === 'package'
                 ? ` â€” ${escapeHtml(u.package_unit_display)} Â· left ${u.remaining_items}/${u.initial_items} ${escapeHtml(u.leaf_unit_name || 'item')}`
                 : ` â€” ${escapeHtml(u.package_unit_display)}`;
@@ -400,8 +410,8 @@
             $('#issueTakeSection').show();
             $('#issueTakeChainInfo')
                 .html(
-                    '<strong>Selected labels:</strong> ' + escapeHtml(units.map(u => u.label).join(', ')) +
-                    '<br><span class="text-muted">By Main Package â€” quantity auto = 1 kwa kila label iliyochaguliwa.</span>'
+                    '<strong>' + (i18n.selected_labels || 'Selected labels:') + '</strong> ' + escapeHtml(units.map(u => u.label).join(', ')) +
+                    '<br><span class="text-muted">' + (i18n.by_main_package || 'By Main Package — quantity auto = 1 for each selected label.') + '</span>'
                 )
                 .show();
             $('#issueTakeMethodWrap, #issueTakeTargetWrap, #issueTakeQtyWrap').hide();
@@ -416,8 +426,8 @@
     }
 
     function resetIssueTakeFields() {
-        $('#issueTakeMethod').empty().append('<option value="">Choose request method...</option>');
-        $('#issueTakeTarget').empty().append('<option value="">Choose...</option>').hide();
+        $('#issueTakeMethod').empty().append('<option value="">' + (i18n.choose_method || 'Choose request method...') + '</option>');
+        $('#issueTakeTarget').empty().append('<option value="">' + (i18n.choose || 'Choose...') + '</option>').hide();
         $('#issueTakeTargetList').empty().hide();
         $('#issueTakeTargetToolbar').hide();
         $('#issueTakeChainInfo').hide().empty();
@@ -463,7 +473,7 @@
 
         if (structure.contains_line || structure.chain_summary) {
             $('#issueTakeChainInfo')
-                .html('<strong>Package chain:</strong> ' + escapeHtml(structure.contains_line || structure.chain_summary))
+                .html('<strong>' + (i18n.package_chain || 'Package chain:') + '</strong> ' + escapeHtml(structure.contains_line || structure.chain_summary))
                 .show();
         }
 
@@ -480,7 +490,7 @@
         }
 
         $('#issueTakeMethodWrap').show();
-        const $method = $('#issueTakeMethod').empty().append('<option value="">Choose request method...</option>');
+        const $method = $('#issueTakeMethod').empty().append('<option value="">' + (i18n.choose_method || 'Choose request method...') + '</option>');
         (structure.methods || []).forEach(m => {
             $method.append(`<option value="${escapeHtml(m.key)}">${escapeHtml(m.label)}</option>`);
         });
@@ -661,7 +671,7 @@
     }
 
     function markQtyInputInvalid($input, message) {
-        getQtyErrorEl($input).text(message || 'Idadi si sahihi.').show();
+        getQtyErrorEl($input).text(message || (i18n.invalid_qty || 'Invalid quantity.')).show();
         $input.addClass('is-invalid');
     }
 
@@ -764,19 +774,19 @@
         const selections = prefix === 'issue' ? collectIssueTakeSelections() : collectIncidentTakeSelections();
 
         if (!units.length) {
-            return { valid: false, message: 'Chagua label moja au zaidi.' };
+            return { valid: false, message: i18n.select_one_label || 'Select one or more labels.' };
         }
         if (!selections.length) {
-            return { valid: false, message: 'Kamilisha maelezo ya kuchukua (method, package, idadi).' };
+            return { valid: false, message: i18n.complete_take || 'Complete take details (method, package, quantity).' };
         }
         if (!validateTakeQuantityInputs(prefix, unit)) {
-            return { valid: false, message: 'Sahihisha idadi â€” haiwezi zidi kiwango cha juu (max) kilichoonyeshwa.' };
+            return { valid: false, message: i18n.fix_qty || 'Fix the quantity — it cannot exceed the shown maximum.' };
         }
         if (!selections.every(s => s.quantity > 0 && s.quantity <= s.max_qty)) {
-            return { valid: false, message: 'Idadi ya kuchukua ni kubwa kuliko inavyoruhusiwa kwa kiwango hicho.' };
+            return { valid: false, message: i18n.qty_too_large || 'Take quantity is larger than allowed for that level.' };
         }
         if (units.length > 1 && selections.length !== units.length) {
-            return { valid: false, message: 'Kila label iliyochaguliwa lazima iwe na chaguo la kuchukua.' };
+            return { valid: false, message: i18n.each_label_take || 'Each selected label must have a take option.' };
         }
 
         const withinStock = selections.every(s => {
@@ -786,7 +796,7 @@
             return items <= (parseFloat(u.remaining_items) || 0) + 0.00001;
         });
         if (!withinStock) {
-            return { valid: false, message: 'Jumla ya vitu unavyochukua inazidi stock iliyobaki kwenye label.' };
+            return { valid: false, message: i18n.exceeds_stock || 'Total items you are taking exceed remaining stock on the label.' };
         }
 
         return { valid: true };
@@ -1015,7 +1025,7 @@
     function renderIssueTakeTargets() {
         const unit = getSelectedIssueUnit();
         const methodKey = $('#issueTakeMethod').val();
-        const $target = $('#issueTakeTarget').empty().append('<option value="">Choose...</option>').hide();
+        const $target = $('#issueTakeTarget').empty().append('<option value="">' + (i18n.choose || 'Choose...') + '</option>').hide();
         const $list = $('#issueTakeTargetList').empty().hide();
         $('#issueTakeTargetToolbar').hide();
         $('#issueTakeTargetDetail').text('');
@@ -1120,7 +1130,7 @@
         if (methodKey === 'main' || opt.level === 'package' || opt.level === 'full') {
             $('#issueTakeQtyWrap').hide();
             $qty.val(1).prop('readonly', true);
-            $('#issueTakeQtyHint').text('Quantity auto = 1 (whole ' + opt.label + ' from selected label).');
+            $('#issueTakeQtyHint').text((i18n.qty_auto || 'Quantity auto = 1 (whole :label from selected label).').replace(':label', opt.label));
             return;
         }
 
@@ -1297,7 +1307,12 @@
             }
             const json = await postJson(portalStoreUrl, payload);
             resetIssueForm();
-            $('#requestItemModal').modal('hide');
+            if (window.bootstrap && bootstrap.Modal) {
+                const modalEl = document.getElementById('requestItemModal');
+                if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            } else {
+                $('#requestItemModal').modal('hide');
+            }
             if (typeof window.onPortalRequestSubmitted === 'function') {
                 window.onPortalRequestSubmitted(json);
             }

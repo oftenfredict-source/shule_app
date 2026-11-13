@@ -88,7 +88,11 @@ class SgpmTaskController extends Controller
             $users = collect();
         }
 
-        return view('sgpm.tasks.index', compact('tasks', 'actionPlans', 'users', 'userType', 'isHod'));
+        $view = strtolower((string) $userType) === 'teacher'
+            ? 'sgpm.tasks.index_corp'
+            : 'sgpm.tasks.index';
+
+        return view($view, compact('tasks', 'actionPlans', 'users', 'userType', 'isHod'));
     }
 
     public function store(Request $request)

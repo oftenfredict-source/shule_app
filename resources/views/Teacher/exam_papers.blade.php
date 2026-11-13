@@ -1,538 +1,906 @@
-@include('includes.teacher_nav')
+@extends('layouts.teacher_corp')
 
-<meta name="csrf-token" content="{{ csrf_token() }}">
+@section('title', __('teacher.pages.exam_papers').' - ShuleXpert')
+@section('page_title', __('teacher.pages.exam_papers'))
+@section('page_breadcrumb', __('teacher.pages.exam_papers_bc'))
 
+@push('styles')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <style>
-    /* Color scheme matching my_sessions.blade.php */
-    .bg-primary-custom {
-        background-color: #f9eeee !important;
-    }
-    .text-primary-custom {
-        color: #940000 !important;
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-papers,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-papers p,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-papers span,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-papers label,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-papers td,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-papers th,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-papers small,
+    html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-teacher-papers strong {
+        color: #111 !important;
     }
 
-    /* Timeline styles for approval chain */
-    .timeline {
-        position: relative;
-        padding: 20px 0;
-        list-style: none;
+    .sx-teacher-papers {
+        --maroon: #940000;
+        --maroon-deep: #6e0000;
+        --line: #e8e0e0;
+        --soft: #faf7f7;
+        --muted: #666;
+        --ink: #111;
     }
-    .timeline:before {
+
+    .sx-teacher-papers .sx-panel {
+        background:
+            linear-gradient(180deg, #fff 0%, #fff 72%, #fbf8f8 100%);
+        border: 1px solid var(--line);
+        border-top: 4px solid var(--maroon);
+        box-shadow:
+            0 1px 2px rgba(80, 0, 0, .04),
+            0 10px 28px rgba(80, 0, 0, .06);
+        margin-bottom: 1rem;
+        overflow: hidden;
+    }
+
+    .sx-teacher-papers #examPapersTabs {
+        display: grid !important;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: .7rem;
+        margin: 0;
+        padding: 1rem 1.1rem;
+        border-bottom: 1px solid var(--line);
+        background:
+            linear-gradient(135deg, rgba(148,0,0,.035), transparent 42%),
+            linear-gradient(180deg, #fff, var(--soft));
+        flex-wrap: nowrap;
+    }
+    .sx-teacher-papers #examPapersTabs .nav-item {
+        width: 100%;
+        margin: 0;
+    }
+    .sx-teacher-papers #examPapersTabs .nav-link {
+        width: 100%;
+        height: 78px;
+        min-height: 78px;
+        max-height: 78px;
+        border: 1px solid #eadfdf !important;
+        border-top: 3px solid #d2c4c4 !important;
+        border-radius: 0 !important;
+        color: #444 !important;
+        font-weight: 600 !important;
+        font-size: .86rem;
+        letter-spacing: .01em;
+        padding: .7rem .55rem .65rem;
+        background:
+            linear-gradient(180deg, #fff 0%, #fcfbfb 100%) !important;
+        box-shadow: 0 2px 8px rgba(80,0,0,.05);
+        text-align: center;
+        white-space: nowrap;
+        display: flex !important;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: .2rem;
+        overflow: visible;
+        transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease, background .18s ease;
+        position: relative;
+    }
+    .sx-teacher-papers #examPapersTabs .nav-link i {
+        font-size: 1.1rem;
+        color: #940000 !important;
+        line-height: 1;
+        opacity: .9;
+        flex: 0 0 auto;
+    }
+    .sx-teacher-papers #examPapersTabs .nav-link span:not(.badge) {
+        font-weight: 700 !important;
+        color: inherit !important;
+        line-height: 1.15;
+        flex: 0 0 auto;
+    }
+    .sx-teacher-papers #examPapersTabs .nav-link:hover {
+        background: linear-gradient(180deg, #fff 0%, #fff5f5 100%) !important;
+        border-color: #d8b4b4 !important;
+        border-top-color: #940000 !important;
+        color: var(--maroon) !important;
+        box-shadow: 0 6px 16px rgba(148,0,0,.1);
+        transform: translateY(-1px);
+    }
+    .sx-teacher-papers #examPapersTabs .nav-link.active {
+        color: var(--maroon) !important;
+        border-color: #940000 !important;
+        border-top-color: #940000 !important;
+        background:
+            linear-gradient(180deg, #fff8f8 0%, #ffeaea 100%) !important;
+        font-weight: 700 !important;
+        box-shadow:
+            0 0 0 1px rgba(148,0,0,.08),
+            0 8px 18px rgba(148,0,0,.12);
+    }
+    .sx-teacher-papers #examPapersTabs .nav-link.active::after {
         content: '';
         position: absolute;
-        top: 0;
+        left: 18%;
+        right: 18%;
         bottom: 0;
-        left: 40px;
-        width: 2px;
-        background: #dee2e6;
+        height: 2px;
+        background: var(--maroon);
     }
-    .timeline-item {
-        position: relative;
-        margin-bottom: 20px;
+    .sx-teacher-papers #examPapersTabs .badge {
+        position: absolute !important;
+        top: 6px;
+        right: 6px;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        font-weight: 700 !important;
+        font-size: .65rem;
+        letter-spacing: .02em;
+        padding: .18rem .35rem;
+        line-height: 1;
+        min-width: 1.25rem;
+        text-align: center;
     }
-    .timeline-badge {
-        position: absolute;
-        top: 0;
-        left: 30px;
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        border: 2px solid #dee2e6;
-        z-index: 100;
+    @media (max-width: 991.98px) {
+        .sx-teacher-papers #examPapersTabs {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
     }
-    .timeline-badge.approved { border-color: #28a745; background: #28a745; }
-    .timeline-badge.pending { border-color: #ffc107; background: #ffc107; }
-    .timeline-badge.rejected { border-color: #dc3545; background: #dc3545; }
-    .timeline-badge.current { border-color: #940000; background: #fff; box-shadow: 0 0 0 4px rgba(148, 0, 0, 0.1); }
+    @media (max-width: 575.98px) {
+        .sx-teacher-papers #examPapersTabs {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .sx-teacher-papers #examPapersTabs .nav-link {
+            height: 72px;
+            min-height: 72px;
+            max-height: 72px;
+        }
+    }
 
-    .timeline-panel {
-        margin-left: 70px;
-        padding: 15px;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        background: #fff;
+    .sx-teacher-papers .sx-body { padding: 1.15rem 1.2rem 1.35rem; }
+
+    .sx-teacher-papers .sx-upload-surface {
+        border: 1px solid var(--line);
+        background:
+            linear-gradient(180deg, #fff 0%, #fcfafa 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+        padding: 1rem 1.05rem 1.1rem;
+        margin-bottom: 1rem;
     }
 
-    /* Font and Border Radius Resets */
-    div, .card, .exam-widget-card, .btn, .nav-link, .alert {
+    .sx-teacher-papers .form-label {
+        font-size: .72rem;
+        font-weight: 800 !important;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: #666 !important;
+        margin-bottom: .35rem;
+    }
+    .sx-teacher-papers .form-control,
+    .sx-teacher-papers .form-select,
+    .sx-teacher-papers .btn,
+    .modal .form-control,
+    .modal .form-select,
+    .modal .btn,
+    .modal .modal-content {
         border-radius: 0 !important;
     }
-    body, .container-fluid, .card, .exam-widget-card, .btn {
-        font-family: "Century Gothic", "CenturyGothic", "AppleGothic", sans-serif;
+    .sx-teacher-papers .form-control,
+    .sx-teacher-papers .form-select {
+        min-height: 44px;
+        border: 1px solid #d4caca;
+        font-size: .93rem;
+        font-weight: 600 !important;
+        color: var(--ink) !important;
+        background: #fff;
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .sx-teacher-papers .form-control:hover,
+    .sx-teacher-papers .form-select:hover {
+        border-color: #c4a8a8;
+    }
+    .sx-teacher-papers .form-control:focus,
+    .sx-teacher-papers .form-select:focus,
+    .modal .form-control:focus,
+    .modal .form-select:focus {
+        border-color: var(--maroon);
+        box-shadow: 0 0 0 .18rem rgba(148,0,0,.12);
+    }
+    .sx-teacher-papers .form-text,
+    .sx-teacher-papers .text-muted { color: var(--muted) !important; font-weight: 500 !important; font-size: .8rem; }
+
+    .sx-teacher-papers .sx-qbox {
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--maroon);
+        background: linear-gradient(180deg, #fff, #faf7f7);
+        padding: 0;
+        margin-top: .15rem;
+        box-shadow: 0 2px 10px rgba(80,0,0,.04);
+        overflow: visible;
+    }
+    .sx-teacher-papers .sx-qbox-body,
+    .sx-teacher-papers #question-rows-main,
+    .sx-teacher-papers #question-rows-modal,
+    .sx-teacher-papers #question-rows-edit,
+    .sx-teacher-papers #question-rows-edit-unified {
+        overflow: visible;
+        min-height: 0;
+    }
+    .sx-teacher-papers .sx-qbox-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: .65rem 1rem;
+        padding: .85rem 1rem;
+        border-bottom: 1px solid #eadfdf;
+        background: linear-gradient(180deg, #fff8f8, #fff);
+    }
+    .sx-teacher-papers .sx-qbox-head h6 {
+        margin: 0;
+        font-size: .92rem;
+        font-weight: 800 !important;
+        color: var(--maroon) !important;
+        line-height: 1.3;
+    }
+    .sx-teacher-papers .sx-qbox-head .sx-q-total {
+        display: inline-block;
+        margin-left: .35rem;
+        padding: .12rem .4rem;
+        font-size: .72rem;
+        font-weight: 800 !important;
+        color: #940000 !important;
+        background: #ffeaea;
+        border: 1px solid #f0cfcf;
+        vertical-align: middle;
+    }
+    .sx-teacher-papers .sx-qbox-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4rem;
+        align-items: center;
+    }
+    .sx-teacher-papers .sx-qbox-actions .btn {
+        min-height: 34px;
+        font-weight: 700 !important;
+        border-radius: 0 !important;
+    }
+    .sx-teacher-papers .sx-qbox-body {
+        padding: .85rem 1rem 1rem;
+    }
+    .sx-teacher-papers .sx-qbox-foot {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: .4rem 1rem;
+        margin-top: .75rem;
+        padding-top: .7rem;
+        border-top: 1px solid #eadfdf;
+        font-size: .82rem;
+        font-weight: 700 !important;
+        color: #444 !important;
+    }
+    .sx-teacher-papers .sx-q-row,
+    .sx-teacher-papers .optional-range-item,
+    .modal .sx-q-row,
+    .modal .optional-range-item {
+        display: grid !important;
+        gap: .55rem;
+        align-items: end;
+        padding: .7rem .75rem;
+        margin: 0 0 .5rem;
+        border: 1px solid #eadfdf;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(80,0,0,.03);
+    }
+    .sx-teacher-papers .sx-q-row,
+    .modal .sx-q-row {
+        grid-template-columns: 64px minmax(0, 1fr) 110px 100px 44px;
+    }
+    .sx-teacher-papers .optional-range-item,
+    .modal .optional-range-item {
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, .9fr) 44px;
+        margin-bottom: .55rem;
+    }
+    .sx-teacher-papers .sx-q-row > [class*="col-"],
+    .sx-teacher-papers .optional-range-item > [class*="col-"],
+    .modal .sx-q-row > [class*="col-"],
+    .modal .optional-range-item > [class*="col-"] {
+        width: auto !important;
+        max-width: none !important;
+        flex: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .sx-teacher-papers .sx-q-row .form-label,
+    .sx-teacher-papers .optional-range-item .form-label,
+    .modal .sx-q-row .form-label,
+    .modal .optional-range-item .form-label {
+        margin-bottom: .25rem;
+        font-size: .7rem;
+        font-weight: 800 !important;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: #666 !important;
+    }
+    .sx-teacher-papers .sx-q-row .form-control,
+    .sx-teacher-papers .optional-range-item .form-control,
+    .modal .sx-q-row .form-control,
+    .modal .optional-range-item .form-control {
+        min-height: 40px;
+        font-size: .88rem;
+        border-radius: 0 !important;
+    }
+    .sx-teacher-papers .sx-q-row .btn,
+    .sx-teacher-papers .optional-range-item .btn,
+    .modal .sx-q-row .btn,
+    .modal .optional-range-item .btn {
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0 !important;
+    }
+    .sx-teacher-papers .optional-ranges-wrapper:empty,
+    .modal .optional-ranges-wrapper:empty { display: none; }
+    .sx-teacher-papers .optional-ranges-wrapper:not(:empty),
+    .modal .optional-ranges-wrapper:not(:empty) { margin-bottom: .65rem; }
+    .modal .sx-qbox {
+        border: 1px solid #eadfdf;
+        border-left: 3px solid #940000;
+        background: #fff;
+        padding: 0;
+        overflow: hidden;
+    }
+    .modal .sx-qbox-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: .65rem 1rem;
+        padding: .85rem 1rem;
+        border-bottom: 1px solid #eadfdf;
+        background: #fff8f8;
+    }
+    .modal .sx-qbox-head h6 {
+        margin: 0;
+        font-size: .92rem;
+        font-weight: 800 !important;
+        color: #940000 !important;
+    }
+    .modal .sx-qbox-head .sx-q-total {
+        display: inline-block;
+        margin-left: .35rem;
+        padding: .12rem .4rem;
+        font-size: .72rem;
+        font-weight: 800 !important;
+        color: #940000 !important;
+        background: #ffeaea;
+        border: 1px solid #f0cfcf;
+    }
+    .modal .sx-qbox-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4rem;
+    }
+    .modal .sx-qbox-body { padding: .85rem 1rem 1rem; }
+    .modal .sx-qbox-foot {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: .4rem 1rem;
+        margin-top: .75rem;
+        padding-top: .7rem;
+        border-top: 1px solid #eadfdf;
+        font-size: .82rem;
+        font-weight: 700 !important;
+    }
+    @media (max-width: 767.98px) {
+        .sx-teacher-papers .sx-q-row,
+        .modal .sx-q-row {
+            grid-template-columns: 64px 1fr 44px;
+        }
+        .sx-teacher-papers .sx-q-row .sx-q-desc,
+        .modal .sx-q-row .sx-q-desc { grid-column: 1 / -1; order: 2; }
+        .sx-teacher-papers .sx-q-row .sx-q-marks,
+        .modal .sx-q-row .sx-q-marks { order: 3; }
+        .sx-teacher-papers .sx-q-row .sx-q-opt,
+        .modal .sx-q-row .sx-q-opt { order: 4; }
+        .sx-teacher-papers .sx-q-row .sx-q-remove,
+        .modal .sx-q-row .sx-q-remove { order: 1; justify-self: end; }
+        .sx-teacher-papers .optional-range-item,
+        .modal .optional-range-item {
+            grid-template-columns: 1fr 44px;
+        }
     }
 
-    .border-primary-custom {
-        border-color: #940000 !important;
+    .sx-teacher-papers .sx-actions-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .55rem;
+        margin-top: .35rem;
+        padding-top: .85rem;
+        border-top: 1px dashed #e5d6d6;
     }
-    .btn-primary-custom {
-        background-color: #940000;
-        border-color: #940000;
-        color: #ffffff;
-        border-radius: 8px !important;
+
+    .btn-primary-custom,
+    .btn-primary-custom:hover,
+    .btn-primary-custom:focus {
+        background: linear-gradient(180deg, #a80000 0%, #940000 55%, #7f0000 100%) !important;
+        border-color: #7a0000 !important;
+        color: #fff !important;
+        font-weight: 700 !important;
+        border-radius: 0 !important;
+        min-height: 42px;
+        padding: .55rem 1.1rem;
+        box-shadow: 0 4px 12px rgba(148,0,0,.22);
+    }
+    .btn-primary-custom *,
+    .btn-primary-custom:hover * {
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+        font-weight: 700 !important;
     }
     .btn-primary-custom:hover {
-        background-color: #b30000;
-        border-color: #b30000;
-        color: #ffffff;
+        background: linear-gradient(180deg, #940000 0%, #7b0000 100%) !important;
+        border-color: #6e0000 !important;
+        box-shadow: 0 6px 16px rgba(148,0,0,.28);
     }
-    .form-control:focus, .form-select:focus {
-        border-color: #940000;
-        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
+    .sx-teacher-papers .btn-secondary {
+        min-height: 42px;
+        font-weight: 700 !important;
+        border: 1px solid #d0c4c4 !important;
+        background: #fff !important;
+        color: #444 !important;
     }
-
-    /* Widget card style (matching my_sessions) */
-    .exam-widget-card {
-        border-radius: 12px !important;
-        border: 1px solid #e7e7e7;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
-        padding: 18px;
-        background: white;
-        transition: all 0.3s ease;
-        margin-bottom: 0;
-    }
-    .exam-widget-card:hover {
-        box-shadow: 0 4px 12px rgba(148, 0, 0, 0.15);
-        transform: translateY(-2px);
-    }
-    .exam-widget-card.status-approved {
-        border-left: 4px solid #28a745;
-    }
-    .exam-widget-card.status-rejected {
-        border-left: 4px solid #dc3545;
-    }
-
-    .exam-type-badge {
-        background: #f2dede;
-        color: #7a1f1f;
-        padding: 4px 10px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        border-radius: 6px;
-    }
-
-    .exam-card-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-top: 12px;
+    .sx-teacher-papers .btn-secondary:hover {
+        border-color: #940000 !important;
+        color: #940000 !important;
+        background: #fff8f8 !important;
     }
 
     .btn-exam-action {
-        background: white !important;
+        background: #fff !important;
         color: #940000 !important;
         border: 1px solid #940000;
-        padding: 8px 14px;
-        font-weight: 600;
-        transition: all 0.2s ease-in-out;
-        border-radius: 8px !important;
-        width: 100%;
-        text-align: center;
+        padding: .35rem .7rem;
+        font-size: .78rem;
+        font-weight: 700 !important;
+        border-radius: 0 !important;
+        transition: background .15s ease, box-shadow .15s ease;
     }
     .btn-exam-action:hover {
-        background: #f8f8f8 !important;
-        color: #940000 !important;
-        border-color: #940000;
-    }
-    .btn-exam-action.btn-danger-outline {
-        color: #dc3545 !important;
-        border-color: #dc3545;
-    }
-    .btn-exam-action.btn-danger-outline:hover {
         background: #fff5f5 !important;
+        box-shadow: 0 2px 8px rgba(148,0,0,.12);
     }
 
-    /* Hero header matching my_sessions */
-    .exams-hero {
-        background: linear-gradient(135deg, #fff2f2 0%, #f7dede 100%);
-        border: 1px solid #e8c8c8;
-        color: #7a1f1f;
+    .bg-primary-custom { background: #fff5f5 !important; color: #940000 !important; }
+    .text-primary-custom { color: #940000 !important; }
+    .border-primary-custom { border-color: #940000 !important; }
+
+    #papersFilterBar {
+        border: 1px solid var(--line) !important;
+        background: linear-gradient(180deg, #fff, var(--soft));
+        margin-bottom: 1rem;
+        padding: .95rem 1.05rem;
+        box-shadow: 0 1px 4px rgba(80,0,0,.04);
     }
+    #papersFilterBar .card-body { padding: 0 !important; }
 
-    /* Tabs styling matching my_sessions */
-    #examPapersTabs .nav-link {
-        color: #940000;
-        border-radius: 0 !important;
-        border: none;
-        border-bottom: 3px solid transparent;
-        padding: 12px 20px;
-        font-weight: 600;
+    .sx-ep-table-wrap {
+        border: 1px solid var(--line);
+        overflow: auto;
+        background: #fff;
+        box-shadow: 0 2px 10px rgba(80,0,0,.04);
     }
-    #examPapersTabs .nav-link:hover {
-        background-color: #f9eeee;
-        border-bottom-color: #e8c8c8;
+    table.sx-ep-table { width: 100%; margin: 0; border-collapse: collapse; }
+    table.sx-ep-table th {
+        background: linear-gradient(180deg, #f7f2f2, #f1eaea);
+        color: #333 !important;
+        font-size: .7rem;
+        font-weight: 800 !important;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        padding: .72rem .8rem;
+        border-bottom: 1px solid var(--line);
+        white-space: nowrap;
     }
-    #examPapersTabs .nav-link.active {
-        background-color: transparent !important;
-        color: #940000 !important;
-        border-bottom: 3px solid #940000 !important;
+    table.sx-ep-table td {
+        font-size: .9rem;
+        font-weight: 600 !important;
+        color: var(--ink) !important;
+        padding: .8rem;
+        border-bottom: 1px solid #f0e8e8;
+        vertical-align: middle;
+        line-height: 1.4;
+        background: #fff;
     }
-
-    .badge-status-wait-approval {
-        background-color: #ffc107;
-        color: #000;
+    table.sx-ep-table tbody tr:hover td {
+        background: #fffafa;
     }
-    .badge-status-approved {
-        background-color: #28a745;
-        color: white;
+    table.sx-ep-table tr:last-child td { border-bottom: 0; }
+    .sx-ep-title { color: var(--maroon) !important; font-weight: 800 !important; font-size: .94rem; }
+    .sx-ep-meta { display: block; margin-top: .14rem; font-size: .8rem; color: var(--muted) !important; font-weight: 600 !important; }
+    .sx-ep-actions { display: flex; flex-wrap: wrap; gap: .35rem; justify-content: flex-end; }
+    .sx-ep-empty {
+        padding: 2.4rem 1rem;
+        text-align: center;
+        color: var(--muted) !important;
+        font-weight: 600 !important;
+        background:
+            radial-gradient(circle at top, rgba(148,0,0,.05), transparent 55%);
     }
-    .badge-status-rejected {
-        background-color: #dc3545;
-        color: white;
-    }
-
-    /* Mobile Responsiveness Improvements */
-    @media (max-width: 768px) {
-        html, body {
-            overflow-x: hidden;
-            width: 100%;
-            position: relative;
-        }
-
-        /* Force all parent wrappers to full width */
-        .right-panel {
-            width: 100% !important;
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-        }
-
-        .right-panel .content {
-            padding: 0 !important;
-        }
-
-        .container-fluid {
-            padding-left: 5px !important;
-            padding-right: 5px !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            overflow-x: hidden;
-        }
-
-        .row {
-            margin-left: 0 !important;
-            margin-right: 0 !important;
-            width: 100% !important;
-        }
-
-        .col-12, .col-md-12, .col-lg-12,
-        [class*="col-"] {
-            padding-left: 2px !important;
-            padding-right: 2px !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            flex: 0 0 100% !important;
-        }
-
-        .card-body {
-            padding: 0.75rem;
-        }
-
-        .page-title {
-            font-size: 1.1rem;
-            word-wrap: break-word;
-        }
-
-        .nav-tabs {
-            display: flex;
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            border-bottom: 2px solid #ddd;
-            margin-bottom: 1rem !important;
-            width: 100%;
-        }
-
-        .nav-tabs .nav-item {
-            white-space: nowrap;
-        }
-
-        .nav-tabs .nav-link {
-            padding: 0.5rem 0.75rem;
-            font-size: 0.85rem;
-        }
-
-        .exam-paper-card .d-flex {
-            flex-direction: column !important;
-        }
-
-        .exam-paper-card .ml-3 {
-            margin-left: 0 !important;
-            margin-top: 1rem;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .exam-paper-card .btn {
-            flex: 1 1 45%;
-            font-size: 0.8rem;
-            padding: 8px 5px;
-        }
-
-        .question-row > div {
-            margin-bottom: 15px;
-        }
-
-        /* Prevent long text overflow */
-        * {
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-
-        /* Table to cards for pending uploads */
-        #pending-uploads .table-responsive {
-            border: none;
-            overflow-x: hidden;
-        }
-
-        #pending-uploads .table-responsive table thead {
-            display: none;
-        }
-
-        #pending-uploads .table-responsive table tbody tr {
-            display: block;
-            margin-bottom: 1.5rem;
-            border: 1px solid #e0e0e0;
-            border-radius: 12px;
-            padding: 15px;
-            background: #fff;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        }
-
-        #pending-uploads .table-responsive table tbody td {
-            display: block;
-            text-align: left !important;
-            border: none;
-            padding: 8px 0;
-            position: relative;
-        }
-
-        #pending-uploads .table-responsive table tbody td::before {
-            content: attr(data-label);
-            font-weight: 700;
-            display: block;
-            color: #940000;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            margin-bottom: 2px;
-        }
-
-        #pending-uploads .table-responsive table tbody td .btn {
-            width: 100%;
-            margin-top: 10px;
-        }
-
-        .modal-dialog {
-            margin: 0.5rem;
-            max-width: calc(100% - 1rem) !important;
-        }
-
-        /* Upload form - mobile app layout */
-        .tab-content .card {
-            border: none !important;
-            box-shadow: none !important;
-            border-radius: 0 !important;
-        }
-
-        .tab-content .card .card-body {
-            padding: 0.5rem 0 !important;
-        }
-
-        .tab-content .card-body .row {
-            margin-left: 0 !important;
-            margin-right: 0 !important;
-        }
-
-        .tab-content .card-body .row > [class*="col-"] {
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-        }
-
-        #uploadExamPaperForm .form-control,
-        #uploadExamPaperForm .form-control-file,
-        #uploadExamPaperForm select,
-        #uploadExamPaperForm input {
-            width: 98% !important;
-            margin-left: auto;
-            margin-right: auto;
-            display: block;
-            font-size: 1rem;
-            padding: 12px;
-            border-radius: 8px;
-        }
-
-        #uploadExamPaperForm .form-label,
-        #uploadExamPaperForm label {
-            width: 98%;
-            margin-left: auto;
-            margin-right: auto;
-            display: block;
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        #uploadExamPaperForm .form-text {
-            width: 98%;
-            margin-left: auto;
-            margin-right: auto;
-            display: block;
-        }
-
-        #uploadExamPaperForm .btn {
-            width: 98%;
-            margin-left: auto;
-            margin-right: auto;
-            display: block;
-            padding: 12px;
-            font-size: 1rem;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-
-        #uploadExamPaperForm .btn.ml-2 {
-            margin-left: auto !important;
-        }
-
-        /* Question format card stays visible */
-        #question-format-main {
-            width: 98% !important;
-            margin-left: auto;
-            margin-right: auto;
-            border: 1px solid rgba(148,0,0,0.2) !important;
-            border-radius: 8px !important;
-        }
-    }
-
-    /* Touch targets */
-    .btn, .form-control, .nav-link {
-        min-height: 44px;
-        display: flex;
+    .sx-ep-empty i {
+        display: inline-flex;
         align-items: center;
         justify-content: center;
+        width: 46px;
+        height: 46px;
+        margin: 0 auto .65rem;
+        border: 1px solid #eadfdf;
+        background: #fff;
+        color: var(--maroon);
+        font-size: 1.25rem;
+        box-shadow: 0 2px 8px rgba(80,0,0,.06);
     }
 
-    .form-control {
-        display: block; /* reset flex for input */
+    .tag {
+        display: inline-block;
+        padding: .2rem .45rem;
+        font-size: .7rem;
+        font-weight: 700 !important;
+        border-radius: 0;
+        line-height: 1.3;
+        letter-spacing: .02em;
     }
+    .tag-approved, .badge-status-approved { background: #e8f6ec !important; color: #146c2e !important; border: 1px solid #c6e6cf; }
+    .tag-rejected, .badge-status-rejected { background: #fdecec !important; color: #a11919 !important; border: 1px solid #f0c7c7; }
+    .tag-pending, .badge-status-wait-approval, .badge-status-pending, .badge-status-wait_approval { background: #fff3cd !important; color: #7a5a00 !important; border: 1px solid #edd89a; }
+    .tag-type { background: #f8eaea; color: #940000 !important; border: 1px solid #ecd0d0; }
 
-    .nav-link {
-        justify-content: center;
+    .timeline { position: relative; padding: 12px 0; list-style: none; margin: 0; }
+    .timeline:before { content: ''; position: absolute; top: 0; bottom: 0; left: 40px; width: 2px; background: #e5d6d6; }
+    .timeline-item { position: relative; margin-bottom: 16px; }
+    .timeline-badge { position: absolute; top: 0; left: 30px; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #dee2e6; z-index: 2; background: #fff; }
+    .timeline-badge.approved { border-color: #28a745; background: #28a745; }
+    .timeline-badge.pending { border-color: #ffc107; background: #ffc107; }
+    .timeline-badge.rejected { border-color: #dc3545; background: #dc3545; }
+    .timeline-badge.current { border-color: #940000; background: #fff; box-shadow: 0 0 0 3px rgba(148,0,0,.12); }
+    .timeline-panel { margin-left: 70px; padding: 12px; border: 1px solid #eadfdf; background: #fff; box-shadow: 0 2px 8px rgba(80,0,0,.04); }
+
+    .modal .modal-content {
+        border: 1px solid #eadfdf !important;
+        box-shadow: 0 18px 40px rgba(80,0,0,.14) !important;
     }
+    .modal .modal-header {
+        border-radius: 0 !important;
+        background: linear-gradient(180deg, #fff8f8, #fff);
+        border-bottom: 1px solid #eadfdf !important;
+    }
+    .modal .modal-title { font-weight: 800 !important; color: #940000 !important; }
 
+    /* Dark mode */
+    html[data-sx-theme="dark"] .sx-teacher-papers,
+    html[data-bs-theme="dark"] .sx-teacher-papers {
+        --line: #3a2a2e;
+        --soft: #2a1c20;
+        --muted: #d7c4c8;
+        --ink: #f3e9eb;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .sx-panel,
+    html[data-bs-theme="dark"] .sx-teacher-papers .sx-panel {
+        background: #24181c !important;
+        border-color: #3a2a2e !important;
+        box-shadow: none !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers #examPapersTabs,
+    html[data-bs-theme="dark"] .sx-teacher-papers #examPapersTabs {
+        background: #1c1417 !important;
+        border-bottom-color: #3a2a2e !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers #examPapersTabs .nav-link,
+    html[data-bs-theme="dark"] .sx-teacher-papers #examPapersTabs .nav-link {
+        background: #24181c !important;
+        border-color: #3a2a2e !important;
+        border-top-color: #4a383c !important;
+        color: #e8c9cd !important;
+        box-shadow: none !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers #examPapersTabs .nav-link i,
+    html[data-bs-theme="dark"] .sx-teacher-papers #examPapersTabs .nav-link i {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers #examPapersTabs .nav-link:hover,
+    html[data-bs-theme="dark"] .sx-teacher-papers #examPapersTabs .nav-link:hover,
+    html[data-sx-theme="dark"] .sx-teacher-papers #examPapersTabs .nav-link.active,
+    html[data-bs-theme="dark"] .sx-teacher-papers #examPapersTabs .nav-link.active {
+        background: #2a1c20 !important;
+        border-color: #940000 !important;
+        border-top-color: #940000 !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .form-label,
+    html[data-bs-theme="dark"] .sx-teacher-papers .form-label,
+    html[data-sx-theme="dark"] .sx-teacher-papers .sx-q-row .form-label,
+    html[data-bs-theme="dark"] .sx-teacher-papers .sx-q-row .form-label,
+    html[data-sx-theme="dark"] .modal .sx-q-row .form-label,
+    html[data-bs-theme="dark"] .modal .sx-q-row .form-label,
+    html[data-sx-theme="dark"] .modal .optional-range-item .form-label,
+    html[data-bs-theme="dark"] .modal .optional-range-item .form-label {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .form-control,
+    html[data-bs-theme="dark"] .sx-teacher-papers .form-control,
+    html[data-sx-theme="dark"] .sx-teacher-papers .form-select,
+    html[data-bs-theme="dark"] .sx-teacher-papers .form-select,
+    html[data-sx-theme="dark"] .modal .form-control,
+    html[data-bs-theme="dark"] .modal .form-control,
+    html[data-sx-theme="dark"] .modal .form-select,
+    html[data-bs-theme="dark"] .modal .form-select {
+        background: #1c1417 !important;
+        border-color: #4a383c !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .form-select option,
+    html[data-bs-theme="dark"] .sx-teacher-papers .form-select option,
+    html[data-sx-theme="dark"] .modal .form-select option,
+    html[data-bs-theme="dark"] .modal .form-select option {
+        background: #1c1417;
+        color: #f3e9eb;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .form-text,
+    html[data-bs-theme="dark"] .sx-teacher-papers .form-text,
+    html[data-sx-theme="dark"] .sx-teacher-papers .text-muted,
+    html[data-bs-theme="dark"] .sx-teacher-papers .text-muted {
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .sx-upload-surface,
+    html[data-bs-theme="dark"] .sx-teacher-papers .sx-upload-surface,
+    html[data-sx-theme="dark"] .sx-teacher-papers .sx-qbox,
+    html[data-bs-theme="dark"] .sx-teacher-papers .sx-qbox,
+    html[data-sx-theme="dark"] .modal .sx-qbox,
+    html[data-bs-theme="dark"] .modal .sx-qbox {
+        background: #1c1417 !important;
+        border-color: #3a2a2e !important;
+        box-shadow: none !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .sx-qbox-head,
+    html[data-bs-theme="dark"] .sx-teacher-papers .sx-qbox-head,
+    html[data-sx-theme="dark"] .modal .sx-qbox-head,
+    html[data-bs-theme="dark"] .modal .sx-qbox-head {
+        background: #2a1c20 !important;
+        border-bottom-color: #3a2a2e !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .sx-qbox-head h6,
+    html[data-bs-theme="dark"] .sx-teacher-papers .sx-qbox-head h6 {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .sx-q-total,
+    html[data-bs-theme="dark"] .sx-teacher-papers .sx-q-total {
+        background: #3a1a1a !important;
+        border-color: #4a383c !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .sx-qbox-foot,
+    html[data-bs-theme="dark"] .sx-teacher-papers .sx-qbox-foot {
+        border-top-color: #3a2a2e !important;
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .sx-q-row,
+    html[data-bs-theme="dark"] .sx-teacher-papers .sx-q-row,
+    html[data-sx-theme="dark"] .sx-teacher-papers .optional-range-item,
+    html[data-bs-theme="dark"] .sx-teacher-papers .optional-range-item,
+    html[data-sx-theme="dark"] .modal .sx-q-row,
+    html[data-bs-theme="dark"] .modal .sx-q-row,
+    html[data-sx-theme="dark"] .modal .optional-range-item,
+    html[data-bs-theme="dark"] .modal .optional-range-item {
+        background: #24181c !important;
+        border-color: #3a2a2e !important;
+        box-shadow: none !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .btn-secondary,
+    html[data-bs-theme="dark"] .sx-teacher-papers .btn-secondary {
+        background: #24181c !important;
+        border-color: #4a383c !important;
+        color: #e8c9cd !important;
+    }
+    html[data-sx-theme="dark"] .sx-teacher-papers .btn-secondary:hover,
+    html[data-bs-theme="dark"] .sx-teacher-papers .btn-secondary:hover {
+        background: #2a1c20 !important;
+        border-color: #940000 !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .btn-exam-action,
+    html[data-bs-theme="dark"] .btn-exam-action {
+        background: transparent !important;
+        color: #ffb4b4 !important;
+        border-color: #940000 !important;
+    }
+    html[data-sx-theme="dark"] .btn-exam-action:hover,
+    html[data-bs-theme="dark"] .btn-exam-action:hover {
+        background: #2a1c20 !important;
+    }
+    html[data-sx-theme="dark"] #papersFilterBar,
+    html[data-bs-theme="dark"] #papersFilterBar {
+        background: #1c1417 !important;
+        border-color: #3a2a2e !important;
+        box-shadow: none !important;
+    }
+    html[data-sx-theme="dark"] .sx-ep-table-wrap,
+    html[data-bs-theme="dark"] .sx-ep-table-wrap {
+        background: #24181c !important;
+        border-color: #3a2a2e !important;
+        box-shadow: none !important;
+    }
+    html[data-sx-theme="dark"] table.sx-ep-table th,
+    html[data-bs-theme="dark"] table.sx-ep-table th {
+        background: #940000 !important;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+        border-bottom-color: #6e0000 !important;
+    }
+    html[data-sx-theme="dark"] table.sx-ep-table td,
+    html[data-bs-theme="dark"] table.sx-ep-table td {
+        background: #24181c !important;
+        color: #f3e9eb !important;
+        border-bottom-color: #3a2a2e !important;
+    }
+    html[data-sx-theme="dark"] table.sx-ep-table tbody tr:hover td,
+    html[data-bs-theme="dark"] table.sx-ep-table tbody tr:hover td {
+        background: #2a1c20 !important;
+    }
+    html[data-sx-theme="dark"] .sx-ep-title,
+    html[data-bs-theme="dark"] .sx-ep-title {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .sx-ep-meta,
+    html[data-bs-theme="dark"] .sx-ep-meta {
+        color: #d7c4c8 !important;
+    }
+    html[data-sx-theme="dark"] .sx-ep-empty,
+    html[data-bs-theme="dark"] .sx-ep-empty {
+        color: #d7c4c8 !important;
+        background: transparent !important;
+    }
+    html[data-sx-theme="dark"] .sx-ep-empty i,
+    html[data-bs-theme="dark"] .sx-ep-empty i {
+        background: #2a1c20 !important;
+        border-color: #3a2a2e !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .modal .modal-content,
+    html[data-bs-theme="dark"] .modal .modal-content {
+        background: #24181c !important;
+        border-color: #3a2a2e !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .modal .modal-header,
+    html[data-bs-theme="dark"] .modal .modal-header,
+    html[data-sx-theme="dark"] .modal .modal-header.bg-primary-custom,
+    html[data-bs-theme="dark"] .modal .modal-header.bg-primary-custom {
+        background: #2a1c20 !important;
+        border-bottom-color: #3a2a2e !important;
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .modal .modal-title,
+    html[data-bs-theme="dark"] .modal .modal-title,
+    html[data-sx-theme="dark"] .modal .text-primary-custom,
+    html[data-bs-theme="dark"] .modal .text-primary-custom {
+        color: #ffb4b4 !important;
+    }
+    html[data-sx-theme="dark"] .modal .modal-body,
+    html[data-bs-theme="dark"] .modal .modal-body,
+    html[data-sx-theme="dark"] .modal .modal-footer,
+    html[data-bs-theme="dark"] .modal .modal-footer {
+        background: #1c1417 !important;
+        border-color: #3a2a2e !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .timeline-panel,
+    html[data-bs-theme="dark"] .timeline-panel {
+        background: #24181c !important;
+        border-color: #3a2a2e !important;
+        color: #f3e9eb !important;
+    }
+    html[data-sx-theme="dark"] .timeline:before,
+    html[data-bs-theme="dark"] .timeline:before {
+        background: #3a2a2e !important;
+    }
 </style>
-
-<!-- Bootstrap Icons -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-12">
+@endpush
+@section('content')
+<div class="sx-teacher-papers">
             @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <div class="alert alert-success alert-dismissible fade show rounded-0" role="alert">
                     <i class="bi bi-check-circle"></i> {{ session('success') }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('teacher.close') }}"></button>
                 </div>
             @endif
 
             @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <div class="alert alert-danger alert-dismissible fade show rounded-0" role="alert">
                     <i class="bi bi-exclamation-triangle"></i> {{ session('error') }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('teacher.close') }}"></button>
                 </div>
             @endif
 
             @if(isset($rejectionNotifications) && count($rejectionNotifications) > 0)
                 @foreach($rejectionNotifications as $notification)
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <div class="alert alert-danger alert-dismissible fade show rounded-0" role="alert">
                         <i class="bi bi-x-circle"></i>
-                        <strong>Examination Rejected:</strong> {{ $notification['message'] }}
+                        <strong>{{ __('teacher.exam_papers.exam_rejected') }}</strong> {{ $notification['message'] }}
                         @if(isset($notification['reason']))
-                            <br><small><strong>Reason:</strong> {{ $notification['reason'] }}</small>
+                            <br><small><strong>{{ __('teacher.exam_papers.reason') }}</strong> {{ $notification['reason'] }}</small>
                         @endif
-                        <button type="button" class="close" data-dismiss="alert" aria-label="Close" onclick="dismissNotification('{{ $notification['exam_name'] ?? '' }}')">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('teacher.close') }}" onclick="dismissNotification('{{ $notification['exam_name'] ?? '' }}')"></button>
                     </div>
                 @endforeach
             @endif
 
-            <!-- Page Header -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body bg-primary-custom text-white rounded p-3 p-md-4">
-                    <h4 class="mb-0 page-title">
-                        <i class="bi bi-file-earmark-text"></i> Exam Papers Management
-                    </h4>
-                    <p class="mb-0 mt-2 small" style="opacity:0.9;">
-                        Examinations and papers shown for the academic year selected in the header.
-                    </p>
-                </div>
-            </div>
-
+            <div class="sx-panel">
             <!-- Tabs -->
-            <ul class="nav nav-tabs mb-4" id="examPapersTabs" role="tablist" style="flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <ul class="nav nav-tabs" id="examPapersTabs" role="tablist">
                 <li class="nav-item flex-shrink-0" role="presentation">
-                    <a class="nav-link active" id="upload-tab" data-toggle="tab" href="#upload" role="tab">
-                        <i class="bi bi-cloud-upload"></i> <span>Upload Paper</span>
-                    </a>
+                    <button type="button" class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" role="tab" aria-controls="upload" aria-selected="true">
+                        <i class="bi bi-cloud-upload"></i> <span>{{ __('teacher.exam_papers.upload') }}</span>
+                    </button>
                 </li>
                 <li class="nav-item flex-shrink-0" role="presentation">
-                    <a class="nav-link" id="pending-uploads-tab" data-toggle="tab" href="#pending-uploads" role="tab">
-                        <i class="bi bi-clock-history"></i> <span>Pending</span>
+                    <button type="button" class="nav-link" id="pending-uploads-tab" data-bs-toggle="tab" data-bs-target="#pending-uploads" role="tab" aria-controls="pending-uploads" aria-selected="false">
+                        <i class="bi bi-clock-history"></i> <span>{{ __('teacher.pending') }}</span>
                         @if(isset($pendingSlots) && $pendingSlots->count() > 0)
-                            <span class="badge badge-danger ml-1">{{ $pendingSlots->count() }}</span>
+                            <span class="badge bg-danger ms-1">{{ $pendingSlots->count() }}</span>
                         @endif
-                    </a>
+                    </button>
                 </li>
                 <li class="nav-item flex-shrink-0" role="presentation">
-                    <a class="nav-link" id="approved-papers-tab" data-toggle="tab" href="#approved-papers" role="tab">
-                        <i class="bi bi-check-circle"></i> <span>Approved</span>
-                        @php 
-                            $approvedCount = $myExamPapers ? $myExamPapers->filter(fn($p) => strtolower($p->status) == 'approved')->count() : 0; 
+                    <button type="button" class="nav-link" id="approved-papers-tab" data-bs-toggle="tab" data-bs-target="#approved-papers" role="tab" aria-controls="approved-papers" aria-selected="false">
+                        <i class="bi bi-check-circle"></i> <span>{{ __('teacher.approved') }}</span>
+                        @php
+                            $approvedCount = $myExamPapers ? $myExamPapers->filter(fn($p) => strtolower($p->status) == 'approved')->count() : 0;
                         @endphp
                         @if($approvedCount > 0)
-                            <span class="badge badge-success ml-1">{{ $approvedCount }}</span>
+                            <span class="badge bg-success ms-1">{{ $approvedCount }}</span>
                         @endif
-                    </a>
+                    </button>
                 </li>
                 <li class="nav-item flex-shrink-0" role="presentation">
-                    <a class="nav-link" id="rejected-papers-tab" data-toggle="tab" href="#rejected-papers" role="tab">
-                        <i class="bi bi-x-circle"></i> <span>Rejected</span>
-                        @php 
-                            $rejectedCount = $myExamPapers ? $myExamPapers->filter(fn($p) => strtolower($p->status) == 'rejected')->count() : 0; 
+                    <button type="button" class="nav-link" id="rejected-papers-tab" data-bs-toggle="tab" data-bs-target="#rejected-papers" role="tab" aria-controls="rejected-papers" aria-selected="false">
+                        <i class="bi bi-x-circle"></i> <span>{{ __('teacher.rejected') }}</span>
+                        @php
+                            $rejectedCount = $myExamPapers ? $myExamPapers->filter(fn($p) => strtolower($p->status) == 'rejected')->count() : 0;
                         @endphp
                         @if($rejectedCount > 0)
-                            <span class="badge badge-danger ml-1" id="rejected-count-badge">{{ $rejectedCount }}</span>
+                            <span class="badge bg-danger ms-1" id="rejected-count-badge">{{ $rejectedCount }}</span>
                         @endif
-                    </a>
+                    </button>
                 </li>
                 <li class="nav-item flex-shrink-0" role="presentation">
-                    <a class="nav-link" id="pending-papers-tab" data-toggle="tab" href="#pending-papers" role="tab">
-                        <i class="bi bi-clock"></i> <span>Waiting</span>
-                        @php 
-                            $waitCount = $myExamPapers ? $myExamPapers->filter(fn($p) => in_array(strtolower($p->status), ['wait_approval', 'pending']))->count() : 0; 
+                    <button type="button" class="nav-link" id="pending-papers-tab" data-bs-toggle="tab" data-bs-target="#pending-papers" role="tab" aria-controls="pending-papers" aria-selected="false">
+                        <i class="bi bi-clock"></i> <span>{{ __('teacher.exam_papers.waiting') }}</span>
+                        @php
+                            $waitCount = $myExamPapers ? $myExamPapers->filter(fn($p) => in_array(strtolower($p->status), ['wait_approval', 'pending']))->count() : 0;
                         @endphp
                         @if($waitCount > 0)
-                            <span class="badge badge-warning text-dark ml-1">{{ $waitCount }}</span>
+                            <span class="badge bg-warning text-dark ms-1">{{ $waitCount }}</span>
                         @endif
-                    </a>
+                    </button>
                 </li>
             </ul>
 
+            <div class="sx-body">
             <!-- Shared Filter Bar for Approved/Rejected/Waiting tabs -->
-            <div class="card border-0 shadow-sm mb-3" id="papersFilterBar" style="display:none;">
-                <div class="card-body py-2 px-3">
+            <div id="papersFilterBar" style="display:none;">
                     <div class="row g-2 align-items-end">
                         <div class="col-md-3 col-6">
-                            <input type="text" class="form-control form-control-sm" id="search_my_papers" placeholder="Search papers...">
+                            <label class="form-label" for="search_my_papers">{{ __('teacher.search') }}</label>
+                            <input type="text" class="form-control form-control-sm" id="search_my_papers" placeholder="{{ __('teacher.exam_papers.search_papers_ph') }}">
                         </div>
                         <div class="col-md-3 col-6">
+                            <label class="form-label" for="filter_my_papers_exam">{{ __('teacher.exam_papers.exam') }}</label>
                             <select class="form-control form-control-sm" id="filter_my_papers_exam">
-                                <option value="">All Exams</option>
+                                <option value="">{{ __('teacher.exam_papers.all_exams') }}</option>
                                 @if($examinations)
                                     @foreach($examinations as $exam)
                                         <option value="{{ $exam->examID }}">{{ $exam->exam_name }} ({{ $exam->displayYearLabelAll() }})</option>
@@ -541,16 +909,18 @@
                             </select>
                         </div>
                         <div class="col-md-2 col-6">
+                            <label class="form-label" for="filter_my_papers_term">{{ __('teacher.exam_papers.term') }}</label>
                             <select class="form-control form-control-sm" id="filter_my_papers_term">
-                                <option value="">All Terms</option>
-                                <option value="term_1">Term 1</option>
-                                <option value="term_2">Term 2</option>
-                                <option value="term_3">Term 3</option>
+                                <option value="">{{ __('teacher.exam_papers.all_terms') }}</option>
+                                <option value="term_1">{{ __('teacher.exam_papers.term_1') }}</option>
+                                <option value="term_2">{{ __('teacher.exam_papers.term_2') }}</option>
+                                <option value="term_3">{{ __('teacher.exam_papers.term_3') }}</option>
                             </select>
                         </div>
                         <div class="col-md-2 col-6">
+                            <label class="form-label" for="filter_my_papers_year">{{ __('teacher.exam_papers.year') }}</label>
                             <select class="form-control form-control-sm" id="filter_my_papers_year">
-                                <option value="">All Years</option>
+                                <option value="">{{ __('teacher.exam_papers.all_years') }}</option>
                                 @php
                                     $years = $myExamPapers ? $myExamPapers->pluck('examination.year')->unique()->filter()->sort()->reverse() : collect();
                                 @endphp
@@ -560,29 +930,28 @@
                             </select>
                         </div>
                         <div class="col-md-2 col-12">
-                            <button class="btn btn-sm btn-outline-secondary w-100" id="clearPapersFilter">
-                                <i class="bi bi-x-circle"></i> Clear
+                            <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="clearPapersFilter" style="min-height:38px;">
+                                <i class="bi bi-x-circle"></i> {{ __('teacher.exam_papers.clear') }}
                             </button>
                         </div>
                     </div>
-                </div>
             </div>
 
             <div class="tab-content" id="examPapersTabContent">
                 <!-- Upload/Create Tab -->
                 <div class="tab-pane fade show active" id="upload" role="tabpanel">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
                             <form id="uploadExamPaperForm" novalidate>
                                 <input type="hidden" name="placeholder_id" id="placeholder_id">
-                                <div class="row">
-                                    <div class="col-md-12 mb-3">
+
+                                <div class="sx-upload-surface">
+                                <div class="row g-2 align-items-end mb-0">
+                                    <div class="col-md-4">
                                         <label for="selected_exam" class="form-label">
-                                            <i class="bi bi-clipboard-check"></i> Select Examination <span class="text-danger">*</span>
+                                            {{ __('teacher.exam_papers.examination') }} <span class="text-danger">*</span>
                                         </label>
                                         @if($examinations && $examinations->count() > 0)
                                             <select class="form-control" id="selected_exam" name="examID" required>
-                                                <option value="">Select Examination</option>
+                                                <option value="">{{ __('teacher.exam_papers.select_examination') }}</option>
                                                 @foreach($examinations as $exam)
                                                     <option value="{{ $exam->examID }}" data-allow-no-format="{{ $exam->allow_no_format ? '1' : '0' }}">
                                                         {{ $exam->exam_name }}
@@ -593,66 +962,22 @@
                                                     </option>
                                                 @endforeach
                                             </select>
-                                            <small class="form-text text-muted">
-                                                <i class="bi bi-info-circle"></i> Only examinations with upload paper enabled for the selected academic year are shown.
-                                            </small>
                                         @else
                                             <select class="form-control" id="selected_exam" name="examID" required disabled>
-                                                <option value="">No examinations available</option>
+                                                <option value="">{{ __('teacher.exam_papers.no_examinations') }}</option>
                                             </select>
-                                            <div class="alert alert-warning mt-2">
-                                                <i class="bi bi-exclamation-triangle"></i>
-                                                <strong>No examinations available:</strong> There are no examinations with upload paper enabled at the moment. Please contact the administrator to enable upload paper for examinations.
+                                            <div class="alert alert-warning mt-2 mb-0 py-2">
+                                                {{ __('teacher.exam_papers.no_examinations_upload') }}
                                             </div>
                                         @endif
                                     </div>
-                                </div>
 
-                                <!-- Weekly/Monthly Test Fields (Hidden by default) -->
-                                <div id="test_fields_container" style="display: none;">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="test_year" class="form-label">
-                                                <i class="bi bi-calendar"></i> Select Year <span class="text-danger">*</span>
-                                            </label>
-                                            <select class="form-control" id="test_year" name="test_year">
-                                                <option value="">Select Year</option>
-                                                @for($y = date('Y'); $y >= date('Y') - 2; $y--)
-                                                    <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
-                                                @endfor
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label for="test_period" class="form-label">
-                                                <i class="bi bi-calendar-week"></i> Select Period <span class="text-danger">*</span>
-                                            </label>
-                                            <select class="form-control" id="test_period" name="test_week">
-                                                <option value="">Select Period</option>
-                                            </select>
-                                            <small class="form-text text-muted">Periods exclude holidays</small>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-md-12 mb-3">
-                                            <label for="test_subject" class="form-label">
-                                                <i class="bi bi-book"></i> Select Scheduled Subject <span class="text-danger">*</span>
-                                            </label>
-                                            <select class="form-control" id="test_subject" name="class_subjectID">
-                                                <option value="">Select a period first</option>
-                                            </select>
-                                            <small class="form-text text-muted">Only subjects scheduled for this test period are shown</small>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Regular Subject Selection (for non-test exams) -->
-                                <div class="row" id="regular_subject_container">
-                                    <div class="col-md-12 mb-3">
+                                    <div class="col-md-4" id="regular_subject_container">
                                         <label for="class_subject" class="form-label">
-                                            <i class="bi bi-book"></i> Select Subject <span class="text-danger">*</span>
+                                            {{ __('teacher.subject') }} <span class="text-danger">*</span>
                                         </label>
                                         <select class="form-control" id="class_subject" name="class_subjectID" required>
-                                            <option value="">Select Subject</option>
+                                            <option value="">{{ __('teacher.exam_papers.select_subject') }}</option>
                                             @foreach($teacherSubjects as $subject)
                                                 @php
                                                     $subjectName = $subject->subject->subject_name ?? 'N/A';
@@ -679,171 +1004,171 @@
                                             @endforeach
                                         </select>
                                     </div>
-                                </div>
 
-                                <div class="row" id="duo_paper_container" style="display: none;">
-                                    <div class="col-md-12 mb-3">
-                                        <label for="component_id" class="form-label">
-                                            <i class="bi bi-layers"></i> Select Duo Paper <span class="text-danger">*</span>
+                                    <div class="col-md-4">
+                                        <label for="exam_file" class="form-label">
+                                            {{ __('teacher.exam_papers.exam_paper_file') }} <span class="text-danger">*</span>
                                         </label>
-                                        <select class="form-control" id="component_id" name="componentID">
-                                            <option value="">Select paper (e.g. PHY1)...</option>
-                                        </select>
-                                        <small class="form-text text-muted">Only papers assigned to you are listed.</small>
+                                        <input type="file" class="form-control" id="exam_file" name="file" accept=".pdf,.doc,.docx" required>
                                     </div>
                                 </div>
 
-                                <div class="row">
-                                    <div class="col-md-12 mb-3">
-                                        <label for="exam_file" class="form-label">
-                                            <i class="bi bi-file-earmark"></i> Exam Paper File <span class="text-danger">*</span>
+                                <!-- Weekly/Monthly Test Fields (Hidden by default) -->
+                                <div id="test_fields_container" class="mt-3" style="display: none;">
+                                    <div class="row g-2 mb-0">
+                                        <div class="col-md-4">
+                                            <label for="test_year" class="form-label">
+                                                {{ __('teacher.exam_papers.year') }} <span class="text-danger">*</span>
+                                            </label>
+                                            <select class="form-control" id="test_year" name="test_year">
+                                                <option value="">{{ __('teacher.exam_papers.select_year') }}</option>
+                                                @for($y = date('Y'); $y >= date('Y') - 2; $y--)
+                                                    <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
+                                                @endfor
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="test_period" class="form-label">
+                                                {{ __('teacher.exam_papers.period') }} <span class="text-danger">*</span>
+                                            </label>
+                                            <select class="form-control" id="test_period" name="test_week">
+                                                <option value="">{{ __('teacher.exam_papers.select_period') }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="test_subject" class="form-label">
+                                                {{ __('teacher.exam_papers.scheduled_subject') }} <span class="text-danger">*</span>
+                                            </label>
+                                            <select class="form-control" id="test_subject" name="class_subjectID">
+                                                <option value="">{{ __('teacher.exam_papers.select_period_first') }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-2 mt-3 mb-0" id="duo_paper_container" style="display: none;">
+                                    <div class="col-md-4">
+                                        <label for="component_id" class="form-label">
+                                            {{ __('teacher.exam_papers.duo_paper') }} <span class="text-danger">*</span>
                                         </label>
-                                        <input type="file" class="form-control-file" id="exam_file" name="file" accept=".pdf,.doc,.docx" required>
-                                        <small class="form-text text-muted">Maximum file size: 10MB. Allowed formats: PDF, DOC, DOCX</small>
+                                        <select class="form-control" id="component_id" name="componentID">
+                                            <option value="">{{ __('teacher.exam_papers.select_paper_ph') }}</option>
+                                        </select>
                                     </div>
                                 </div>
 
                                 @if(strtolower($schoolType ?? 'Secondary') === 'secondary')
-                                    <div class="row">
-                                        <div class="col-md-12 mb-3">
+                                    <div class="row g-2 mt-3 mb-0">
+                                        <div class="col-md-4">
                                             <label for="existing_upload_main" class="form-label">
-                                                <i class="bi bi-files"></i> Use Existing Upload (Optional)
+                                                {{ __('teacher.exam_papers.use_existing') }}
                                             </label>
                                             <select class="form-control" id="existing_upload_main">
-                                                <option value="">Do not use existing upload</option>
+                                                <option value="">{{ __('teacher.exam_papers.do_not_use_existing') }}</option>
                                             </select>
-                                            <small class="text-muted">Only available for the same subject and class.</small>
                                         </div>
                                     </div>
-                                    <div class="card border-primary-custom mt-3" id="question-format-main">
-                                        <div class="card-body">
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <div>
-                                                    <h6 class="mb-1 text-primary-custom">
-                                                        <i class="bi bi-list-check"></i> Question Formats & Marks (Total <span class="format-expected-total-label">100</span>)
-                                                    </h6>
-                                                    <button type="button" class="btn btn-sm btn-outline-primary add-optional-range" data-target="#question-rows-main">
-                                                        <i class="bi bi-plus-circle"></i> Add optional range
+                                    <div class="sx-qbox mt-3" id="question-format-main">
+                                            <div class="sx-qbox-head">
+                                                <h6>
+                                                    <i class="bi bi-list-check"></i> {{ __('teacher.exam_papers.question_formats') }}
+                                                    <span class="sx-q-total">{{ __('teacher.exam_papers.total') }} <span class="format-expected-total-label">100</span></span>
+                                                </h6>
+                                                <div class="sx-qbox-actions">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary add-optional-range" data-target="#question-rows-main">
+                                                        <i class="bi bi-plus-circle"></i> {{ __('teacher.exam_papers.optional_range') }}
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-primary-custom add-question-row" data-target="#question-rows-main">
+                                                        <i class="bi bi-plus-circle"></i> {{ __('teacher.exam_papers.add_question') }}
                                                     </button>
                                                 </div>
-                                                <button type="button" class="btn btn-sm btn-primary-custom add-question-row" data-target="#question-rows-main">
-                                                    <i class="bi bi-plus-circle"></i> Add Question
-                                                </button>
                                             </div>
-                                            <div class="optional-ranges-wrapper" data-wrapper-for="#question-rows-main"></div>
-                                            <div id="question-rows-main" data-expected-total="100"></div>
-
-                                            <div class="mt-2 text-muted small">
-                                                <small class="text-muted">
-                                                    Total Marks: <span class="total-marks" data-total-for="#question-rows-main">0</span>/<span class="format-total-max" data-total-for="#question-rows-main">100</span>
-                                                </small>
-                                                <div class="text-danger small mt-1 marks-warning d-none" data-warning-for="#question-rows-main"></div>
+                                            <div class="sx-qbox-body">
+                                                <div class="optional-ranges-wrapper" data-wrapper-for="#question-rows-main"></div>
+                                                <div id="question-rows-main" data-expected-total="100"></div>
+                                                <div class="sx-qbox-foot">
+                                                    <span>
+                                                        {{ __('teacher.exam_papers.total_marks') }}
+                                                        <span class="total-marks" data-total-for="#question-rows-main">0</span>/<span class="format-total-max" data-total-for="#question-rows-main">100</span>
+                                                    </span>
+                                                    <div class="text-danger small marks-warning d-none mb-0" data-warning-for="#question-rows-main"></div>
+                                                </div>
                                             </div>
-                                        </div>
                                     </div>
                                 @endif
 
-                                <div class="row">
-                                    <div class="col-md-12">
-                                        <button type="submit" class="btn btn-primary-custom">
-                                            <i class="bi bi-check-circle"></i> Submit Exam Paper
+                                <div class="sx-actions-row">
+                                        <button type="submit" class="btn btn-primary-custom text-white">
+                                            <i class="bi bi-check-circle"></i> <span class="text-white">{{ __('teacher.exam_papers.submit_exam_paper') }}</span>
                                         </button>
-                                        <button type="reset" class="btn btn-secondary ml-2">
-                                            <i class="bi bi-x-circle"></i> Reset
+                                        <button type="reset" class="btn btn-secondary">
+                                            <i class="bi bi-x-circle"></i> {{ __('teacher.exam_papers.reset') }}
                                         </button>
-                                    </div>
+                                </div>
                                 </div>
                             </form>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Pending Uploads Tab -->
                 <div class="tab-pane fade" id="pending-uploads" role="tabpanel">
-                    <h5 class="text-primary-custom mb-3">
-                        <i class="bi bi-clock-history"></i> Scheduled Tests (Pending Paper Upload)
-                    </h5>
                     @if($pendingSlots && $pendingSlots->count() > 0)
-                        <div class="row">
-                            @foreach($pendingSlots as $slot)
-                                @php
-                                    $subjectName = $slot->classSubject->subject->subject_name ?? 'N/A';
-                                    $classNameRaw = $slot->classSubject->subclass
-                                        ? ($slot->classSubject->subclass->class->class_name ?? '') . ' ' . ($slot->classSubject->subclass->subclass_name ?? '')
-                                        : ($slot->classSubject->class->class_name ?? '');
-                                    $fullSubjectDisplay = $subjectName . ' - ' . trim($classNameRaw);
-                                @endphp
-                                <div class="col-md-6 col-lg-4 mb-3">
-                                    <div class="exam-widget-card">
-                                        <!-- Top: Week badge + Pending indicator -->
-                                        <div class="d-flex justify-content-between align-items-start mb-2">
-                                            <span class="exam-type-badge">
-                                                <i class="bi bi-calendar-week"></i> {{ $slot->test_week }}
-                                            </span>
-                                            <span class="badge badge-warning" style="font-size: 0.75rem;">
-                                                <i class="bi bi-cloud-upload"></i> Pending Upload
-                                            </span>
-                                        </div>
-
-                                        <!-- Exam Name -->
-                                        <h6 class="mb-2" style="font-weight: bold;">
-                                            <i class="bi bi-journal-bookmark text-primary-custom"></i>
-                                            {{ $slot->examination->exam_name }}
-                                            @php
-                                                $slotClassName = $slot->classSubject->class->class_name
-                                                    ?? optional(optional($slot->classSubject->subclass)->class)->class_name;
-                                                $slotYearLabel = $slot->examination
-                                                    ? $slot->examination->displayYearLabelForClass($slotClassName)
-                                                    : '';
-                                            @endphp
-                                            <small class="text-muted">({{ $slotYearLabel }})</small>
-                                        </h6>
-
-                                        <!-- Subject -->
-                                        <p class="mb-1 text-muted" style="font-size: 0.9rem;">
-                                            <i class="bi bi-book"></i> {{ $subjectName }}
-                                        </p>
-
-                                        <!-- Class -->
-                                        <p class="mb-2 text-muted" style="font-size: 0.85rem;">
-                                            <i class="bi bi-people"></i>
-                                            @if($slot->classSubject->subclass)
-                                                {{ $slot->classSubject->subclass->class->class_name ?? 'N/A' }} {{ $slot->classSubject->subclass->subclass_name }}
-                                            @else
-                                                {{ $slot->classSubject->class->class_name ?? 'N/A' }}
-                                            @endif
-                                        </p>
-
-                                        <!-- Week Range & Test Date -->
-                                        <p class="mb-1 text-muted" style="font-size: 0.8rem;">
-                                            <i class="bi bi-calendar-range"></i> {{ $slot->test_week_range }}
-                                        </p>
-                                        <p class="mb-2" style="font-size: 0.85rem; font-weight: 600; color: #940000;">
-                                            <i class="bi bi-calendar-event"></i> {{ \Carbon\Carbon::parse($slot->test_date)->format('D, d M Y') }}
-                                        </p>
-
-                                        <!-- Upload Button -->
-                                        <div class="exam-card-actions">
-                                            <button class="btn btn-exam-action btn-sm upload-pending-btn"
-                                                data-exam-id="{{ $slot->examID }}"
-                                                data-class-subject-id="{{ $slot->class_subjectID }}"
-                                                data-test-week="{{ $slot->test_week }}"
-                                                data-test-week-range="{{ $slot->test_week_range }}"
-                                                data-test-date="{{ $slot->test_date }}"
-                                                data-full-subject-display="{{ $fullSubjectDisplay }}"
-                                                data-slot-id="{{ $slot->exam_paperID }}">
-                                                <i class="bi bi-cloud-upload"></i> Upload Now
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
+                        <div class="sx-ep-table-wrap">
+                            <table class="sx-ep-table">
+                                <thead>
+                                    <tr>
+                                        <th>{{ __('teacher.exam_papers.exam_subject') }}</th>
+                                        <th>{{ __('teacher.class') }}</th>
+                                        <th>{{ __('teacher.exam_papers.week') }}</th>
+                                        <th>{{ __('teacher.exam_papers.test_date') }}</th>
+                                        <th class="text-end">{{ __('teacher.exam_papers.action') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($pendingSlots as $slot)
+                                        @php
+                                            $subjectName = $slot->classSubject->subject->subject_name ?? 'N/A';
+                                            $classNameRaw = $slot->classSubject->subclass
+                                                ? ($slot->classSubject->subclass->class->class_name ?? '') . ' ' . ($slot->classSubject->subclass->subclass_name ?? '')
+                                                : ($slot->classSubject->class->class_name ?? '');
+                                            $fullSubjectDisplay = $subjectName . ' - ' . trim($classNameRaw);
+                                            $slotClassName = $slot->classSubject->class->class_name
+                                                ?? optional(optional($slot->classSubject->subclass)->class)->class_name;
+                                            $slotYearLabel = $slot->examination
+                                                ? $slot->examination->displayYearLabelForClass($slotClassName)
+                                                : '';
+                                        @endphp
+                                        <tr>
+                                            <td>
+                                                <div class="sx-ep-title">{{ $slot->examination->exam_name }}</div>
+                                                <span class="sx-ep-meta">{{ $subjectName }}@if($slotYearLabel) · {{ $slotYearLabel }}@endif</span>
+                                            </td>
+                                            <td>{{ trim($classNameRaw) ?: 'N/A' }}</td>
+                                            <td>
+                                                <span class="tag tag-type">{{ $slot->test_week }}</span>
+                                                <span class="sx-ep-meta">{{ $slot->test_week_range }}</span>
+                                            </td>
+                                            <td>{{ \Carbon\Carbon::parse($slot->test_date)->format('D, d M Y') }}</td>
+                                            <td class="text-end">
+                                                <button type="button" class="btn btn-primary-custom btn-sm text-white upload-pending-btn"
+                                                    data-exam-id="{{ $slot->examID }}"
+                                                    data-class-subject-id="{{ $slot->class_subjectID }}"
+                                                    data-test-week="{{ $slot->test_week }}"
+                                                    data-test-week-range="{{ $slot->test_week_range }}"
+                                                    data-test-date="{{ $slot->test_date }}"
+                                                    data-full-subject-display="{{ $fullSubjectDisplay }}"
+                                                    data-slot-id="{{ $slot->exam_paperID }}">
+                                                    <i class="bi bi-cloud-upload"></i> <span class="text-white">{{ __('teacher.exam_papers.upload_now') }}</span>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
                         </div>
                     @else
-                        <div class="text-center py-5">
-                            <i class="bi bi-check-circle text-success display-4"></i>
-                            <h5 class="mt-3">No pending uploads!</h5>
-                            <p class="text-muted">All scheduled tests have had their papers uploaded or there are no upcoming scheduled tests.</p>
+                        <div class="sx-ep-empty">
+                            <i class="bi bi-check-circle" style="color:#198754;"></i>
+                            {{ __('teacher.exam_papers.no_pending_uploads') }}
                         </div>
                     @endif
                 </div>
@@ -856,21 +1181,25 @@
                     $waitApprovalPapers = $myExamPapers ? $myExamPapers->whereIn('status', ['wait_approval', 'pending']) : collect();
 
                     $renderPapers = function($papersCollection, $emptyText, $tabId) {
-
                         if ($papersCollection->count() === 0) {
-                            return '<div class="text-center py-5">
-                                        <i class="bi bi-file-earmark-x text-muted display-4"></i>
-                                        <h5 class="mt-3">No ' . e($emptyText) . ' found.</h5>
-                                    </div>';
+                            return '<div class="sx-ep-empty"><i class="bi bi-file-earmark-x"></i>' . e(__('teacher.exam_papers.empty_found', ['what' => $emptyText])) . '</div>';
                         }
 
-                        $html = '<div class="row">';
+                        $html = '<div class="sx-ep-table-wrap"><table class="sx-ep-table"><thead><tr>
+                                    <th>' . e(__('teacher.exam_papers.exam_subject')) . '</th>
+                                    <th>' . e(__('teacher.class')) . '</th>
+                                    <th>' . e(__('teacher.exam_papers.type')) . '</th>
+                                    <th>' . e(__('teacher.status')) . '</th>
+                                    <th>' . e(__('teacher.exam_papers.submitted')) . '</th>
+                                    <th class="text-end">' . e(__('teacher.actions')) . '</th>
+                                </tr></thead><tbody>';
+
                         foreach ($papersCollection as $paper) {
                             $status      = $paper->status;
-                            $examName    = e($paper->examination->exam_name ?? 'N/A');
-                            $subjectName = e($paper->classSubject->subject->subject_name ?? 'N/A');
+                            $examName    = e($paper->examination->exam_name ?? __('teacher.exam_papers.na'));
+                            $subjectName = e($paper->classSubject->subject->subject_name ?? __('teacher.exam_papers.na'));
                             if ($paper->component) {
-                                $subjectName .= ' <span class="badge badge-info">' . e($paper->component->component_name) . '</span>';
+                                $subjectName .= ' · ' . e($paper->component->component_name);
                             }
                             $uploadType  = e(ucfirst($paper->upload_type));
                             $paperId     = $paper->exam_paperID;
@@ -878,128 +1207,101 @@
                             $term        = e($paper->examination->term ?? '');
                             $year        = e($paper->displayYearLabel());
                             $testWeek    = e($paper->test_week ?? '');
-                            $testDate    = $paper->test_date ? \Carbon\Carbon::parse($paper->test_date)->format('M d, Y') : '';
-                            $submitDate  = $paper->created_at->format('M d, Y H:i');
+                            $testDate    = $paper->test_date ? \Carbon\Carbon::parse($paper->test_date)->format('d M Y') : '';
+                            $submitDate  = $paper->created_at->format('d M Y · H:i');
                             $filePath    = $paper->file_path;
+                            $searchBlob  = strtolower(($paper->examination->exam_name ?? '') . ' ' . ($paper->classSubject->subject->subject_name ?? '') . ' ' . $uploadType);
 
-                            // Class & subclass
                             if ($paper->classSubject && $paper->classSubject->subclass) {
-                                $classDisplay = e(($paper->classSubject->subclass->class->class_name ?? 'N/A') . ' ' . $paper->classSubject->subclass->subclass_name);
+                                $classDisplay = e(($paper->classSubject->subclass->class->class_name ?? __('teacher.exam_papers.na')) . ' ' . $paper->classSubject->subclass->subclass_name);
                             } else {
-                                $classDisplay = e($paper->classSubject->class->class_name ?? 'N/A');
+                                $classDisplay = e($paper->classSubject->class->class_name ?? __('teacher.exam_papers.na'));
                             }
 
-                            // Status badge
                             if ($status === 'wait_approval' || $status === 'pending') {
                                 $stepName = e($paper->current_step_name ?? '');
                                 $badgeLabel = ($status === 'pending' && $paper->current_approval_order && $stepName)
-                                    ? '<i class="bi bi-clock-history"></i> Awaiting: ' . $stepName
-                                    : '<i class="bi bi-clock-history"></i> Wait Approval';
+                                    ? __('teacher.exam_papers.awaiting', ['step' => $stepName])
+                                    : __('teacher.exam_papers.wait_approval');
+                                $statusClass = 'tag-pending';
                             } elseif ($status === 'approved') {
-                                $badgeLabel = '<i class="bi bi-check-circle"></i> Approved';
+                                $badgeLabel = __('teacher.approved');
+                                $statusClass = 'tag-approved';
                             } else {
-                                $badgeLabel = '<i class="bi bi-x-circle"></i> Rejected';
+                                $badgeLabel = __('teacher.rejected');
+                                $statusClass = 'tag-rejected';
                             }
-                            $statusClass = 'badge-status-' . $status;
 
-                            // Rejection / Approval alerts
-                            $alerts = '';
+                            $note = '';
                             if ($status === 'rejected' && $paper->rejection_reason) {
-                                $alerts .= '<div class="alert alert-danger py-2 px-3 mb-2" style="font-size:0.8rem;">
-                                                <strong><i class="bi bi-exclamation-triangle"></i> Reason:</strong> ' . e($paper->rejection_reason) . '
-                                            </div>';
+                                $note = '<span class="sx-ep-meta" style="color:#a11919 !important;">' . e(__('teacher.exam_papers.reason_label')) . ' ' . e($paper->rejection_reason) . '</span>';
+                            } elseif ($status === 'approved' && $paper->approval_comment) {
+                                $note = '<span class="sx-ep-meta">' . e(__('teacher.exam_papers.comment_label')) . ' ' . e($paper->approval_comment) . '</span>';
                             }
-                            if ($status === 'approved' && $paper->approval_comment) {
-                                $alerts .= '<div class="alert alert-success py-2 px-3 mb-2" style="font-size:0.8rem;">
-                                                <strong><i class="bi bi-check-circle"></i> Comment:</strong> ' . e($paper->approval_comment) . '
-                                            </div>';
+                            $extraMeta = '';
+                            if ($testWeek || $testDate) {
+                                $extraMeta = '<span class="sx-ep-meta">' . trim(($testWeek ? $testWeek : '') . ($testWeek && $testDate ? ' · ' : '') . ($testDate ?: '')) . '</span>';
                             }
 
-                            // Week / Date badges
-                            $weekBadge = $testWeek ? '<span class="badge bg-light text-dark border me-1"><i class="bi bi-clock"></i> ' . $testWeek . '</span>' : '';
-                            $dateBadge = $testDate ? '<span class="badge bg-light text-dark border"><i class="bi bi-calendar-event"></i> ' . $testDate . '</span>' : '';
-
-                            // Action buttons
-                            $actions = '';
+                            $actions = '<div class="sx-ep-actions">';
                             if ($status === 'rejected') {
                                 $actions .= '<button type="button" class="btn btn-sm btn-danger edit-paper-btn"
                                                 data-paper-id="' . $paperId . '"
                                                 data-week="' . $testWeek . '"
                                                 data-date="' . e($paper->test_date) . '"
                                                 data-is-rejected="1">
-                                                <i class="bi bi-pencil-square"></i> Edit Exam &amp; Resend
+                                                <i class="bi bi-pencil-square"></i> ' . e(__('teacher.exam_papers.edit_resend')) . '
                                             </button>';
                             } elseif (in_array($status, ['wait_approval', 'pending'])) {
-                                $actions .= '<button type="button" class="btn btn-sm btn-primary edit-paper-btn"
+                                $actions .= '<button type="button" class="btn btn-sm btn-primary-custom text-white edit-paper-btn"
                                                 data-paper-id="' . $paperId . '"
                                                 data-week="' . $testWeek . '"
                                                 data-date="' . e($paper->test_date) . '">
-                                                <i class="bi bi-pencil"></i> Edit Exam
+                                                <i class="bi bi-pencil"></i> ' . e(__('teacher.exam_papers.edit')) . '
                                             </button>';
                             }
-
                             if ($paper->upload_type === 'upload' && $filePath) {
                                 $downloadUrl = route('download_exam_paper', $paperId);
                                 $actions .= '<a href="' . $downloadUrl . '" class="btn btn-exam-action btn-sm">
-                                                <i class="bi bi-download"></i> Download
+                                                <i class="bi bi-download"></i> ' . e(__('teacher.download')) . '
                                             </a>';
                             }
-
                             if ($status === 'approved') {
-                                $actions .= '<button type="button" class="btn btn-sm btn-info edit-questions-btn"
+                                $actions .= '<button type="button" class="btn btn-sm btn-exam-action edit-questions-btn"
                                                 data-paper-id="' . $paperId . '"
                                                 data-week="' . $testWeek . '"
                                                 data-date="' . e($paper->test_date) . '">
-                                                <i class="bi bi-list-check"></i> Edit Questions
+                                                <i class="bi bi-list-check"></i> ' . e(__('teacher.exam_papers.questions')) . '
                                             </button>';
                             }
                             if (in_array($status, ['pending', 'approved', 'rejected'])) {
-                                $actions .= '<button class="btn btn-exam-action btn-sm btn-view-chain"
+                                $actions .= '<button type="button" class="btn btn-exam-action btn-sm btn-view-chain"
                                                 data-paper-id="' . $paperId . '"
                                                 data-exam-id="' . $examId . '">
-                                                <i class="bi bi-list-ol"></i> View Chain
+                                                <i class="bi bi-list-ol"></i> ' . e(__('teacher.exam_papers.chain')) . '
                                             </button>';
                             }
+                            $actions .= '</div>';
 
-                            $cardClass = $status === 'approved' ? 'status-approved' : ($status === 'rejected' ? 'status-rejected' : '');
-
-                            $html .= '
-                            <div class="col-md-6 col-lg-4 mb-3">
-                                <div class="exam-widget-card ' . $cardClass . '"
+                            $html .= '<tr class="exam-paper-row"
                                      data-paper-id="' . $paperId . '"
                                      data-term="' . $term . '"
                                      data-year="' . $year . '"
-                                     data-exam-id="' . $examId . '">
-
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <span class="exam-type-badge"><i class="bi bi-file-earmark-text"></i> ' . $uploadType . '</span>
-                                        <span class="badge ' . $statusClass . '">' . $badgeLabel . '</span>
-                                    </div>
-
-                                    <h6 class="mb-2" style="font-weight:bold;">
-                                        <i class="bi bi-journal-bookmark text-primary-custom"></i> ' . $examName . '
-                                    </h6>
-
-                                    <p class="mb-1 text-muted" style="font-size:0.9rem;">
-                                        <i class="bi bi-book"></i> ' . $subjectName . '
-                                    </p>
-                                    <p class="mb-2 text-muted" style="font-size:0.85rem;">
-                                        <i class="bi bi-people"></i> ' . $classDisplay . '
-                                    </p>
-
-                                    ' . $alerts . '
-
-                                    <div class="mb-2" style="font-size:0.85rem;">' . $weekBadge . $dateBadge . '</div>
-
-                                    <p class="mb-2 text-muted" style="font-size:0.75rem;">
-                                        <i class="bi bi-upload"></i> Submitted: ' . $submitDate . '
-                                    </p>
-
-                                    <div class="exam-card-actions">' . $actions . '</div>
-                                </div>
-                            </div>';
+                                     data-exam-id="' . $examId . '"
+                                     data-search="' . e($searchBlob) . '">
+                                    <td>
+                                        <div class="sx-ep-title">' . $examName . '</div>
+                                        <span class="sx-ep-meta">' . $subjectName . '</span>
+                                        ' . $extraMeta . $note . '
+                                    </td>
+                                    <td>' . $classDisplay . '</td>
+                                    <td><span class="tag tag-type">' . $uploadType . '</span></td>
+                                    <td><span class="tag ' . $statusClass . '">' . $badgeLabel . '</span></td>
+                                    <td>' . $submitDate . '</td>
+                                    <td class="text-end">' . $actions . '</td>
+                                </tr>';
                         }
-                        $html .= '</div>';
+                        $html .= '</tbody></table></div>';
                         return $html;
                     };
                 @endphp
@@ -1008,47 +1310,45 @@
                 <!-- Approved Papers Tab -->
                 <div class="tab-pane fade" id="approved-papers" role="tabpanel">
                     <div id="approved_papers_list">
-                        {!! $renderPapers($approvedPapers, 'approved exam papers', 'approved') !!}
+                        {!! $renderPapers($approvedPapers, __('teacher.exam_papers.empty_approved'), 'approved') !!}
                     </div>
                 </div>
 
                 <!-- Rejected Papers Tab -->
                 <div class="tab-pane fade" id="rejected-papers" role="tabpanel">
                     <div id="rejected_papers_list">
-                         {!! $renderPapers($rejectedPapers, 'rejected exam papers', 'rejected') !!}
+                         {!! $renderPapers($rejectedPapers, __('teacher.exam_papers.empty_rejected'), 'rejected') !!}
                     </div>
                 </div>
 
                 <!-- Wait Approval Tab -->
                 <div class="tab-pane fade" id="pending-papers" role="tabpanel">
                     <div id="pending_papers_list">
-                         {!! $renderPapers($waitApprovalPapers, 'pending exam papers', 'pending') !!}
+                         {!! $renderPapers($waitApprovalPapers, __('teacher.exam_papers.empty_pending'), 'pending') !!}
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
+            </div>{{-- tab-content --}}
+            </div>{{-- sx-body --}}
+            </div>{{-- sx-panel --}}
+</div>{{-- sx-teacher-papers --}}
 
 <!-- Upload Exam Paper Modal -->
-<div class="modal fade" id="uploadExamPaperModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-primary-custom text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-cloud-upload"></i> Upload Exam Paper
+<div class="modal fade" id="uploadExamPaperModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-0">
+            <div class="modal-header bg-primary-custom rounded-0">
+                <h5 class="modal-title" style="color:#940000;font-weight:800;">
+                    <i class="bi bi-cloud-upload"></i> {{ __('teacher.exam_papers.upload_modal_title') }}
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
             </div>
             <div class="modal-body">
                 <form id="modalUploadForm" novalidate>
                     <div class="form-group">
-                        <label for="modal_selected_exam">Select Examination <span class="text-danger">*</span></label>
+                        <label for="modal_selected_exam">{{ __('teacher.exam_papers.select_examination') }} <span class="text-danger">*</span></label>
                         @if($examinations && $examinations->count() > 0)
                             <select class="form-control" id="modal_selected_exam" name="examID" required>
-                                <option value="">Select Examination</option>
+                                <option value="">{{ __('teacher.exam_papers.select_examination') }}</option>
                                 @foreach($examinations as $exam)
                                     <option value="{{ $exam->examID }}">
                                         {{ $exam->exam_name }}
@@ -1059,23 +1359,19 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <small class="form-text text-muted">
-                                <i class="bi bi-info-circle"></i> Only examinations with upload paper enabled for the selected academic year are shown.
-                            </small>
                         @else
                             <select class="form-control" id="modal_selected_exam" name="examID" required disabled>
-                                <option value="">No examinations available</option>
+                                <option value="">{{ __('teacher.exam_papers.no_examinations') }}</option>
                             </select>
-                            <div class="alert alert-warning mt-2">
-                                <i class="bi bi-exclamation-triangle"></i>
-                                <strong>No examinations available:</strong> There are no examinations with upload paper enabled at the moment. Please contact the administrator to enable upload paper for examinations.
+                            <div class="alert alert-warning mt-2 mb-0 py-2">
+                                {{ __('teacher.exam_papers.no_examinations_upload') }}
                             </div>
                         @endif
                     </div>
                     <div class="form-group">
-                        <label for="modal_class_subject">Select Subject <span class="text-danger">*</span></label>
+                        <label for="modal_class_subject">{{ __('teacher.exam_papers.select_subject') }} <span class="text-danger">*</span></label>
                         <select class="form-control" id="modal_class_subject" name="class_subjectID" required>
-                            <option value="">Select Subject</option>
+                            <option value="">{{ __('teacher.exam_papers.select_subject') }}</option>
                             @foreach($teacherSubjects as $subject)
                                 @php
                                     $subjectName = $subject->subject->subject_name ?? 'N/A';
@@ -1103,49 +1399,47 @@
                         </select>
                     </div>
                     <div class="form-group" id="modal_duo_paper_container" style="display: none;">
-                        <label for="modal_component_id">Select Duo Paper <span class="text-danger">*</span></label>
+                        <label for="modal_component_id">{{ __('teacher.exam_papers.select_duo_paper') }} <span class="text-danger">*</span></label>
                         <select class="form-control" id="modal_component_id" name="componentID">
-                            <option value="">Select paper (e.g. PHY1)...</option>
+                            <option value="">{{ __('teacher.exam_papers.select_paper_ph') }}</option>
                         </select>
-                        <small class="form-text text-muted">Only papers assigned to you are listed.</small>
                     </div>
                     <div class="form-group">
-                        <label for="modal_exam_file">Exam Paper File <span class="text-danger">*</span></label>
-                        <input type="file" class="form-control-file" id="modal_exam_file" name="file" accept=".pdf,.doc,.docx" required>
-                        <small class="form-text text-muted">Maximum file size: 10MB. Allowed formats: PDF, DOC, DOCX</small>
+                        <label for="modal_exam_file">{{ __('teacher.exam_papers.exam_paper_file_title') }} <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" id="modal_exam_file" name="file" accept=".pdf,.doc,.docx" required>
                     </div>
 
                         @if(strtolower($schoolType ?? 'Secondary') === 'secondary')
                         <div class="form-group mb-3">
-                            <label for="existing_upload_modal">Use Existing Upload (Optional)</label>
+                            <label for="existing_upload_modal">{{ __('teacher.exam_papers.use_existing_title') }}</label>
                             <select class="form-control" id="existing_upload_modal">
-                                <option value="">Do not use existing upload</option>
+                                <option value="">{{ __('teacher.exam_papers.do_not_use_existing') }}</option>
                             </select>
-                            <small class="text-muted">Only available for the same subject and class.</small>
                         </div>
-                        <div class="card border-primary-custom mt-3" id="question-format-modal">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div>
-                                        <h6 class="mb-1 text-primary-custom">
-                                            <i class="bi bi-list-check"></i> Question Formats & Marks (Total <span class="format-expected-total-label">100</span>)
-                                        </h6>
-                                        <button type="button" class="btn btn-sm btn-outline-primary add-optional-range" data-target="#question-rows-modal">
-                                            <i class="bi bi-plus-circle"></i> Add optional range
-                                        </button>
-                                    </div>
+                        <div class="sx-qbox mt-3" id="question-format-modal">
+                            <div class="sx-qbox-head">
+                                <h6>
+                                    <i class="bi bi-list-check"></i> {{ __('teacher.exam_papers.question_formats') }}
+                                    <span class="sx-q-total">{{ __('teacher.exam_papers.total') }} <span class="format-expected-total-label">100</span></span>
+                                </h6>
+                                <div class="sx-qbox-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary add-optional-range" data-target="#question-rows-modal">
+                                        <i class="bi bi-plus-circle"></i> {{ __('teacher.exam_papers.optional_range') }}
+                                    </button>
                                     <button type="button" class="btn btn-sm btn-primary-custom add-question-row" data-target="#question-rows-modal">
-                                        <i class="bi bi-plus-circle"></i> Add Question
+                                        <i class="bi bi-plus-circle"></i> {{ __('teacher.exam_papers.add_question') }}
                                     </button>
                                 </div>
+                            </div>
+                            <div class="sx-qbox-body">
                                 <div class="optional-ranges-wrapper" data-wrapper-for="#question-rows-modal"></div>
                                 <div id="question-rows-modal" data-expected-total="100"></div>
-
-                                <div class="mt-2 text-muted small">
-                                    <small class="text-muted">
-                                        Total Marks: <span class="total-marks" data-total-for="#question-rows-modal">0</span>/<span class="format-total-max" data-total-for="#question-rows-modal">100</span>
-                                    </small>
-                                    <div class="text-danger small mt-1 marks-warning d-none" data-warning-for="#question-rows-modal"></div>
+                                <div class="sx-qbox-foot">
+                                    <span>
+                                        {{ __('teacher.exam_papers.total_marks') }}
+                                        <span class="total-marks" data-total-for="#question-rows-modal">0</span>/<span class="format-total-max" data-total-for="#question-rows-modal">100</span>
+                                    </span>
+                                    <div class="text-danger small marks-warning d-none mb-0" data-warning-for="#question-rows-modal"></div>
                                 </div>
                             </div>
                         </div>
@@ -1153,9 +1447,9 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary-custom" id="submitModalForm">
-                    <i class="bi bi-check-circle"></i> Submit
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('teacher.cancel') }}</button>
+                <button type="button" class="btn btn-primary-custom text-white" id="submitModalForm">
+                    <i class="bi bi-check-circle"></i> {{ __('teacher.exam_papers.submit') }}
                 </button>
             </div>
         </div>
@@ -1163,16 +1457,14 @@
 </div>
 
 <!-- Edit Exam Paper Modal -->
-<div class="modal fade" id="editExamPaperModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-primary-custom text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-pencil-square"></i> Edit Exam Paper
+<div class="modal fade" id="editExamPaperModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-0">
+            <div class="modal-header bg-primary-custom rounded-0">
+                <h5 class="modal-title" style="color:#940000;font-weight:800;">
+                    <i class="bi bi-pencil-square"></i> {{ __('teacher.exam_papers.edit_modal_title') }}
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
             </div>
             <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
                 <form id="editExamPaperForm" novalidate>
@@ -1182,10 +1474,10 @@
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label for="edit_selected_exam" class="form-label">
-                                <i class="bi bi-clipboard-check"></i> Select Examination <span class="text-danger">*</span>
+                                <i class="bi bi-clipboard-check"></i> {{ __('teacher.exam_papers.select_examination') }} <span class="text-danger">*</span>
                             </label>
                             <select class="form-control" id="edit_selected_exam" name="examID" required>
-                                <option value="">Select Examination</option>
+                                <option value="">{{ __('teacher.exam_papers.select_examination') }}</option>
                                 @foreach($examinations as $exam)
                                     <option value="{{ $exam->examID }}" data-allow-no-format="{{ $exam->allow_no_format ? '1' : '0' }}">
                                         {{ $exam->exam_name }} ({{ $exam->displayYearLabelAll() }})
@@ -1200,7 +1492,7 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="edit_test_year" class="form-label">
-                                    <i class="bi bi-calendar"></i> Select Year <span class="text-danger">*</span>
+                                    <i class="bi bi-calendar"></i> {{ __('teacher.exam_papers.select_year') }} <span class="text-danger">*</span>
                                 </label>
                                 <select class="form-control" id="edit_test_year" name="test_year">
                                     @for($y = date('Y'); $y >= date('Y') - 2; $y--)
@@ -1210,20 +1502,20 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="edit_test_period" class="form-label">
-                                    <i class="bi bi-calendar-week"></i> Select Period <span class="text-danger">*</span>
+                                    <i class="bi bi-calendar-week"></i> {{ __('teacher.exam_papers.select_period') }} <span class="text-danger">*</span>
                                 </label>
                                 <select class="form-control" id="edit_test_period" name="test_week">
-                                    <option value="">Select Period</option>
+                                    <option value="">{{ __('teacher.exam_papers.select_period') }}</option>
                                 </select>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-12 mb-3">
                                 <label for="edit_test_subject" class="form-label">
-                                    <i class="bi bi-book"></i> Select Scheduled Subject <span class="text-danger">*</span>
+                                    <i class="bi bi-book"></i> {{ __('teacher.exam_papers.select_scheduled_subject') }} <span class="text-danger">*</span>
                                 </label>
                                 <select class="form-control" id="edit_test_subject" name="class_subjectID_test">
-                                    <option value="">Select a period first</option>
+                                    <option value="">{{ __('teacher.exam_papers.select_period_first') }}</option>
                                 </select>
                             </div>
                         </div>
@@ -1233,10 +1525,10 @@
                     <div class="row" id="edit_regular_subject_container">
                         <div class="col-md-12 mb-3">
                             <label for="edit_class_subject" class="form-label">
-                                <i class="bi bi-book"></i> Select Subject <span class="text-danger">*</span>
+                                <i class="bi bi-book"></i> {{ __('teacher.exam_papers.select_subject') }} <span class="text-danger">*</span>
                             </label>
                             <select class="form-control" id="edit_class_subject" name="class_subjectID">
-                                <option value="">Select Subject</option>
+                                <option value="">{{ __('teacher.exam_papers.select_subject') }}</option>
                                 @foreach($teacherSubjects as $subject)
                                     <option value="{{ $subject->class_subjectID }}">
                                         {{ $subject->subject->subject_name }} ({{ $subject->class->class_name }} {{ $subject->subclass ? $subject->subclass->subclass_name : '' }})
@@ -1249,11 +1541,10 @@
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label for="edit_exam_file" class="form-label">
-                                <i class="bi bi-file-earmark"></i> Exam Paper File <span class="text-danger">*</span>
+                                <i class="bi bi-file-earmark"></i> {{ __('teacher.exam_papers.exam_paper_file_title') }} <span class="text-danger">*</span>
                             </label>
                             <div id="current_file_info" class="mb-2 small text-info" style="display:none;"></div>
-                            <input type="file" class="form-control-file" id="edit_exam_file" name="file" accept=".pdf,.doc,.docx">
-                            <small class="form-text text-muted">Maximum file size: 10MB. Allowed formats: PDF, DOC, DOCX. Leave empty to keep current file.</small>
+                            <input type="file" class="form-control" id="edit_exam_file" name="file" accept=".pdf,.doc,.docx">
                         </div>
                     </div>
 
@@ -1261,35 +1552,37 @@
                         <div class="row">
                             <div class="col-md-12 mb-3">
                                 <label for="edit_existing_upload" class="form-label">
-                                    <i class="bi bi-files"></i> Use Existing Upload (Optional)
+                                    <i class="bi bi-files"></i> {{ __('teacher.exam_papers.use_existing_title') }}
                                 </label>
                                 <select class="form-control" id="edit_existing_upload">
-                                    <option value="">Do not use existing upload</option>
+                                    <option value="">{{ __('teacher.exam_papers.do_not_use_existing') }}</option>
                                 </select>
                             </div>
                         </div>
-                        <div id="edit_question-format-container" class="card border-primary-custom mt-3" style="display:none;">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <div>
-                                        <h6 class="mb-1 text-primary-custom">
-                                            <i class="bi bi-list-check"></i> Question Formats & Marks (Total <span class="format-expected-total-label">100</span>)
-                                        </h6>
-                                        <button type="button" class="btn btn-sm btn-outline-primary add-optional-range" data-target="#question-rows-edit-unified">
-                                            <i class="bi bi-plus-circle"></i> Add optional range
-                                        </button>
-                                    </div>
+                        <div id="edit_question-format-container" class="sx-qbox mt-3" style="display:none;">
+                            <div class="sx-qbox-head">
+                                <h6>
+                                    <i class="bi bi-list-check"></i> {{ __('teacher.exam_papers.question_formats') }}
+                                    <span class="sx-q-total">{{ __('teacher.exam_papers.total') }} <span class="format-expected-total-label">100</span></span>
+                                </h6>
+                                <div class="sx-qbox-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary add-optional-range" data-target="#question-rows-edit-unified">
+                                        <i class="bi bi-plus-circle"></i> {{ __('teacher.exam_papers.optional_range') }}
+                                    </button>
                                     <button type="button" class="btn btn-sm btn-primary-custom add-question-row" data-target="#question-rows-edit-unified">
-                                        <i class="bi bi-plus-circle"></i> Add Question
+                                        <i class="bi bi-plus-circle"></i> {{ __('teacher.exam_papers.add_question') }}
                                     </button>
                                 </div>
+                            </div>
+                            <div class="sx-qbox-body">
                                 <div class="optional-ranges-wrapper" data-wrapper-for="#question-rows-edit-unified"></div>
                                 <div id="question-rows-edit-unified" data-expected-total="100"></div>
-                                <div class="mt-3 border-top pt-2">
-                                    <small class="text-muted">
-                                        Total Marks: <span class="total-marks" id="edit_total_marks_display" data-total-for="#question-rows-edit-unified">0</span>/<span class="format-total-max" data-total-for="#question-rows-edit-unified">100</span>
-                                    </small>
-                                    <div class="text-danger small mt-1 marks-warning d-none" data-warning-for="#question-rows-edit-unified" id="edit_marks_warning"></div>
+                                <div class="sx-qbox-foot">
+                                    <span>
+                                        {{ __('teacher.exam_papers.total_marks') }}
+                                        <span class="total-marks" id="edit_total_marks_display" data-total-for="#question-rows-edit-unified">0</span>/<span class="format-total-max" data-total-for="#question-rows-edit-unified">100</span>
+                                    </span>
+                                    <div class="text-danger small marks-warning d-none mb-0" data-warning-for="#question-rows-edit-unified" id="edit_marks_warning"></div>
                                 </div>
                             </div>
                         </div>
@@ -1297,9 +1590,9 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary-custom" id="submitEditForm">
-                    <i class="bi bi-check-circle"></i> Update &amp; Resubmit
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('teacher.cancel') }}</button>
+                <button type="button" class="btn btn-primary-custom text-white" id="submitEditForm">
+                    <i class="bi bi-check-circle"></i> {{ __('teacher.exam_papers.update_resubmit') }}
                 </button>
             </div>
         </div>
@@ -1307,16 +1600,14 @@
 </div>
 
 <!-- Edit Exam Paper Questions Modal -->
-<div class="modal fade" id="editExamPaperQuestionsModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-primary-custom text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-list-check"></i> Edit Exam Paper Questions
+<div class="modal fade" id="editExamPaperQuestionsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-0">
+            <div class="modal-header bg-primary-custom rounded-0">
+                <h5 class="modal-title" style="color:#940000;font-weight:800;">
+                    <i class="bi bi-list-check"></i> {{ __('teacher.exam_papers.edit_questions_title') }}
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
             </div>
             <div class="modal-body">
                 <form id="editExamPaperQuestionsForm">
@@ -1324,48 +1615,50 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <div class="form-group mb-0">
-                                <label for="edit_questions_test_week">Test Week</label>
-                                <input type="text" class="form-control" id="edit_questions_test_week" name="test_week" placeholder="e.g. Week 1">
+                                <label for="edit_questions_test_week">{{ __('teacher.exam_papers.test_week') }}</label>
+                                <input type="text" class="form-control" id="edit_questions_test_week" name="test_week" placeholder="{{ __('teacher.exam_papers.test_week_ph') }}">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group mb-0">
-                                <label for="edit_questions_test_date">Test Date</label>
+                                <label for="edit_questions_test_date">{{ __('teacher.exam_papers.test_date_label') }}</label>
                                 <input type="date" class="form-control" id="edit_questions_test_date" name="test_date">
                             </div>
                         </div>
                     </div>
-                    <div class="card border-primary-custom">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div>
-                                    <h6 class="mb-1 text-primary-custom">
-                                        <i class="bi bi-list-check"></i> Question Formats & Marks (Total <span class="format-expected-total-label">100</span>)
-                                    </h6>
-                                    <button type="button" class="btn btn-sm btn-outline-primary add-optional-range" data-target="#question-rows-edit">
-                                        <i class="bi bi-plus-circle"></i> Add optional range
-                                    </button>
-                                </div>
+                    <div class="sx-qbox">
+                        <div class="sx-qbox-head">
+                            <h6>
+                                <i class="bi bi-list-check"></i> {{ __('teacher.exam_papers.question_formats') }}
+                                <span class="sx-q-total">{{ __('teacher.exam_papers.total') }} <span class="format-expected-total-label">100</span></span>
+                            </h6>
+                            <div class="sx-qbox-actions">
+                                <button type="button" class="btn btn-sm btn-outline-secondary add-optional-range" data-target="#question-rows-edit">
+                                    <i class="bi bi-plus-circle"></i> {{ __('teacher.exam_papers.optional_range') }}
+                                </button>
                                 <button type="button" class="btn btn-sm btn-primary-custom add-question-row" data-target="#question-rows-edit">
-                                    <i class="bi bi-plus-circle"></i> Add Question
+                                    <i class="bi bi-plus-circle"></i> {{ __('teacher.exam_papers.add_question') }}
                                 </button>
                             </div>
+                        </div>
+                        <div class="sx-qbox-body">
                             <div class="optional-ranges-wrapper" data-wrapper-for="#question-rows-edit"></div>
                             <div id="question-rows-edit" data-expected-total="100"></div>
-                            <div class="mt-2">
-                                <small class="text-muted">
-                                    Total Marks: <span class="total-marks" data-total-for="#question-rows-edit">0</span>/<span class="format-total-max" data-total-for="#question-rows-edit">100</span>
-                                </small>
-                                <div class="text-danger small mt-1 marks-warning d-none" data-warning-for="#question-rows-edit"></div>
+                            <div class="sx-qbox-foot">
+                                <span>
+                                    {{ __('teacher.exam_papers.total_marks') }}
+                                    <span class="total-marks" data-total-for="#question-rows-edit">0</span>/<span class="format-total-max" data-total-for="#question-rows-edit">100</span>
+                                </span>
+                                <div class="text-danger small marks-warning d-none mb-0" data-warning-for="#question-rows-edit"></div>
                             </div>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary-custom" id="submitEditQuestionsForm">
-                    <i class="bi bi-check-circle"></i> Update Questions
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('teacher.cancel') }}</button>
+                <button type="button" class="btn btn-primary-custom text-white" id="submitEditQuestionsForm">
+                    <i class="bi bi-check-circle"></i> <span class="text-white">{{ __('teacher.exam_papers.update_questions') }}</span>
                 </button>
             </div>
         </div>
@@ -1373,36 +1666,139 @@
 </div>
 
 <!-- Modal for View Chain -->
-<div class="modal fade" id="viewChainModal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-primary-custom text-white">
-                <h5 class="modal-title">Approval Progress Chain</h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+<div class="modal fade" id="viewChainModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-0">
+            <div class="modal-header bg-primary-custom rounded-0">
+                <h5 class="modal-title" style="color:#940000;font-weight:800;">{{ __('teacher.exam_papers.approval_chain') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('teacher.close') }}"></button>
             </div>
             <div class="modal-body">
                 <div id="chainTimelineContent">
                     <div class="text-center py-4">
                         <i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i>
-                        <p>Loading chain details...</p>
+                        <p>{{ __('teacher.exam_papers.loading_chain') }}</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+<style>
+html[data-sx-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers .form-label,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers .form-label,
+html[data-sx-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers .sx-q-row .form-label,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers .sx-q-row .form-label {
+    color: #ffb4b4 !important;
+}
+html[data-sx-theme="dark"] .sx-sa-content-wrap table.sx-ep-table th,
+html[data-bs-theme="dark"] .sx-sa-content-wrap table.sx-ep-table th {
+    background: #940000 !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+}
+html[data-sx-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers .sx-ep-title,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers .sx-ep-title {
+    color: #ffb4b4 !important;
+}
+html[data-sx-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers .sx-ep-meta,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers .sx-ep-meta {
+    color: #d7c4c8 !important;
+}
+html[data-sx-theme="dark"] .sx-sa-content-wrap .tag.tag-approved,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .tag.tag-approved,
+html[data-sx-theme="dark"] .sx-sa-content-wrap .badge-status-approved,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .badge-status-approved {
+    background: #e8f6ec !important; color: #146c2e !important; -webkit-text-fill-color: #146c2e !important;
+}
+html[data-sx-theme="dark"] .sx-sa-content-wrap .tag.tag-rejected,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .tag.tag-rejected,
+html[data-sx-theme="dark"] .sx-sa-content-wrap .badge-status-rejected,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .badge-status-rejected {
+    background: #fdecec !important; color: #a11919 !important; -webkit-text-fill-color: #a11919 !important;
+}
+html[data-sx-theme="dark"] .sx-sa-content-wrap .tag.tag-pending,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .tag.tag-pending,
+html[data-sx-theme="dark"] .sx-sa-content-wrap .badge-status-wait-approval,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .badge-status-wait-approval,
+html[data-sx-theme="dark"] .sx-sa-content-wrap .badge-status-pending,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .badge-status-pending,
+html[data-sx-theme="dark"] .sx-sa-content-wrap .badge-status-wait_approval,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .badge-status-wait_approval {
+    background: #fff3cd !important; color: #7a5a00 !important; -webkit-text-fill-color: #7a5a00 !important;
+}
+html[data-sx-theme="dark"] .sx-sa-content-wrap .tag.tag-type,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .tag.tag-type {
+    background: #f8eaea !important; color: #940000 !important; -webkit-text-fill-color: #940000 !important;
+}
+html[data-sx-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers #examPapersTabs .nav-link,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers #examPapersTabs .nav-link {
+    color: #e8c9cd !important;
+}
+html[data-sx-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers #examPapersTabs .nav-link.active,
+html[data-bs-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers #examPapersTabs .nav-link.active,
+html[data-sx-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers #examPapersTabs .nav-link.active span:not(.badge),
+html[data-bs-theme="dark"] .sx-sa-content-wrap .sx-teacher-papers #examPapersTabs .nav-link.active span:not(.badge) {
+    color: #ffb4b4 !important;
+}
+</style>
+@endsection
 
+@push('scripts')
+<script>
+window.sxShowModal = function(el) {
+    var node = typeof el === 'string' ? document.querySelector(el) : (el && el.jquery ? el[0] : el);
+    if (!node) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(node).show();
+        return;
+    }
+    if (window.jQuery && jQuery.fn.modal) jQuery(node).modal('show');
+};
+window.sxHideModal = function(el) {
+    var node = typeof el === 'string' ? document.querySelector(el) : (el && el.jquery ? el[0] : el);
+    if (!node) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        var inst = bootstrap.Modal.getInstance(node) || bootstrap.Modal.getOrCreateInstance(node);
+        inst.hide();
+        return;
+    }
+    if (window.jQuery && jQuery.fn.modal) jQuery(node).modal('hide');
+};
+window.sxShowTab = function(selector) {
+    var node = document.querySelector(selector);
+    if (!node) return;
+    if (window.bootstrap && bootstrap.Tab) {
+        bootstrap.Tab.getOrCreateInstance(node).show();
+        return;
+    }
+    if (window.jQuery && jQuery.fn.tab) jQuery(node).tab('show');
+};
+</script>
 <script>
 jQuery(document).ready(function($) {
+    var i18nEp = @json(__('teacher.exam_papers'));
+    i18nEp.pending = @json(__('teacher.pending'));
+    i18nEp.approved = @json(__('teacher.approved'));
+    i18nEp.rejected = @json(__('teacher.rejected'));
+    i18nEp.save = @json(__('teacher.save'));
+    i18nEp.cancel = @json(__('teacher.cancel'));
+    i18nEp.close = @json(__('teacher.close'));
+    i18nEp.loading = @json(__('teacher.loading'));
+    i18nEp.status = @json(__('teacher.status'));
+    i18nEp.actions = @json(__('teacher.actions'));
+    i18nEp.filter = @json(__('teacher.filter'));
+    i18nEp.search = @json(__('teacher.search'));
+    i18nEp.subject = @json(__('teacher.subject'));
+    i18nEp.class = @json(__('teacher.class'));
+    i18nEp.date = @json(__('teacher.date'));
     // Handle View Chain
     $('.btn-view-chain').on('click', function() {
         const paperId = $(this).data('paper-id');
         const examId = $(this).data('exam-id');
 
-        $('#viewChainModal').modal('show');
-        $('#chainTimelineContent').html('<div class="text-center py-4"><i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i><p>Loading chain details...</p></div>');
+        sxShowModal('#viewChainModal');
+        $('#chainTimelineContent').html('<div class="text-center py-4"><i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i><p>{{ __('teacher.exam_papers.loading_chain') }}</p></div>');
 
         $.ajax({
             url: "{{ url('view_paper_approval_chain') }}/" + examId,
@@ -1418,7 +1814,7 @@ jQuery(document).ready(function($) {
 
                 chain.forEach(function(step) {
                     let statusClass = 'pending';
-                    let statusText = 'Pending';
+                    let statusText = i18nEp.pending;
                     let comment = '';
                     let approver = '';
                     let date = '';
@@ -1429,36 +1825,36 @@ jQuery(document).ready(function($) {
                     if (log) {
                         if (log.status === 'approved') {
                             statusClass = 'approved';
-                            statusText = 'Approved';
-                            approver = log.approver ? log.approver.first_name + ' ' + log.approver.last_name : 'N/A';
+                            statusText = i18nEp.approved;
+                            approver = log.approver ? log.approver.first_name + ' ' + log.approver.last_name : i18nEp.na;
                             date = new Date(log.updated_at).toLocaleString();
                             comment = log.comment ? '<div class="small mt-2 p-2 bg-light border-left border-success">" ' + log.comment + ' "</div>' : '';
                         } else if (log.status === 'rejected') {
                             statusClass = 'rejected';
-                            statusText = 'Rejected';
-                            approver = log.approver ? log.approver.first_name + ' ' + log.approver.last_name : 'N/A';
+                            statusText = i18nEp.rejected;
+                            approver = log.approver ? log.approver.first_name + ' ' + log.approver.last_name : i18nEp.na;
                             date = new Date(log.updated_at).toLocaleString();
                             comment = log.comment ? '<div class="small mt-2 p-2 bg-light border-left border-danger">" ' + log.comment + ' "</div>' : '';
                         } else if (log.status === 'pending') {
                             statusClass = 'current';
-                            statusText = 'Awaiting Approval';
+                            statusText = i18nEp.awaiting_approval;
                         }
                     }
 
                     let roleName = step.special_role_type ?
                         step.special_role_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) :
-                        (step.role ? step.role.name : 'Unknown Role');
+                        (step.role ? step.role.name : i18nEp.unknown_role);
 
                     let contentHtml = '';
                     if (approver || date || comment) {
                         contentHtml = `
                             <div class="small text-muted">
-                                ${approver ? 'By: ' + approver + (date ? ' | ' + date : '') : 'Progressing...'}
+                                ${approver ? i18nEp.by_approver.replace(':name', approver) + (date ? ' | ' + date : '') : i18nEp.progressing}
                             </div>
                             ${comment}
                         `;
                     } else {
-                        contentHtml = `<div class="small text-muted">Progressing...</div>`;
+                        contentHtml = `<div class="small text-muted">${i18nEp.progressing}</div>`;
                     }
 
                     html += `
@@ -1466,7 +1862,7 @@ jQuery(document).ready(function($) {
                             <div class="timeline-badge ${statusClass}"></div>
                             <div class="timeline-panel">
                                 <div class="d-flex justify-content-between">
-                                    <h6 class="mb-1 text-primary-custom font-weight-bold">Step ${step.approval_order}: ${roleName}</h6>
+                                    <h6 class="mb-1 text-primary-custom font-weight-bold">${i18nEp.step_role.replace(':n', step.approval_order).replace(':role', roleName)}</h6>
                                     <span class="badge ${statusClass === 'approved' ? 'badge-success' : (statusClass === 'rejected' ? 'badge-danger' : 'badge-warning')} text-capitalize">${statusText}</span>
                                 </div>
                                 ${contentHtml}
@@ -1479,7 +1875,7 @@ jQuery(document).ready(function($) {
                 $('#chainTimelineContent').html(html);
             },
             error: function() {
-                $('#chainTimelineContent').html('<div class="alert alert-danger">Failed to load chain details.</div>');
+                $('#chainTimelineContent').html('<div class="alert alert-danger">' + i18nEp.failed_chain + '</div>');
             }
         });
     });
@@ -1504,8 +1900,8 @@ jQuery(document).ready(function($) {
         const $container = $(id);
         $container.attr('data-expected-total', expected).data('expected-total', expected);
 
-        const $card = $container.closest('.card');
-        $card.find('.format-expected-total-label').text(expected);
+        const $box = $container.closest('.sx-qbox, .card');
+        $box.find('.format-expected-total-label').text(expected);
         $(`.format-total-max[data-total-for="${id}"]`).text(expected);
         $container.find('.question-marks').attr('max', expected);
         $(`.optional-ranges-wrapper[data-wrapper-for="${id}"] .optional-total-input`).attr('max', Math.max(1, expected - 1));
@@ -1534,27 +1930,28 @@ jQuery(document).ready(function($) {
         const optionalOptions = buildOptionalRangeOptions(targetId);
         const expectedTotal = getExpectedFormatTotal(targetId);
         return `
-            <div class="form-row align-items-end question-row">
-                <div class="col-md-1 mb-2">
-                    <label class="form-label">Qn</label>
+            <div class="sx-q-row question-row">
+                <div class="sx-q-num">
+                    <label class="form-label">${i18nEp.qn}</label>
                     <input type="text" class="form-control question-number" readonly>
                 </div>
-                <div class="col-md-6 mb-2">
-                    <label class="form-label">Question Description</label>
+                <div class="sx-q-desc">
+                    <label class="form-label">${i18nEp.description}</label>
                     <input type="text" class="form-control question-description" name="question_descriptions[]" required>
                 </div>
-                <div class="col-md-3 mb-2">
-                    <label class="form-label">Marks</label>
+                <div class="sx-q-marks">
+                    <label class="form-label">${i18nEp.marks}</label>
                     <input type="number" class="form-control question-marks" name="question_marks[]" min="1" max="${expectedTotal}" required>
                 </div>
-                <div class="col-md-1 mb-2">
-                    <label class="form-label">Opt</label>
+                <div class="sx-q-opt">
+                    <label class="form-label">${i18nEp.opt}</label>
                     <select class="form-control question-optional" name="question_optional[]">
                         ${optionalOptions}
                     </select>
                 </div>
-                <div class="col-md-1 mb-2">
-                    <button type="button" class="btn btn-sm btn-danger remove-question-row" title="Remove">
+                <div class="sx-q-remove">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="button" class="btn btn-sm btn-danger remove-question-row" title="${i18nEp.remove}">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
@@ -1562,11 +1959,33 @@ jQuery(document).ready(function($) {
         `;
     }
 
+    function appendQuestionRow(target) {
+        const targetId = target && String(target).startsWith('#') ? String(target) : ('#' + String(target || '').replace(/^#/, ''));
+        const $container = $(targetId);
+        if (!$container.length) {
+            console.warn('Add Question: container not found', targetId);
+            return false;
+        }
+        $container.append(buildQuestionRow(targetId));
+        refreshQuestionNumbers($container);
+        updateTotalMarks($container);
+        toggleRemoveButtons($container);
+        const $box = $container.closest('.sx-qbox');
+        if ($box.length && $box.is(':hidden')) {
+            $box.show();
+        }
+        return true;
+    }
+
+    // Expose for early native click binder
+    window.sxExamPaperAppendQuestion = appendQuestionRow;
+    window.sxExamPaperBuildQuestionRow = buildQuestionRow;
+
     function buildOptionalRangeOptions(targetId) {
         const ranges = getOptionalRanges(targetId);
-        let options = '<option value="0">No</option>';
+        let options = '<option value="0">' + i18nEp.opt_no + '</option>';
         ranges.forEach(function(range) {
-            options += `<option value="${range.number}">Opt ${range.number}</option>`;
+            options += `<option value="${range.number}">${i18nEp.opt_n.replace(':n', range.number)}</option>`;
         });
         return options;
     }
@@ -1637,9 +2056,9 @@ jQuery(document).ready(function($) {
         if (optionalTotalSum > expectedTotal) {
             $warningEl.text(`Optional range totals exceed ${expectedTotal}. Reduce optional totals.`).removeClass('d-none');
         } else if (optionalRangeMismatch) {
-            $warningEl.text('Optional range total is less than the range total marks.').removeClass('d-none');
+            $warningEl.text(i18nEp.optional_range_warn).removeClass('d-none');
         } else if (requiredTotal > requiredMax) {
-            $warningEl.text('Required questions exceed allowed total. Reduce required marks.').removeClass('d-none');
+            $warningEl.text(i18nEp.err_required_exceed).removeClass('d-none');
         } else if (overallTotal > expectedTotal) {
             $warningEl.text(`Marks exceed ${expectedTotal}. Please reduce marks.`).removeClass('d-none');
         } else if (overallTotal < expectedTotal) {
@@ -1693,22 +2112,20 @@ jQuery(document).ready(function($) {
         const rangeNumber = existing + 1;
         const expectedTotal = getExpectedFormatTotal(targetId);
         const html = `
-            <div class="form-row align-items-end mb-2 optional-range-item" data-wrapper-for="${targetId}" data-range-number="${rangeNumber}">
-                <div class="col-md-4">
-                    <label class="form-label">Optional Range ${rangeNumber} Total Marks</label>
-                    <input type="number" class="form-control optional-total-input" min="1" max="${Math.max(1, expectedTotal - 1)}" placeholder="e.g. 45">
+            <div class="optional-range-item" data-wrapper-for="${targetId}" data-range-number="${rangeNumber}">
+                <div>
+                    <label class="form-label">Optional Range ${rangeNumber} Total</label>
+                    <input type="number" class="form-control optional-total-input" min="1" max="${Math.max(1, expectedTotal - 1)}" placeholder="${i18nEp.optional_total_ph}">
                     <div class="text-danger small optional-total-error d-none">Optional totals exceed ${expectedTotal}.</div>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Required Questions</label>
-                    <input type="number" class="form-control optional-required-input" min="1" placeholder="e.g. 2">
-                    <div class="text-danger small optional-required-error d-none">Required count exceeds optional questions.</div>
+                <div>
+                    <label class="form-label">${i18nEp.required_questions}</label>
+                    <input type="number" class="form-control optional-required-input" min="1" placeholder="${i18nEp.required_count_ph}">
+                    <div class="text-danger small optional-required-error d-none">${i18nEp.required_exceeds}</div>
                 </div>
-                <div class="col-md-4">
-                    <small class="text-muted">Questions in Opt ${rangeNumber} can exceed this total, but only this value counts toward ${expectedTotal}.</small>
-                </div>
-                <div class="col-md-1 text-right">
-                    <button type="button" class="btn btn-sm btn-danger remove-optional-range" title="Remove">
+                <div>
+                    <label class="form-label">&nbsp;</label>
+                    <button type="button" class="btn btn-sm btn-danger remove-optional-range" title="${i18nEp.remove}">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
@@ -1718,6 +2135,14 @@ jQuery(document).ready(function($) {
         refreshOptionalRangeSelects(targetId);
         updateTotalMarks($(targetId));
     }
+
+    // Bind Add Question early so it still works even if later init throws
+    $(document).off('click.sxAddQuestion', '.add-question-row').on('click.sxAddQuestion', '.add-question-row', function(e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const target = $(this).attr('data-target') || $(this).data('target');
+        appendQuestionRow(target);
+    });
 
     if (isSecondarySchool) {
         ensureAtLeastOneRow($('#question-rows-main'));
@@ -1875,7 +2300,7 @@ jQuery(document).ready(function($) {
         const subjectID = $selectedOption.data('subject-id');
         const classID = $selectedOption.data('class-id');
 
-        $reuseSelect.empty().append('<option value="">Do not use existing upload</option>');
+        $reuseSelect.empty().append('<option value="">{{ __('teacher.exam_papers.do_not_use_existing') }}</option>');
 
         if (!examID || !classSubjectID || !subjectID || !classID) {
             $reuseSelect.prop('disabled', true);
@@ -2049,7 +2474,7 @@ jQuery(document).ready(function($) {
             // Ensure option exists
             if ($periodSelect.find(`option[value="${testWeek}"]`).length === 0) {
                  // Clear existing if it only has 'Select Period' to avoid clutter or duplicates if logic differs
-                 if ($periodSelect.children().length <= 1) $periodSelect.html('<option value="">Select Period</option>');
+                 if ($periodSelect.children().length <= 1) $periodSelect.html('<option value="">{{ __('teacher.exam_papers.select_period') }}</option>');
                  $periodSelect.append(`<option value="${testWeek}">${displayWeek}</option>`);
             }
             $periodSelect.val(testWeek);
@@ -2057,7 +2482,7 @@ jQuery(document).ready(function($) {
             // 2. Set Subject
             const $subjectSelect = $('#test_subject');
             if ($subjectSelect.find(`option[value="${classSubjectID}"]`).length === 0) {
-                 if ($subjectSelect.children().length <= 1) $subjectSelect.html('<option value="">Select Subject</option>');
+                 if ($subjectSelect.children().length <= 1) $subjectSelect.html('<option value="">{{ __('teacher.exam_papers.select_subject') }}</option>');
                  $subjectSelect.append(`<option value="${classSubjectID}">${fullSubjectDisplay}</option>`);
             }
             $subjectSelect.val(classSubjectID);
@@ -2079,7 +2504,7 @@ jQuery(document).ready(function($) {
                     if (response.success && response.periods) {
                         // Remember current selection
                         const selectedPeriod = $periodSelect.val();
-                        $periodSelect.html('<option value="">Select Period</option>');
+                        $periodSelect.html('<option value="">{{ __('teacher.exam_papers.select_period') }}</option>');
 
                         let periodExists = false;
                         response.periods.forEach(function(period) {
@@ -2108,7 +2533,7 @@ jQuery(document).ready(function($) {
                                 if (subjectResponse.success && subjectResponse.subjects) {
                                     // Remember current subject
                                     const selectedSubject = $subjectSelect.val();
-                                    $subjectSelect.html('<option value="">Select Subject</option>');
+                                    $subjectSelect.html('<option value="">{{ __('teacher.exam_papers.select_subject') }}</option>');
 
                                     let subjectExists = false;
                                     subjectResponse.subjects.forEach(function(subject) {
@@ -2137,7 +2562,7 @@ jQuery(document).ready(function($) {
         fetchExistingPapers(examID);
 
         // Switch Tab
-        $('#upload-tab').tab('show');
+        sxShowTab('#upload-tab');
     });
 
     $('#selected_exam').on('change', function() {
@@ -2167,8 +2592,8 @@ jQuery(document).ready(function($) {
             $('#test_subject').prop('required', false);
 
             // Clear test fields
-            $('#test_period').html('<option value="">Select Period</option>');
-            $('#test_subject').html('<option value="">Select a period first</option>');
+            $('#test_period').html('<option value="">{{ __('teacher.exam_papers.select_period') }}</option>');
+            $('#test_subject').html('<option value="">{{ __('teacher.exam_papers.select_period_first') }}</option>');
         }
 
         updateDuoPaperSelect(false);
@@ -2204,7 +2629,7 @@ jQuery(document).ready(function($) {
         if (period && examID) {
             loadScheduledSubjects(examID, period);
         } else {
-            $('#test_subject').html('<option value="">Select a period first</option>');
+            $('#test_subject').html('<option value="">{{ __('teacher.exam_papers.select_period_first') }}</option>');
         }
     });
 
@@ -2221,7 +2646,7 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 if (response.success && response.periods) {
                     const $periodSelect = $('#test_period');
-                    $periodSelect.html('<option value="">Select Period</option>');
+                    $periodSelect.html('<option value="">{{ __('teacher.exam_papers.select_period') }}</option>');
 
                     response.periods.forEach(function(period) {
                         $periodSelect.append(`<option value="${period.id}">${period.text}</option>`);
@@ -2230,7 +2655,7 @@ jQuery(document).ready(function($) {
             },
             error: function(xhr) {
                 console.error('Failed to load periods:', xhr);
-                Swal.fire('Error', 'Failed to load available periods', 'error');
+                Swal.fire(i18nEp.error, i18nEp.fail_load_periods, 'error');
             }
         });
     }
@@ -2266,10 +2691,10 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 if (response.success && response.subjects) {
                     const $subjectSelect = $('#test_subject');
-                    $subjectSelect.html('<option value="">Select Subject</option>');
+                    $subjectSelect.html('<option value="">{{ __('teacher.exam_papers.select_subject') }}</option>');
 
                     if (response.subjects.length === 0) {
-                        $subjectSelect.html('<option value="">No subjects scheduled for this period</option>');
+                        $subjectSelect.html('<option value="">' + i18nEp.no_subjects_period + '</option>');
                     } else {
                         response.subjects.forEach(function(subject) {
                             appendScheduledSubjectOption($subjectSelect, subject);
@@ -2280,7 +2705,7 @@ jQuery(document).ready(function($) {
             },
             error: function(xhr) {
                 console.error('Failed to load subjects:', xhr);
-                $('#test_subject').html('<option value="">Error loading subjects</option>');
+                $('#test_subject').html('<option value="">' + i18nEp.err_load_subjects + '</option>');
             }
         });
     }
@@ -2324,7 +2749,7 @@ jQuery(document).ready(function($) {
         const isDuo = $opt.data('is-duo') == 1 || $opt.data('is-duo') === true;
         const papers = parseDuoPapersFromOption($opt);
 
-        $paperSelect.empty().append('<option value="">Select paper (e.g. PHY1)...</option>');
+        $paperSelect.empty().append('<option value="">{{ __('teacher.exam_papers.select_paper_ph') }}</option>');
         if (isDuo && papers.length) {
             papers.forEach(function(p) {
                 const marks = p.max_marks ? ' (' + p.max_marks + ' marks)' : '';
@@ -2423,19 +2848,19 @@ jQuery(document).ready(function($) {
         const existingUploadId = isModal ? $('#existing_upload_modal').val() : $('#existing_upload_main').val();
 
         if (!examID) {
-            Swal.fire('Error', 'Please select an examination', 'error');
+            Swal.fire(i18nEp.error, i18nEp.err_select_exam, 'error');
             return;
         }
 
         // Verify selected exam exists and has upload_paper enabled
         const selectedExam = examinations.find(exam => exam.examID == examID);
         if (!selectedExam) {
-            Swal.fire('Error', 'Selected examination not found or upload paper is disabled', 'error');
+            Swal.fire(i18nEp.error, i18nEp.err_exam_disabled, 'error');
             return;
         }
 
         if (!classSubjectID) {
-            Swal.fire('Error', 'Please select a subject', 'error');
+            Swal.fire(i18nEp.error, i18nEp.err_select_subject, 'error');
             return;
         }
 
@@ -2449,13 +2874,13 @@ jQuery(document).ready(function($) {
             : $('#component_id').val();
 
         if (isDuo && !componentID) {
-            Swal.fire('Error', 'Please select which duo paper you are uploading (e.g. PHY1).', 'error');
+            Swal.fire(i18nEp.error, i18nEp.err_select_duo, 'error');
             return;
         }
 
         const fileInput = isModal ? $('#modal_exam_file')[0] : $('#exam_file')[0];
         if (!existingUploadId && fileInput.files.length === 0) {
-            Swal.fire('Error', 'Please select a file to upload', 'error');
+            Swal.fire(i18nEp.error, i18nEp.err_select_file, 'error');
             return;
         }
 
@@ -2476,13 +2901,13 @@ jQuery(document).ready(function($) {
             const optionalRequiredCounts = getOptionalRequiredCounts(targetId);
 
             if (descriptions.length === 0) {
-                Swal.fire('Error', 'Please add at least one question format', 'error');
+                Swal.fire(i18nEp.error, i18nEp.err_add_question, 'error');
                 return;
             }
 
             const hasEmptyDescription = descriptions.some(desc => desc === '');
             if (hasEmptyDescription) {
-                Swal.fire('Error', 'Please fill all question descriptions', 'error');
+                Swal.fire(i18nEp.error, i18nEp.err_fill_descriptions, 'error');
                 return;
             }
 
@@ -2491,7 +2916,7 @@ jQuery(document).ready(function($) {
             for (let i = 0; i < marks.length; i++) {
                 const markValue = parseInt(marks[i], 10);
                 if (isNaN(markValue) || markValue <= 0) {
-                    Swal.fire('Error', 'Please enter valid marks for each question', 'error');
+                    Swal.fire(i18nEp.error, i18nEp.err_valid_marks, 'error');
                     return;
                 }
                 if (optionals[i] > 0) {
@@ -2522,22 +2947,22 @@ jQuery(document).ready(function($) {
             });
 
             if (requiredCountInvalid) {
-                Swal.fire('Error', 'Required optional questions exceed available optional questions', 'error');
+                Swal.fire(i18nEp.error, i18nEp.err_required_optional, 'error');
                 return;
             }
 
             if (optionalRangeMismatch) {
-                Swal.fire('Error', 'Optional range total must be at least the range total marks', 'error');
+                Swal.fire(i18nEp.error, i18nEp.err_optional_total, 'error');
                 return;
             }
 
             if (requiredTotal > (expectedTotal - optionalTotalSum)) {
-                Swal.fire('Error', 'Required questions exceed allowed total', 'error');
+                Swal.fire(i18nEp.error, i18nEp.err_required_exceed, 'error');
                 return;
             }
 
             if ((requiredTotal + optionalTotalSum) !== expectedTotal) {
-                Swal.fire('Error', `Required total + optional totals must be exactly ${expectedTotal}`, 'error');
+                Swal.fire(i18nEp.error, i18nEp.err_total_exact.replace(':total', expectedTotal), 'error');
                 return;
             }
         }
@@ -2601,8 +3026,8 @@ jQuery(document).ready(function($) {
 
         // Show loading progress bar
         Swal.fire({
-            title: 'Uploading Exam Paper...',
-            html: 'Please wait while we process your request.<br><br><b id="upload-percentage">0%</b><br><div class="progress mt-2" style="height: 10px; border-radius: 5px; overflow: hidden;"><div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 0%"></div></div>',
+            title: i18nEp.uploading,
+            html: i18nEp.uploading_wait + '<br><br><b id="upload-percentage">0%</b><br><div class="progress mt-2" style="height: 10px; border-radius: 5px; overflow: hidden;"><div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 0%"></div></div>',
             allowOutsideClick: false,
             allowEscapeKey: false,
             showConfirmButton: false,
@@ -2627,8 +3052,8 @@ jQuery(document).ready(function($) {
                         $('#upload-percentage').text(percentComplete + '%');
                         if (percentComplete === 100) {
                             Swal.update({
-                                title: 'Processing...',
-                                html: 'File uploaded. Finalizing submission, please wait...'
+                                title: i18nEp.processing,
+                                html: i18nEp.finalizing
                             });
                         }
                     }
@@ -2636,15 +3061,15 @@ jQuery(document).ready(function($) {
                 return xhr;
             },
             success: function(response) {
-                Swal.fire('Success', response.success || 'Exam paper submitted successfully', 'success').then(() => {
+                Swal.fire(i18nEp.success, response.success || i18nEp.submitted_ok, 'success').then(() => {
                     if (isModal) {
-                        $('#uploadExamPaperModal').modal('hide');
+                        sxHideModal('#uploadExamPaperModal');
                     }
                     location.reload();
                 });
             },
             error: function(xhr) {
-                let errorMsg = 'Failed to submit exam paper';
+                let errorMsg = i18nEp.fail_submit;
                 if (xhr.responseJSON && xhr.responseJSON.error) {
                     errorMsg = xhr.responseJSON.error;
                 } else if (xhr.responseJSON && xhr.responseJSON.message) {
@@ -2652,11 +3077,11 @@ jQuery(document).ready(function($) {
                 } else if (xhr.responseJSON && xhr.responseJSON.errors) {
                     errorMsg = Object.values(xhr.responseJSON.errors).flat().join('<br>');
                 } else if (xhr.status === 0) {
-                    errorMsg = 'Network error. Check your connection and try again.';
+                    errorMsg = i18nEp.network_error;
                 } else if (xhr.status >= 500) {
-                    errorMsg = 'Server error (' + xhr.status + '). Please try again or contact support.';
+                    errorMsg = i18nEp.server_error.replace(':status', xhr.status);
                 }
-                Swal.fire('Error', errorMsg, 'error');
+                Swal.fire(i18nEp.error, errorMsg, 'error');
             }
         });
     }
@@ -2705,7 +3130,7 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 if (response.success && response.periods) {
                     const $select = $('#edit_test_period');
-                    $select.html('<option value="">Select Period</option>');
+                    $select.html('<option value="">{{ __('teacher.exam_papers.select_period') }}</option>');
                     response.periods.forEach(function(p) { $select.append('<option value="' + p.id + '">' + p.text + '</option>'); });
                     if (window._temp_edit_week) {
                         $select.val(window._temp_edit_week).trigger('change');
@@ -2724,7 +3149,7 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 if (response.success && response.subjects) {
                     const $select = $('#edit_test_subject');
-                    $select.html('<option value="">Select Subject</option>');
+                    $select.html('<option value="">{{ __('teacher.exam_papers.select_subject') }}</option>');
                     response.subjects.forEach(function(s) { $select.append('<option value="' + s.class_subjectID + '">' + s.subject_name + ' (' + s.class_name + ')</option>'); });
                     if (window._temp_edit_subject) {
                         $select.val(window._temp_edit_subject);
@@ -2749,11 +3174,11 @@ jQuery(document).ready(function($) {
                     $('#edit_upload_type').val(paper.upload_type);
                     
                     if (isRejected) {
-                        $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil-square"></i> Edit Exam & Resend');
-                        $('#submitEditForm').html('<i class="bi bi-send"></i> Update & Resubmit');
+                        $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil-square"></i> ' + i18nEp.edit_exam_resend);
+                        $('#submitEditForm').html('<i class="bi bi-send"></i> ' + i18nEp.update_resubmit).data('is-resubmit', 1);
                     } else {
-                        $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil"></i> Edit Exam');
-                        $('#submitEditForm').html('<i class="bi bi-check-circle"></i> Save Changes');
+                        $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil"></i> ' + i18nEp.edit_exam);
+                        $('#submitEditForm').html('<i class="bi bi-check-circle"></i> ' + i18nEp.save_changes).data('is-resubmit', 0);
                     }
 
                     $('#edit_selected_exam').val(paper.examID).trigger('change');
@@ -2768,7 +3193,7 @@ jQuery(document).ready(function($) {
 
                     if (paper.file_path) {
                         const fileName = paper.file_path.split('/').pop();
-                        $('#current_file_info').text('Current file: ' + fileName).show();
+                        $('#current_file_info').text((i18nEp.current_file || 'Current file:') + ' ' + fileName).show();
                     } else {
                         $('#current_file_info').hide();
                     }
@@ -2808,7 +3233,7 @@ jQuery(document).ready(function($) {
 
                     refreshQuestionNumbers($container);
                     updateTotalMarks($container);
-                    $('#editExamPaperModal').modal('show');
+                    sxShowModal('#editExamPaperModal');
                 }
             }
         });
@@ -2822,7 +3247,7 @@ jQuery(document).ready(function($) {
         const fileInput = $('#edit_exam_file')[0];
         
         if (!examID || !classSubjectID) {
-            Swal.fire('Error', 'Please select both examination and subject', 'error');
+            Swal.fire(i18nEp.error, i18nEp.err_exam_subject, 'error');
             return;
         }
 
@@ -2848,7 +3273,7 @@ jQuery(document).ready(function($) {
             const marks = $container.find('.question-marks').map(function() { return $(this).val(); }).get();
             const optionals = $container.find('.question-optional').map(function() { return parseInt($(this).val(), 10); }).get();
             
-            if (descriptions.some(d => d === '')) { Swal.fire('Error', 'Fill all descriptions', 'error'); return; }
+            if (descriptions.some(d => d === '')) { Swal.fire(i18nEp.error, i18nEp.err_fill_all_desc, 'error'); return; }
             
             const optionalTotals = getOptionalTotals(targetId);
             const optionalRequiredCounts = getOptionalRequiredCounts(targetId);
@@ -2858,7 +3283,7 @@ jQuery(document).ready(function($) {
             for (let i = 0; i < marks.length; i++) {
                 const markValue = parseInt(marks[i], 10);
                 if (isNaN(markValue) || markValue <= 0) {
-                    Swal.fire('Error', 'Please enter valid marks for each question', 'error');
+                    Swal.fire(i18nEp.error, i18nEp.err_valid_marks, 'error');
                     return;
                 }
                 if (optionals[i] > 0) {
@@ -2872,11 +3297,11 @@ jQuery(document).ready(function($) {
                 return (optionalSumByRange[range] || 0) < optionalTotals[range];
             });
             if (optionalRangeMismatch) {
-                Swal.fire('Error', 'Optional range total must be at least the range total marks', 'error');
+                Swal.fire(i18nEp.error, i18nEp.err_optional_total, 'error');
                 return;
             }
             if (requiredTotal > (expectedTotal - optionalTotalSum) || (requiredTotal + optionalTotalSum) !== expectedTotal) {
-                Swal.fire('Error', `Required total + optional totals must be exactly ${expectedTotal}`, 'error');
+                Swal.fire(i18nEp.error, i18nEp.err_total_exact.replace(':total', expectedTotal), 'error');
                 return;
             }
 
@@ -2893,10 +3318,10 @@ jQuery(document).ready(function($) {
             });
         }
 
-        const isResubmit = $('#submitEditForm').text().includes('Resubmit');
+        const isResubmit = $('#submitEditForm').data('is-resubmit') == 1;
         Swal.fire({
-            title: isResubmit ? 'Updating & Resubmitting...' : 'Updating Paper...',
-            text: 'Please wait...',
+            title: isResubmit ? i18nEp.updating_resubmitting : i18nEp.updating_paper,
+            text: i18nEp.please_wait,
             allowOutsideClick: false,
             didOpen: function() { Swal.showLoading(); }
         });
@@ -2914,17 +3339,17 @@ jQuery(document).ready(function($) {
                         method: 'POST',
                         data: { _token: $('meta[name="csrf-token"]').attr('content') },
                         success: function() {
-                            Swal.fire('Success', 'Paper updated and resubmitted successfully', 'success').then(function() { location.reload(); });
+                            Swal.fire(i18nEp.success, i18nEp.updated_resubmitted, 'success').then(function() { location.reload(); });
                         }
                     });
                 } else {
-                    Swal.fire('Success', 'Paper updated successfully', 'success').then(function() { location.reload(); });
+                    Swal.fire(i18nEp.success, i18nEp.updated_ok, 'success').then(function() { location.reload(); });
                 }
             },
             error: function(xhr) {
-                let msg = 'Failed to update';
+                let msg = i18nEp.fail_update;
                 if (xhr.responseJSON && xhr.responseJSON.error) msg = xhr.responseJSON.error;
-                Swal.fire('Error', msg, 'error');
+                Swal.fire(i18nEp.error, msg, 'error');
             }
         });
     });
@@ -2934,19 +3359,19 @@ jQuery(document).ready(function($) {
         const paperID = $(this).data('paper-id');
 
         Swal.fire({
-            title: 'Are you sure?',
-            text: 'This will permanently delete this exam paper',
+            title: i18nEp.delete_confirm_title,
+            text: i18nEp.delete_confirm_text,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Yes, delete it!'
+            confirmButtonText: i18nEp.yes_delete
         }).then((result) => {
             if (result.isConfirmed) {
                 // Show loading
                 Swal.fire({
-                    title: 'Deleting...',
-                    text: 'Please wait while we delete the exam paper.',
+                    title: i18nEp.deleting,
+                    text: i18nEp.deleting_wait,
                     allowOutsideClick: false,
                     allowEscapeKey: false,
                     showConfirmButton: false,
@@ -2962,16 +3387,16 @@ jQuery(document).ready(function($) {
                         _token: $('meta[name="csrf-token"]').attr('content')
                     },
                     success: function(response) {
-                        Swal.fire('Deleted!', response.success || 'Exam paper deleted successfully', 'success').then(() => {
+                        Swal.fire(i18nEp.deleted, response.success || i18nEp.deleted_ok, 'success').then(() => {
                             location.reload();
                         });
                     },
                     error: function(xhr) {
-                        let errorMsg = 'Failed to delete exam paper';
+                        let errorMsg = i18nEp.fail_delete;
                         if (xhr.responseJSON && xhr.responseJSON.error) {
                             errorMsg = xhr.responseJSON.error;
                         }
-                        Swal.fire('Error', errorMsg, 'error');
+                        Swal.fire(i18nEp.error, errorMsg, 'error');
                     }
                 });
             }
@@ -2990,18 +3415,18 @@ jQuery(document).ready(function($) {
         const examId = $('#filter_my_papers_exam').val();
 
         // Apply to ALL tab panes so switching tabs also shows filtered results
-        $('.tab-pane .exam-widget-card').each(function() {
-            const $card = $(this);
-            const text = $card.text().toLowerCase();
+        $('.tab-pane tr.exam-paper-row').each(function() {
+            const $row = $(this);
+            const text = String($row.data('search') || $row.text() || '').toLowerCase();
             const matchesSearch = !searchTerm || text.includes(searchTerm);
-            const matchesTerm = !term || $card.data('term') === term;
-            const matchesYear = !year || String($card.data('year')) === String(year);
-            const matchesExam = !examId || String($card.data('exam-id')) === String(examId);
+            const matchesTerm = !term || $row.data('term') === term;
+            const matchesYear = !year || String($row.data('year')) === String(year);
+            const matchesExam = !examId || String($row.data('exam-id')) === String(examId);
 
             if (matchesSearch && matchesTerm && matchesYear && matchesExam) {
-                $card.closest('.col-md-6').show();
+                $row.show();
             } else {
-                $card.closest('.col-md-6').hide();
+                $row.hide();
             }
         });
     }
@@ -3020,8 +3445,12 @@ jQuery(document).ready(function($) {
     });
 
     // Show/hide filter bar based on active tab (hide on Upload and Pending Uploads tabs)
+    function getActiveTabTarget() {
+        const $active = $('#examPapersTabs .nav-link.active');
+        return $active.data('bs-target') || $active.attr('href') || '#upload';
+    }
     function toggleFilterBar() {
-        const activeTab = $('#examPapersTabs .nav-link.active').attr('href');
+        const activeTab = getActiveTabTarget();
         if (activeTab === '#upload' || activeTab === '#pending-uploads') {
             $('#papersFilterBar').slideUp(200);
         } else {
@@ -3031,14 +3460,14 @@ jQuery(document).ready(function($) {
 
     // Tab persistence: remember active tab in localStorage
     const TAB_STORAGE_KEY = 'examPapersActiveTab';
-    
-    $('#examPapersTabs a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
-        const tabId = $(e.target).attr('href');
+
+    $('#examPapersTabs [data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+        const tabId = $(e.target).data('bs-target') || $(e.target).attr('href');
         localStorage.setItem(TAB_STORAGE_KEY, tabId);
         toggleFilterBar();
-        
+
         // Badge persistence: mark tab as "seen" and hide badge permanently
-        const tabKey = 'examPapersSeen_' + tabId.replace('#', '');
+        const tabKey = 'examPapersSeen_' + String(tabId).replace('#', '');
         const currentCount = $(e.target).find('.badge').text().trim();
         if (currentCount) {
             localStorage.setItem(tabKey, currentCount);
@@ -3049,7 +3478,8 @@ jQuery(document).ready(function($) {
     // Restore active tab on page load
     const savedTab = localStorage.getItem(TAB_STORAGE_KEY);
     if (savedTab && $(savedTab).length) {
-        $(`#examPapersTabs a[href="${savedTab}"]`).tab('show');
+        const $tabBtn = $(`#examPapersTabs [data-bs-target="${savedTab}"]`);
+        if ($tabBtn.length) sxShowTab($tabBtn[0]);
     }
     toggleFilterBar();
 
@@ -3057,7 +3487,7 @@ jQuery(document).ready(function($) {
     $('#examPapersTabs .nav-link .badge').each(function() {
         const $badge = $(this);
         const $tab = $badge.closest('.nav-link');
-        const tabId = $tab.attr('href').replace('#', '');
+        const tabId = String($tab.data('bs-target') || $tab.attr('href') || '').replace('#', '');
         const tabKey = 'examPapersSeen_' + tabId;
         const seenCount = localStorage.getItem(tabKey);
         const currentCount = $badge.text().trim();
@@ -3106,20 +3536,20 @@ jQuery(document).ready(function($) {
                             $('#editExamPaperQuestionsModal .modal-title').html('<i class="bi bi-pencil-square"></i> Edit & Resend Questions');
                             $('#submitEditQuestionsForm').html('<i class="bi bi-send"></i> Submit & Resend');
                         } else {
-                            $('#editExamPaperQuestionsModal .modal-title').html('<i class="bi bi-list-check"></i> Edit Exam Paper Questions');
+                            $('#editExamPaperQuestionsModal .modal-title').html('<i class="bi bi-list-check"></i> {{ __('teacher.exam_papers.edit_questions_title') }}');
                             $('#submitEditQuestionsForm').html('<i class="bi bi-check-circle"></i> Save Changes');
                         }
                     }
                 }
                 
-                $('#editExamPaperQuestionsModal').modal('show');
+                sxShowModal('#editExamPaperQuestionsModal');
 
                 $.ajax({
                     url: `/get_exam_paper_questions/${paperID}`,
                     method: 'GET',
                     success: function(response) {
                         if (!response.success) {
-                            Swal.fire('Error', response.error || 'Failed to load questions', 'error');
+                            Swal.fire(i18nEp.error, response.error || i18nEp.fail_load_questions, 'error');
                             return;
                         }
 
@@ -3147,7 +3577,7 @@ jQuery(document).ready(function($) {
                         toggleRemoveButtons($('#question-rows-edit'));
                     },
                     error: function() {
-                        Swal.fire('Error', 'Failed to load questions', 'error');
+                        Swal.fire(i18nEp.error, i18nEp.fail_load_questions, 'error');
                     }
                 });
             }
@@ -3171,13 +3601,13 @@ jQuery(document).ready(function($) {
         const expectedTotal = getExpectedFormatTotal('#question-rows-edit');
 
         if (descriptions.length === 0) {
-            Swal.fire('Error', 'Please add at least one question format', 'error');
+            Swal.fire(i18nEp.error, i18nEp.err_add_question, 'error');
             return;
         }
 
         const hasEmptyDescription = descriptions.some(desc => desc === '');
         if (hasEmptyDescription) {
-            Swal.fire('Error', 'Please fill all question descriptions', 'error');
+            Swal.fire(i18nEp.error, i18nEp.err_fill_descriptions, 'error');
             return;
         }
 
@@ -3186,7 +3616,7 @@ jQuery(document).ready(function($) {
         for (let i = 0; i < marks.length; i++) {
             const markValue = parseInt(marks[i], 10);
             if (isNaN(markValue) || markValue <= 0) {
-                Swal.fire('Error', 'Please enter valid marks for each question', 'error');
+                Swal.fire(i18nEp.error, i18nEp.err_valid_marks, 'error');
                 return;
             }
             if (optionals[i] > 0) {
@@ -3204,17 +3634,17 @@ jQuery(document).ready(function($) {
         });
 
         if (optionalRangeMismatch) {
-            Swal.fire('Error', 'Optional range total must be at least the range total marks', 'error');
+            Swal.fire(i18nEp.error, i18nEp.err_optional_total, 'error');
             return;
         }
 
         if (requiredTotal > (expectedTotal - optionalTotalSum)) {
-            Swal.fire('Error', 'Required questions exceed allowed total', 'error');
+            Swal.fire(i18nEp.error, i18nEp.err_required_exceed, 'error');
             return;
         }
 
         if ((requiredTotal + optionalTotalSum) !== expectedTotal) {
-            Swal.fire('Error', `Required total + optional totals must be exactly ${expectedTotal}`, 'error');
+            Swal.fire(i18nEp.error, i18nEp.err_total_exact.replace(':total', expectedTotal), 'error');
             return;
         }
 
@@ -3240,8 +3670,8 @@ jQuery(document).ready(function($) {
 
         // Show loading
         Swal.fire({
-            title: 'Updating Questions...',
-            text: 'Please wait while we update the question formats.',
+            title: i18nEp.updating_questions,
+            text: i18nEp.updating_questions_wait,
             allowOutsideClick: false,
             allowEscapeKey: false,
             showConfirmButton: false,
@@ -3257,28 +3687,19 @@ jQuery(document).ready(function($) {
             processData: false,
             contentType: false,
             success: function(response) {
-                Swal.fire('Success', response.success || 'Questions updated successfully', 'success').then(() => {
-                    $('#editExamPaperQuestionsModal').modal('hide');
+                Swal.fire(i18nEp.success, response.success || i18nEp.questions_updated, 'success').then(() => {
+                    sxHideModal('#editExamPaperQuestionsModal');
                     location.reload();
                 });
             },
             error: function(xhr) {
-                let errorMsg = 'Failed to update questions';
+                let errorMsg = i18nEp.fail_update_questions;
                 if (xhr.responseJSON && xhr.responseJSON.error) {
                     errorMsg = xhr.responseJSON.error;
                 }
-                Swal.fire('Error', errorMsg, 'error');
+                Swal.fire(i18nEp.error, errorMsg, 'error');
             }
         });
-    });
-
-    $(document).on('click', '.add-question-row', function() {
-        const target = $(this).data('target');
-        const $container = $(target);
-        $container.append(buildQuestionRow(target));
-        refreshQuestionNumbers($container);
-        updateTotalMarks($container);
-        toggleRemoveButtons($container);
     });
 
     $(document).on('click', '.remove-question-row', function() {
@@ -3367,18 +3788,18 @@ jQuery(document).ready(function($) {
         const $btn = $(this);
 
         Swal.fire({
-            title: 'Resubmit Exam Paper?',
-            text: 'This will send the paper back into the approval queue for review.',
+            title: i18nEp.resubmit_title,
+            text: i18nEp.resubmit_text,
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#28a745',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="bi bi-arrow-repeat"></i> Yes, Resubmit'
+            confirmButtonText: '<i class="bi bi-arrow-repeat"></i> ' + i18nEp.yes_resubmit
         }).then((result) => {
             if (result.isConfirmed) {
                 Swal.fire({
-                    title: 'Resubmitting...',
-                    text: 'Please wait...',
+                    title: i18nEp.resubmitting,
+                    text: i18nEp.please_wait,
                     allowOutsideClick: false,
                     allowEscapeKey: false,
                     showConfirmButton: false,
@@ -3390,16 +3811,16 @@ jQuery(document).ready(function($) {
                     method: 'POST',
                     data: { _token: $('meta[name="csrf-token"]').attr('content') },
                     success: function(response) {
-                        Swal.fire('Success', response.success || 'Exam paper resubmitted successfully!', 'success').then(() => {
+                        Swal.fire(i18nEp.success, response.success || i18nEp.resubmitted_ok, 'success').then(() => {
                             location.reload();
                         });
                     },
                     error: function(xhr) {
-                        let errorMsg = 'Failed to resubmit exam paper';
+                        let errorMsg = i18nEp.fail_resubmit;
                         if (xhr.responseJSON && xhr.responseJSON.error) {
                             errorMsg = xhr.responseJSON.error;
                         }
-                        Swal.fire('Error', errorMsg, 'error');
+                        Swal.fire(i18nEp.error, errorMsg, 'error');
                     }
                 });
             }
@@ -3408,5 +3829,4 @@ jQuery(document).ready(function($) {
 
 });
 </script>
-
-@include('includes.footer')
+@endpush

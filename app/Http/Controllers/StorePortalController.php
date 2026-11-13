@@ -108,7 +108,11 @@ class StorePortalController extends StoreController
         $schoolID = $ctx['schoolID'];
         $data = $this->buildPortalViewData($ctx);
 
-        return view('portal.store_requisitions', array_merge($data, [
+        $view = $role === 'teacher'
+            ? 'Teacher.store_requisitions'   // GXON teacher_corp layout
+            : 'portal.store_requisitions';  // legacy staff_nav layout
+
+        return view($view, array_merge($data, [
             'portalRole' => $role,
             'requester' => $ctx,
         ]));

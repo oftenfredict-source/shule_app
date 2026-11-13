@@ -3,20 +3,20 @@
     $subjectClassMap = $subjectClassMap ?? [];
 @endphp
 <div class="lph-field">
-    <label class="lph-label">Class *</label>
+    <label class="lph-label">{{ __('teacher.portal.class') }}</label>
     <select class="form-control portal-class" name="classID" required>
-        <option value="">Select class</option>
+        <option value="">{{ __('teacher.portal.select_class') }}</option>
         @forelse($classes as $class)
             <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
         @empty
-            <option value="" disabled>No teaching classes assigned</option>
+            <option value="" disabled>{{ __('teacher.portal.no_teaching_classes') }}</option>
         @endforelse
     </select>
 </div>
 <div class="lph-field">
-    <label class="lph-label">Stream</label>
+    <label class="lph-label">{{ __('teacher.portal.stream') }}</label>
     <select class="form-control portal-subclass" name="subclassID">
-        <option value="">Whole class (all streams)</option>
+        <option value="">{{ __('teacher.portal.whole_class') }}</option>
         @foreach($subclasses as $sub)
             <option value="{{ $sub->subclassID }}" data-class="{{ $sub->classID }}">{{ $sub->subclass_name }}</option>
         @endforeach
@@ -24,9 +24,9 @@
 </div>
 @if(isset($subjects) && $subjects->count())
 <div class="lph-field">
-    <label class="lph-label">Subject{{ $requireSubject ? ' *' : '' }}</label>
+    <label class="lph-label">{{ $requireSubject ? __('teacher.portal.subject_required') : __('teacher.portal.subject') }}</label>
     <select class="form-control portal-subject" name="subjectID" @if($requireSubject) required @endif>
-        <option value="">{{ $requireSubject ? 'Select subject' : 'Optional' }}</option>
+        <option value="">{{ $requireSubject ? __('teacher.portal.select_subject') : __('teacher.portal.subject_optional') }}</option>
         @foreach($subjects as $subject)
             @php
                 $classIds = $subjectClassMap[(int) $subject->subjectID] ?? [];

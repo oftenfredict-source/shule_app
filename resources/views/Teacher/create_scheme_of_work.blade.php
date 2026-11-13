@@ -1,53 +1,83 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Create Scheme of Work</title>
-    
-    <link rel="stylesheet" href="{{ asset('vendors/bootstrap/dist/css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('vendors/font-awesome/css/font-awesome.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
-    <!-- SweetAlert2 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    
-    <style>
-        * {
-            font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
+@extends('layouts.teacher_corp')
+
+@section('title', __('teacher.pages.create_scheme').' - ShuleXpert')
+@section('page_title', __('teacher.pages.create_scheme'))
+@section('page_breadcrumb', __('teacher.pages.create_scheme_bc'))
+
+@section('page_actions')
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button type="button" class="btn btn-primary btn-sm waves-effect text-white" onclick="saveScheme()">
+            <i class="fa-solid fa-floppy-disk me-1 text-white"></i> <span class="text-white" data-translate="saveChanges">{{ __('teacher.save_changes') }}</span>
+        </button>
+        <a href="{{ route('teacher.schemeOfWork') }}" class="btn btn-outline-primary btn-sm waves-effect">
+            <i class="fa-solid fa-arrow-left me-1"></i> <span data-translate="goBack">{{ __('teacher.scheme.go_back') }}</span>
+        </a>
+    </div>
+@endsection
+
+@push('styles')
+<style>
+        .sx-create-scheme .btn-primary-custom,
+        .sx-create-scheme .btn-primary-custom:hover,
+        .sx-create-scheme .btn-primary-custom:focus,
+        .sx-create-scheme .btn-primary-custom:disabled,
+        .btn.btn-primary.btn-sm.waves-effect {
+            background-color: #940000 !important;
+            border-color: #940000 !important;
+            color: #fff !important;
+            font-weight: 800;
+            border-radius: 0 !important;
         }
-        
-        .fa, .fa:before, i.fa, [class*="fa-"]:before, [class^="fa-"]:before {
-            font-family: 'FontAwesome' !important;
+        .sx-create-scheme .btn-primary-custom:hover,
+        .btn.btn-primary.btn-sm.waves-effect:hover {
+            background-color: #7b0000 !important;
+            border-color: #7b0000 !important;
+            color: #fff !important;
         }
-        
-        body {
-            background-color: #f5f5f5;
+        /* Force white label/icon on maroon buttons (layout may force black text) */
+        .sx-create-scheme .btn-primary-custom,
+        .sx-create-scheme .btn-primary-custom *,
+        .sx-create-scheme .btn-primary-custom span,
+        .sx-create-scheme .btn-primary-custom i,
+        .btn.btn-primary,
+        .btn.btn-primary *,
+        .btn.btn-primary span,
+        .btn.btn-primary i,
+        html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-create-scheme .btn-primary-custom,
+        html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-create-scheme .btn-primary-custom *,
+        html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .btn.btn-primary,
+        html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .btn.btn-primary * {
+            color: #fff !important;
+            -webkit-text-fill-color: #fff !important;
         }
-        
-        .header-section {
-            background: linear-gradient(135deg, #940000 0%, #b30000 100%);
-            color: white;
-            padding: 20px 0;
-            margin-bottom: 30px;
+        .sx-create-scheme .btn,
+        .sx-create-scheme .form-control,
+        .sx-create-scheme .form-select {
+            border-radius: 0 !important;
         }
-        
-        .content-wrapper {
-            background: white;
-            padding: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        .sx-create-scheme .sx-scheme-meta,
+        .sx-create-scheme .objectives-section,
+        .sx-create-scheme .sx-scheme-table-wrap {
+            background: #fff !important;
+            border: 1px solid #e6e6e6 !important;
+            border-radius: 0 !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+            border-top: 4px solid #940000 !important;
         }
-        
-        .btn-primary-custom {
-            background-color: #940000;
-            border-color: #940000;
-            color: #ffffff;
+        .sx-create-scheme .sx-scheme-meta {
+            padding: 0.9rem 1.1rem;
+            margin-bottom: 0.85rem;
+            font-size: 0.9rem;
+            font-weight: 600;
         }
-        
-        .btn-primary-custom:hover {
-            background-color: #b30000;
-            border-color: #b30000;
-            color: #ffffff;
+        .sx-create-scheme .sx-scheme-meta strong { color: #940000 !important; }
+        .sx-create-scheme .sx-panel-title {
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #940000 !important;
+            margin: 0;
         }
         
         .scheme-table {
@@ -133,10 +163,19 @@
         }
         
         .objectives-section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background-color: #f9f9f9;
-            border: 1px solid #ddd;
+            margin-bottom: 0.85rem;
+            padding: 1rem 1.1rem;
+        }
+        .sx-create-scheme .sx-scheme-table-wrap {
+            padding: 1rem 1.1rem 1.15rem;
+        }
+        html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-create-scheme,
+        html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-create-scheme p,
+        html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-create-scheme td,
+        html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-create-scheme label,
+        html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-create-scheme input,
+        html:not([data-sx-theme="dark"]):not([data-bs-theme="dark"]) .sx-create-scheme textarea {
+            color: #000 !important;
         }
         
         .objective-item {
@@ -183,110 +222,179 @@
         .scheme-table td:last-child {
             text-align: center;
         }
-    </style>
-</head>
-<body>
-    <div class="header-section">
-        <div class="container-fluid">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h3 class="mb-0">
-                        <i class="fa fa-file-text-o"></i> <span data-translate="createSchemeOfWork">Create New Scheme of Work</span>
-                    </h3>
-                    <p class="mb-0 mt-2">
-                        Subject: <strong>{{ $classSubject->subject->subject_name ?? 'N/A' }}</strong>
-                        @if($classSubject->subclass && $classSubject->subclass->class)
-                            | Class: <strong>{{ $classSubject->subclass->class->class_name }} {{ $classSubject->subclass->subclass_name }}</strong>
-                        @elseif($classSubject->class)
-                            | Class: <strong>{{ $classSubject->class->class_name }}</strong>
-                        @endif
-                        | Year: <strong>{{ $currentYear }}</strong>
-                    </p>
-                </div>
-                <div class="col-md-4 text-right">
-                    <div class="d-inline-block mr-2">
-                        <select id="languageSelector" class="form-control form-control-sm" style="width: auto; display: inline-block;" onchange="changeLanguage(this.value)">
-                            <option value="en">English</option>
-                            <option value="sw">Swahili</option>
-                        </select>
-                    </div>
-                    <a href="{{ route('teacher.schemeOfWork') }}" class="btn btn-light">
-                        <i class="fa fa-arrow-left"></i> <span data-translate="goBack">Go Back</span>
-                    </a>
-                </div>
-            </div>
-        </div>
+
+        /* Dark mode */
+        html[data-sx-theme="dark"] .sx-create-scheme .sx-scheme-meta,
+        html[data-bs-theme="dark"] .sx-create-scheme .sx-scheme-meta,
+        html[data-sx-theme="dark"] .sx-create-scheme .objectives-section,
+        html[data-bs-theme="dark"] .sx-create-scheme .objectives-section,
+        html[data-sx-theme="dark"] .sx-create-scheme .sx-scheme-table-wrap,
+        html[data-bs-theme="dark"] .sx-create-scheme .sx-scheme-table-wrap {
+            background: #24181c !important;
+            border-color: #3a2a2e !important;
+            box-shadow: none !important;
+            color: #f3e9eb !important;
+        }
+        html[data-sx-theme="dark"] .sx-create-scheme .sx-scheme-meta strong,
+        html[data-bs-theme="dark"] .sx-create-scheme .sx-scheme-meta strong,
+        html[data-sx-theme="dark"] .sx-create-scheme .sx-panel-title,
+        html[data-bs-theme="dark"] .sx-create-scheme .sx-panel-title,
+        html[data-sx-theme="dark"] .sx-create-scheme .sx-panel-title i,
+        html[data-bs-theme="dark"] .sx-create-scheme .sx-panel-title i {
+            color: #ffb4b4 !important;
+        }
+        html[data-sx-theme="dark"] .sx-create-scheme .form-control,
+        html[data-bs-theme="dark"] .sx-create-scheme .form-control,
+        html[data-sx-theme="dark"] .sx-create-scheme .form-select,
+        html[data-bs-theme="dark"] .sx-create-scheme .form-select,
+        html[data-sx-theme="dark"] .sx-create-scheme .objective-item input,
+        html[data-bs-theme="dark"] .sx-create-scheme .objective-item input,
+        html[data-sx-theme="dark"] .sx-create-scheme .scheme-table input,
+        html[data-bs-theme="dark"] .sx-create-scheme .scheme-table input,
+        html[data-sx-theme="dark"] .sx-create-scheme .scheme-table textarea,
+        html[data-bs-theme="dark"] .sx-create-scheme .scheme-table textarea {
+            background: #1c1417 !important;
+            border-color: #4a383c !important;
+            color: #f3e9eb !important;
+        }
+        html[data-sx-theme="dark"] .sx-create-scheme .scheme-table,
+        html[data-bs-theme="dark"] .sx-create-scheme .scheme-table {
+            color: #f3e9eb !important;
+        }
+        html[data-sx-theme="dark"] .sx-create-scheme .scheme-table th,
+        html[data-bs-theme="dark"] .sx-create-scheme .scheme-table th {
+            background-color: #940000 !important;
+            color: #fff !important;
+            border-color: #6e0000 !important;
+        }
+        html[data-sx-theme="dark"] .sx-create-scheme .scheme-table td,
+        html[data-bs-theme="dark"] .sx-create-scheme .scheme-table td {
+            background-color: #1c1417 !important;
+            border-color: #3a2a2e !important;
+            color: #f3e9eb !important;
+        }
+        html[data-sx-theme="dark"] .sx-create-scheme .row-number,
+        html[data-bs-theme="dark"] .sx-create-scheme .row-number,
+        html[data-sx-theme="dark"] .sx-create-scheme .month-cell,
+        html[data-bs-theme="dark"] .sx-create-scheme .month-cell {
+            background-color: #2a1c20 !important;
+            color: #ffb4b4 !important;
+        }
+        html[data-sx-theme="dark"] .sx-create-scheme .holiday-row,
+        html[data-bs-theme="dark"] .sx-create-scheme .holiday-row {
+            background-color: #3a1a1a !important;
+        }
+        html[data-sx-theme="dark"] .sx-create-scheme .holiday-cell,
+        html[data-bs-theme="dark"] .sx-create-scheme .holiday-cell {
+            background-color: #4a2020 !important;
+            color: #ffb4b4 !important;
+        }
+        html[data-sx-theme="dark"] .sx-create-scheme .holiday-row input,
+        html[data-bs-theme="dark"] .sx-create-scheme .holiday-row input,
+        html[data-sx-theme="dark"] .sx-create-scheme .holiday-row textarea,
+        html[data-bs-theme="dark"] .sx-create-scheme .holiday-row textarea {
+            background-color: #2a2226 !important;
+            color: #a8989c !important;
+        }
+        html[data-sx-theme="dark"] .sx-create-scheme .scheme-table td[style*="background-color: #f9f9f9"],
+        html[data-bs-theme="dark"] .sx-create-scheme .scheme-table td[style*="background-color: #f9f9f9"],
+        html[data-sx-theme="dark"] .sx-create-scheme .add-row-control td,
+        html[data-bs-theme="dark"] .sx-create-scheme .add-row-control td {
+            background-color: #2a1c20 !important;
+            color: #e8c9cd !important;
+        }
+        html[data-sx-theme="dark"] .sx-create-scheme .btn-outline-primary,
+        html[data-bs-theme="dark"] .sx-create-scheme .btn-outline-primary {
+            color: #ffb4b4 !important;
+            border-color: #940000 !important;
+        }
+        html[data-sx-theme="dark"] .sx-page-actions .form-select,
+        html[data-bs-theme="dark"] .sx-page-actions .form-select,
+        html[data-sx-theme="dark"] .page-actions .form-select,
+        html[data-bs-theme="dark"] .page-actions .form-select,
+        html[data-sx-theme="dark"] #languageSelector,
+        html[data-bs-theme="dark"] #languageSelector {
+            background: #1c1417 !important;
+            border-color: #4a383c !important;
+            color: #f3e9eb !important;
+        }
+        html[data-sx-theme="dark"] .btn.btn-outline-primary,
+        html[data-bs-theme="dark"] .btn.btn-outline-primary {
+            color: #ffb4b4 !important;
+            border-color: #940000 !important;
+        }
+</style>
+@endpush
+
+@section('content')
+<div class="sx-create-scheme">
+    <div class="sx-scheme-meta">
+        <span data-translate="createSchemeOfWork">{{ __('teacher.scheme.create_scheme_of_work') }}</span>
+        · {{ __('teacher.subject') }}: <strong>{{ $classSubject->subject->subject_name ?? 'N/A' }}</strong>
+        @if($classSubject->subclass && $classSubject->subclass->class)
+            · {{ __('teacher.class') }}: <strong>{{ $classSubject->subclass->class->class_name }} {{ $classSubject->subclass->subclass_name }}</strong>
+        @elseif($classSubject->class)
+            · {{ __('teacher.class') }}: <strong>{{ $classSubject->class->class_name }}</strong>
+        @endif
+        · {{ __('teacher.academic_year') }}: <strong>{{ $currentYear }}</strong>
     </div>
 
-    <div class="container-fluid">
-        <div class="content-wrapper">
-            @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show">
-                    <i class="fa fa-exclamation-triangle"></i> {{ session('error') }}
-                    <button type="button" class="close" data-dismiss="alert">&times;</button>
-                </div>
-            @endif
-
-            <!-- Learning Objectives Section -->
-            <div class="objectives-section">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0">
-                        <i class="fa fa-list"></i> <span data-translate="defineLearningObjectives">Define Learning Objectives</span>
-                    </h5>
-                    <button type="button" class="btn btn-primary-custom btn-sm" onclick="addObjective()">
-                        <i class="fa fa-plus"></i> <span data-translate="addObjective">Add Objective</span>
-                    </button>
-                </div>
-                <div id="objectivesContainer">
-                    <!-- Objectives will be added here dynamically -->
-                </div>
-            </div>
-
-            <!-- Scheme of Work Table Section -->
-            <div class="mt-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0">
-                        <i class="fa fa-table"></i> <span data-translate="schemeOfWorkTable">Scheme of Work Table</span>
-                    </h5>
-                    <button type="button" class="btn btn-success btn-sm" onclick="saveScheme()">
-                        <i class="fa fa-save"></i> <span data-translate="saveChanges">Save Changes</span>
-                    </button>
-                </div>
-
-                <div style="overflow-x: auto;">
-                    <table class="scheme-table" id="schemeTable">
-                        <thead>
-                            <tr>
-                                <th class="row-number">#</th>
-                                <th data-translate="mainCompetence">Main Competence</th>
-                                <th data-translate="specificCompetences">Specific Competences</th>
-                                <th data-translate="learningActivities">Learning Activities</th>
-                                <th data-translate="specificActivities">Specific Activities</th>
-                                <th class="month-header" data-translate="month">Month</th>
-                                <th data-translate="week">Week</th>
-                                <th data-translate="numberOfPeriods">Number of Periods</th>
-                                <th data-translate="teachingMethods">Teaching and Learning Methods</th>
-                                <th data-translate="teachingResources">Teaching and Learning Resources</th>
-                                <th data-translate="assessmentTools">Assessment Tools</th>
-                                <th data-translate="references">References</th>
-                                <th style="width: 60px;" data-translate="action">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="schemeTableBody">
-                            <!-- Rows will be added dynamically by month -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fa-solid fa-triangle-exclamation"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('teacher.close') }}"></button>
         </div>
+    @endif
+
+    <div class="objectives-section">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h5 class="sx-panel-title mb-0">
+                <i class="fa-solid fa-list"></i> <span data-translate="defineLearningObjectives">{{ __('teacher.scheme.define_objectives') }}</span>
+            </h5>
+            <button type="button" class="btn btn-primary-custom btn-sm text-white" onclick="addObjective()">
+                <i class="fa-solid fa-plus text-white"></i> <span class="text-white" data-translate="addObjective">{{ __('teacher.scheme.add_objective') }}</span>
+            </button>
+        </div>
+        <div id="objectivesContainer"></div>
     </div>
 
-    <script src="{{ asset('vendors/jquery/dist/jquery.min.js') }}"></script>
-    <script src="{{ asset('vendors/bootstrap/dist/js/bootstrap.min.js') }}"></script>
-    <!-- SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-    
-    <script>
+    <div class="sx-scheme-table-wrap">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h5 class="sx-panel-title mb-0">
+                <i class="fa-solid fa-table"></i> <span data-translate="schemeOfWorkTable">{{ __('teacher.scheme.table_title') }}</span>
+            </h5>
+            <button type="button" class="btn btn-primary-custom btn-sm text-white" onclick="saveScheme()">
+                <i class="fa-solid fa-floppy-disk text-white"></i> <span class="text-white" data-translate="saveChanges">{{ __('teacher.save_changes') }}</span>
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="scheme-table" id="schemeTable">
+                <thead>
+                    <tr>
+                        <th class="row-number">#</th>
+                        <th data-translate="mainCompetence">{{ __('teacher.scheme.main_competence') }}</th>
+                        <th data-translate="specificCompetences">{{ __('teacher.scheme.specific_competences') }}</th>
+                        <th data-translate="learningActivities">{{ __('teacher.scheme.learning_activities') }}</th>
+                        <th data-translate="specificActivities">{{ __('teacher.scheme.specific_activities') }}</th>
+                        <th class="month-header" data-translate="month">{{ __('teacher.scheme.month') }}</th>
+                        <th data-translate="week">{{ __('teacher.scheme.week') }}</th>
+                        <th data-translate="numberOfPeriods">{{ __('teacher.scheme.number_of_periods') }}</th>
+                        <th data-translate="teachingMethods">{{ __('teacher.scheme.teaching_methods') }}</th>
+                        <th data-translate="teachingResources">{{ __('teacher.scheme.teaching_resources') }}</th>
+                        <th data-translate="assessmentTools">{{ __('teacher.scheme.assessment_tools') }}</th>
+                        <th data-translate="references">{{ __('teacher.scheme.references') }}</th>
+                        <th style="width: 60px;" data-translate="action">{{ __('teacher.scheme.action') }}</th>
+                    </tr>
+                </thead>
+                <tbody id="schemeTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+@endsection
+
+@push('scripts')
+<script>
         const months = ['January', 'February', 'March', 'April', 'May', 'June', 
                        'July', 'August', 'September', 'October', 'November', 'December'];
         const holidays = @json($holidays ?? []);
@@ -294,6 +402,7 @@
         const allHolidays = @json($allHolidays ?? []);
         const classSubjectID = {{ $classSubject->class_subjectID }};
         const year = {{ $currentYear }};
+        const i18nScheme = @json(__('teacher.scheme'));
         
         let objectiveCount = 0;
         let rowCount = 0;
@@ -349,14 +458,14 @@
                     <td><textarea name="items[${rowCount}][learning_activities]" class="form-control" rows="2"></textarea></td>
                     <td><textarea name="items[${rowCount}][specific_activities]" class="form-control" rows="2"></textarea></td>
                     <td class="month-cell" rowspan="1">${month}</td>
-                    <td><input type="text" name="items[${rowCount}][week]" class="form-control" placeholder="e.g. Week 1, Week 2..." /></td>
+                    <td><input type="text" name="items[${rowCount}][week]" class="form-control" placeholder="${i18nScheme.week_ph}" /></td>
                     <td><input type="number" name="items[${rowCount}][number_of_periods]" class="form-control" min="1" /></td>
                     <td><textarea name="items[${rowCount}][teaching_methods]" class="form-control" rows="2"></textarea></td>
                     <td><textarea name="items[${rowCount}][teaching_resources]" class="form-control" rows="2"></textarea></td>
                     <td><textarea name="items[${rowCount}][assessment_tools]" class="form-control" rows="2"></textarea></td>
                     <td><textarea name="items[${rowCount}][references]" class="form-control" rows="2"></textarea></td>
                     <td>
-                        <button type="button" class="btn btn-sm remove-row-btn" onclick="removeRow(${rowCount}, '${month}')" title="Remove Row">
+                        <button type="button" class="btn btn-sm remove-row-btn" onclick="removeRow(${rowCount}, '${month}')" title="${i18nScheme.remove_row}">
                             <i class="fa fa-trash"></i>
                         </button>
                     </td>
@@ -486,14 +595,14 @@
                     <td><textarea name="items[${rowCount}][specific_competences]" class="form-control" rows="2"></textarea></td>
                     <td><textarea name="items[${rowCount}][learning_activities]" class="form-control" rows="2"></textarea></td>
                     <td><textarea name="items[${rowCount}][specific_activities]" class="form-control" rows="2"></textarea></td>
-                    <td><input type="text" name="items[${rowCount}][week]" class="form-control" placeholder="e.g. Week 1, Week 2..." /></td>
+                    <td><input type="text" name="items[${rowCount}][week]" class="form-control" placeholder="${i18nScheme.week_ph}" /></td>
                     <td><input type="number" name="items[${rowCount}][number_of_periods]" class="form-control" min="1" /></td>
                     <td><textarea name="items[${rowCount}][teaching_methods]" class="form-control" rows="2"></textarea></td>
                     <td><textarea name="items[${rowCount}][teaching_resources]" class="form-control" rows="2"></textarea></td>
                     <td><textarea name="items[${rowCount}][assessment_tools]" class="form-control" rows="2"></textarea></td>
                     <td><textarea name="items[${rowCount}][references]" class="form-control" rows="2"></textarea></td>
                     <td>
-                        <button type="button" class="btn btn-sm remove-row-btn" onclick="removeRow(${rowCount}, '${month}')" title="Remove Row">
+                        <button type="button" class="btn btn-sm remove-row-btn" onclick="removeRow(${rowCount}, '${month}')" title="${i18nScheme.remove_row}">
                             <i class="fa fa-trash"></i>
                         </button>
                     </td>
@@ -555,7 +664,7 @@
             objectiveCount++;
             const objectiveHtml = `
                 <div class="objective-item" data-objective-id="${objectiveCount}">
-                    <input type="text" name="learning_objectives[]" class="form-control" placeholder="Enter learning objective..." />
+                    <input type="text" name="learning_objectives[]" class="form-control" placeholder="${i18nScheme.objective_ph}" />
                     <button type="button" class="btn btn-sm remove-objective-btn" onclick="removeObjective(${objectiveCount})">
                         <i class="fa fa-times"></i>
                     </button>
@@ -619,10 +728,10 @@
             if (formData.items.length === 0) {
                 Swal.fire({
                     icon: 'warning',
-                    title: 'Warning!',
-                    text: 'Please add at least one row to the scheme of work table.',
+                    title: i18nScheme.warning,
+                    text: i18nScheme.need_one_row,
                     confirmButtonColor: '#940000',
-                    confirmButtonText: 'OK'
+                    confirmButtonText: i18nScheme.ok
                 });
                 return;
             }
@@ -630,7 +739,7 @@
             // Show loading
             const saveBtn = $('button[onclick="saveScheme()"]');
             const originalText = saveBtn.html();
-            saveBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> <span data-translate="saving">Saving...</span>');
+            saveBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> <span data-translate="saving">' + i18nScheme.saving + '</span>');
             
             // Submit
             $.ajax({
@@ -641,10 +750,10 @@
                     if (response.success) {
                         Swal.fire({
                             icon: 'success',
-                            title: 'Success!',
-                            text: 'Scheme of work created successfully!',
+                            title: i18nScheme.success,
+                            text: i18nScheme.created_ok,
                             confirmButtonColor: '#940000',
-                            confirmButtonText: 'OK'
+                            confirmButtonText: i18nScheme.ok
                         }).then(() => {
                             if (response.redirect) {
                                 window.location.href = response.redirect;
@@ -655,22 +764,22 @@
                     } else {
                         Swal.fire({
                             icon: 'error',
-                            title: 'Error!',
-                            text: response.message || 'Failed to save scheme of work',
+                            title: i18nScheme.error,
+                            text: response.message || i18nScheme.fail_save,
                             confirmButtonColor: '#940000',
-                            confirmButtonText: 'OK'
+                            confirmButtonText: i18nScheme.ok
                         });
                         saveBtn.prop('disabled', false).html(originalText);
                     }
                 },
                 error: function(xhr) {
-                    const errorMsg = xhr.responseJSON?.message || 'Failed to save scheme of work';
+                    const errorMsg = xhr.responseJSON?.message || i18nScheme.fail_save;
                     Swal.fire({
                         icon: 'error',
-                        title: 'Error!',
+                        title: i18nScheme.error,
                         text: errorMsg,
                         confirmButtonColor: '#940000',
-                        confirmButtonText: 'OK'
+                        confirmButtonText: i18nScheme.ok
                     });
                     saveBtn.prop('disabled', false).html(originalText);
                 }
@@ -695,10 +804,10 @@
             if (monthRows.length <= 1) {
                 Swal.fire({
                     icon: 'warning',
-                    title: 'Warning!',
-                    text: 'Cannot remove the last row in a month. Each month must have at least one row.',
+                    title: i18nScheme.warning,
+                    text: i18nScheme.cannot_remove_last,
                     confirmButtonColor: '#940000',
-                    confirmButtonText: 'OK'
+                    confirmButtonText: i18nScheme.ok
                 });
                 return;
             }
@@ -732,11 +841,12 @@
                     const lastRow = monthDataRows.last();
                     // Check if add button already exists
                     if (lastRow.next('.add-row-control').length === 0) {
+                        const addLabel = (i18nScheme.add_row_to || 'Add Row to :month').replace(':month', month);
                         const addBtnRow = $(`
                             <tr class="add-row-control" data-control-month="${month}">
                                 <td colspan="12" style="padding: 10px; background-color: #f9f9f9; text-align: center;">
-                                    <button type="button" class="btn btn-sm btn-primary-custom" onclick="addRowToMonth('${month}')">
-                                        <i class="fa fa-plus"></i> Add Row to ${month}
+                                    <button type="button" class="btn btn-sm btn-primary-custom text-white" onclick="addRowToMonth('${month}')">
+                                        <i class="fa fa-plus text-white"></i> <span class="text-white">${addLabel}</span>
                                     </button>
                                 </td>
                             </tr>
@@ -749,11 +859,12 @@
                             // Button is in correct position
                         } else {
                             existingBtn.remove();
+                            const addLabel = (i18nScheme.add_row_to || 'Add Row to :month').replace(':month', month);
                             const addBtnRow = $(`
                                 <tr class="add-row-control" data-control-month="${month}">
                                     <td colspan="12" style="padding: 10px; background-color: #f9f9f9; text-align: center;">
-                                        <button type="button" class="btn btn-sm btn-primary-custom" onclick="addRowToMonth('${month}')">
-                                            <i class="fa fa-plus"></i> Add Row to ${month}
+                                        <button type="button" class="btn btn-sm btn-primary-custom text-white" onclick="addRowToMonth('${month}')">
+                                            <i class="fa fa-plus text-white"></i> <span class="text-white">${addLabel}</span>
                                         </button>
                                     </td>
                                 </tr>
@@ -774,60 +885,62 @@
         // Initialize add buttons after table is ready
         setTimeout(addMonthSectionControls, 500);
         
-        // Language translations
+        // Language translations (synced with lang/{locale}/teacher.php scheme keys)
         const translations = {
             en: {
-                createSchemeOfWork: 'Create New Scheme of Work',
-                goBack: 'Go Back',
-                defineLearningObjectives: 'Define Learning Objectives',
-                addObjective: 'Add Objective',
-                schemeOfWorkTable: 'Scheme of Work Table',
-                saveChanges: 'Save Changes',
-                mainCompetence: 'Main Competence',
-                specificCompetences: 'Specific Competences',
-                learningActivities: 'Learning Activities',
-                specificActivities: 'Specific Activities',
-                month: 'Month',
-                week: 'Week',
-                numberOfPeriods: 'Number of Periods',
-                teachingMethods: 'Teaching and Learning Methods',
-                teachingResources: 'Teaching and Learning Resources',
-                assessmentTools: 'Assessment Tools',
-                references: 'References',
-                addRow: 'Add Row',
-                remove: 'Remove',
-                action: 'Action',
-                saving: 'Saving...'
+                createSchemeOfWork: @json(__('teacher.scheme.create_scheme_of_work', [], 'en')),
+                goBack: @json(__('teacher.scheme.go_back', [], 'en')),
+                defineLearningObjectives: @json(__('teacher.scheme.define_objectives', [], 'en')),
+                addObjective: @json(__('teacher.scheme.add_objective', [], 'en')),
+                schemeOfWorkTable: @json(__('teacher.scheme.table_title', [], 'en')),
+                saveChanges: @json(__('teacher.save_changes', [], 'en')),
+                mainCompetence: @json(__('teacher.scheme.main_competence', [], 'en')),
+                specificCompetences: @json(__('teacher.scheme.specific_competences', [], 'en')),
+                learningActivities: @json(__('teacher.scheme.learning_activities', [], 'en')),
+                specificActivities: @json(__('teacher.scheme.specific_activities', [], 'en')),
+                month: @json(__('teacher.scheme.month', [], 'en')),
+                week: @json(__('teacher.scheme.week', [], 'en')),
+                numberOfPeriods: @json(__('teacher.scheme.number_of_periods', [], 'en')),
+                teachingMethods: @json(__('teacher.scheme.teaching_methods', [], 'en')),
+                teachingResources: @json(__('teacher.scheme.teaching_resources', [], 'en')),
+                assessmentTools: @json(__('teacher.scheme.assessment_tools', [], 'en')),
+                references: @json(__('teacher.scheme.references', [], 'en')),
+                addRow: @json(__('teacher.scheme.add_row', [], 'en')),
+                remove: @json(__('teacher.scheme.remove', [], 'en')),
+                action: @json(__('teacher.scheme.action', [], 'en')),
+                saving: @json(__('teacher.scheme.saving', [], 'en'))
             },
             sw: {
-                createSchemeOfWork: 'Unda Ratiba Mpya ya Kazi',
-                goBack: 'Rudi Nyuma',
-                defineLearningObjectives: 'Fafanua Malengo ya Kujifunza',
-                addObjective: 'Ongeza Lengo',
-                schemeOfWorkTable: 'Jedwali la Ratiba ya Kazi',
-                saveChanges: 'Hifadhi Mabadiliko',
-                mainCompetence: 'Uwezo Mkuu',
-                specificCompetences: 'Uwezo Maalum',
-                learningActivities: 'Shughuli za Kujifunza',
-                specificActivities: 'Shughuli Maalum',
-                month: 'Mwezi',
-                week: 'Wiki',
-                numberOfPeriods: 'Idadi ya Vipindi',
-                teachingMethods: 'Mbinu za Kufundisha na Kujifunza',
-                teachingResources: 'Rasilimali za Kufundisha na Kujifunza',
-                assessmentTools: 'Zana za Tathmini',
-                references: 'Marejeo',
-                addRow: 'Ongeza Safu',
-                remove: 'Ondoa',
-                action: 'Kitendo',
-                saving: 'Inahifadhi...'
+                createSchemeOfWork: @json(__('teacher.scheme.create_scheme_of_work', [], 'sw')),
+                goBack: @json(__('teacher.scheme.go_back', [], 'sw')),
+                defineLearningObjectives: @json(__('teacher.scheme.define_objectives', [], 'sw')),
+                addObjective: @json(__('teacher.scheme.add_objective', [], 'sw')),
+                schemeOfWorkTable: @json(__('teacher.scheme.table_title', [], 'sw')),
+                saveChanges: @json(__('teacher.save_changes', [], 'sw')),
+                mainCompetence: @json(__('teacher.scheme.main_competence', [], 'sw')),
+                specificCompetences: @json(__('teacher.scheme.specific_competences', [], 'sw')),
+                learningActivities: @json(__('teacher.scheme.learning_activities', [], 'sw')),
+                specificActivities: @json(__('teacher.scheme.specific_activities', [], 'sw')),
+                month: @json(__('teacher.scheme.month', [], 'sw')),
+                week: @json(__('teacher.scheme.week', [], 'sw')),
+                numberOfPeriods: @json(__('teacher.scheme.number_of_periods', [], 'sw')),
+                teachingMethods: @json(__('teacher.scheme.teaching_methods', [], 'sw')),
+                teachingResources: @json(__('teacher.scheme.teaching_resources', [], 'sw')),
+                assessmentTools: @json(__('teacher.scheme.assessment_tools', [], 'sw')),
+                references: @json(__('teacher.scheme.references', [], 'sw')),
+                addRow: @json(__('teacher.scheme.add_row', [], 'sw')),
+                remove: @json(__('teacher.scheme.remove', [], 'sw')),
+                action: @json(__('teacher.scheme.action', [], 'sw')),
+                saving: @json(__('teacher.scheme.saving', [], 'sw'))
             }
         };
         
-        // Get current language
+        // Sync page-local data-translate labels with app locale (header SW switch)
+        const appLocale = @json(app()->getLocale() === 'sw' ? 'sw' : 'en');
+        let currentLanguage = appLocale;
+
         function getCurrentLanguage() {
-            const selector = document.getElementById('languageSelector');
-            return selector ? selector.value : 'en';
+            return currentLanguage || appLocale || 'en';
         }
         
         // Get translation
@@ -838,7 +951,7 @@
         
         // Change language function
         function changeLanguage(lang) {
-            console.log('Changing language to:', lang);
+            currentLanguage = (lang === 'sw') ? 'sw' : 'en';
             
             // Update all static text on the page
             document.querySelectorAll('[data-translate]').forEach(function(element) {
@@ -847,7 +960,9 @@
                 element.textContent = translation;
             });
         }
-    </script>
-</body>
-</html>
+
+        // Apply app locale on load (no page-local language dropdown)
+        changeLanguage(appLocale);
+</script>
+@endpush
 

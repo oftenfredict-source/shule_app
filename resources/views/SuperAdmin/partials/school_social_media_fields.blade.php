@@ -155,8 +155,8 @@
     <div class="form-check form-switch mb-2{{ $ssmHideToggle ? ' visually-hidden' : '' }}">
         <input class="form-check-input ssm-enable" type="checkbox" id="{{ $ssmId }}_enable" name="enable_social_media" value="1" {{ $ssmEnabled ? 'checked' : '' }}>
         @unless($ssmHideToggle)
-            <label class="form-check-label fw-bold" for="{{ $ssmId }}_enable">School Social Media A/C</label>
-            <div class="small text-muted">When ON, add school social links. Parents see icons in the portal header.</div>
+            <label class="form-check-label fw-bold" for="{{ $ssmId }}_enable">{{ __('superadmin.social_media.title') }}</label>
+            <div class="small text-muted">{{ __('superadmin.social_media.hint') }}</div>
         @endunless
     </div>
 
@@ -181,7 +181,7 @@
             @endforelse
         </div>
         <button type="button" class="btn btn-sm btn-outline-primary ssm-add-btn" id="{{ $ssmId }}_add">
-            <i class="bx bx-plus"></i> Add another social media
+            <i class="bx bx-plus"></i> {{ __('superadmin.social_media.add_another') }}
         </button>
     </div>
 </div>
@@ -203,6 +203,7 @@
 
     window.SchoolSocialMediaUI = (function($) {
         const PLATFORMS = @json($ssmPlatformsJson);
+        const SSM = @json(__('superadmin.social_media'));
 
         function platformMeta(key) {
             return PLATFORMS.find(function(p) { return p.key === key; }) || null;
@@ -283,20 +284,20 @@
             const $label = $row.find('.ssm-value-label');
             setPickerButton($row, key);
             if (!meta) {
-                $input.attr('placeholder', 'Select a platform first');
-                $label.text('Link / Phone');
+                $input.attr('placeholder', SSM.select_platform_first);
+                $label.text(SSM.link_phone);
                 return;
             }
             $input.attr('placeholder', meta.placeholder);
-            $label.text(meta.type === 'phone' ? 'Phone Number' : 'Profile Link');
+            $label.text(meta.type === 'phone' ? SSM.phone_number : SSM.profile_link);
             $input.attr('type', meta.type === 'phone' ? 'tel' : 'url');
         }
 
         function buildPickerMenuHtml(selected) {
             let html = ''
-                + '<button type="button" class="ssm-picker-option" data-value="" data-label="-- Select social media --">'
+                + '<button type="button" class="ssm-picker-option" data-value="" data-label="' + esc(SSM.select_social) + '">'
                 + '  <span class="ssm-picker-icon ssm-picker-icon-empty"><i class="fi fi-rr-link"></i></span>'
-                + '  <span>-- Select social media --</span>'
+                + '  <span>' + esc(SSM.select_social) + '</span>'
                 + '</button>';
             PLATFORMS.forEach(function(p) {
                 const sel = (selected === p.key) ? ' is-selected' : '';
@@ -315,22 +316,22 @@
 
         function buildRowHtml(index, selected, value) {
             const meta = platformMeta(selected);
-            const label = meta ? (meta.type === 'phone' ? 'Phone Number' : 'Profile Link') : 'Link / Phone';
-            const ph = meta ? meta.placeholder : 'Select a platform first';
+            const label = meta ? (meta.type === 'phone' ? SSM.phone_number : SSM.profile_link) : SSM.link_phone;
+            const ph = meta ? meta.placeholder : SSM.select_platform_first;
             const inputType = meta && meta.type === 'phone' ? 'tel' : 'url';
             const btnInner = meta
                 ? (logoHtml(meta)
                     + '<span class="ssm-picker-label">' + esc(meta.label) + '</span>'
                     + '<i class="fi fi-rr-angle-small-down ssm-picker-caret"></i>')
                 : ('<span class="ssm-picker-icon ssm-picker-icon-empty"><i class="fi fi-rr-link"></i></span>'
-                    + '<span class="ssm-picker-label text-muted">-- Select social media --</span>'
+                    + '<span class="ssm-picker-label text-muted">' + esc(SSM.select_social) + '</span>'
                     + '<i class="fi fi-rr-angle-small-down ssm-picker-caret"></i>');
 
             return ''
                 + '<div class="ssm-row" data-index="' + index + '">'
                 + '  <div class="row g-2 align-items-end">'
                 + '    <div class="col-md-5">'
-                + '      <label class="small fw-bold">Platform</label>'
+                + '      <label class="small fw-bold">' + esc(SSM.platform) + '</label>'
                 + '      <div class="ssm-picker">'
                 + '        <input type="hidden" class="ssm-platform" name="social_media[' + index + '][platform]" value="' + esc(selected) + '">'
                 + '        <button type="button" class="ssm-picker-btn" aria-haspopup="listbox" aria-expanded="false">' + btnInner + '</button>'
@@ -342,7 +343,7 @@
                 + '      <input class="form-control form-control-sm ssm-value" type="' + inputType + '" name="social_media[' + index + '][value]" value="' + esc(value) + '" placeholder="' + esc(ph) + '">'
                 + '    </div>'
                 + '    <div class="col-md-2 d-flex align-items-end">'
-                + '      <button type="button" class="btn btn-sm ssm-remove" title="Remove"><i class="fi fi-rr-trash"></i><span>Remove</span></button>'
+                + '      <button type="button" class="btn btn-sm ssm-remove" title="' + esc(SSM.remove) + '"><i class="fi fi-rr-trash"></i><span>' + esc(SSM.remove) + '</span></button>'
                 + '    </div>'
                 + '  </div>'
                 + '</div>';

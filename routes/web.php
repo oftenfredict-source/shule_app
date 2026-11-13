@@ -54,6 +54,9 @@ use App\Http\Controllers\AttendanceSmsController;
 use App\Http\Controllers\FingerprintAttendanceSmsController;
 use App\Http\Controllers\FingerprintAttendanceSetupController;
 use App\Http\Controllers\SuperAdminController;
+use App\Http\Controllers\AiSupportController;
+use App\Http\Controllers\AiTrainingController;
+use App\Http\Controllers\PublicAiSupportController;
 use App\Http\Controllers\CharacterAssessmentController;
 use App\Http\Controllers\ExamAttendanceController;
 use App\Http\Controllers\SitemapController;
@@ -225,6 +228,20 @@ Route::prefix("goals")->group(function () {
 });
 
 Route::get("/", [SiteController::class, "home"])->name("site.home");
+
+// Public AI Customer Support (landing / marketing site — guest session token)
+Route::prefix('ai-support')
+    ->middleware('throttle:30,1')
+    ->name('public.ai_support.')
+    ->group(function () {
+        Route::get('/bootstrap', [PublicAiSupportController::class, 'bootstrap'])->name('bootstrap');
+        Route::post('/conversations', [PublicAiSupportController::class, 'storeConversation'])->name('conversations.store');
+        Route::get('/conversations/{conversation}/messages', [PublicAiSupportController::class, 'messages'])
+            ->whereNumber('conversation')
+            ->name('messages');
+        Route::post('/chat', [PublicAiSupportController::class, 'chat'])->name('chat');
+    });
+
 Route::get("/about", [SiteController::class, "about"])->name("site.about");
 Route::get("/team", [SiteController::class, "team"])->name("site.team");
 Route::get("/team/{slug}", [SiteController::class, "teamShow"])
@@ -239,6 +256,9 @@ Route::get("/pricing", [SiteController::class, "pricing"])->name("pricing");
 Route::get("/faq", [SiteController::class, "faq"])->name("site.faq");
 Route::get("/download", [SiteController::class, "download"])->name("site.download");
 Route::get("/contact", [SiteController::class, "contact"])->name("site.contact");
+Route::get("/contact/captcha", [SiteController::class, "contactCaptcha"])
+    ->middleware("throttle:30,1")
+    ->name("site.contact.captcha");
 Route::post("/contact/send-otp", [SiteController::class, "contactSendOtp"])
     ->middleware("throttle:5,1")
     ->name("site.contact.send_otp");
@@ -416,6 +436,12 @@ Route::get("super-admin/customer-inquiries-notifications", [
     "getCustomerInquiryNotifications",
 ])->name("superadmin.customer_inquiries.notifications");
 
+// AI common-question training (SuperAdmin)
+Route::get("super-admin/ai-training", [AiTrainingController::class, "index"])->name("superadmin.ai_training.index");
+Route::post("super-admin/ai-training", [AiTrainingController::class, "store"])->name("superadmin.ai_training.store");
+Route::put("super-admin/ai-training/{id}", [AiTrainingController::class, "update"])->name("superadmin.ai_training.update");
+Route::delete("super-admin/ai-training/{id}", [AiTrainingController::class, "destroy"])->name("superadmin.ai_training.destroy");
+
 // Bank registration & school bank account verification (Multi Account Fees)
 Route::get("super-admin/banks", [SuperAdminController::class, "banks"])->name("superadmin.banks.index");
 Route::post("super-admin/banks", [SuperAdminController::class, "storeBank"])->name("superadmin.banks.store");
@@ -480,6 +506,18 @@ Route::post("super-admin/schools/bulk-sms-enabled", [
     SuperAdminController::class,
     "bulkUpdateSmsEnabled",
 ])->name("superadmin.schools.bulk_sms_enabled");
+Route::post("super-admin/schools/block", [
+    SuperAdminController::class,
+    "blockSchool",
+])->name("superadmin.schools.block");
+Route::post("super-admin/schools/unblock", [
+    SuperAdminController::class,
+    "unblockSchool",
+])->name("superadmin.schools.unblock");
+Route::post("super-admin/schools/delete", [
+    SuperAdminController::class,
+    "deleteSchool",
+])->name("superadmin.schools.delete");
 Route::get("super-admin/change-password", [
     SuperAdminController::class,
     "changePasswordForm",
@@ -708,6 +746,21 @@ Route::post("admin/change-password", [
 Route::get("AdminDashboard", [AdminController::class, "AdminDashboard"])->name(
     "AdminDashboard",
 );
+
+// AI Customer Support (Admin / Teacher / Staff — session auth)
+Route::prefix('admin/ai-support')
+    ->middleware('school.ai.support')
+    ->name('admin.ai_support.')
+    ->group(function () {
+        Route::get('/bootstrap', [AiSupportController::class, 'bootstrap'])->name('bootstrap');
+        Route::get('/conversations', [AiSupportController::class, 'conversations'])->name('conversations');
+        Route::post('/conversations', [AiSupportController::class, 'storeConversation'])->name('conversations.store');
+        Route::get('/conversations/{conversation}/messages', [AiSupportController::class, 'messages'])
+            ->whereNumber('conversation')
+            ->name('messages');
+        Route::post('/chat', [AiSupportController::class, 'chat'])->name('chat');
+    });
+
 Route::get("admin/scheme-of-work", [
     AdminController::class,
     "adminSchemeOfWork",

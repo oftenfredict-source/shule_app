@@ -64,7 +64,11 @@ class StudentPortalMaterialController extends Controller
             }
         }
 
-        return view('Teacher.student_portal_materials', [
+        $materialsView = $userType === 'Teacher'
+            ? 'Teacher.student_portal_materials'   // GXON teacher_corp layout
+            : 'Admin.student_portal_materials';    // legacy Admin_nav layout
+
+        return view($materialsView, [
             'school' => $school,
             'enabled' => $enabled,
             'classes' => $classes,
@@ -652,8 +656,11 @@ class StudentPortalMaterialController extends Controller
         );
 
         $userType = Session::get('user_type');
+        $reviewView = $userType === 'Teacher'
+            ? 'Teacher.student_portal_quiz_review'   // GXON teacher_corp layout
+            : 'Admin.student_portal_quiz_review';    // legacy Admin_nav layout
 
-        return view('Teacher.student_portal_quiz_review', [
+        return view($reviewView, [
             'school' => $school,
             'quiz' => $quiz,
             'attempt' => $attempt,

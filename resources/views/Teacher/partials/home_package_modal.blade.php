@@ -7,7 +7,7 @@
                     <i class="bi bi-house-door"></i> Home Package
                     <small class="d-block" style="font-size:13px;font-weight:500;" id="hpSubjectLabel"></small>
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                <button type="button" class="close text-white" data-bs-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -73,7 +73,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary-custom" id="hpSaveBtn">Save</button>
             </div>
         </div>
@@ -85,14 +85,14 @@
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="hpViewTitle">View Home Package</h5>
-                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                <button type="button" class="close text-white" data-bs-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body p-0" style="height:75vh;">
                 <iframe id="hpViewFrame" src="" style="width:100%;height:100%;border:0;"></iframe>
             </div>
             <div class="modal-footer">
                 <a href="#" class="btn btn-outline-primary" id="hpViewDownloadBtn" target="_blank">Download</a>
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -199,7 +199,7 @@
             $('#hpSubjectLabel').text(subjectName || 'Subject');
             resetUploadForm();
             loadHolidaysInto('#hpFilterHoliday', true);
-            loadPackages();
+            if (typeof sxShowModal === 'function') { sxShowModal('#homePackageModal'); } else { $('#homePackageModal').modal('show'); }
             $('#hp-upload-tab').tab('show');
             $('#homePackageModal').modal('show');
         };
@@ -280,7 +280,7 @@
             const dl = $(this).attr('data-dl');
             const title = $(this).attr('data-title') || 'Home Package';
             $('#hpViewTitle').text(title);
-            $('#hpViewFrame').attr('src', url);
+            if (typeof sxShowModal === 'function') { sxShowModal('#homePackageViewModal'); } else { $('#homePackageViewModal').modal('show'); }
             $('#hpViewDownloadBtn').attr('href', dl);
             $('#homePackageViewModal').modal('show');
         });

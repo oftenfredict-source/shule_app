@@ -8,7 +8,7 @@
 <div class="ssm-row" data-index="{{ $index }}">
     <div class="row g-2 align-items-end">
         <div class="col-md-5">
-            <label class="small fw-bold">Platform</label>
+            <label class="small fw-bold">{{ __('superadmin.social_media.platform') }}</label>
             <div class="ssm-picker">
                 <input type="hidden" class="ssm-platform" name="social_media[{{ $index }}][platform]" value="{{ $selected }}">
                 <button type="button" class="ssm-picker-btn" aria-haspopup="listbox" aria-expanded="false">
@@ -21,14 +21,14 @@
                         <span class="ssm-picker-icon ssm-picker-icon-empty">
                             <i class="fi fi-rr-link"></i>
                         </span>
-                        <span class="ssm-picker-label text-muted">-- Select social media --</span>
+                        <span class="ssm-picker-label text-muted">{{ __('superadmin.social_media.select_social') }}</span>
                     @endif
                     <i class="fi fi-rr-angle-small-down ssm-picker-caret"></i>
                 </button>
                 <div class="ssm-picker-menu" role="listbox" hidden>
-                    <button type="button" class="ssm-picker-option" data-value="" data-label="-- Select social media --">
+                    <button type="button" class="ssm-picker-option" data-value="" data-label="{{ __('superadmin.social_media.select_social') }}">
                         <span class="ssm-picker-icon ssm-picker-icon-empty"><i class="fi fi-rr-link"></i></span>
-                        <span>-- Select social media --</span>
+                        <span>{{ __('superadmin.social_media.select_social') }}</span>
                     </button>
                     @foreach($platforms as $key => $p)
                         <button type="button"
@@ -48,18 +48,18 @@
         </div>
         <div class="col-md-5">
             <label class="small fw-bold ssm-value-label">
-                {{ ($meta['type'] ?? '') === 'phone' ? 'Phone Number' : 'Profile Link' }}
+                {{ ($meta['type'] ?? '') === 'phone' ? __('superadmin.social_media.phone_number') : __('superadmin.social_media.profile_link') }}
             </label>
             <input class="form-control form-control-sm ssm-value"
                    type="{{ ($meta['type'] ?? '') === 'phone' ? 'tel' : 'url' }}"
                    name="social_media[{{ $index }}][value]"
                    value="{{ $value }}"
-                   placeholder="{{ $meta['placeholder'] ?? 'Select a platform first' }}">
+                   placeholder="{{ $meta['placeholder'] ?? __('superadmin.social_media.select_platform_first') }}">
         </div>
         <div class="col-md-2 d-flex align-items-end">
-            <button type="button" class="btn btn-sm ssm-remove" title="Remove">
+            <button type="button" class="btn btn-sm ssm-remove" title="{{ __('superadmin.social_media.remove') }}">
                 <i class="fi fi-rr-trash"></i>
-                <span>Remove</span>
+                <span>{{ __('superadmin.social_media.remove') }}</span>
             </button>
         </div>
     </div>

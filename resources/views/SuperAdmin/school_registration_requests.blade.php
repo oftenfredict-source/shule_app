@@ -1,11 +1,11 @@
 @extends('includes.superadmin_nav')
 
-@section('page_title', 'Registration Requests')
-@section('page_breadcrumb', 'Registration Requests')
+@section('page_title', __('superadmin.pages.registration_requests'))
+@section('page_breadcrumb', __('superadmin.pages.registration_requests'))
 
 @section('page_actions')
     <a href="{{ route('superadmin.schools.register') }}" class="btn btn-primary waves-effect waves-light">
-        <i class="fi fi-rr-add me-1"></i> Register School
+        <i class="fi fi-rr-add me-1"></i> {{ __('superadmin.school_requests.register_school') }}
     </a>
 @endsection
 
@@ -420,42 +420,42 @@
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <i class="fi fi-rr-check-circle me-2"></i>{{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('superadmin.common.close') }}"></button>
         </div>
     @endif
 
     <div class="sx-req-card">
         <div class="card-body">
             <div class="sx-req-card-head">
-                <h2 class="sx-req-card-title">Public Registration Queue</h2>
+                <h2 class="sx-req-card-title">{{ __('superadmin.school_requests.public_queue') }}</h2>
             </div>
 
             <div class="sx-toolbar">
-                <div class="sx-req-filters" role="tablist" aria-label="Request status filters">
+                <div class="sx-req-filters" role="tablist" aria-label="{{ __('superadmin.school_requests.filters_label') }}">
                     <a href="{{ route('superadmin.schools.registration_requests', ['status' => 'pending']) }}"
                        class="sx-req-filter {{ ($status ?? '') === 'pending' ? 'is-active' : '' }}">
-                        Pending <span class="count">{{ $counts['pending'] }}</span>
+                        {{ __('superadmin.school_requests.tab_pending') }} <span class="count">{{ $counts['pending'] }}</span>
                     </a>
                     <a href="{{ route('superadmin.schools.registration_requests', ['status' => 'ready']) }}"
                        class="sx-req-filter {{ ($status ?? '') === 'ready' ? 'is-active' : '' }}">
-                        Ready <span class="count">{{ $counts['ready'] }}</span>
+                        {{ __('superadmin.school_requests.tab_ready') }} <span class="count">{{ $counts['ready'] }}</span>
                     </a>
                     <a href="{{ route('superadmin.schools.registration_requests', ['status' => 'rejected']) }}"
                        class="sx-req-filter {{ ($status ?? '') === 'rejected' ? 'is-active' : '' }}">
-                        Rejected <span class="count">{{ $counts['rejected'] }}</span>
+                        {{ __('superadmin.school_requests.tab_rejected') }} <span class="count">{{ $counts['rejected'] }}</span>
                     </a>
                     <a href="{{ route('superadmin.schools.registration_requests', ['status' => 'all']) }}"
                        class="sx-req-filter {{ ($status ?? '') === 'all' ? 'is-active' : '' }}">
-                        All <span class="count">{{ $counts['all'] }}</span>
+                        {{ __('superadmin.school_requests.tab_all') }} <span class="count">{{ $counts['all'] }}</span>
                     </a>
                 </div>
 
-                <div class="sx-view-toggle" role="group" aria-label="View mode">
+                <div class="sx-view-toggle" role="group" aria-label="{{ __('superadmin.school_requests.view_mode') }}">
                     <button type="button" class="sx-view-btn is-active" data-view="list" id="btnViewList">
-                        <i class="fi fi-rr-list"></i> List
+                        <i class="fi fi-rr-list"></i> {{ __('superadmin.school_requests.list') }}
                     </button>
                     <button type="button" class="sx-view-btn" data-view="grid" id="btnViewGrid">
-                        <i class="fi fi-rr-apps"></i> Grid
+                        <i class="fi fi-rr-apps"></i> {{ __('superadmin.school_requests.grid') }}
                     </button>
                 </div>
             </div>
@@ -466,11 +466,11 @@
                         <table class="table mb-0">
                             <thead>
                                 <tr>
-                                    <th>School</th>
-                                    <th>Location</th>
-                                    <th>Phone</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
+                                    <th>{{ __('superadmin.school_requests.th_school') }}</th>
+                                    <th>{{ __('superadmin.school_requests.th_location') }}</th>
+                                    <th>{{ __('superadmin.school_requests.th_phone') }}</th>
+                                    <th>{{ __('superadmin.school_requests.th_status') }}</th>
+                                    <th>{{ __('superadmin.school_requests.th_action') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -487,24 +487,24 @@
                                         <td>{{ $row->phone }}</td>
                                         <td>
                                             @if($row->status === 'pending')
-                                                <span class="sx-badge sx-badge-pending">Pending</span>
+                                                <span class="sx-badge sx-badge-pending">{{ __('superadmin.common.pending') }}</span>
                                             @elseif($row->status === 'ready')
-                                                <span class="sx-badge sx-badge-ready">Ready</span>
+                                                <span class="sx-badge sx-badge-ready">{{ __('superadmin.common.ready') }}</span>
                                             @else
-                                                <span class="sx-badge sx-badge-rejected">Rejected</span>
+                                                <span class="sx-badge sx-badge-rejected">{{ __('superadmin.common.rejected') }}</span>
                                             @endif
                                         </td>
                                         <td>
                                             <button type="button"
                                                     class="btn btn-view-more btn-open-request"
                                                     data-id="{{ $row->id }}">
-                                                View more
+                                                {{ __('superadmin.school_requests.view_more') }}
                                             </button>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="sx-empty">No registration requests in this filter.</td>
+                                        <td colspan="5" class="sx-empty">{{ __('superadmin.school_requests.empty') }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -522,36 +522,36 @@
                                 <div class="sx-meta">{{ $row->school_type }} · {{ $row->ownership }}</div>
                             </div>
                             @if($row->status === 'pending')
-                                <span class="sx-badge sx-badge-pending">Pending</span>
+                                <span class="sx-badge sx-badge-pending">{{ __('superadmin.common.pending') }}</span>
                             @elseif($row->status === 'ready')
-                                <span class="sx-badge sx-badge-ready">Ready</span>
+                                <span class="sx-badge sx-badge-ready">{{ __('superadmin.common.ready') }}</span>
                             @else
-                                <span class="sx-badge sx-badge-rejected">Rejected</span>
+                                <span class="sx-badge sx-badge-rejected">{{ __('superadmin.common.rejected') }}</span>
                             @endif
                         </div>
                         <div class="sx-grid-rows">
                             <div class="sx-grid-row">
-                                <span>Location</span>
+                                <span>{{ __('superadmin.school_requests.th_location') }}</span>
                                 <span>{{ $row->region }}, {{ $row->district }}</span>
                             </div>
                             <div class="sx-grid-row">
-                                <span>Phone</span>
+                                <span>{{ __('superadmin.school_requests.th_phone') }}</span>
                                 <span>{{ $row->phone }}</span>
                             </div>
                             <div class="sx-grid-row">
-                                <span>Submitted</span>
+                                <span>{{ __('superadmin.school_requests.submitted') }}</span>
                                 <span>{{ $row->created_at?->format('d M Y') }}</span>
                             </div>
                         </div>
                         <button type="button"
                                 class="btn btn-view-more btn-open-request align-self-start"
                                 data-id="{{ $row->id }}">
-                            View more
+                            {{ __('superadmin.school_requests.view_more') }}
                         </button>
                     </div>
                 @empty
                     <div class="sx-empty" style="grid-column: 1 / -1; border: 1px solid #ececec; border-radius: 0.45rem;">
-                        No registration requests in this filter.
+                        {{ __('superadmin.school_requests.empty') }}
                     </div>
                 @endforelse
             </div>
@@ -568,9 +568,9 @@
         <div class="card-body">
             <div class="sx-req-card-head">
                 <div>
-                    <h2 class="sx-req-card-title">Blocked OTP Phones</h2>
+                    <h2 class="sx-req-card-title">{{ __('superadmin.school_requests.blocked_title') }}</h2>
                     <div class="sx-meta mt-1">
-                        Blocked after {{ \App\Models\OtpPhoneBlock::MAX_OTP_SENDS }} OTP requests until released.
+                        {{ __('superadmin.school_requests.blocked_desc', ['count' => \App\Models\OtpPhoneBlock::MAX_OTP_SENDS]) }}
                     </div>
                 </div>
             </div>
@@ -580,11 +580,11 @@
                     <table class="table mb-0">
                         <thead>
                             <tr>
-                                <th>Phone</th>
-                                <th>OTP Sends</th>
-                                <th>Blocked At</th>
-                                <th>Reason</th>
-                                <th>Action</th>
+                                <th>{{ __('superadmin.school_requests.th_phone') }}</th>
+                                <th>{{ __('superadmin.school_requests.th_otp_sends') }}</th>
+                                <th>{{ __('superadmin.school_requests.th_blocked_at') }}</th>
+                                <th>{{ __('superadmin.school_requests.th_reason') }}</th>
+                                <th>{{ __('superadmin.school_requests.th_action') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -596,20 +596,20 @@
                                         <div>{{ $block->blocked_at?->format('d M Y') ?: '—' }}</div>
                                         <div class="sx-meta">{{ $block->blocked_at?->format('H:i') }}</div>
                                     </td>
-                                    <td>{{ $block->block_reason ?: 'OTP abuse limit' }}</td>
+                                    <td>{{ $block->block_reason ?: __('superadmin.school_requests.otp_abuse_limit') }}</td>
                                     <td>
                                         <form method="POST" action="{{ route('superadmin.schools.registration_otp_blocks.release', $block->id) }}">
                                             @csrf
                                             <button type="submit" class="btn btn-primary btn-sm"
-                                                    onclick="return confirm('Release this phone so it can receive OTPs again?')">
-                                                Release
+                                                    onclick="return confirm({{ \Illuminate\Support\Js::from(__('superadmin.school_requests.release_confirm')) }})">
+                                                {{ __('superadmin.school_requests.release') }}
                                             </button>
                                         </form>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="sx-empty">No blocked phones.</td>
+                                    <td colspan="5" class="sx-empty">{{ __('superadmin.school_requests.no_blocked') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -623,8 +623,8 @@
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="requestDetailTitle">Request details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title" id="requestDetailTitle">{{ __('superadmin.school_requests.request_details') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('superadmin.common.close') }}"></button>
                 </div>
                 <div class="modal-body">
                     <div class="sx-detail-grid" id="requestDetailBody"></div>
@@ -641,6 +641,8 @@
 
 @push('scripts')
 <script>
+const SX = @json(__('superadmin.school_requests'));
+const SXC = @json(__('superadmin.common'));
 document.addEventListener('DOMContentLoaded', function () {
     var root = document.getElementById('sxReqRoot');
     var requests = @json($requestPayload);
@@ -666,15 +668,19 @@ document.addEventListener('DOMContentLoaded', function () {
         if (saved === 'grid' || saved === 'list') setView(saved);
     } catch (e) {}
 
+    function jsAttr(str) {
+        return JSON.stringify(String(str)).replace(/"/g, '&quot;');
+    }
+
     function dash(v) {
         v = (v === null || v === undefined) ? '' : String(v).trim();
         return v === '' ? '—' : v;
     }
 
     function statusBadge(status) {
-        if (status === 'pending') return '<span class="sx-badge sx-badge-pending">Pending</span>';
-        if (status === 'ready') return '<span class="sx-badge sx-badge-ready">Ready</span>';
-        return '<span class="sx-badge sx-badge-rejected">Rejected</span>';
+        if (status === 'pending') return '<span class="sx-badge sx-badge-pending">' + SX.js.pending + '</span>';
+        if (status === 'ready') return '<span class="sx-badge sx-badge-ready">' + SX.js.ready + '</span>';
+        return '<span class="sx-badge sx-badge-rejected">' + SX.js.rejected + '</span>';
     }
 
     function detailItem(label, value, full) {
@@ -688,29 +694,29 @@ document.addEventListener('DOMContentLoaded', function () {
         var row = byId[String(id)];
         if (!row) return;
 
-        document.getElementById('requestDetailTitle').textContent = row.school_name || 'Request details';
+        document.getElementById('requestDetailTitle').textContent = row.school_name || SX.js.request_details;
         document.getElementById('requestDetailStatus').innerHTML = statusBadge(row.status);
 
         document.getElementById('requestDetailBody').innerHTML =
-            detailItem('School name', row.school_name)
-            + detailItem('Registration no.', row.registration_number)
-            + detailItem('Exam center', row.exam_center_number)
-            + detailItem('Education level', row.school_type)
-            + detailItem('Ownership', row.ownership)
-            + detailItem('Established year', row.established_year)
-            + detailItem('Students', row.number_of_students)
-            + detailItem('Contact person', row.contact_person)
-            + detailItem('Region', row.region)
-            + detailItem('District', row.district)
-            + detailItem('Ward', row.ward)
-            + detailItem('Phone', row.phone)
-            + detailItem('Email', row.email)
-            + detailItem('Submitted', row.submitted)
-            + detailItem('Phone verified', row.phone_verified_at)
-            + detailItem('Verified at', row.verified_at)
-            + detailItem('Postal address', row.address, true)
-            + detailItem('Notes', row.notes, true)
-            + detailItem('Admin notes', row.admin_notes, true);
+            detailItem(SX.js.school_name, row.school_name)
+            + detailItem(SX.js.registration_no, row.registration_number)
+            + detailItem(SX.js.exam_center, row.exam_center_number)
+            + detailItem(SX.js.education_level, row.school_type)
+            + detailItem(SX.js.ownership, row.ownership)
+            + detailItem(SX.js.established_year, row.established_year)
+            + detailItem(SX.js.students, row.number_of_students)
+            + detailItem(SX.js.contact_person, row.contact_person)
+            + detailItem(SX.js.region, row.region)
+            + detailItem(SX.js.district, row.district)
+            + detailItem(SXC.ward, row.ward)
+            + detailItem(SX.js.phone, row.phone)
+            + detailItem(SX.js.email, row.email)
+            + detailItem(SX.submitted, row.submitted)
+            + detailItem(SX.js.phone_verified, row.phone_verified_at)
+            + detailItem(SX.js.verified_at, row.verified_at)
+            + detailItem(SX.js.postal_address, row.address, true)
+            + detailItem(SX.js.notes, row.notes, true)
+            + detailItem(SX.js.admin_notes, row.admin_notes, true);
 
         var actions = document.getElementById('requestDetailActions');
         actions.innerHTML = '';
@@ -718,11 +724,11 @@ document.addEventListener('DOMContentLoaded', function () {
             actions.innerHTML =
                 '<form method="POST" action="' + row.verify_url + '" class="d-inline">'
                 + '<input type="hidden" name="_token" value="' + csrf + '">'
-                + '<button type="submit" class="btn btn-success-soft" onclick="return confirm(\'Mark as Ready? No login credentials will be created.\')">Verify</button>'
+                + '<button type="submit" class="btn btn-success-soft" onclick="return confirm(' + jsAttr(SX.js.confirm_ready) + ')">' + SX.js.verify + '</button>'
                 + '</form>'
                 + '<form method="POST" action="' + row.reject_url + '" class="d-inline">'
                 + '<input type="hidden" name="_token" value="' + csrf + '">'
-                + '<button type="submit" class="btn btn-reject" onclick="return confirm(\'Reject this registration request?\')">Reject</button>'
+                + '<button type="submit" class="btn btn-reject" onclick="return confirm(' + jsAttr(SX.js.confirm_reject) + ')">' + SX.js.reject + '</button>'
                 + '</form>';
         }
 

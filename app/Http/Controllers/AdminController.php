@@ -5569,29 +5569,7 @@ class AdminController extends Controller
                 ->value("id");
         }
 
-        $query = PermissionRequest::where("schoolID", $schoolID)->where(
-            "status",
-            "pending",
-        );
-
-        if ($filterType === "range") {
-            if ($dateFrom) {
-                $query->whereDate("start_date", ">=", $dateFrom);
-            }
-            if ($dateTo) {
-                $query->whereDate("start_date", "<=", $dateTo);
-            }
-        } elseif ($filterType === "month") {
-            if ($filterMonth) {
-                $query
-                    ->whereMonth("start_date", $filterMonth)
-                    ->whereYear("start_date", $filterMonthYear);
-            }
-        } elseif ($filterType === "year") {
-            if ($filterYear) {
-                $query->whereYear("start_date", $filterYear);
-            }
-        } // Get roles for this user (handles teacher, staff, and admin links)
+        // Get roles for this user (handles teacher, staff, and admin links)
         $myRoleIDs = DB::table("role_user")
             ->where(function ($q) use ($teacherID, $userID) {
                 if ($teacherID) {
@@ -5615,6 +5593,21 @@ class AdminController extends Controller
         $query = PermissionRequest::with(["teacher", "student", "staff"])
             ->where("schoolID", $schoolID)
             ->where("status", "pending");
+
+        if ($filterType === "range") {
+            if ($dateFrom) {
+                $query->whereDate("start_date", ">=", $dateFrom);
+            }
+            if ($dateTo) {
+                $query->whereDate("start_date", "<=", $dateTo);
+            }
+        } elseif ($filterType === "month" && $filterMonth) {
+            $query
+                ->whereMonth("start_date", $filterMonth)
+                ->whereYear("start_date", $filterMonthYear);
+        } elseif ($filterType === "year" && $filterYear) {
+            $query->whereYear("start_date", $filterYear);
+        }
 
         $query->where(function ($q) use (
             $userType,
@@ -5732,6 +5725,32 @@ class AdminController extends Controller
                 DB::raw("'student' as permission_type"),
             );
 
+        if ($filterType === "range") {
+            if ($dateFrom) {
+                $studentPermissionsQuery->whereDate(
+                    "sp.start_date",
+                    ">=",
+                    $dateFrom,
+                );
+            }
+            if ($dateTo) {
+                $studentPermissionsQuery->whereDate(
+                    "sp.start_date",
+                    "<=",
+                    $dateTo,
+                );
+            }
+        } elseif ($filterType === "month" && $filterMonth) {
+            $studentPermissionsQuery
+                ->whereMonth("sp.start_date", $filterMonth)
+                ->whereYear("sp.start_date", $filterMonthYear);
+        } elseif ($filterType === "year" && $filterYear) {
+            $studentPermissionsQuery->whereYear(
+                "sp.start_date",
+                $filterYear,
+            );
+        }
+
         \Log::info("Student permissions base query", [
             "schoolID" => $schoolID,
             "userType" => $userType,
@@ -5847,18 +5866,27 @@ class AdminController extends Controller
             ]);
         }
 
-        return view("Admin.permission_approval_tasks", [
-            "permissions" => $allPermissions,
-            "userType" => $userType,
-            "myRoleIDs" => $myRoleIDs,
-            "myProfessionID" => $myProfessionID,
-            "dateFrom" => $dateFrom,
-            "dateTo" => $dateTo,
-            "filterType" => $filterType,
-            "filterMonth" => $filterMonth,
-            "filterMonthYear" => $filterMonthYear,
-            "filterYear" => $filterYear,
-        ]);
+        $view =
+            strtolower((string) $userType) === "teacher"
+                ? "Teacher.permission_approval_tasks_corp"
+                : "Admin.permission_approval_tasks";
+        $permissions = $allPermissions;
+
+        return view(
+            $view,
+            compact(
+                "permissions",
+                "userType",
+                "myRoleIDs",
+                "myProfessionID",
+                "dateFrom",
+                "dateTo",
+                "filterType",
+                "filterMonth",
+                "filterMonthYear",
+                "filterYear",
+            ),
+        );
     }
 
     public function storeSchoolVisitors(Request $request)

@@ -200,7 +200,10 @@ class BlackBookController extends Controller
                 ? trim(($report->enrollment->classModel->class_name ?? $report->enrollment->subclass->class->class_name ?? '') . ' ' . ($report->enrollment->subclass->subclass_name ?? ''))
                 : $this->formatStudentClass($student),
             'problem_categoryID' => (int) $report->problem_categoryID,
-            'problem_category' => $report->problemCategory->name ?? '-',
+            'problem_category' => !empty($report->custom_problem_name)
+                ? ('Other: ' . $report->custom_problem_name)
+                : ($report->problemCategory->name ?? '-'),
+            'custom_problem_name' => $report->custom_problem_name,
             'problem_weight' => (int) ($report->problemCategory->weight ?? 0),
             'description' => $report->description,
             'reported_by_name' => $report->reported_by_name,
@@ -449,7 +452,11 @@ class BlackBookController extends Controller
             ->get()
             ->map(fn ($r) => $this->formatReport($r));
 
-        return view('Admin.report_student_black_book', compact('categories', 'myReports'));
+        $view = strtolower((string) Session::get('user_type')) === 'teacher'
+            ? 'Teacher.report_student_black_book'
+            : 'Admin.report_student_black_book';
+
+        return view($view, compact('categories', 'myReports'));
     }
 
     private function buildDashboardStats(int $schoolID): array
@@ -929,9 +936,12 @@ class BlackBookController extends Controller
             return $yearGate;
         }
 
+        $isOther = (string) $request->input('problem_categoryID') === 'other';
+
         $validator = Validator::make($request->all(), [
             'studentID' => 'required|integer',
-            'problem_categoryID' => 'required|integer',
+            'problem_categoryID' => $isOther ? 'required|in:other' : 'required|integer',
+            'custom_problem_name' => ($isOther ? 'required' : 'nullable') . '|string|min:2|max:150',
             'description' => 'required|string|min:5|max:2000',
         ]);
 
@@ -957,10 +967,29 @@ class BlackBookController extends Controller
             ], 422);
         }
 
-        $category = BlackBookProblemCategory::where('schoolID', $schoolID)
-            ->where('categoryID', $request->problem_categoryID)
-            ->where('status', 'Active')
-            ->first();
+        $customProblemName = null;
+        if ($isOther) {
+            $customProblemName = trim((string) $request->input('custom_problem_name'));
+            $category = BlackBookProblemCategory::firstOrCreate(
+                [
+                    'schoolID' => $schoolID,
+                    'name' => 'Other',
+                ],
+                [
+                    'weight' => 50,
+                    'status' => 'Active',
+                ]
+            );
+            if ($category->status !== 'Active') {
+                $category->status = 'Active';
+                $category->save();
+            }
+        } else {
+            $category = BlackBookProblemCategory::where('schoolID', $schoolID)
+                ->where('categoryID', $request->problem_categoryID)
+                ->where('status', 'Active')
+                ->first();
+        }
 
         if (!$category) {
             return $this->jsonError('Problem category not found.', 404);
@@ -973,6 +1002,7 @@ class BlackBookController extends Controller
             'studentID' => $student->studentID,
             'enrollmentID' => (int) $enrollment->enrollmentID,
             'problem_categoryID' => $category->categoryID,
+            'custom_problem_name' => $customProblemName,
             'description' => trim($request->description),
             'reported_by_type' => $actor['type'],
             'reported_by_id' => $actor['id'],

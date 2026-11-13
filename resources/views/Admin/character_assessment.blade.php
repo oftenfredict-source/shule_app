@@ -869,6 +869,7 @@
         $('#teacherAssignmentsContainer').html('');
         $('#selectAllClasses').prop('checked', false);
         $('.class-selector').prop('checked', false);
+        addAssignmentRow();
         timetableModal.modal('show');
     }
 
@@ -997,7 +998,7 @@
                             <!-- Selected teachers badges go here -->
                         </div>
                         <div class="input-group input-group-sm">
-                            <select class="form-control tt-teacher-select" style="border-radius: 0;">
+                            <select class="form-control tt-teacher-select" style="border-radius: 0;" onchange="if(this.value){ addTeacherToAsgn('${rowId}'); }">
                                 <option value="">Choose Teacher...</option>
                                 ${getTeacherOptions()}
                             </select>
@@ -1005,6 +1006,7 @@
                                 <button class="btn btn-outline-danger font-weight-bold" type="button" onclick="addTeacherToAsgn('${rowId}')" style="border-radius: 0; border: 1px solid #ced4da; border-left: none; background: #940000; color: white;">+ ADD</button>
                             </div>
                         </div>
+                        <small class="text-muted d-block mt-1" style="font-size: 10px;">Chagua mwalimu — ataongezwa kiotomatiki. Lazima badge ionekane hapo juu.</small>
                     </div>
                     <div class="row mt-3 border-top pt-3">
                         <div class="col-md-12">
@@ -1131,26 +1133,7 @@
         $('#' + rowId + ' .tt-subclass-select').html(options);
     }
 
-    function addTeacherToAsgn(rowId) {
-        const select = $('#' + rowId + ' .tt-teacher-select');
-        const teacherId = select.val();
-        if (!teacherId) return;
-
-        const teacherName = select.find('option:selected').text();
-        
-        // Prevent duplicate in same row
-        if ($(`#${rowId} .teacher-badge[data-id="${teacherId}"]`).length) return;
-
-        const badge = `
-            <span class="badge teacher-badge px-3 py-2 text-white d-flex align-items-center gap-2" data-id="${teacherId}" style="background: #940000; border-radius: 0; font-size: 11px;">
-                ${teacherName}
-                <i class="fa fa-times cursor-pointer" onclick="$(this).parent().remove()"></i>
-            </span>`;
-        $('#teachers_' + rowId).append(badge);
-        select.val('');
-    }
-
-    // Real-time validation removed as it is no longer required
+    // addTeacherToAsgn is defined below (after checkTeacherAvailability)
 
     $('#timetableForm').on('submit', function(e) {
         e.preventDefault();
@@ -1191,16 +1174,35 @@
             return;
         }
 
+        if ($('.assignment-row').length === 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Assignment required',
+                text: 'Bofya "ADD CLASS ASSIGNMENT", chagua class na mwalimu, kisha hakikisha badge ya mwalimu inaonekana.',
+                confirmButtonColor: '#940000'
+            });
+            return;
+        }
+
         const assignments = [];
+        let missingClass = false;
+        let missingTeacher = false;
         $('.assignment-row').each(function() {
             const rowId = $(this).attr('id');
             const classID = $(this).find('.tt-class-select').val();
             const subclassID = $(this).find('.tt-subclass-select').val();
+            const teacherBadges = $(this).find('.teacher-badge');
+
+            if (!classID) {
+                missingClass = true;
+                return;
+            }
+            if (teacherBadges.length === 0) {
+                missingTeacher = true;
+                return;
+            }
             
-            $(this).find('.teacher-badge').each(function() {
-                const selectedCats = [];
-                const badges = $(`#categories_${rowId} .seq-badge:visible`);
-                
+            teacherBadges.each(function() {
                 // Get categories in order
                 const catPairs = [];
                 $(`#categories_${rowId} .cat-check:checked`).each(function() {
@@ -1222,6 +1224,26 @@
                 });
             });
         });
+
+        if (missingClass) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Class required',
+                text: 'Chagua target class kwenye kila assignment row.',
+                confirmButtonColor: '#940000'
+            });
+            return;
+        }
+
+        if (missingTeacher || assignments.length === 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Teacher required',
+                text: 'Chagua mwalimu kwenye dropdown — badge lazima ionekane chini ya "Assign Teachers". Bila hii, account ya mwalimu haitaona assessment.',
+                confirmButtonColor: '#940000'
+            });
+            return;
+        }
 
         const data = {
             _token: '{{ csrf_token() }}',
@@ -1451,7 +1473,7 @@
                                         `).join('')}
                                     </div>
                                     <div class="input-group input-group-sm">
-                                        <select class="form-control tt-teacher-select" style="border-radius: 0;">
+                                        <select class="form-control tt-teacher-select" style="border-radius: 0;" onchange="if(this.value){ addTeacherToAsgn('${rowId}'); }">
                                             <option value="">Choose Teacher...</option>
                                             ${getTeacherOptions()}
                                         </select>
@@ -1459,6 +1481,7 @@
                                             <button class="btn btn-outline-danger font-weight-bold" type="button" onclick="addTeacherToAsgn('${rowId}')" style="border-radius: 0; border: 1px solid #ced4da; border-left: none; background: #940000; color: white;">+ ADD</button>
                                         </div>
                                     </div>
+                                    <small class="text-muted d-block mt-1" style="font-size: 10px;">Chagua mwalimu — ataongezwa kiotomatiki. Lazima badge ionekane hapo juu.</small>
                                 </div>
                             </div>
                             <div class="row mt-3 border-top pt-3">
