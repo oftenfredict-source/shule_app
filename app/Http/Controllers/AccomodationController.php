@@ -43,11 +43,33 @@ class AccomodationController extends Controller
         $userType = Session::get('user_type');
         $schoolID = Session::get('schoolID');
 
-        if (!$userType || $userType !== 'Admin' || !$schoolID) {
+        if (!$userType || !$schoolID) {
             return [false, response()->json(['success' => false, 'message' => 'Unauthorized access'], 403)];
         }
 
-        return [true, $schoolID];
+        // Admin always allowed.
+        if ($userType === 'Admin') {
+            return [true, $schoolID];
+        }
+
+        // Teachers with accommodation Management permission (same category as sidebar).
+        if ($userType === 'Teacher') {
+            $teacherID = Session::get('teacherID');
+            if ($teacherID) {
+                $roleIds = \Illuminate\Support\Facades\DB::table('role_user')
+                    ->where('teacher_id', $teacherID)
+                    ->pluck('role_id');
+                $hasCategory = $roleIds->isNotEmpty() && \Illuminate\Support\Facades\DB::table('permissions')
+                    ->whereIn('role_id', $roleIds)
+                    ->where('permission_category', 'accommodation')
+                    ->exists();
+                if ($hasCategory) {
+                    return [true, $schoolID];
+                }
+            }
+        }
+
+        return [false, response()->json(['success' => false, 'message' => 'Unauthorized access'], 403)];
     }
 
     public function apiBlocksIndex()

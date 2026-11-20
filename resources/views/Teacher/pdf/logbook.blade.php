@@ -105,7 +105,7 @@
             <td class="label">SUBJECT:</td>
             <td class="value">{{ $classSubject->subject->subject_name ?? 'N/A' }}</td>
             <td class="label">CLASS:</td>
-            <td class="value">{{ ($classSubject->subclass->class->class_name ?? '') }} {{ ($classSubject->subclass->subclass_name ?? '') }}</td>
+            <td class="value">{{ ($classSubject->subclass?->class?->class_name ?? $classSubject->class?->class_name ?? '') }} {{ ($classSubject->subclass?->subclass_name ?? '') }}</td>
         </tr>
         <tr>
             <td class="label">TEACHER:</td>

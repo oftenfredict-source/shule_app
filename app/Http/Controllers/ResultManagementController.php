@@ -12380,6 +12380,11 @@ class ResultManagementController extends Controller
         $subclassID = $request->get("subclassID"); // '' or 'all' means every subclass
         $subjectID = $request->get("subjectID");
 
+        // This lookup can create a class-subject row, so refuse incomplete requests instead of inserting nulls.
+        if (!$classID || !$subjectID) {
+            return response()->json(['success' => false, 'message' => 'classID and subjectID are required.'], 422);
+        }
+
         $baseQuery = ClassSubject::whereHas("class", function ($q) use (
             $schoolID,
         ) {

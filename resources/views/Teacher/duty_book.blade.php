@@ -481,6 +481,7 @@
     i18n.actions = @json(__('teacher.actions'));
     i18n.loading = @json(__('teacher.loading'));
     window.dutyI18n = i18n;
+    window.currentTeacherName = @json($currentTeacherName ?? '');
 
     function showDutyReportModal() {
         var el = document.getElementById('dutyReportModal');
@@ -587,8 +588,8 @@ $(document).ready(function() {
             } else {
                 $('#dailyDutyForm input, #dailyDutyForm textarea').prop('readonly', false);
                 $('#dailyDutyForm input[type="number"]').css('background-color', '#fff');
-                // Attendance grid locked to Active enrollments (header year), not editable
-                $('#attendance_table input').prop('readonly', true).css('background-color', '#f8f9fa');
+                // Row totals + % stay auto-calculated; boy/girl counts are editable
+                $('#attendance_table input[class$="-t"]').prop('readonly', true).css('background-color', '#f8f9fa');
                 $('#attendance_percentage').prop('readonly', true).css('background-color', '#e8f5e9');
                 $('#saveDraft, #saveAndSend, #syncFromAttendance').show();
                 $('#downloadReportPdf').hide();
@@ -602,14 +603,17 @@ $(document).ready(function() {
 
             if (response.academic_year_label) {
                 $('#duty_enrollment_scope_note').html(
-                    '<i class="fa fa-lock me-1" style="color: #940000;"></i> ' +
+                    '<i class="fa fa-info-circle me-1" style="color: #940000;"></i> ' +
                     String(i18n.counts_note || '').replace(':year', response.academic_year_label)
                 );
             }
 
+            $('#display_teacher_name').text(
+                (report && report.teacher_name) || response.teacher_name || window.currentTeacherName || '---'
+            );
+
             if (report) {
                 $('#reportID').val(report.reportID);
-                $('#display_teacher_name').text(report.teacher_name || '---');
                 // Set Status Badge
                 let badgeClass = 'bg-secondary';
                 if (report.status === 'Approved') badgeClass = 'bg-success';
@@ -704,6 +708,21 @@ $(document).ready(function() {
                         }
                     });
                 }
+            }
+
+            // Re-apply edit/view locks after loading data (reset() can leave mixed state)
+            if (mode === 'view') {
+                $('#dailyDutyForm input, #dailyDutyForm textarea').prop('readonly', true);
+                $('#dailyDutyForm input[type="number"]').css('background-color', '#f8f9fa');
+                $('#saveDraft, #saveAndSend, #syncFromAttendance').hide();
+                $('#downloadReportPdf').show();
+            } else {
+                $('#dailyDutyForm input, #dailyDutyForm textarea').prop('readonly', false);
+                $('#dailyDutyForm input[type="number"]').css('background-color', '#fff');
+                $('#attendance_table input[class$="-t"]').prop('readonly', true).css('background-color', '#f8f9fa');
+                $('#attendance_percentage').prop('readonly', true).css('background-color', '#e8f5e9');
+                $('#saveDraft, #saveAndSend, #syncFromAttendance').show();
+                $('#downloadReportPdf').hide();
             }
 
             // Refresh all totals and calculations

@@ -302,20 +302,23 @@ class WatchmanController extends Controller
 
         $smsStatusMessage = null;
         try {
-            $schoolPhone = DB::table('schools')->where('schoolID', $schoolID)->value('phone');
+            $school = School::find($schoolID);
+            $schoolPhone = $school->phone ?? null;
             if ($schoolPhone) {
                 $smsService = new SmsService();
                 $allSent = true;
                 foreach ($rows as $row) {
-                    $message = "";
+                    $message = '';
                     if (!($school && $school->senderID)) {
-                        $message .= "{$school->school_name}: ";
+                        $message .= ($school->school_name ?? 'Shule') . ': ';
                     }
-                    $message .= "Mgeni mpya ameingia Shuleni jina: {$row['name']}, lengo: " . ($row['reason'] ?? 'N/A') . ", simu: " . ($row['contact'] ?? 'N/A');
+                    $message .= 'Mgeni mpya ameingia Shuleni jina: ' . $row['name']
+                        . ', lengo: ' . ($row['reason'] ?? 'N/A')
+                        . ', simu: ' . ($row['contact'] ?? 'N/A');
                     $smsResult = $smsService->sendSms($schoolPhone, $message);
                     if (!$smsResult['success']) {
                         $allSent = false;
-                        Log::error("Visitor SMS failed: " . ($smsResult['message'] ?? 'Unknown error'));
+                        Log::error('Visitor SMS failed: ' . ($smsResult['message'] ?? 'Unknown error'));
                     }
                 }
                 if (!$allSent) {

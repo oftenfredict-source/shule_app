@@ -6,6 +6,7 @@ use App\Models\School;
 use App\Models\Teacher;
 use App\Models\ParentModel;
 use App\Models\User;
+use App\Services\MobileApiTokenService;
 use App\Models\Student;
 use App\Models\Result;
 use App\Models\Attendance;
@@ -95,17 +96,40 @@ class ApiController extends Controller
             ], 429);
         }
 
-        // User Authentication
-        $userLogin = User::where('name', $username)->first();
+        // User Authentication (phone logins accept 255… / 0… / 9-digit variants, same as website)
+        $candidateUsernames = [$username];
+        if (preg_match('/^(?:0|255|)\d{9}$/', $username)) {
+            $purePhone = substr($username, -9);
+            $candidateUsernames = array_values(array_unique([
+                $username,
+                '255' . $purePhone,
+                '0' . $purePhone,
+                $purePhone,
+            ]));
+        }
 
-        // Check if user exists and password is correct
-        if (!$userLogin || !Hash::check($password, $userLogin->password)) {
+        $matchedUsers = User::whereIn('name', $candidateUsernames)->get()->filter(
+            fn ($user) => Hash::check($password, $user->password)
+        )->values();
+
+        if ($matchedUsers->count() === 0) {
             RateLimiter::hit($key, 60); // 60 seconds lockout
             return response()->json([
                 'success' => false,
                 'message' => 'Incorrect username or password!'
             ], 401);
         }
+
+        if ($matchedUsers->count() > 1) {
+            RateLimiter::hit($key, 60);
+            return response()->json([
+                'success' => false,
+                'message' => 'Multiple accounts matched these credentials. Please contact system administrator.',
+            ], 401);
+        }
+
+        $userLogin = $matchedUsers->first();
+        $username = (string) $userLogin->name;
 
         // Clear rate limiter on successful login
         RateLimiter::clear($key);
@@ -164,6 +188,12 @@ class ApiController extends Controller
                     'employee_number' => $teacher->employee_number ?? null,
                     'full_name' => trim(($teacher->first_name ?? '') . ' ' . ($teacher->last_name ?? '')),
                 ];
+
+                // Same rule as the web login: teachers still on the default password must change it.
+                $defaultPassword = (string) ($teacher->last_name ?? '') . 'staff';
+                $responseData['force_password_change'] = (bool) \App\Models\School::where('schoolID', $teacher->schoolID)->value('must_change_default_password')
+                    && $defaultPassword !== 'staff'
+                    && \Illuminate\Support\Facades\Hash::check($defaultPassword, $userLogin->password);
                 break;
 
             case 'parent':
@@ -181,8 +211,102 @@ class ApiController extends Controller
                 $responseData['parent'] = [
                     'parentID' => $parent->parentID,
                     'phone' => $parent->phone ?? null,
+                    'email' => $parent->email ?? null,
                     'first_name' => $parent->first_name ?? null,
+                    'middle_name' => $parent->middle_name ?? null,
                     'last_name' => $parent->last_name ?? null,
+                    'full_name' => trim(($parent->first_name ?? '').' '.($parent->middle_name ? $parent->middle_name.' ' : '').($parent->last_name ?? '')),
+                    'photo' => $parent->photo ? url('userImages/'.$parent->photo) : null,
+                ];
+                break;
+
+            case 'BoardMember':
+                $member = \App\Models\SchoolBoardMember::with('position')
+                    ->where(function ($q) use ($userLogin, $username) {
+                        $q->where('user_id', $userLogin->id)
+                            ->orWhere('username', $username)
+                            ->orWhere('username', $userLogin->name);
+                    })
+                    ->first();
+
+                if (!$member) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Board member record not found. Please contact admin.'
+                    ], 404);
+                }
+
+                if ($member->status !== 'Active') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This board member account is not active.'
+                    ], 403);
+                }
+
+                $boardSchool = School::find($member->schoolID);
+                if ($boardSchool && ($boardSchool->login_status === 0 || $boardSchool->login_status === false)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Huduma imesitishwa sababu: ' . ($boardSchool->suspension_reason ?: 'No reason provided.')
+                    ], 403);
+                }
+
+                $responseData['schoolID'] = $member->schoolID;
+                $responseData['boardMemberID'] = $member->memberID;
+                $responseData['school'] = [
+                    'schoolID' => $boardSchool->schoolID ?? $member->schoolID,
+                    'school_name' => $boardSchool->school_name ?? null,
+                ];
+                $responseData['board_member'] = [
+                    'memberID' => $member->memberID,
+                    'full_name' => $member->full_name,
+                    'email' => $member->email,
+                    'phone' => $member->phone,
+                    'position_code' => $member->position->position_code ?? 'MEMBER',
+                    'position_name' => $member->position->position_name ?? 'Member',
+                ];
+                break;
+
+            case 'Watchman':
+                $watchman = \App\Models\Watchman::where('phone_number', $userLogin->name)->first();
+
+                if (!$watchman) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Watchman record not found. Please contact admin.',
+                    ], 404);
+                }
+
+                if (strcasecmp((string) $watchman->status, 'Active') !== 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This watchman account is not active.',
+                    ], 403);
+                }
+
+                $watchmanSchool = School::find($watchman->schoolID);
+                if ($watchmanSchool && ($watchmanSchool->login_status === 0 || $watchmanSchool->login_status === false)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Huduma imesitishwa sababu: ' . ($watchmanSchool->suspension_reason ?: 'No reason provided.'),
+                    ], 403);
+                }
+
+                $responseData['schoolID'] = (int) $watchman->schoolID;
+                $responseData['watchmanID'] = (int) $watchman->id;
+                $responseData['school'] = [
+                    'schoolID' => (int) ($watchmanSchool->schoolID ?? $watchman->schoolID),
+                    'school_name' => $watchmanSchool->school_name ?? null,
+                ];
+                $responseData['watchman'] = [
+                    'id' => (int) $watchman->id,
+                    'first_name' => $watchman->first_name,
+                    'last_name' => $watchman->last_name,
+                    'full_name' => trim(($watchman->first_name ?? '') . ' ' . ($watchman->last_name ?? '')),
+                    'phone_number' => $watchman->phone_number,
+                    'email' => $watchman->email,
+                    'status' => $watchman->status,
+                    'schoolID' => (int) $watchman->schoolID,
                 ];
                 break;
 
@@ -193,7 +317,16 @@ class ApiController extends Controller
                 ], 400);
         }
 
-        // Return response with user data (NO SESSION)
+        $issued = app(MobileApiTokenService::class)->issue($userLogin, [
+            'schoolID' => $responseData['schoolID'] ?? null,
+            'parentID' => $responseData['parentID'] ?? null,
+            'teacherID' => $responseData['teacherID'] ?? null,
+        ], $request->input('device_name'));
+
+        $responseData['token'] = $issued['token'];
+        $responseData['token_type'] = $issued['token_type'];
+        $responseData['expires_at'] = $issued['expires_at'];
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
@@ -217,8 +350,8 @@ class ApiController extends Controller
      */
     public function logout(Request $request)
     {
-        // No session to clear - just return success
-        // Client app should clear stored user data
+        app(MobileApiTokenService::class)->revokeFromRequest($request);
+
         return response()->json([
             'success' => true,
             'message' => 'Logged out successfully.'

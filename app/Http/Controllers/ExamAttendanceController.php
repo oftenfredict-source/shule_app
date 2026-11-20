@@ -344,6 +344,14 @@ class ExamAttendanceController extends Controller
         $schoolID = Session::get('schoolID');
         $markedBy = Session::get('teacherID') ?? Session::get('staffID') ?? 0;
 
+        $request->validate([
+            'examID' => 'required|integer',
+            'subjectID' => 'required|integer',
+            'attendance' => 'required|array',
+            'attendance.*.studentID' => 'required|integer',
+            'attendance.*.status' => 'required|string',
+        ]);
+
         foreach ($request->attendance as $item) {
             ExamAttendanceRecord::updateOrCreate(
                 [

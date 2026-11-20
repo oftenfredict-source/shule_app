@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Storage;
 
 class BoardPortalController extends Controller
 {
-    private function authorizeMember(?Request $request = null)
+    protected function authorizeMember(?Request $request = null)
     {
         if (Session::get('user_type') !== 'BoardMember' || !Session::get('boardMemberID')) {
             if ($request && ($request->ajax() || $request->expectsJson() || $request->wantsJson())) {
@@ -35,7 +35,7 @@ class BoardPortalController extends Controller
         return null;
     }
 
-    private function currentMember(): ?SchoolBoardMember
+    protected function currentMember(): ?SchoolBoardMember
     {
         $memberID = (int) Session::get('boardMemberID');
         $schoolID = (int) Session::get('schoolID');
@@ -54,7 +54,7 @@ class BoardPortalController extends Controller
      * Portal capabilities from assigned board roles (permissions),
      * falling back to position_code defaults when no roles are assigned.
      */
-    private function capabilities(SchoolBoardMember $member): array
+    protected function capabilities(SchoolBoardMember $member): array
     {
         $code = $member->position_code ?: 'MEMBER';
         $permissions = $member->boardPermissionNames();
@@ -183,7 +183,7 @@ class BoardPortalController extends Controller
         return $base;
     }
 
-    private function requireCapability(SchoolBoardMember $member, string $flag, ?Request $request = null)
+    protected function requireCapability(SchoolBoardMember $member, string $flag, ?Request $request = null)
     {
         $caps = $this->capabilities($member);
         if (!empty($caps[$flag])) {
@@ -198,7 +198,7 @@ class BoardPortalController extends Controller
         return back()->with('error', $msg);
     }
 
-    private function unreadMessageCount(SchoolBoardMember $member): int
+    protected function unreadMessageCount(SchoolBoardMember $member): int
     {
         return SchoolBoardMessageRecipient::where('schoolID', $member->schoolID)
             ->where('memberID', $member->memberID)
@@ -237,7 +237,7 @@ class BoardPortalController extends Controller
         ]));
     }
 
-    private function activeMembers(int $schoolID)
+    protected function activeMembers(int $schoolID)
     {
         return SchoolBoardMember::where('schoolID', $schoolID)
             ->where('status', 'Active')
@@ -1028,7 +1028,7 @@ class BoardPortalController extends Controller
 
         $validated = $request->validate([
             'title' => 'required|string|max:200',
-            'category' => 'nullable|string|max:100',
+            'category' => 'nullable|string|max:50',
             'description' => 'nullable|string|max:2000',
             'file' => 'required|file|max:10240',
         ]);
@@ -1039,7 +1039,7 @@ class BoardPortalController extends Controller
         SchoolBoardDocument::create([
             'schoolID' => $member->schoolID,
             'title' => trim($validated['title']),
-            'category' => $validated['category'] ?? null,
+            'category' => trim((string) ($validated['category'] ?? '')) ?: 'General',
             'description' => $validated['description'] ?? null,
             'file_path' => $path,
             'original_filename' => $file->getClientOriginalName(),

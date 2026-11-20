@@ -96,7 +96,7 @@
                             </div>
 
                             <p class="small text-muted mb-2 font-weight-bold" id="duty_enrollment_scope_note">
-                                <i class="fa fa-lock mr-1" style="color: #940000;"></i>
+                                <i class="fa fa-info-circle mr-1" style="color: #940000;"></i>
                                 {{ __('teacher.duty.counts_note_default') }}
                             </p>
 
@@ -124,33 +124,33 @@
                                         <tr class="class-row" data-class-id="{{ $cls->classID }}">
                                             <td class="bg-light font-weight-bold">{{ $cls->class_name }}</td>
                                             <!-- REGISTERED -->
-                                            <td><input type="number" class="form-control form-control-sm reg-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm reg-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm reg-t" readonly value="0" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm reg-b" value="0"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm reg-g" value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm reg-t" readonly tabindex="-1" value="0" style="background-color: #f8f9fa;"></td>
                                             <!-- PRESENT -->
-                                            <td><input type="number" class="form-control form-control-sm pres-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm pres-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm pres-t" readonly value="0" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm pres-b" value="0"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm pres-g" value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm pres-t" readonly tabindex="-1" value="0" style="background-color: #f8f9fa;"></td>
                                             <!-- SHIFTED -->
-                                            <td><input type="number" class="form-control form-control-sm shift-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm shift-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm shift-t" readonly value="0" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm shift-b" value="0"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm shift-g" value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm shift-t" readonly tabindex="-1" value="0" style="background-color: #f8f9fa;"></td>
                                             <!-- NEW COMERS -->
-                                            <td><input type="number" class="form-control form-control-sm new-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm new-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm new-t" readonly value="0" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm new-b" value="0"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm new-g" value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm new-t" readonly tabindex="-1" value="0" style="background-color: #f8f9fa;"></td>
                                             <!-- ABSENT -->
-                                            <td><input type="number" class="form-control form-control-sm abs-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm abs-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm abs-t" readonly value="0" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm abs-b" value="0"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm abs-g" value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm abs-t" readonly tabindex="-1" value="0" style="background-color: #f8f9fa;"></td>
                                             <!-- PERMISSION -->
-                                            <td><input type="number" class="form-control form-control-sm perm-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm perm-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm perm-t" readonly value="0" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm perm-b" value="0"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm perm-g" value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm perm-t" readonly tabindex="-1" value="0" style="background-color: #f8f9fa;"></td>
                                             <!-- SICK -->
-                                            <td><input type="number" class="form-control form-control-sm sick-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm sick-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
-                                            <td><input type="number" class="form-control form-control-sm sick-t" readonly value="0" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm sick-b" value="0"></td>
+                                            <td><input type="number" min="0" class="form-control form-control-sm sick-g" value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm sick-t" readonly tabindex="-1" value="0" style="background-color: #f8f9fa;"></td>
                                         </tr>
                                         @endforeach
                                     </tbody>

@@ -5329,9 +5329,17 @@ class ManageStudentController extends Controller
                 ->where('academic_yearID', $academicYearID)
                 ->where('studentID', $studentID);
         } else {
-            $query = DB::table('attendances')
-                ->where('academic_yearID', $academicYearID)
-                ->where('studentID', $studentID);
+            // The live `attendances` table has no academic_yearID column (only attendances_history does).
+            // Filter by the academic year's date range instead.
+            $query = DB::table('attendances')->where('studentID', $studentID);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('attendances', 'academic_yearID')) {
+                $query->where('academic_yearID', $academicYearID);
+            } elseif ($academicYearID) {
+                $year = DB::table('academic_years')->where('academic_yearID', $academicYearID)->first();
+                if ($year) {
+                    $query->whereBetween('attendance_date', [$year->start_date, $year->end_date]);
+                }
+            }
         }
 
         if ($fromDate && $toDate) {

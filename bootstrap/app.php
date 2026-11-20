@@ -37,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'school.agent' => \App\Http\Middleware\AuthenticateSchoolAgent::class,
             'online.application.auth' => \App\Http\Middleware\OnlineApplicationAuth::class,
             'school.ai.support' => \App\Http\Middleware\EnsureSchoolAiSupportUser::class,
+            'mobile.auth' => \App\Http\Middleware\AuthenticateMobileToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

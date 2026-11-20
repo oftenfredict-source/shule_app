@@ -96,11 +96,13 @@ class TeacherDutyController extends Controller
         $schoolID = Session::get('schoolID');
         if (!$schoolID) return redirect()->back();
 
-        $fromDate = $request->get('from_date');
-        $toDate = $request->get('to_date');
+        $fromDate = $request->get('from_date') ?: Carbon::now()->startOfMonth()->format('Y-m-d');
+        $toDate = $request->get('to_date') ?: Carbon::now()->endOfMonth()->format('Y-m-d');
 
         $teacherID = Session::get('teacherID');
-    $isTeacherRoute = str_contains($request->route()->getName(), 'teacher.duty_book');
+    // Teachers (website and mobile API) only ever export their own assignments.
+    $isTeacherRoute = str_contains((string) optional($request->route())->getName(), 'teacher.duty_book')
+        || (Session::get('user_type') === 'Teacher' && $teacherID);
 
     $query = TeacherDuty::where('schoolID', $schoolID)
         ->with(['teacher', 'term'])
@@ -175,8 +177,24 @@ class TeacherDutyController extends Controller
         $school_details = \App\Models\School::find($schoolID);
         $classTeacherPermissions = $this->approvedParentPermissionsForClassTeacher((int) $schoolID, (int) $teacherID);
         $isClassTeacher = DB::table('subclasses')->where('teacherID', $teacherID)->exists();
+        $teacher = Teacher::find($teacherID);
+        $currentTeacherName = $teacher
+            ? trim(($teacher->first_name ?? '') . ' ' . ($teacher->last_name ?? ''))
+            : '';
 
-        return view('Teacher.duty_book', compact('duties', 'monthTitle', 'fromDate', 'toDate', 'currentDuty', 'classes', 'reports', 'school_details', 'classTeacherPermissions', 'isClassTeacher'));
+        return view('Teacher.duty_book', compact(
+            'duties',
+            'monthTitle',
+            'fromDate',
+            'toDate',
+            'currentDuty',
+            'classes',
+            'reports',
+            'school_details',
+            'classTeacherPermissions',
+            'isClassTeacher',
+            'currentTeacherName'
+        ));
     }
 
     public function parentPermissions(Request $request)
@@ -383,10 +401,14 @@ class TeacherDutyController extends Controller
         $schoolID = Session::get('schoolID');
         $teacherID = Session::get('teacherID');
         $date = $request->get('date');
-        $reportID = $request->get('reportID');
+        $reportID = $request->get('reportID') ?: $request->get('report_id');
+        $isTeacherSession = Session::get('user_type') === 'Teacher' && $teacherID;
 
         if (!$reportID && !$date) {
             return response()->json(['success' => false, 'message' => 'Date or Report ID is required.'], 400);
+        }
+        if ($date && !strtotime((string) $date)) {
+            return response()->json(['success' => false, 'message' => 'Invalid date.'], 422);
         }
 
         // Fetch saved report
@@ -394,6 +416,10 @@ class TeacherDutyController extends Controller
 
         if ($reportID) {
             $query->where('reportID', $reportID);
+            // A teacher can only open their own reports.
+            if ($isTeacherSession) {
+                $query->where('teacherID', $teacherID);
+            }
         } else {
             $query->whereDate('report_date', $date);
             // If it's a teacher request, optionally narrow by their ID
@@ -403,6 +429,14 @@ class TeacherDutyController extends Controller
         }
 
         $report = $query->first();
+
+        if ($reportID && !$report) {
+            return response()->json(['success' => false, 'message' => 'Duty report not found.'], 404);
+        }
+        if (!$date) {
+            // Opened by report ID: use the report's own date for the attendance figures.
+            $date = $report->report_date->format('Y-m-d');
+        }
 
         $permissionService = app(\App\Services\StudentPermissionAttendanceService::class);
         $enrollmentService = app(StudentEnrollmentService::class);
@@ -511,13 +545,31 @@ class TeacherDutyController extends Controller
             $academicYearLabel = 'Active enrollments';
         }
 
+        $currentTeacherName = null;
+        if ($teacherID) {
+            $sessionTeacher = Teacher::find($teacherID);
+            if ($sessionTeacher) {
+                $currentTeacherName = trim(($sessionTeacher->first_name ?? '') . ' ' . ($sessionTeacher->last_name ?? ''));
+            }
+        }
+        if ($report && $report->teacher) {
+            $currentTeacherName = trim(($report->teacher->first_name ?? '') . ' ' . ($report->teacher->last_name ?? '')) ?: $currentTeacherName;
+        }
+
         return response()->json([
             'success' => true,
             'report' => $report ? array_merge($report->toArray(), [
-                'teacher_name' => $report->teacher ? $report->teacher->first_name . ' ' . $report->teacher->last_name : 'N/A',
+                'report_date' => $report->report_date->format('Y-m-d'),
+                'signed_at' => $report->signed_at ? $report->signed_at->format('Y-m-d H:i:s') : null,
+                'teacher_name' => $currentTeacherName ?: 'N/A',
                 'attendance_percentage' => $this->percentageFromAttendanceData($report->attendance_data ?? null)
                     ?? $report->attendance_percentage,
             ]) : null,
+            'teacher_name' => $currentTeacherName,
+            'classes' => $classes->map(fn ($c) => [
+                'classID' => (int) $c->classID,
+                'class_name' => $c->class_name,
+            ])->values(),
             'system_attendance' => $systemAttendance,
             'attendance_source' => $useFingerprint ? 'fingerprint' : 'system',
             'enrollment_status' => $enrollmentStatus,
@@ -600,23 +652,62 @@ class TeacherDutyController extends Controller
             $request->validate([
                 'report_date' => 'required|date',
                 'action' => 'required|in:send,draft',
-                'attendance_percentage' => 'nullable|numeric'
+                'attendance_percentage' => 'nullable|numeric|min:0|max:100',
+                'school_environment' => 'nullable|string|max:2000',
+                'pupils_cleanliness' => 'nullable|string|max:2000',
+                'meals' => 'nullable|string|max:5000',
+                'timetable_status' => 'nullable|string|max:2000',
+                'outside_activities' => 'nullable|string|max:2000',
+                'special_events' => 'nullable|string|max:2000',
+                'english_speaking' => 'nullable|string|max:2000',
+                'sick_students_list' => 'nullable|string|max:5000',
+                'teacher_comments' => 'nullable|string|max:5000',
             ]);
 
             $data = $request->all();
-            $date = $data['report_date'];
+            $date = Carbon::parse($data['report_date'])->format('Y-m-d');
 
             // Handle potential JSON string from JS
-            $attendanceData = $request->get('attendance_data');
+            $attendanceData = $request->input('attendance_data');
             if (is_string($attendanceData)) {
                 $attendanceData = json_decode($attendanceData, true);
             }
+            if ($request->exists('attendance_data') && $attendanceData !== null && !is_array($attendanceData)) {
+                return response()->json(['success' => false, 'message' => 'attendance_data must be an object keyed by classID (or a JSON string of it).'], 422);
+            }
 
-            $report = \App\Models\DailyDutyReport::firstOrNew([
-                'schoolID' => $schoolID,
-                'teacherID' => $teacherID,
-                'report_date' => $date,
-            ]);
+            if (Carbon::parse($date)->isAfter(Carbon::today())) {
+                return response()->json(['success' => false, 'message' => 'You cannot fill a duty report for a future date.'], 422);
+            }
+
+            $report = \App\Models\DailyDutyReport::whereDate('report_date', $date)
+                ->where('schoolID', $schoolID)
+                ->where('teacherID', $teacherID)
+                ->first();
+
+            if ($report) {
+                if ($report->status === 'Approved') {
+                    return response()->json(['success' => false, 'message' => 'This report is already approved and can no longer be changed.'], 422);
+                }
+                if ($report->status === 'Sent') {
+                    return response()->json(['success' => false, 'message' => 'This report was already sent to the admin and is locked.'], 422);
+                }
+            } else {
+                // A new report is only allowed for a day inside one of the teacher's duty weeks.
+                $onDuty = TeacherDuty::where('schoolID', $schoolID)
+                    ->where('teacherID', $teacherID)
+                    ->whereDate('start_date', '<=', $date)
+                    ->whereDate('end_date', '>=', $date)
+                    ->exists();
+                if (!$onDuty) {
+                    return response()->json(['success' => false, 'message' => 'You are not assigned on duty on this date.'], 422);
+                }
+                $report = new \App\Models\DailyDutyReport([
+                    'schoolID' => $schoolID,
+                    'teacherID' => $teacherID,
+                    'report_date' => $date,
+                ]);
+            }
 
             $action = (string) ($data['action'] ?? 'draft');
 
@@ -677,7 +768,16 @@ class TeacherDutyController extends Controller
                 }
             }
 
-            return response()->json(['success' => true, 'message' => 'Report saved as ' . $report->status]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Report saved as ' . $report->status,
+                'report' => [
+                    'reportID' => $report->reportID,
+                    'report_date' => $report->report_date->format('Y-m-d'),
+                    'status' => $report->status,
+                    'attendance_percentage' => $report->attendance_percentage,
+                ],
+            ]);
         } catch (\Illuminate\Validation\ValidationException $ve) {
             return response()->json(['success' => false, 'message' => 'Validation error: ' . $ve->getMessage()], 422);
         } catch (\Exception $e) {
@@ -856,11 +956,24 @@ class TeacherDutyController extends Controller
         $reportID = $request->get('reportID');
         $schoolID = Session::get('schoolID');
 
-        $query = \App\Models\DailyDutyReport::query();
+        $reportID = $reportID ?: $request->get('report_id');
+        if (!$reportID && !$date) {
+            return response()->json(['success' => false, 'message' => 'Date or Report ID is required.'], 400);
+        }
+
+        $sessionTeacherID = Session::get('user_type') === 'Teacher' ? Session::get('teacherID') : null;
+
+        $query = \App\Models\DailyDutyReport::query()->where('schoolID', $schoolID);
         if ($reportID) {
             $query->where('reportID', $reportID);
         } else {
-            $query->where('schoolID', $schoolID)->whereDate('report_date', $date);
+            $query->whereDate('report_date', $date);
+        }
+        // Teachers can only download their own reports; admins may pick a teacher.
+        if ($sessionTeacherID) {
+            $query->where('teacherID', $sessionTeacherID);
+        } elseif ($request->get('teacherID')) {
+            $query->where('teacherID', $request->get('teacherID'));
         }
         
         $report = $query->first();

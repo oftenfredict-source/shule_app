@@ -981,14 +981,17 @@
                                             @foreach($teacherSubjects as $subject)
                                                 @php
                                                     $subjectName = $subject->subject->subject_name ?? 'N/A';
-                                                    $className = $subject->class->class_name ?? '';
-                                                    $subclassName = $subject->subclass ? $subject->subclass->subclass_name : '';
+                                                    $className = $subject->class?->class_name
+                                                        ?? $subject->subclass?->class?->class_name
+                                                        ?? '';
+                                                    $subclassName = $subject->subclass?->subclass_name ?? '';
                                                     $classDisplay = trim($className . ' ' . $subclassName);
                                                     $isDuo = !empty($subject->is_duo_subject);
                                                     $duoPapers = $subject->my_duo_papers ?? collect();
-                                                    $subjectClassId = $subject->subclass
-                                                        ? ($subject->subclass->classID ?? null)
-                                                        : ($subject->classID ?? ($subject->class->classID ?? null));
+                                                    $subjectClassId = $subject->subclass?->classID
+                                                        ?? $subject->classID
+                                                        ?? $subject->class?->classID
+                                                        ?? null;
                                                     $subjectOptionLabel = $subjectName
                                                         . ($isDuo ? ' [DUO]' : '')
                                                         . ($classDisplay !== '' ? ' (' . $classDisplay . ')' : '');
@@ -1126,13 +1129,17 @@
                                 <tbody>
                                     @foreach($pendingSlots as $slot)
                                         @php
-                                            $subjectName = $slot->classSubject->subject->subject_name ?? 'N/A';
-                                            $classNameRaw = $slot->classSubject->subclass
-                                                ? ($slot->classSubject->subclass->class->class_name ?? '') . ' ' . ($slot->classSubject->subclass->subclass_name ?? '')
-                                                : ($slot->classSubject->class->class_name ?? '');
-                                            $fullSubjectDisplay = $subjectName . ' - ' . trim($classNameRaw);
-                                            $slotClassName = $slot->classSubject->class->class_name
-                                                ?? optional(optional($slot->classSubject->subclass)->class)->class_name;
+                                            $subjectName = $slot->classSubject?->subject?->subject_name ?? 'N/A';
+                                            $classNameRaw = trim(
+                                                ($slot->classSubject?->subclass?->class?->class_name
+                                                    ?? $slot->classSubject?->class?->class_name
+                                                    ?? '')
+                                                . ' '
+                                                . ($slot->classSubject?->subclass?->subclass_name ?? '')
+                                            );
+                                            $fullSubjectDisplay = $subjectName . ' - ' . ($classNameRaw !== '' ? $classNameRaw : 'N/A');
+                                            $slotClassName = $slot->classSubject?->class?->class_name
+                                                ?? $slot->classSubject?->subclass?->class?->class_name;
                                             $slotYearLabel = $slot->examination
                                                 ? $slot->examination->displayYearLabelForClass($slotClassName)
                                                 : '';
@@ -1212,11 +1219,11 @@
                             $filePath    = $paper->file_path;
                             $searchBlob  = strtolower(($paper->examination->exam_name ?? '') . ' ' . ($paper->classSubject->subject->subject_name ?? '') . ' ' . $uploadType);
 
-                            if ($paper->classSubject && $paper->classSubject->subclass) {
-                                $classDisplay = e(($paper->classSubject->subclass->class->class_name ?? __('teacher.exam_papers.na')) . ' ' . $paper->classSubject->subclass->subclass_name);
-                            } else {
-                                $classDisplay = e($paper->classSubject->class->class_name ?? __('teacher.exam_papers.na'));
-                            }
+                            $paperClassName = $paper->classSubject?->subclass?->class?->class_name
+                                ?? $paper->classSubject?->class?->class_name
+                                ?? __('teacher.exam_papers.na');
+                            $paperSubclassName = $paper->classSubject?->subclass?->subclass_name ?? '';
+                            $classDisplay = e(trim($paperClassName . ' ' . $paperSubclassName));
 
                             if ($status === 'wait_approval' || $status === 'pending') {
                                 $stepName = e($paper->current_step_name ?? '');
@@ -1375,14 +1382,17 @@
                             @foreach($teacherSubjects as $subject)
                                 @php
                                     $subjectName = $subject->subject->subject_name ?? 'N/A';
-                                    $className = $subject->class->class_name ?? '';
-                                    $subclassName = $subject->subclass ? $subject->subclass->subclass_name : '';
+                                    $className = $subject->class?->class_name
+                                        ?? $subject->subclass?->class?->class_name
+                                        ?? '';
+                                    $subclassName = $subject->subclass?->subclass_name ?? '';
                                     $classDisplay = trim($className . ' ' . $subclassName);
                                     $isDuo = !empty($subject->is_duo_subject);
                                     $duoPapers = $subject->my_duo_papers ?? collect();
-                                    $subjectClassId = $subject->subclass
-                                        ? ($subject->subclass->classID ?? null)
-                                        : ($subject->classID ?? ($subject->class->classID ?? null));
+                                    $subjectClassId = $subject->subclass?->classID
+                                        ?? $subject->classID
+                                        ?? $subject->class?->classID
+                                        ?? null;
                                     $subjectOptionLabel = $subjectName
                                         . ($isDuo ? ' [DUO]' : '')
                                         . ($classDisplay !== '' ? ' (' . $classDisplay . ')' : '');
@@ -1530,8 +1540,16 @@
                             <select class="form-control" id="edit_class_subject" name="class_subjectID">
                                 <option value="">{{ __('teacher.exam_papers.select_subject') }}</option>
                                 @foreach($teacherSubjects as $subject)
+                                    @php
+                                        $editSubjectName = $subject->subject->subject_name ?? 'N/A';
+                                        $editClassName = $subject->class?->class_name
+                                            ?? $subject->subclass?->class?->class_name
+                                            ?? '';
+                                        $editSubclassName = $subject->subclass?->subclass_name ?? '';
+                                        $editClassDisplay = trim($editClassName . ' ' . $editSubclassName);
+                                    @endphp
                                     <option value="{{ $subject->class_subjectID }}">
-                                        {{ $subject->subject->subject_name }} ({{ $subject->class->class_name }} {{ $subject->subclass ? $subject->subclass->subclass_name : '' }})
+                                        {{ $editSubjectName }}@if($editClassDisplay !== '') ({{ $editClassDisplay }})@endif
                                     </option>
                                 @endforeach
                             </select>

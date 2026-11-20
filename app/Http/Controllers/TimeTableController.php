@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 
 class TimeTableController extends Controller
 {
@@ -4606,9 +4607,22 @@ class TimeTableController extends Controller
         try {
             $schoolID = Session::get('schoolID');
             $subclassID = $request->input('subclassID');
-            
-            if (!$schoolID || !$subclassID) {
-                return response()->json(['success' => false, 'error' => 'School ID and Subclass ID required']);
+
+            if (!$schoolID) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'School session missing. Re-login with a teacher token.',
+                    'error_code' => 'school_session_required',
+                ], 401);
+            }
+
+            if (!$subclassID) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Select a class/subclass first. Pass subclassID as a query parameter.',
+                    'error_code' => 'subclassID_required',
+                    'hint' => 'GET /admin/get-session-timetable?subclassID={id} — pick subclassID from GET /timeTable → subclasses[]',
+                ], 422);
             }
 
             // Get definition

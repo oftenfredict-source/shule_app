@@ -795,6 +795,9 @@ class Auth extends Controller
                 $watchman = Watchman::where('phone_number', $username)->first();
 
                 if (!$watchman) {
+                    if ($this->isAjax($request)) {
+                        return $this->jsonFail('Watchman record not found.', 404);
+                    }
                     return redirect()->back()
                         ->with('error', 'Watchman record not found.')
                         ->withInput($request->only('username'));
@@ -811,6 +814,10 @@ class Auth extends Controller
                 Session::put('watchman_name', $watchman->first_name . ' ' . $watchman->last_name);
 
                 $request->session()->regenerate();
+
+                if ($this->isAjax($request)) {
+                    return response()->json(['success' => true, 'redirect' => route('watchman.visitors')]);
+                }
 
                 return redirect()->route('watchman.visitors')
                     ->with('success', 'You have logged in successfully as Watchman!');

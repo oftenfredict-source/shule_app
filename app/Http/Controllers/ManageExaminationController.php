@@ -101,7 +101,7 @@ class ManageExaminationController extends Controller
             ->with([
                 'subject.components',
                 'class',
-                'subclass',
+                'subclass.class',
                 'componentTeachers' => function ($q) use ($teacherID) {
                     $q->where('teacherID', $teacherID)->with('component');
                 },
@@ -239,7 +239,7 @@ class ManageExaminationController extends Controller
                 $q->where('test_date', '>=', $today)
                   ->where('test_date', '<=', $nextWeekEnd);
             })
-            ->with(['examination', 'classSubject.subject', 'classSubject.class', 'classSubject.subclass', 'component'])
+            ->with(['examination', 'classSubject.subject', 'classSubject.class', 'classSubject.subclass.class', 'component'])
             ->orderBy('test_date', 'asc')
             ->get();
 
@@ -5751,8 +5751,12 @@ class ManageExaminationController extends Controller
             $availableYears = [date('Y')];
         }
 
-        // Default year to selected academic year's calendar year when not specified
-        if ($yearFilter === '' || $yearFilter === null) {
+        // year=all|0 → no calendar-year filter (mobile Approvals list needs every pending item).
+        $yearAll = in_array(strtolower((string) $yearFilter), ['all', '0'], true);
+        if ($yearAll) {
+            $yearFilter = null;
+        } elseif ($yearFilter === '' || $yearFilter === null) {
+            // Default year to selected academic year's calendar year when not specified
             $yearFilter = $availableYears[0] ?? date('Y');
         }
 
@@ -5820,7 +5824,7 @@ class ManageExaminationController extends Controller
                 ->get();
         }
 
-        $baseQuery = function() use ($schoolID, $yearFilter, $termFilter, $selectedYearIds) {
+        $baseQuery = function() use ($schoolID, $yearFilter, $termFilter, $selectedYearIds, $yearAll) {
             return PaperApprovalLog::with([
                 'examPaper.teacher',
                 'examPaper.component',
@@ -5831,9 +5835,10 @@ class ManageExaminationController extends Controller
                 'role',
                 'approver',
             ])
-                ->whereHas('examPaper.examination', function ($q) use ($schoolID, $yearFilter, $termFilter, $selectedYearIds) {
+                ->whereHas('examPaper.examination', function ($q) use ($schoolID, $yearFilter, $termFilter, $selectedYearIds, $yearAll) {
                     $q->where('schoolID', $schoolID);
-                    if (!empty($selectedYearIds)) {
+                    // year=all also skips header academic-year scope so every pending paper is visible.
+                    if (!$yearAll && !empty($selectedYearIds)) {
                         $q->where(function ($yearQ) use ($selectedYearIds) {
                             $yearQ->whereIn('academic_yearID', $selectedYearIds);
                             foreach ($selectedYearIds as $yearId) {
@@ -6002,6 +6007,8 @@ class ManageExaminationController extends Controller
                     })
                 ]
             ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Exam paper not found.'], 404);
         } catch (\Exception $e) {
             Log::error('Error fetching exam paper review: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to load paper details'], 500);
@@ -6624,6 +6631,8 @@ class ManageExaminationController extends Controller
                 'paper_max_marks' => $paperMaxMarks,
                 'componentID' => $examPaper->componentID,
             ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Exam paper not found.'], 404);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to load questions'], 500);
         }
@@ -6885,6 +6894,9 @@ class ManageExaminationController extends Controller
                 'success' => 'Exam paper resubmitted successfully. It is now in the approval queue.',
             ]);
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Exam paper not found.'], 404);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Resubmit exam paper error: '.$e->getMessage());
@@ -7363,6 +7375,9 @@ class ManageExaminationController extends Controller
                 'success' => 'Exam paper deleted successfully',
             ], 200);
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Exam paper not found.'], 404);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error deleting exam paper: '.$e->getMessage());
@@ -9911,7 +9926,7 @@ class ManageExaminationController extends Controller
                 $csList = $query->with([
                     'subject.components',
                     'class',
-                    'subclass',
+                    'subclass.class',
                     'componentTeachers' => function ($q) use ($teacherID) {
                         $q->where('teacherID', $teacherID)->with('component');
                     },

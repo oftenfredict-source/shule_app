@@ -306,8 +306,16 @@
                 <select id="subjectSelect" class="form-select">
                     <option value="">{{ __('teacher.logbook.choose_subject') }}</option>
                     @foreach($teachingSubjects as $subject)
+                        @php
+                            $subjectName = $subject->subject->subject_name ?? 'N/A';
+                            $className = $subject->subclass?->class?->class_name
+                                ?? $subject->class?->class_name
+                                ?? '';
+                            $subclassName = $subject->subclass?->subclass_name ?? '';
+                            $classLabel = trim($className . ' ' . $subclassName);
+                        @endphp
                         <option value="{{ $subject->class_subjectID }}">
-                            {{ $subject->subject->subject_name }} - {{ $subject->subclass->class->class_name }} {{ $subject->subclass->subclass_name }}
+                            {{ $subjectName }}@if($classLabel !== '') - {{ $classLabel }}@endif
                         </option>
                     @endforeach
                 </select>

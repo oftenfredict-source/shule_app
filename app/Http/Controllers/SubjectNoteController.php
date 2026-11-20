@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
+use App\Support\MobileApi;
 use Illuminate\Support\Facades\Storage;
 
 class SubjectNoteController extends Controller
@@ -526,6 +527,17 @@ class SubjectNoteController extends Controller
             ];
         });
 
+        if (request()->attributes->get('mobile_api')) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Children retrieved successfully',
+                'data' => [
+                    'kind' => $kind,
+                    'children' => $children,
+                ],
+            ]);
+        }
+
         return view('Parents.subject_notes', compact('children', 'locale', 'kind'));
     }
 
@@ -975,8 +987,8 @@ class SubjectNoteController extends Controller
                 ? trim(($n->teacher->first_name ?? '').' '.($n->teacher->last_name ?? ''))
                 : '-',
             'created_at' => optional($n->created_at)->format('d/m/Y H:i'),
-            'view_url' => route('subject_notes.view', $n->noteID),
-            'download_url' => route('subject_notes.download', $n->noteID),
+            'view_url' => MobileApi::noteViewUrl((int) $n->noteID),
+            'download_url' => MobileApi::noteDownloadUrl((int) $n->noteID),
             'can_manage' => $teacher,
         ];
     }

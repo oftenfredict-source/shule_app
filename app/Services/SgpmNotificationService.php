@@ -43,7 +43,12 @@ class SgpmNotificationService {
      * Notify Admin(s) and also send SMS to school phone
      */
     public function notifyAdmin($title, $message, $link, $schoolId) {
-        $admins = User::where('schoolID', $schoolId)->where('user_type', 'Admin')->get();
+        // The users table has no schoolID column. A school's Admin login is the user whose name is the
+        // school's registration number (same link the Admin login uses).
+        $schoolRecord = School::find($schoolId);
+        $admins = $schoolRecord && $schoolRecord->registration_number
+            ? User::where('name', $schoolRecord->registration_number)->where('user_type', 'Admin')->get()
+            : collect();
         foreach($admins as $admin) {
             // Add DB notification for each admin
             SgpmNotification::create([

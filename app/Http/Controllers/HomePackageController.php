@@ -8,6 +8,7 @@ use App\Models\ParentHomePackageNotification;
 use App\Models\Student;
 use App\Models\ClassSubject;
 use App\Services\SelectedAcademicYearService;
+use App\Support\MobileApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
@@ -585,6 +586,23 @@ class HomePackageController extends Controller
                 ->values();
         }
 
+        if (request()->attributes->get('mobile_api')) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Home packages retrieved successfully',
+                'data' => [
+                    'holidays' => $holidays->map(function ($holiday) {
+                        return [
+                            'holidayID' => $holiday->holidayID,
+                            'holiday_name' => $holiday->holiday_name,
+                            'start_date' => optional($holiday->start_date)->format('Y-m-d'),
+                            'end_date' => optional($holiday->end_date)->format('Y-m-d'),
+                        ];
+                    })->values(),
+                ],
+            ]);
+        }
+
         return view('Parents.home_packages', compact('holidays', 'yearIds'));
     }
 
@@ -652,8 +670,8 @@ class HomePackageController extends Controller
                 'teacher_name' => $p->teacher
                     ? trim(($p->teacher->first_name ?? '').' '.($p->teacher->last_name ?? ''))
                     : '-',
-                'view_url' => route('home_packages.view', $p->home_packageID),
-                'download_url' => route('home_packages.download', $p->home_packageID),
+                'view_url' => MobileApi::packageViewUrl((int) $p->home_packageID),
+                'download_url' => MobileApi::packageDownloadUrl((int) $p->home_packageID),
             ];
         });
 

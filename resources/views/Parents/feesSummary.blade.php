@@ -484,8 +484,8 @@
                             <div>
                                 <label class="small text-uppercase fw-bold text-muted d-block mb-1">{{ __('parent.academic_year') }}</label>
                                 <select id="summaryYear" class="form-select form-select-sm year-select">
-                                    @foreach($availableYears ?? [date('Y')] as $y)
-                                        <option value="{{ $y }}" {{ (string)$y === (string)date('Y') ? 'selected' : '' }}>{{ $y }}</option>
+                                    @foreach($academicYears ?? [] as $ay)
+                                        <option value="{{ $ay['academic_yearID'] }}" {{ (int) $ay['academic_yearID'] === (int) $selectedAcademicYearID ? 'selected' : '' }}>{{ $ay['label'] }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -590,7 +590,7 @@
 
             $.ajax({
                 url: '{{ route("get_fees_summary_ajax") }}',
-                data: { year: $('#summaryYear').val() },
+                data: { academic_yearID: $('#summaryYear').val() },
                 success: function(res) {
                     if (!res.success) {
                         $('#feesSummaryContent').html(

@@ -32,6 +32,7 @@ use App\Models\SchemeOfWorkLearningObjective;
 use App\Models\LessonPlan;
 use App\Models\PermissionRequest;
 use App\Models\TeacherResultAssignment;
+use App\Models\Department;
 use Illuminate\Support\Facades\DB;
 use App\Models\Logbook;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
@@ -42,6 +43,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use App\Services\SmsService;
+use App\Support\MobileApi;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -2945,19 +2947,24 @@ class TeachersController extends Controller
                 );
             }
 
-            // Verify teacher owns this class subject
+            // Main teacher or duo paper teacher (same rule as the website)
             $classSubject = ClassSubject::where(
                 "class_subjectID",
                 $classSubjectID,
             )
-                ->where("teacherID", $teacherID)
                 ->where("status", "Active")
                 ->whereHas("subject", function ($query) {
                     $query->where("status", "Active");
                 })
                 ->first();
 
-            if (!$classSubject) {
+            if (
+                !$classSubject ||
+                !$this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                )
+            ) {
                 return response()->json(
                     [
                         "success" => false,
@@ -3127,19 +3134,24 @@ class TeachersController extends Controller
                 );
             }
 
-            // Verify teacher owns this class subject
+            // Main teacher or duo paper teacher (same rule as the website)
             $classSubject = ClassSubject::where(
                 "class_subjectID",
                 $classSubjectID,
             )
-                ->where("teacherID", $teacherID)
                 ->where("status", "Active")
                 ->whereHas("subject", function ($query) {
                     $query->where("status", "Active");
                 })
                 ->first();
 
-            if (!$classSubject) {
+            if (
+                !$classSubject ||
+                !$this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                )
+            ) {
                 return response()->json(
                     [
                         "success" => false,
@@ -3150,9 +3162,17 @@ class TeachersController extends Controller
                 );
             }
 
-            // Get examinations where enter_result = true only
-            $examinations = Examination::where("schoolID", $schoolID)
-                ->where("enter_result", true)
+            // for_view=1 matches the website "View results" list (includes closed entry exams).
+            $forView = in_array(
+                $request->input("for_view"),
+                [1, "1", true, "true"],
+                true,
+            );
+            $examQuery = Examination::where("schoolID", $schoolID);
+            if (!$forView) {
+                $examQuery->where("enter_result", true);
+            }
+            $examinations = $examQuery
                 ->orderBy("created_at", "desc")
                 ->get()
                 ->map(function ($exam) use ($schoolID, $classSubject) {
@@ -3292,7 +3312,7 @@ class TeachersController extends Controller
                 );
             }
 
-            // Verify teacher owns this class subject
+            // Main teacher or duo paper teacher (same rule as the website)
             $classSubject = ClassSubject::with([
                 "subject" => function ($query) {
                     $query->where("status", "Active");
@@ -3301,14 +3321,19 @@ class TeachersController extends Controller
                 "subclass",
             ])
                 ->where("class_subjectID", $classSubjectID)
-                ->where("teacherID", $teacherID)
                 ->where("status", "Active")
                 ->whereHas("subject", function ($query) {
                     $query->where("status", "Active");
                 })
                 ->first();
 
-            if (!$classSubject) {
+            if (
+                !$classSubject ||
+                !$this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                )
+            ) {
                 return response()->json(
                     [
                         "success" => false,
@@ -3479,19 +3504,24 @@ class TeachersController extends Controller
                 );
             }
 
-            // Verify teacher owns this class subject
+            // Main teacher or duo paper teacher (same rule as the website)
             $classSubject = ClassSubject::where(
                 "class_subjectID",
                 $request->class_subject_id,
             )
-                ->where("teacherID", $teacherID)
                 ->where("status", "Active")
                 ->whereHas("subject", function ($query) {
                     $query->where("status", "Active");
                 })
                 ->first();
 
-            if (!$classSubject) {
+            if (
+                !$classSubject ||
+                !$this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                )
+            ) {
                 return response()->json(
                     [
                         "success" => false,
@@ -3739,19 +3769,24 @@ class TeachersController extends Controller
                 );
             }
 
-            // Verify teacher owns this class subject
+            // Main teacher or duo paper teacher (same rule as the website)
             $classSubject = ClassSubject::where(
                 "class_subjectID",
                 $request->class_subject_id,
             )
-                ->where("teacherID", $teacherID)
                 ->where("status", "Active")
                 ->whereHas("subject", function ($query) {
                     $query->where("status", "Active");
                 })
                 ->first();
 
-            if (!$classSubject) {
+            if (
+                !$classSubject ||
+                !$this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                )
+            ) {
                 return response()->json(
                     [
                         "success" => false,
@@ -4855,6 +4890,26 @@ class TeachersController extends Controller
     }
 
     /**
+     * Same rule as deleteSchemeOfWork: creator or the assigned class-subject teacher.
+     */
+    private function teacherCanAccessScheme($scheme, $teacherID): bool
+    {
+        if (!$scheme || !$teacherID) {
+            return false;
+        }
+        if ((int) ($scheme->created_by ?? 0) === (int) $teacherID) {
+            return true;
+        }
+        $classSubject =
+            $scheme->relationLoaded("classSubject") && $scheme->classSubject
+                ? $scheme->classSubject
+                : ClassSubject::find($scheme->class_subjectID);
+
+        return $classSubject &&
+            (int) $classSubject->teacherID === (int) $teacherID;
+    }
+
+    /**
      * Teacher teaches this subject in the class (any stream / duo paper).
      */
     private function teacherOwnsOrTeachesSubjectInClass(
@@ -5183,7 +5238,10 @@ class TeachersController extends Controller
                 ];
             });
 
-        // Merge holidays and non-working events
+        // Merge holidays and non-working events.
+        // toBase(): an empty Eloquent collection stays Eloquent after map(), and its merge() calls getKey() on arrays.
+        $holidays = $holidays->toBase();
+        $nonWorkingEvents = $nonWorkingEvents->toBase();
         $allHolidays = $holidays->merge($nonWorkingEvents);
 
         return view(
@@ -5476,7 +5534,8 @@ class TeachersController extends Controller
                 ];
             });
 
-        $allHolidays = $holidays->merge($nonWorkingEvents);
+        // toBase(): an empty Eloquent collection would call getKey() on these arrays in merge().
+        $allHolidays = $holidays->toBase()->merge($nonWorkingEvents->toBase());
 
         return view(
             "Teacher.manage_scheme_of_work",
@@ -5498,7 +5557,7 @@ class TeachersController extends Controller
             );
         }
 
-        $scheme = SchemeOfWork::find($schemeOfWorkID);
+        $scheme = SchemeOfWork::with("classSubject")->find($schemeOfWorkID);
         if (!$scheme) {
             return response()->json(
                 [
@@ -5506,6 +5565,17 @@ class TeachersController extends Controller
                     "message" => "Scheme of work not found",
                 ],
                 404,
+            );
+        }
+
+        if (!$this->teacherCanAccessScheme($scheme, $teacherID)) {
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" =>
+                        "You do not have access to this scheme of work",
+                ],
+                403,
             );
         }
 
@@ -5891,6 +5961,23 @@ class TeachersController extends Controller
             );
         }
 
+        $targetClassSubject = ClassSubject::where(
+            "class_subjectID",
+            $classSubjectID,
+        )
+            ->where("teacherID", $teacherID)
+            ->first();
+        if (!$targetClassSubject) {
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" =>
+                        "You do not teach this subject, so you cannot reuse a scheme for it.",
+                ],
+                403,
+            );
+        }
+
         // Check if class subject already has a scheme for current year
         $currentYear = date("Y");
         $existingScheme = SchemeOfWork::where(
@@ -5906,6 +5993,7 @@ class TeachersController extends Controller
                     "success" => false,
                     "message" =>
                         'You already have a scheme of work for this subject and year. Please go to "Manage" to edit it.',
+                    "scheme_of_workID" => $existingScheme->scheme_of_workID,
                     "manageUrl" => route(
                         "teacher.manageSchemeOfWork",
                         $existingScheme->scheme_of_workID,
@@ -6096,6 +6184,17 @@ class TeachersController extends Controller
             );
         }
 
+        if (!$this->teacherCanAccessScheme($scheme, $teacherID)) {
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" =>
+                        "You do not have access to this scheme of work",
+                ],
+                403,
+            );
+        }
+
         // Sort items chronologically by month
         $monthOrder = [
             "January",
@@ -6197,6 +6296,17 @@ class TeachersController extends Controller
             return redirect()
                 ->back()
                 ->with("error", "Scheme of work not found");
+        }
+
+        if (!$this->teacherCanAccessScheme($scheme, $teacherID)) {
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" =>
+                        "You do not have access to this scheme of work",
+                ],
+                403,
+            );
         }
 
         $spreadsheet = new Spreadsheet();
@@ -9338,7 +9448,6 @@ class TeachersController extends Controller
             }
 
             // Recalculate formulas before saving
-            $spreadsheet->getActiveSheet()->getCellCollection()->clear();
             $spreadsheet->getCalculationEngine()->clearCalculationCache();
 
             // Create writer
@@ -9708,7 +9817,6 @@ class TeachersController extends Controller
             // Users only need to enter marks in column D, and formulas will automatically calculate grade and remark
 
             // Recalculate formulas before saving
-            $spreadsheet->getActiveSheet()->getCellCollection()->clear();
             $spreadsheet->getCalculationEngine()->clearCalculationCache();
 
             // Create writer
@@ -15192,8 +15300,8 @@ class TeachersController extends Controller
                         $subjectName .= " (Prepo)";
                     }
 
-                    $className = $session->subclass->class->class_name ?? "";
-                    $subclassName = $session->subclass->subclass_name ?? "";
+                    $className = $session->subclass?->class?->class_name ?? "";
+                    $subclassName = $session->subclass?->subclass_name ?? "";
                     $classLabel = trim(
                         $className .
                             ($className && $subclassName ? " - " : "") .
@@ -15208,7 +15316,7 @@ class TeachersController extends Controller
                         ->first();
 
                     $sessionsData[] = [
-                        "session_timetableID" => $session->session_timetableID,
+                        "session_timetableID" => (int) $session->session_timetableID,
                         "day" => $session->day,
                         "date" => $dayDateStr,
                         "start_time" => $startTimeStr,
@@ -15230,7 +15338,7 @@ class TeachersController extends Controller
                         "task" => $task
                             ? [
                                 "session_taskID" =>
-                                    $task->session_taskID ?? null,
+                                    (int) ($task->session_taskID ?? 0),
                                 "status" => $task->status,
                                 "topic" => $task->topic,
                                 "subtopic" => $task->subtopic,
@@ -17177,13 +17285,18 @@ class TeachersController extends Controller
             $teacherID = Session::get("teacherID");
             $schoolID = Session::get("schoolID");
             $sessionTimetableID = $request->input("session_timetableID");
-            $date = $request->input("date");
+            $date =
+                $request->input("date") ?: $request->input("lesson_date");
 
             if (!$teacherID || !$schoolID || !$sessionTimetableID || !$date) {
-                return response()->json([
-                    "success" => false,
-                    "error" => "Missing required parameters",
-                ]);
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" => "Missing required parameters",
+                        "message" => "Missing required parameters",
+                    ],
+                    MobileApi::active() ? 422 : 200,
+                );
             }
 
             // Check if date is weekend or holiday
@@ -17347,10 +17460,14 @@ class TeachersController extends Controller
             $schoolID = Session::get("schoolID");
 
             if (!$teacherID || !$schoolID) {
-                return response()->json([
-                    "success" => false,
-                    "error" => "Session expired",
-                ]);
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" => "Session expired",
+                        "message" => "Session expired",
+                    ],
+                    MobileApi::active() ? 401 : 200,
+                );
             }
 
             $validator = Validator::make($request->all(), [
@@ -17372,10 +17489,14 @@ class TeachersController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    "success" => false,
-                    "error" => $validator->errors()->first(),
-                ]);
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" => $validator->errors()->first(),
+                        "message" => $validator->errors()->first(),
+                    ],
+                    MobileApi::active() ? 422 : 200,
+                );
             }
 
             // Check if lesson plan already exists
@@ -17383,15 +17504,21 @@ class TeachersController extends Controller
                 "session_timetableID",
                 $request->input("session_timetableID"),
             )
-                ->where("lesson_date", $request->input("lesson_date"))
+                ->whereDate("lesson_date", $request->input("lesson_date"))
                 ->first();
 
             if ($existing) {
-                return response()->json([
-                    "success" => false,
-                    "error" =>
-                        "Lesson plan already exists for this session and date",
-                ]);
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" =>
+                            "Lesson plan already exists for this session and date",
+                        "message" =>
+                            "Lesson plan already exists for this session and date",
+                        "lesson_planID" => $existing->lesson_planID,
+                    ],
+                    MobileApi::active() ? 409 : 200,
+                );
             }
 
             // Get session details
@@ -17399,10 +17526,14 @@ class TeachersController extends Controller
                 $request->input("session_timetableID"),
             );
             if (!$session || $session->teacherID != $teacherID) {
-                return response()->json([
-                    "success" => false,
-                    "error" => "Session not found or unauthorized",
-                ]);
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" => "Session not found or unauthorized",
+                        "message" => "Session not found or unauthorized",
+                    ],
+                    MobileApi::active() ? 403 : 200,
+                );
             }
 
             [$gate, $studentIds] = $this->activeEnrollmentStudentsForSubclass(
@@ -17782,7 +17913,9 @@ class TeachersController extends Controller
         try {
             $teacherID = Session::get("teacherID");
             $sessionTimetableID = $request->input("session_timetableID");
-            $date = $request->input("date");
+            // Website uses "date"; create uses "lesson_date" — accept both.
+            $date =
+                $request->input("date") ?: $request->input("lesson_date");
 
             if (!$teacherID || !$sessionTimetableID || !$date) {
                 return response()->json([
@@ -17795,7 +17928,7 @@ class TeachersController extends Controller
                 "session_timetableID",
                 $sessionTimetableID,
             )
-                ->where("lesson_date", $date)
+                ->whereDate("lesson_date", $date)
                 ->where("teacherID", $teacherID)
                 ->first();
 
@@ -17803,6 +17936,9 @@ class TeachersController extends Controller
                 "success" => true,
                 "exists" => $lessonPlan ? true : false,
                 "lesson_plan_id" => $lessonPlan
+                    ? $lessonPlan->lesson_planID
+                    : null,
+                "lesson_planID" => $lessonPlan
                     ? $lessonPlan->lesson_planID
                     : null,
             ]);
@@ -17822,7 +17958,8 @@ class TeachersController extends Controller
         try {
             $teacherID = Session::get("teacherID");
             $sessionTimetableID = $request->input("session_timetableID");
-            $date = $request->input("date");
+            $date =
+                $request->input("date") ?: $request->input("lesson_date");
 
             $lessonPlan = LessonPlan::where(
                 "session_timetableID",
@@ -17970,6 +18107,16 @@ class TeachersController extends Controller
             $schoolID = Session::get("schoolID");
 
             if (!$teacherID || !$schoolID) {
+                if (MobileApi::active()) {
+                    return response()->json(
+                        [
+                            "success" => false,
+                            "message" => "Session expired",
+                        ],
+                        401,
+                    );
+                }
+
                 return redirect()->back()->with("error", "Session expired");
             }
 
@@ -17979,6 +18126,16 @@ class TeachersController extends Controller
                 ->first();
 
             if (!$lessonPlan) {
+                if (MobileApi::active()) {
+                    return response()->json(
+                        [
+                            "success" => false,
+                            "message" => "Lesson plan not found",
+                        ],
+                        404,
+                    );
+                }
+
                 return redirect()
                     ->back()
                     ->with("error", "Lesson plan not found");
@@ -18193,10 +18350,14 @@ class TeachersController extends Controller
                 ->first();
 
             if (!$lessonPlan) {
-                return response()->json([
-                    "success" => false,
-                    "error" => "Lesson plan not found",
-                ]);
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" => "Lesson plan not found",
+                        "message" => "Lesson plan not found",
+                    ],
+                    MobileApi::active() ? 404 : 200,
+                );
             }
 
             $schoolID = (int) Session::get("schoolID");
@@ -18213,6 +18374,10 @@ class TeachersController extends Controller
                         [
                             "success" => false,
                             "error" =>
+                                $gate->getData(true)["error"] ??
+                                ($gate->getData(true)["message"] ??
+                                    "Lesson plan cannot be edited: no Active enrollments for the selected academic year."),
+                            "message" =>
                                 $gate->getData(true)["error"] ??
                                 ($gate->getData(true)["message"] ??
                                     "Lesson plan cannot be edited: no Active enrollments for the selected academic year."),
@@ -18243,16 +18408,23 @@ class TeachersController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    "success" => false,
-                    "error" => $validator->errors()->first(),
-                ]);
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" => $validator->errors()->first(),
+                        "message" => $validator->errors()->first(),
+                    ],
+                    MobileApi::active() ? 422 : 200,
+                );
             }
 
             // Update attendance stats
+            $lessonDate = $lessonPlan->lesson_date
+                ? Carbon::parse($lessonPlan->lesson_date)->format("Y-m-d")
+                : null;
             $attendanceStats = $this->getAttendanceStatsForDate(
                 $lessonPlan->session_timetableID,
-                $lessonPlan->lesson_date,
+                $lessonDate,
             );
 
             $lessonPlan->update([
@@ -18523,10 +18695,14 @@ class TeachersController extends Controller
             $lessonPlanID = $request->input("lesson_planID");
 
             if (!$teacherID) {
-                return response()->json([
-                    "success" => false,
-                    "error" => "Session expired",
-                ]);
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" => "Session expired",
+                        "message" => "Session expired",
+                    ],
+                    MobileApi::active() ? 401 : 200,
+                );
             }
 
             $lessonPlan = LessonPlan::where("lesson_planID", $lessonPlanID)
@@ -18534,17 +18710,25 @@ class TeachersController extends Controller
                 ->first();
 
             if (!$lessonPlan) {
-                return response()->json([
-                    "success" => false,
-                    "error" => "Lesson plan not found",
-                ]);
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" => "Lesson plan not found",
+                        "message" => "Lesson plan not found",
+                    ],
+                    MobileApi::active() ? 404 : 200,
+                );
             }
 
             if ($lessonPlan->sent_to_admin) {
-                return response()->json([
-                    "success" => false,
-                    "error" => "Lesson plan already sent to admin",
-                ]);
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" => "Lesson plan already sent to admin",
+                        "message" => "Lesson plan already sent to admin",
+                    ],
+                    MobileApi::active() ? 409 : 200,
+                );
             }
 
             $lessonPlan->update([
@@ -18563,7 +18747,8 @@ class TeachersController extends Controller
             return response()->json([
                 "success" => false,
                 "error" => $e->getMessage(),
-            ]);
+                "message" => $e->getMessage(),
+            ], MobileApi::active() ? 500 : 200);
         }
     }
 
@@ -19067,7 +19252,11 @@ class TeachersController extends Controller
                 ->with("error", "Unauthorized access");
         }
 
-        $teachingSubjects = ClassSubject::with(["subject", "subclass.class"])
+        $teachingSubjects = ClassSubject::with([
+            "subject",
+            "subclass.class",
+            "class",
+        ])
             ->where("teacherID", $teacherID)
             ->where("status", "Active")
             ->whereHas("subject", function ($query) {
@@ -19091,7 +19280,11 @@ class TeachersController extends Controller
         }
 
         // Verify teacher teaches this subject
-        $classSubject = ClassSubject::with(["subject", "subclass.class"])
+        $classSubject = ClassSubject::with([
+            "subject",
+            "subclass.class",
+            "class",
+        ])
             ->where("class_subjectID", $classSubjectID)
             ->where("teacherID", $teacherID)
             ->first();
@@ -19120,12 +19313,18 @@ class TeachersController extends Controller
             )
             : "N/A";
 
+        $className =
+            $classSubject->subclass?->class?->class_name
+            ?? $classSubject->class?->class_name
+            ?? "N/A";
+        $subclassName = $classSubject->subclass?->subclass_name ?? "";
+
         return response()->json([
             "success" => true,
             "logbookEntries" => $logbookEntries,
             "subjectName" => $classSubject->subject->subject_name ?? "N/A",
-            "className" => $classSubject->subclass->class->class_name ?? "N/A",
-            "subclassName" => $classSubject->subclass->subclass_name ?? "N/A",
+            "className" => $className,
+            "subclassName" => $subclassName,
             "year" => $currentYear,
             "teacherName" => $teacherName,
         ]);
@@ -19153,9 +19352,26 @@ class TeachersController extends Controller
             "teacher_comment" => "nullable|string",
         ]);
 
+        $ownsSubject = ClassSubject::where(
+            "class_subjectID",
+            $validated["class_subjectID"],
+        )
+            ->where("teacherID", $teacherID)
+            ->exists();
+        if (!$ownsSubject) {
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" =>
+                        "You do not teach this subject, so you cannot add a logbook entry for it.",
+                ],
+                403,
+            );
+        }
+
         $currentYear = Carbon::now()->year;
 
-        Logbook::create(
+        $entry = Logbook::create(
             array_merge($validated, [
                 "schoolID" => $schoolID,
                 "year" => $currentYear,
@@ -19166,6 +19382,7 @@ class TeachersController extends Controller
         return response()->json([
             "success" => true,
             "message" => "Logbook entry saved successfully",
+            "logbookID" => (int) $entry->logbookID,
         ]);
     }
 
@@ -19231,6 +19448,16 @@ class TeachersController extends Controller
             );
         }
 
+        if (!$subjectID || !$subclassID) {
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" => "subjectID and subclassID are required.",
+                ],
+                422,
+            );
+        }
+
         // Verify this subject belongs to the HOD's department
         $isSubjectInDept = Department::where("head_teacherID", $teacherID)
             ->whereHas("subjects", function ($q) use ($subjectID) {
@@ -19265,7 +19492,7 @@ class TeachersController extends Controller
             );
         }
 
-        $currentYear = Carbon::now()->year;
+        $currentYear = (int) ($request->query("year") ?: Carbon::now()->year);
         $logbookEntries = Logbook::whereIn("class_subjectID", $classSubjectIds)
             ->where("schoolID", $schoolID)
             ->where("year", $currentYear)
@@ -19273,7 +19500,12 @@ class TeachersController extends Controller
             ->get();
 
         // For display info, take the first class subject's related data
-        $sampleCS = ClassSubject::with(["subject", "subclass.class", "teacher"])
+        $sampleCS = ClassSubject::with([
+            "subject",
+            "subclass.class",
+            "class",
+            "teacher",
+        ])
             ->whereIn("class_subjectID", $classSubjectIds)
             ->first();
 
@@ -19286,9 +19518,12 @@ class TeachersController extends Controller
             : "N/A";
         // If there are multiple streams/teachers, we could list them, but for now we keep it simple
         $subjectName = $sampleCS->subject->subject_name ?? "N/A";
-        $className = $sampleCS->subclass->class->class_name ?? "N/A";
+        $className =
+            $sampleCS->subclass?->class?->class_name
+            ?? $sampleCS->class?->class_name
+            ?? "N/A";
 
-        $subclassName = $sampleCS->subclass->subclass_name ?? "N/A";
+        $subclassName = $sampleCS->subclass?->subclass_name ?? "";
 
         return response()->json([
             "success" => true,
@@ -19327,6 +19562,36 @@ class TeachersController extends Controller
             );
         }
 
+        if ((int) $logbook->schoolID !== (int) $schoolID) {
+            return response()->json(
+                ["success" => false, "message" => "Logbook entry not found"],
+                404,
+            );
+        }
+
+        $classSubject = ClassSubject::find($logbook->class_subjectID);
+        $isHodOfSubject =
+            $classSubject &&
+            Department::where("head_teacherID", $teacherID)
+                ->where("schoolID", $schoolID)
+                ->whereHas("subjects", function ($q) use ($classSubject) {
+                    $q->where(
+                        "school_subjects.subjectID",
+                        $classSubject->subjectID,
+                    );
+                })
+                ->exists();
+        if (!$isHodOfSubject) {
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" =>
+                        "Only the HOD of this subject may add a comment.",
+                ],
+                403,
+            );
+        }
+
         $logbook->update([
             "hod_comment" => $validated["hod_comment"],
         ]);
@@ -19346,7 +19611,14 @@ class TeachersController extends Controller
             $schoolID = Session::get("schoolID");
 
             if (!$teacherID || !$schoolID) {
-                return response()->json(["error" => "Session expired"], 401);
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" => "Session expired",
+                        "message" => "Session expired",
+                    ],
+                    401,
+                );
             }
 
             $currentYear = Carbon::now()->year;
@@ -19354,6 +19626,7 @@ class TeachersController extends Controller
             $classSubject = ClassSubject::with([
                 "subject",
                 "subclass.class",
+                "class",
                 "teacher",
             ])
                 ->where("class_subjectID", $classSubjectID)
@@ -19361,8 +19634,34 @@ class TeachersController extends Controller
 
             if (!$classSubject) {
                 return response()->json(
-                    ["error" => "Subject assignment not found"],
+                    [
+                        "success" => false,
+                        "error" => "Subject assignment not found",
+                        "message" => "Subject assignment not found",
+                    ],
                     404,
+                );
+            }
+
+            $ownsSubject =
+                (int) $classSubject->teacherID === (int) $teacherID;
+            $isHodOfSubject = Department::where("head_teacherID", $teacherID)
+                ->where("schoolID", $schoolID)
+                ->whereHas("subjects", function ($q) use ($classSubject) {
+                    $q->where(
+                        "school_subjects.subjectID",
+                        $classSubject->subjectID,
+                    );
+                })
+                ->exists();
+            if (!$ownsSubject && !$isHodOfSubject) {
+                return response()->json(
+                    [
+                        "success" => false,
+                        "message" =>
+                            "You do not have access to this logbook PDF.",
+                    ],
+                    403,
                 );
             }
 
@@ -19401,15 +19700,19 @@ class TeachersController extends Controller
             $dompdf->setPaper("A4", "landscape");
             $dompdf->render();
 
+            $pdfClassName =
+                $classSubject->subclass?->class?->class_name
+                ?? $classSubject->class?->class_name
+                ?? "Class";
             $filename =
                 "Logbook_" .
-                str_replace(" ", "_", $classSubject->subject->subject_name) .
-                "_" .
                 str_replace(
                     " ",
                     "_",
-                    $classSubject->subclass->class->class_name,
+                    $classSubject->subject->subject_name ?? "Subject",
                 ) .
+                "_" .
+                str_replace(" ", "_", $pdfClassName) .
                 "_" .
                 $currentYear .
                 ".pdf";
@@ -19565,8 +19868,11 @@ class TeachersController extends Controller
             }
 
             $subjectName = $classSubject->subject->subject_name ?? "Subject";
-            $className = $classSubject->subclass->class->class_name ?? "";
-            $subclassName = $classSubject->subclass->subclass_name ?? "";
+            $className =
+                $classSubject->subclass?->class?->class_name
+                ?? $classSubject->class?->class_name
+                ?? "";
+            $subclassName = $classSubject->subclass?->subclass_name ?? "";
 
             $message = "";
             if (!($school && $school->senderID)) {

@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\ApiController;
+use App\Http\Controllers\Api\BoardMobileApiController;
+use App\Http\Controllers\Api\ParentMobileApiController;
 use App\Http\Controllers\AttendanceApiController;
 use App\Http\Controllers\AccomodationController;
 use App\Http\Controllers\SchoolAgentDeviceController;
@@ -26,6 +28,110 @@ Route::get('/health', [ApiController::class, 'healthCheck'])->name('api.health')
 // Authentication endpoints - No authentication required
 Route::post('/login', [ApiController::class, 'login'])->name('api.login');
 Route::post('/logout', [ApiController::class, 'logout'])->name('api.logout');
+
+/*
+| Parent mobile app (Bearer token).
+| Hand-off for the app developer: docs/PARENT_MOBILE_API.md
+*/
+Route::prefix('v1')->group(function () {
+    Route::post('/auth/login', [ApiController::class, 'login'])->name('api.v1.auth.login');
+
+    Route::middleware('mobile.auth')->group(function () {
+        Route::get('/auth/me', [ParentMobileApiController::class, 'me'])->name('api.v1.auth.me');
+        Route::post('/auth/logout', [ParentMobileApiController::class, 'logout'])->name('api.v1.auth.logout');
+        Route::post('/auth/password', [ParentMobileApiController::class, 'changePassword'])->name('api.v1.auth.password');
+    });
+
+    Route::middleware(['mobile.auth:parent', \App\Http\Middleware\RequireAcademicYear::class])->prefix('parent')->group(function () {
+        Route::get('/profile', [ParentMobileApiController::class, 'me'])->name('api.v1.parent.profile');
+        Route::get('/dashboard', [ParentMobileApiController::class, 'dashboard'])->name('api.v1.parent.dashboard');
+        Route::get('/services', [ParentMobileApiController::class, 'services'])->name('api.v1.parent.services');
+        Route::get('/children', [ParentMobileApiController::class, 'childrenList'])->name('api.v1.parent.children');
+
+        Route::get('/academic-years', [ParentMobileApiController::class, 'academicYears'])->name('api.v1.parent.academic_years');
+        Route::get('/exams', [ParentMobileApiController::class, 'publishedExams'])->name('api.v1.parent.exams');
+        Route::get('/results', [ParentMobileApiController::class, 'results'])->name('api.v1.parent.results');
+
+        Route::get('/attendance', [ParentMobileApiController::class, 'attendance'])->name('api.v1.parent.attendance');
+        Route::get('/attendance/overview', [ParentMobileApiController::class, 'attendanceOverview'])->name('api.v1.parent.attendance.overview');
+        Route::get('/attendance/students/{studentID}', [ParentMobileApiController::class, 'attendanceCalendar'])->whereNumber('studentID')->name('api.v1.parent.attendance.calendar');
+
+        Route::get('/fingerprint-attendance', [ParentMobileApiController::class, 'fingerprintOverview'])->name('api.v1.parent.fingerprint.overview');
+        Route::get('/fingerprint-attendance/students/{studentID}', [ParentMobileApiController::class, 'fingerprintCalendar'])->whereNumber('studentID')->name('api.v1.parent.fingerprint.calendar');
+
+        Route::get('/payments', [ParentMobileApiController::class, 'payments'])->name('api.v1.parent.payments');
+        Route::get('/fees-summary', [ParentMobileApiController::class, 'feesSummary'])->name('api.v1.parent.fees');
+        Route::post('/students/{studentID}/control-number', [ParentMobileApiController::class, 'requestControlNumber'])->whereNumber('studentID')->name('api.v1.parent.control_number');
+
+        Route::get('/students/{studentID}/subjects', [ParentMobileApiController::class, 'subjects'])->whereNumber('studentID')->name('api.v1.parent.subjects');
+        Route::post('/subjects/elect', [ParentMobileApiController::class, 'electSubject'])->name('api.v1.parent.subjects.elect');
+        Route::post('/subjects/deselect', [ParentMobileApiController::class, 'deselectSubject'])->name('api.v1.parent.subjects.deselect');
+
+        Route::get('/learning', [ParentMobileApiController::class, 'learningChildren'])->name('api.v1.parent.learning');
+        Route::get('/learning/students/{studentID}/subjects', [ParentMobileApiController::class, 'learningSubjects'])->whereNumber('studentID')->name('api.v1.parent.learning.subjects');
+        Route::get('/learning/students/{studentID}/subjects/{classSubjectID}', [ParentMobileApiController::class, 'learningNotes'])->whereNumber('studentID')->whereNumber('classSubjectID')->name('api.v1.parent.learning.notes');
+        Route::get('/files/notes/{noteID}', [ParentMobileApiController::class, 'noteFile'])->whereNumber('noteID')->name('api.v1.parent.files.notes');
+
+        Route::get('/home-packages', [ParentMobileApiController::class, 'homePackages'])->name('api.v1.parent.home_packages');
+        Route::get('/home-packages/holidays/{holidayID}', [ParentMobileApiController::class, 'holidayPackages'])->whereNumber('holidayID')->name('api.v1.parent.home_packages.holiday');
+        Route::get('/files/home-packages/{homePackageID}', [ParentMobileApiController::class, 'homePackageFile'])->whereNumber('homePackageID')->name('api.v1.parent.files.home_packages');
+
+        Route::get('/notifications', [ParentMobileApiController::class, 'notifications'])->name('api.v1.parent.notifications');
+        Route::post('/notifications/read', [ParentMobileApiController::class, 'markNotificationsRead'])->name('api.v1.parent.notifications.read');
+
+        Route::get('/permissions', [ParentMobileApiController::class, 'permissions'])->name('api.v1.parent.permissions');
+        Route::post('/permissions', [ParentMobileApiController::class, 'storePermission'])->name('api.v1.parent.permissions.store');
+        Route::post('/permissions/read', [ParentMobileApiController::class, 'markPermissionsRead'])->name('api.v1.parent.permissions.read');
+    });
+
+    /*
+    | Board member mobile app (Bearer token). Mirrors /board-portal on the website.
+    | Hand-off for the app developer: docs/BOARD_MOBILE_API.md
+    */
+    Route::middleware(['mobile.auth:teacher', \App\Http\Middleware\RequireAcademicYear::class])->prefix('teacher')->group(base_path('routes/mobile_teacher.php'));
+
+    /*
+    | Watchman mobile app (Bearer token). Mirrors /watchman/visitors.
+    | Hand-off: docs/WATCHMAN_MOBILE_API.md
+    */
+    Route::middleware('mobile.auth:watchman')->prefix('watchman')->group(base_path('routes/mobile_watchman.php'));
+
+    Route::middleware('mobile.auth:board')->prefix('board')->group(function () {
+        Route::get('/profile', [BoardMobileApiController::class, 'profile'])->name('api.v1.board.profile');
+        Route::get('/dashboard', [BoardMobileApiController::class, 'dashboard'])->name('api.v1.board.dashboard');
+
+        Route::get('/messages', [BoardMobileApiController::class, 'messages'])->name('api.v1.board.messages');
+        Route::get('/messages/{messageID}', [BoardMobileApiController::class, 'messageShow'])->whereNumber('messageID')->name('api.v1.board.messages.show');
+        Route::post('/messages/compose', [BoardMobileApiController::class, 'composeMessage'])->name('api.v1.board.messages.compose');
+        Route::post('/messages/reply', [BoardMobileApiController::class, 'replyMessage'])->name('api.v1.board.messages.reply');
+        Route::post('/messages/mark-read', [BoardMobileApiController::class, 'markMessageRead'])->name('api.v1.board.messages.mark_read');
+
+        Route::get('/members', [BoardMobileApiController::class, 'members'])->name('api.v1.board.members');
+        Route::post('/members/message', [BoardMobileApiController::class, 'sendMemberMessage'])->name('api.v1.board.members.message');
+
+        Route::get('/committees', [BoardMobileApiController::class, 'committees'])->name('api.v1.board.committees');
+        Route::post('/committees', [BoardMobileApiController::class, 'storeCommittee'])->name('api.v1.board.committees.store');
+
+        Route::get('/meetings', [BoardMobileApiController::class, 'meetings'])->name('api.v1.board.meetings');
+        Route::get('/meetings/{meetingID}', [BoardMobileApiController::class, 'meetingShow'])->whereNumber('meetingID')->name('api.v1.board.meetings.show');
+        Route::post('/meetings', [BoardMobileApiController::class, 'storeMeeting'])->name('api.v1.board.meetings.store');
+        Route::post('/meetings/comment', [BoardMobileApiController::class, 'storeMeetingComment'])->name('api.v1.board.meetings.comment');
+
+        Route::get('/minutes', [BoardMobileApiController::class, 'minutes'])->name('api.v1.board.minutes');
+        Route::post('/minutes', [BoardMobileApiController::class, 'storeMinute'])->name('api.v1.board.minutes.store');
+
+        Route::get('/resolutions', [BoardMobileApiController::class, 'resolutions'])->name('api.v1.board.resolutions');
+        Route::post('/resolutions', [BoardMobileApiController::class, 'storeResolution'])->name('api.v1.board.resolutions.store');
+
+        Route::get('/action-items', [BoardMobileApiController::class, 'actionItems'])->name('api.v1.board.action_items');
+        Route::post('/action-items', [BoardMobileApiController::class, 'storeActionItem'])->name('api.v1.board.action_items.store');
+        Route::post('/action-items/status', [BoardMobileApiController::class, 'updateActionItemStatus'])->name('api.v1.board.action_items.status');
+
+        Route::get('/documents', [BoardMobileApiController::class, 'documents'])->name('api.v1.board.documents');
+        Route::post('/documents', [BoardMobileApiController::class, 'storeDocument'])->name('api.v1.board.documents.store');
+        Route::get('/documents/{documentID}/download', [BoardMobileApiController::class, 'documentFile'])->whereNumber('documentID')->name('api.v1.board.documents.download');
+    });
+});
 
 // Flutter/mobile - open web blades (parent portal, etc.) inside WebView with session cookie
 Route::post('/mobile/web-session', [\App\Http\Controllers\Auth::class, 'createMobileWebSession'])

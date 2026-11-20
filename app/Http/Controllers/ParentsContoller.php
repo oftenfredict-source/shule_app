@@ -35,6 +35,7 @@ use App\Services\SecondaryResultGradingService;
 use App\Models\StudentFingerprintAttendance;
 use App\Models\AcademicYear;
 use App\Services\SelectedAcademicYearService;
+use App\Support\MobileApi;
 
 class ParentsContoller extends Controller
 {
@@ -482,11 +483,18 @@ class ParentsContoller extends Controller
             'hod_status' => 'pending',
             'principal_status' => 'pending',
             'final_status' => 'pending',
-            'current_approval_order' => $hasChain ? 1 : 0,
-            'is_chain_completed' => false,
-            'is_read_by_parent' => true,
             'updated_at' => now(),
         ];
+
+        if (Schema::hasColumn('student_permissions', 'current_approval_order')) {
+            $permissionData['current_approval_order'] = $hasChain ? 1 : 0;
+        }
+        if (Schema::hasColumn('student_permissions', 'is_chain_completed')) {
+            $permissionData['is_chain_completed'] = false;
+        }
+        if (Schema::hasColumn('student_permissions', 'is_read_by_parent')) {
+            $permissionData['is_read_by_parent'] = true;
+        }
 
         if ($attachmentName) {
             $permissionData['attachment'] = $attachmentName;
@@ -506,7 +514,14 @@ class ParentsContoller extends Controller
 
             if ($existing) {
                 $permissionData['status'] = 'pending';
-                $permissionData['current_approval_order'] = $hasChain ? max(1, (int) $existing->current_approval_order) : 0;
+                if (Schema::hasColumn('student_permissions', 'current_approval_order')) {
+                    $permissionData['current_approval_order'] = $hasChain
+                        ? max(1, (int) ($existing->current_approval_order ?? 1))
+                        : 0;
+                }
+                if (Schema::hasColumn('student_permissions', 'is_read_by_parent')) {
+                    $permissionData['is_read_by_parent'] = true;
+                }
 
                 DB::table('student_permissions')
                     ->where('id', $existing->id)
@@ -2197,6 +2212,7 @@ class ParentsContoller extends Controller
             $termFilter = $request->input('term', '');
             $typeFilter = $request->input('type', 'exam'); // 'exam' or 'report'
             $examFilter = $request->input('exam', '');
+            $academicYearID = (int) $request->input('academic_yearID', 0);
 
             // Validate required parameters
             if (!$parentID || !$schoolID) {
@@ -2224,6 +2240,45 @@ class ParentsContoller extends Controller
                 ->with(['subclass.class'])
                 ->get();
 
+            $yearService = app(SelectedAcademicYearService::class);
+            $ayMode = $this->parentAcademicYearContext((int) $schoolID)['mode'] ?? 'none';
+            $students = $students->map(function ($student) use ($yearService, $ayMode) {
+                $className = $student->subclass->class->class_name ?? '';
+                $isA = $yearService->isALevelClassName($className);
+                $student->setAttribute('class_name', $className);
+                $student->setAttribute('is_a_level', $isA);
+                if ($ayMode === 'primary') {
+                    $levelLabel = $className ?: 'Primary';
+                } elseif ($ayMode === 'secondary_dual' || $ayMode === 'secondary_o_only') {
+                    $levelLabel = ($isA ? 'A Level' : 'O Level').($className ? ' · '.$className : '');
+                } else {
+                    $levelLabel = $className ?: '-';
+                }
+                $student->setAttribute('level_label', $levelLabel);
+
+                return $student;
+            });
+
+            // Same academic-year cards the website shows (filtered by child when provided).
+            $ayContext = $this->parentAcademicYearContext(
+                (int) $schoolID,
+                !empty($studentFilter) ? (int) $studentFilter : null
+            );
+            $academicYears = $ayContext['options'];
+            $years = collect($academicYears)->pluck('calendar_year')->unique()->values();
+
+            if ($academicYearID > 0) {
+                $ay = AcademicYear::where('schoolID', $schoolID)
+                    ->where('academic_yearID', $academicYearID)
+                    ->first();
+                if ($ay) {
+                    $cals = $this->extractCalendarYearsFromAcademicYear($ay);
+                    if (!empty($cals) && $yearFilter === '') {
+                        $yearFilter = (string) $cals[0];
+                    }
+                }
+            }
+
             if ($students->isEmpty()) {
                 return response()->json([
                     'success' => true,
@@ -2239,9 +2294,11 @@ class ParentsContoller extends Controller
                         'students' => [],
                         'examinations' => [],
                         'years' => [],
+                        'academic_years' => [],
                         'filters' => [
                             'student' => $studentFilter,
                             'year' => $yearFilter,
+                            'academic_yearID' => $academicYearID ?: null,
                             'exam' => $examFilter,
                         ],
                         'statistics' => [
@@ -2254,9 +2311,10 @@ class ParentsContoller extends Controller
                 ]);
             }
 
-            // Build query for results - only allowed/approved results
+            // Build query for results - only allowed/approved results released to parents
             $query = Result::whereIn('studentID', $students->pluck('studentID'))
                 ->whereIn('status', ['allowed', 'approved'])
+                ->where('parent_status', 'enabled')
                 ->with(['student.subclass.class', 'examination', 'classSubject.subject']);
 
             // Apply filters
@@ -2264,7 +2322,19 @@ class ParentsContoller extends Controller
                 $query->where('studentID', $studentFilter);
             }
 
-            if (!empty($yearFilter)) {
+            if ($academicYearID > 0) {
+                $ayIds = [$academicYearID];
+                $calendarYears = [];
+                $ay = AcademicYear::where('schoolID', $schoolID)
+                    ->where('academic_yearID', $academicYearID)
+                    ->first();
+                if ($ay) {
+                    $calendarYears = $this->extractCalendarYearsFromAcademicYear($ay);
+                }
+                $query->whereHas('examination', function ($q) use ($ayIds, $calendarYears) {
+                    $this->applyParentExaminationAcademicYearFilter($q, $ayIds, $calendarYears);
+                });
+            } elseif (!empty($yearFilter)) {
                 $query->whereHas('examination', function($q) use ($yearFilter) {
                     $q->where('year', $yearFilter);
                 });
@@ -2294,20 +2364,29 @@ class ParentsContoller extends Controller
             // Get results ordered by exam date and student
             $results = $query->orderBy('created_at', 'desc')->get();
 
-            // Get all examinations for filter dropdown (only approved results exams)
+            // Examinations for the picker — same rules as the parent website
             $examinationsQuery = Examination::where('schoolID', $schoolID)
                 ->where('approval_status', 'Approved')
                 ->whereHas('results', function($q) use ($students) {
                     $q->whereIn('studentID', $students->pluck('studentID'))
-                      ->whereIn('status', ['allowed', 'approved']);
+                      ->whereIn('status', ['allowed', 'approved'])
+                      ->where('parent_status', 'enabled');
                 });
 
-            // Filter examinations by year if year filter is set
-            if (!empty($yearFilter)) {
+            if ($academicYearID > 0) {
+                $ayIds = [$academicYearID];
+                $calendarYears = [];
+                $ay = AcademicYear::where('schoolID', $schoolID)
+                    ->where('academic_yearID', $academicYearID)
+                    ->first();
+                if ($ay) {
+                    $calendarYears = $this->extractCalendarYearsFromAcademicYear($ay);
+                }
+                $this->applyParentExaminationAcademicYearFilter($examinationsQuery, $ayIds, $calendarYears);
+            } elseif (!empty($yearFilter)) {
                 $examinationsQuery->where('year', $yearFilter);
             }
 
-            // Filter examinations by term if term filter is set
             if (!empty($termFilter)) {
                 $examinationsQuery->where('term', $termFilter);
             }
@@ -2316,31 +2395,8 @@ class ParentsContoller extends Controller
                 ->orderBy('start_date', 'desc')
                 ->get();
 
-            // Get unique years from examinations
-            $years = Examination::where('schoolID', $schoolID)
-                ->where('approval_status', 'Approved')
-                ->whereHas('results', function($q) use ($students) {
-                    $q->whereIn('studentID', $students->pluck('studentID'))
-                      ->whereIn('status', ['allowed', 'approved']);
-                })
-                ->distinct()
-                ->orderBy('year', 'desc')
-                ->pluck('year')
-                ->unique()
-                ->values();
-
-            // Get unique terms from examinations
-            $terms = Examination::where('schoolID', $schoolID)
-                ->where('approval_status', 'Approved')
-                ->whereHas('results', function($q) use ($students) {
-                    $q->whereIn('studentID', $students->pluck('studentID'))
-                      ->whereIn('status', ['allowed', 'approved']);
-                })
-                ->distinct()
-                ->orderBy('term', 'asc')
-                ->pluck('term')
-                ->unique()
-                ->values();
+            // Terms shown on the website results wizard
+            $terms = collect(['first_term', 'second_term']);
 
             // Get school details
             $school = School::where('schoolID', $schoolID)->first();
@@ -2767,23 +2823,30 @@ class ParentsContoller extends Controller
                             'subclass' => $student->subclass
                                 ? $student->subclass->subclass_name
                                 : null,
+                            'is_a_level' => (bool) ($student->is_a_level ?? false),
+                            'level_label' => $student->level_label ?? null,
                         ];
-                    }),
+                    })->values(),
                     'examinations' => $examinations->map(function($exam) {
                         return [
                             'examID' => $exam->examID,
                             'exam_name' => $exam->exam_name ?? '',
                             'year' => $exam->year ?? '',
+                            'academic_yearID' => $exam->academic_yearID ?? null,
                             'term' => $exam->term ?? null,
                             'start_date' => $exam->start_date ? \Carbon\Carbon::parse($exam->start_date)->format('Y-m-d') : null,
                             'end_date' => $exam->end_date ? \Carbon\Carbon::parse($exam->end_date)->format('Y-m-d') : null,
                         ];
-                    }),
-                    'years' => $years->toArray(),
-                    'terms' => $terms->toArray(),
+                    })->values(),
+                    // Same year cards as the website picker (not expanded slash calendars).
+                    'years' => $years->values()->toArray(),
+                    'academic_years' => $academicYears,
+                    'academic_year_mode' => $ayContext['mode'] ?? $ayMode,
+                    'terms' => $terms->values()->toArray(),
                     'filters' => [
                         'student' => $studentFilter,
                         'year' => $yearFilter,
+                        'academic_yearID' => $academicYearID ?: null,
                         'term' => $termFilter,
                         'type' => $typeFilter,
                         'exam' => $examFilter,
@@ -3084,32 +3147,35 @@ class ParentsContoller extends Controller
             }
 
             // Unified Control Number Logic
+            $existingPayment = Payment::where('studentID', $student->studentID)
+                ->where('academic_yearID', $academicYearID)
+                ->whereNotNull('control_number')
+                ->where('control_number', '!=', '')
+                ->first();
+            $alreadyGenerated = (bool) $existingPayment;
+
             $controlNumber = $this->generateSingleStudentBill($student, $academicYearID, $schoolID);
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Control number imezalishwa kikamilifu.',
-                'generated' => 1,
-                'control_number' => $controlNumber
-            ], 200);
-
-            if ($generated > 0) {
+            if ($alreadyGenerated) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Control numbers generated successfully',
-                    'generated' => $generated,
-                    'details' => $messages
-                ], 200);
-            } else {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Control numbers already exist or no fees found',
+                    'already_generated' => true,
                     'generated' => 0,
-                    'details' => $messages
+                    'message' => 'Control number already generated.',
+                    'message_sw' => 'Control number tayari imezalishwa.',
+                    'control_number' => $controlNumber ?: $existingPayment->control_number,
                 ], 200);
             }
+
+            return response()->json([
+                'success' => true,
+                'already_generated' => false,
+                'message' => 'Control number imezalishwa kikamilifu.',
+                'generated' => 1,
+                'control_number' => $controlNumber,
+            ], 200);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -3205,6 +3271,7 @@ class ParentsContoller extends Controller
             ->where('academic_yearID', $academicYearID)
             ->first();
 
+        $isNew = false;
         if (!$payment) {
             $school = School::find($schoolID);
             $controlNumber = $this->generateControlNumber($schoolID, $student->studentID);
@@ -3223,6 +3290,7 @@ class ParentsContoller extends Controller
                 'can_start_school' => $mustPayAmount <= 0,
                 'payment_status' => 'Pending'
             ]);
+            $isNew = true;
         } else {
             $payment->update([
                 'amount_required' => $totalRequired,
@@ -3232,8 +3300,10 @@ class ParentsContoller extends Controller
             ]);
         }
 
-        // Send SMS
-        $this->sendControlNumberSMS($payment, $student, $schoolID);
+        // SMS only when a new control number is created (not on repeat taps).
+        if ($isNew) {
+            $this->sendControlNumberSMS($payment, $student, $schoolID);
+        }
 
         return $payment->control_number;
     }
@@ -3337,38 +3407,15 @@ class ParentsContoller extends Controller
             ->with(['subclass.class'])
             ->get();
 
-        // Get available years from payments
-        $availableYears = Payment::whereIn('studentID', $students->pluck('studentID'))
-            ->where('schoolID', $schoolID)
-            ->selectRaw('YEAR(created_at) as year')
-            ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year')
-            ->toArray();
-
-        // Get current year
-        $currentYear = date('Y');
-
-        // Add current year if not in list
-        if (!in_array($currentYear, $availableYears)) {
-            $availableYears[] = $currentYear;
-        }
-
-        // Add past years (last 10 years) to show historical data option
-        for ($i = 1; $i <= 10; $i++) {
-            $pastYear = $currentYear - $i;
-            if (!in_array($pastYear, $availableYears)) {
-                $availableYears[] = $pastYear;
-            }
-        }
-
-        // Sort years in descending order (newest first)
-        rsort($availableYears);
+        // Period choices = academic-year cards (same as results), not calendar years
+        $period = $this->feesSummaryPeriod((int) $schoolID, request()->input('academic_yearID'), request()->input('year'));
+        $academicYears = $period['options'];
+        $selectedAcademicYearID = $period['selected']['academic_yearID'] ?? null;
 
         // Get school details
         $school = School::where('schoolID', $schoolID)->first();
 
-        return view('Parents.feesSummary', compact('parent', 'students', 'school', 'availableYears', 'currentYear'));
+        return view('Parents.feesSummary', compact('parent', 'students', 'school', 'academicYears', 'selectedAcademicYearID'));
     }
 
     /**
@@ -3385,7 +3432,7 @@ class ParentsContoller extends Controller
         }
 
         try {
-            $year = $request->input('year', date('Y'));
+            $period = $this->feesSummaryPeriod((int) $schoolID, $request->input('academic_yearID'), $request->input('year'));
 
             // Get all students of this parent with subclass and class relationships
             $students = Student::where('parentID', $parentID)
@@ -3393,8 +3440,8 @@ class ParentsContoller extends Controller
                 ->where('status', 'Active')
                 ->with([
                     'subclass.class',
-                    'payments' => function($q) use ($year) {
-                        $q->whereYear('created_at', $year);
+                    'payments' => function($q) use ($period) {
+                        $this->applyFeesPeriodFilter($q, $period['selected']);
                     }
                 ])
                 ->get();
@@ -3851,8 +3898,6 @@ class ParentsContoller extends Controller
             // Get parameters
             $parentID = $request->input('parentID');
             $schoolID = $request->input('schoolID');
-            $yearFilter = $request->input('year', date('Y'));
-
             // Validate required parameters
             if (!$parentID || !$schoolID) {
                 return response()->json([
@@ -3873,32 +3918,20 @@ class ParentsContoller extends Controller
                 ], 404);
             }
 
+            // Academic-year cards (same list as the web/results), selected card = filter
+            $period = $this->feesSummaryPeriod((int) $schoolID, $request->input('academic_yearID'), $request->input('year'));
+
             // Get all students of this parent with subclass and class relationships
             $students = Student::where('parentID', $parentID)
                 ->where('schoolID', $schoolID)
                 ->where('status', 'Active')
                 ->with([
                     'subclass.class',
-                    'payments' => function($q) use ($yearFilter) {
-                        $q->whereYear('created_at', $yearFilter);
+                    'payments' => function($q) use ($period) {
+                        $this->applyFeesPeriodFilter($q, $period['selected']);
                     }
                 ])
                 ->get();
-
-            // Get available years from payments
-            $availableYears = Payment::whereIn('studentID', $students->pluck('studentID'))
-                ->where('schoolID', $schoolID)
-                ->selectRaw('YEAR(created_at) as year')
-                ->distinct()
-                ->orderBy('year', 'desc')
-                ->pluck('year')
-                ->toArray();
-
-            $currentYear = date('Y');
-            if (!in_array($currentYear, $availableYears)) {
-                $availableYears[] = $currentYear;
-            }
-            rsort($availableYears);
 
             // Get school details
             $school = School::where('schoolID', $schoolID)->first();
@@ -4061,9 +4094,11 @@ class ParentsContoller extends Controller
                         'schoolID' => $school->schoolID ?? null,
                         'school_name' => $school->school_name ?? '',
                     ],
-                    'years' => $availableYears,
+                    'academic_years' => $period['options'],
                     'filters' => [
-                        'year' => $yearFilter,
+                        'academic_yearID' => $period['selected']['academic_yearID'] ?? null,
+                        'year' => $period['selected']['calendar_year'] ?? null,
+                        'label' => $period['selected']['label'] ?? null,
                     ],
                     'summary' => $summary,
                 ]
@@ -4676,7 +4711,54 @@ class ParentsContoller extends Controller
     /**
      * Academic years for parent results wizard - same source as header selector.
      */
-    private function parentAcademicYearContext(int $schoolID): array
+    /**
+     * Academic-year picker data — same source the parent web results wizard uses.
+     * For secondary dual schools, pass $studentID to keep only that child's O/A years
+     * (exactly what the website shows after the parent picks a child).
+     */
+    /**
+     * Fee-summary periods are the same academic-year cards the parent sees elsewhere
+     * (one entry per academic year), not calendar years derived from payment dates.
+     *
+     * @return array{options: array, selected: ?array}
+     */
+    private function feesSummaryPeriod(int $schoolID, $academicYearID = null, $calendarYear = null): array
+    {
+        $options = $this->parentAcademicYearContext($schoolID)['options'];
+
+        if (!empty($academicYearID)) {
+            $selected = collect($options)->firstWhere('academic_yearID', (int) $academicYearID);
+        } elseif (!empty($calendarYear)) {
+            $selected = collect($options)->firstWhere('calendar_year', (int) $calendarYear);
+        } else {
+            $selected = collect($options)->firstWhere('is_selected', true) ?? ($options[0] ?? null);
+        }
+
+        return ['options' => $options, 'selected' => $selected];
+    }
+
+    /**
+     * Restrict payments to one fee-summary period.
+     * Payments carry academic_yearID; legacy rows without it fall back to the card's calendar year.
+     */
+    private function applyFeesPeriodFilter($query, ?array $selected)
+    {
+        if (!$selected) {
+            return $query->whereYear('created_at', (int) date('Y'));
+        }
+
+        $academicYearID = (int) $selected['academic_yearID'];
+        $calendarYear = (int) $selected['calendar_year'];
+
+        return $query->where(function ($q) use ($academicYearID, $calendarYear) {
+            $q->where('academic_yearID', $academicYearID)
+                ->orWhere(function ($q2) use ($calendarYear) {
+                    $q2->whereNull('academic_yearID')->whereYear('created_at', $calendarYear);
+                });
+        });
+    }
+
+    private function parentAcademicYearContext(int $schoolID, ?int $studentID = null, ?bool $forceALevel = null): array
     {
         $yearService = app(SelectedAcademicYearService::class);
         $ctx = $yearService->headerContext($schoolID);
@@ -4685,6 +4767,7 @@ class ParentsContoller extends Controller
         if ($mode === 'primary') {
             $pool = collect($ctx['years'] ?? []);
         } elseif ($mode === 'secondary_o_only') {
+            // O-only: slash year names are calendars, not A-Level tracks (same as header service).
             $pool = collect($ctx['o_level_years'] ?? $ctx['years'] ?? []);
         } elseif ($mode === 'secondary_dual') {
             $pool = collect($ctx['o_level_years'] ?? [])->concat($ctx['a_level_years'] ?? []);
@@ -4692,34 +4775,51 @@ class ParentsContoller extends Controller
             $pool = collect($ctx['years'] ?? []);
         }
 
+        $filterALevel = $forceALevel;
+        if ($filterALevel === null && $studentID && $mode === 'secondary_dual') {
+            $student = Student::with('subclass.class')->where('studentID', $studentID)->first();
+            $className = $student->subclass->class->class_name ?? '';
+            $filterALevel = $yearService->isALevelClassName($className);
+        }
+
         $selectedIds = array_values(array_filter(array_map('intval', $ctx['selected_year_ids'] ?? [])));
         $options = [];
-        $calendarYears = [];
-        $labels = [];
+        $seenIds = [];
 
-        foreach ($pool->unique('academic_yearID') as $y) {
+        foreach ($pool as $y) {
             $id = (int) $y->academic_yearID;
-            $cals = $this->extractCalendarYearsFromAcademicYear($y);
-            $isA = $yearService->isALevelYear($y);
-            $baseLabel = $y->year_name ?: $y->year;
-            $label = $baseLabel;
-            if ($mode === 'secondary_dual') {
-                $label = ($isA ? 'A: ' : 'O: ') . $baseLabel;
+            if ($id < 1 || isset($seenIds[$id])) {
+                continue;
             }
+            $seenIds[$id] = true;
+
+            // Only dual schools treat slash year names as A-Level tracks.
+            $isA = $mode === 'secondary_dual' && $yearService->isALevelYear($y);
+            if ($filterALevel !== null && $isA !== $filterALevel) {
+                continue;
+            }
+
+            $cals = $this->extractCalendarYearsFromAcademicYear($y);
+            $baseLabel = trim((string) ($y->year_name ?: $y->year));
+            if ($baseLabel === '') {
+                $baseLabel = (string) ($cals[0] ?? date('Y'));
+            }
+            // Web dual picker shows short_label after the student is chosen (O/A already implied).
+            $label = $mode === 'secondary_dual' && $filterALevel === null
+                ? (($isA ? 'A: ' : 'O: ').$baseLabel)
+                : $baseLabel;
+
             $options[] = [
                 'academic_yearID' => $id,
                 'label' => $label,
                 'short_label' => $baseLabel,
-                'calendar_years' => $cals,
                 'calendar_year' => $cals[0] ?? (int) ($y->year ?: date('Y')),
                 'is_selected' => in_array($id, $selectedIds, true),
                 'is_a_level' => $isA,
             ];
-            foreach ($cals as $c) {
-                $calendarYears[] = $c;
-            }
         }
 
+        $labels = [];
         foreach ($selectedIds as $sid) {
             $opt = collect($options)->firstWhere('academic_yearID', $sid);
             if ($opt) {
@@ -4727,13 +4827,19 @@ class ParentsContoller extends Controller
             }
         }
 
-        $calendarYears = array_values(array_unique(array_filter($calendarYears)));
+        // One calendar value per option — same cards the web shows (no slash expansion duplicates).
+        $calendarYears = array_values(array_unique(array_filter(array_map(
+            fn ($opt) => (int) ($opt['calendar_year'] ?? 0),
+            $options
+        ))));
 
         return [
             'mode' => $mode,
-            'options' => $options,
+            'options' => array_values($options),
             'selected_ids' => $selectedIds,
             'calendar_years' => $calendarYears,
+            'filtered_by_student' => $studentID ? true : false,
+            'student_is_a_level' => $filterALevel,
             'label' => !empty($labels)
                 ? implode(' / ', $labels)
                 : (!empty($options) ? $options[0]['label'] : ('Year ' . date('Y'))),
@@ -4793,11 +4899,13 @@ class ParentsContoller extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
+        $notifLimit = max(50, min(200, (int) request()->input('limit', 100)));
+
         $resultItems = ParentResultNotification::with(['student', 'examination'])
             ->where('schoolID', $schoolID)
             ->where('parentID', $parentID)
             ->orderByDesc('created_at')
-            ->limit(20)
+            ->limit($notifLimit)
             ->get()
             ->map(function (ParentResultNotification $n) {
                 $studentName = trim(
@@ -4833,6 +4941,7 @@ class ParentsContoller extends Controller
                     'message' => $message,
                     'icon' => $icon,
                     'url' => $url,
+                    'screen' => $isReport ? 'reports' : 'results',
                     'student_name' => $studentName,
                 ];
             });
@@ -4844,7 +4953,7 @@ class ParentsContoller extends Controller
             ->where('schoolID', $schoolID)
             ->where('parentID', $parentID)
             ->orderByDesc('created_at')
-            ->limit(20)
+            ->limit($notifLimit)
             ->get()
             ->map(function (ParentHomePackageNotification $n) {
                 $p = $n->homePackage;
@@ -4876,8 +4985,9 @@ class ParentsContoller extends Controller
                     'holiday_name' => $holiday ?: '-',
                     'original_filename' => $p->original_filename ?? null,
                     'file_kind' => $fileKind,
-                    'view_url' => $p ? route('home_packages.view', $p->home_packageID) : null,
-                    'download_url' => $p ? route('home_packages.download', $p->home_packageID) : null,
+                    'screen' => 'home_packages',
+                    'view_url' => $p ? MobileApi::packageViewUrl((int) $p->home_packageID) : null,
+                    'download_url' => $p ? MobileApi::packageDownloadUrl((int) $p->home_packageID) : null,
                     'level_label' => $p ? $p->levelLabel() : '-',
                 ];
             });
@@ -4891,7 +5001,7 @@ class ParentsContoller extends Controller
                 ->where('schoolID', $schoolID)
                 ->where('parentID', $parentID)
                 ->orderByDesc('created_at')
-                ->limit(20)
+                ->limit($notifLimit)
                 ->get()
                 ->map(function (ParentSubjectNoteNotification $n) {
                     $note = $n->note;
@@ -4913,18 +5023,19 @@ class ParentsContoller extends Controller
                             . ($studentName ? "\n".$studentName : ''),
                         'icon' => $isPaper ? 'bx-file' : 'bx-note',
                         'url' => $isPaper ? route('parentPastPapers') : route('parentNotes'),
+                        'screen' => $isPaper ? 'past_papers' : 'notes',
                         'subject_name' => $subject,
                         'note_title' => $title,
                         'student_name' => $studentName,
-                        'view_url' => $note ? route('subject_notes.view', $note->noteID) : null,
-                        'download_url' => $note ? route('subject_notes.download', $note->noteID) : null,
+                        'view_url' => $note ? MobileApi::noteViewUrl((int) $note->noteID) : null,
+                        'download_url' => $note ? MobileApi::noteDownloadUrl((int) $note->noteID) : null,
                     ];
                 });
         }
 
         $merged = $resultItems->concat($hpItems)->concat($noteItems)
             ->sortByDesc('created_at_raw')
-            ->take(30)
+            ->take($notifLimit)
             ->values()
             ->map(function ($row) {
                 unset($row['created_at_raw']);
@@ -5042,5 +5153,20 @@ class ParentsContoller extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    public function mobileAcademicYearContext(int $schoolID, ?int $studentID = null, ?bool $forceALevel = null): array
+    {
+        return $this->parentAcademicYearContext($schoolID, $studentID, $forceALevel);
+    }
+
+    public function mobileAttendanceCalendar(int $studentID, int $schoolID, int $year, int $month): array
+    {
+        return $this->buildParentAttendanceMonthCalendar($studentID, $schoolID, $year, $month);
+    }
+
+    public function mobileFingerprintCalendar(int $studentID, int $schoolID, int $year, int $month): array
+    {
+        return $this->buildParentFingerprintMonthCalendar($studentID, $schoolID, $year, $month);
     }
 }
